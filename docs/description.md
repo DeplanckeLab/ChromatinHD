@@ -68,7 +68,7 @@ In particular because in TF-seq we are considering looking at the earliest time 
 
 
 ## Technology: what?
-![image.png](attachment:38c8cb4c-d014-45d5-94cb-1e6388d32f00.png)
+![image.png](atac_seq.png)
 
 
 It's paired end, see for reasons: https://informatics.fas.harvard.edu/atac-seq-guidelines.html#:~:text=For%20ATAC%2Dseq%2C%20we%20recommend,less%20accessible%20to%20the%20assay.
