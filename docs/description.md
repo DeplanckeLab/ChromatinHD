@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.3'
-      jupytext_version: 1.13.1
+      jupytext_version: 1.14.1
   kernelspec:
     display_name: Python 3 (ipykernel)
     language: python
@@ -122,7 +122,19 @@ $$
 ### $X\rightarrow Z$
 
 
+fragments [fragment]
 
+f($\theta_1$)
+
+fragment embedding [fragment, comp]
+
+f($\theta_2$), pooling per cell
+
+locus embedding [cell, locus, comp]
+
+f($\theta_3$), inclusion of gene information
+
+gene expression [cell, gene]
 
 
 ### Biology: why?
