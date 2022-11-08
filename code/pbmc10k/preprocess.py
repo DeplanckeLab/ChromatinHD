@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.1
+#       jupytext_version: 1.13.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -25,6 +25,8 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+plt.rcParams.update({'font.size': 12, 'figure.constrained_layout.use':True, 'pdf.fonttype':42, 'ps.fonttype':42})
+# %config InlineBackend.figure_format = 'retina'
 
 import seaborn as sns
 sns.set_style('ticks')
@@ -32,68 +34,80 @@ sns.set_style('ticks')
 import torch
 
 import pickle
+import dill
 
 import scanpy as sc
 
 # %%
-import peakfreeatac as pfa
 
 # %%
-folder_root = pfa.get_output()
-folder_data = folder_root / "data"
-folder_data_preproc = folder_data / "pbmc10kgran"
-folder_data_preproc.mkdir(exist_ok = True, parents = True)
+root = peakcheck
+
+# %%
+root = laf.get_git_root()
+project_root = root / "output"
+laf.set_project_root(project_root)
+
+# %%
+flow_data = laf.Flow("data")
+
+# %%
+flow_data_preproc = transcriptome = flow_data.get_flow("pbmc10kgran")
 
 # %% [markdown]
-# # Download
+# ### Download
 
 # %% [markdown]
 # https://support.10xgenomics.com/single-cell-atac/software/pipelines/latest/algorithms/overview
 
 # %%
-# # !wget https://cf.10xgenomics.com/samples/cell-arc/1.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_analysis.tar.gz -O {folder_data_preproc}/analysis.tar.gz
-# # !tar -xvf {folder_data_preproc}/analysis.tar.gz
+# !wget https://cf.10xgenomics.com/samples/cell-arc/1.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_analysis.tar.gz -O {flow_data_preproc.path}/analysis.tar.gz
 
 # %%
-# ! wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_filtered_feature_bc_matrix.h5 -O {folder_data_preproc}/filtered_feature_bc_matrix.h5
+# !tar -xvf {flow_data_preproc.path}/analysis.tar.gz
 
 # %%
-# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_fragments.tsv.gz -O {folder_data_preproc}/atac_fragments.tsv.gz
+# # ! wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k_filtered_feature_bc_matrix.h5 -P {flow_data_preproc.path}
+# ! wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_filtered_feature_bc_matrix.h5 -O {flow_data_preproc.path}/filtered_feature_bc_matrix.h5
 
 # %%
-# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_fragments.tsv.gz.tbi -O {folder_data_preproc}/atac_fragments.tsv.gz.tbi
+# # !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k_atac_fragments.tsv.gz -O {flow_data_preproc.path}/atac_fragments.tsv
+# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_fragments.tsv.gz -O {flow_data_preproc.path}/atac_fragments.tsv.gz
 
 # %%
-# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_peaks.bed -O {folder_data_preproc}/atac_peaks.bed
+# # !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k_atac_fragments.tsv.gz.tbi -O {flow_data_preproc.path}/atac_fragments.tsv.gz.tbi
+# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_fragments.tsv.gz.tbi -O {flow_data_preproc.path}/atac_fragments.tsv.gz.tbi
 
 # %%
-# !cat {folder_data_preproc}/atac_peaks.bed | sed '/^#/d' > {folder_data_preproc}/peaks.tsv
+# # !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k_atac_peaks.bed -O {flow_data_preproc.path}/atac_peaks.bed
+# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_peaks.bed -O {flow_data_preproc.path}/atac_peaks.bed
 
 # %%
-# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_peak_annotation.tsv -O {folder_data_preproc}/peak_annot.tsv
+# !cat {flow_data_preproc.path}/atac_peaks.bed | sed '/^#/d' > {flow_data_preproc.path}/peaks.tsv
 
 # %%
-# !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {folder_data_preproc}/genes.gff.gz
+# # !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k_atac_peak_annotation.tsv -O {flow_data_preproc.path}/peak_annot.tsv
+# !wget https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k_atac_peak_annotation.tsv -O {flow_data_preproc.path}/peak_annot.tsv
 
 # %%
-# !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "gene"' > {folder_data_preproc}/genes.gff
+# !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {flow_data_preproc.path}/genes.gff.gz
+
+# %%
+# !zcat {flow_data_preproc.path}/genes.gff.gz | grep -vE "^#" | awk '$3 == "gene"' > {flow_data_preproc.path}/genes.gff
 
 # %%
 # !wget https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/fetchChromSizes
 
 # %%
-# !wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
+# !wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes -O  {flow_data_preproc.path}/chromosome.sizes
 
 # %%
-gff = pd.read_table(folder_data_preproc / "genes.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
+gff = pd.read_table(flow_data_preproc.path/ "genes.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
 gff["chr"] = "chr" + gff["chr"]
 gff["gene"] = gff["info"].str.split(";").str[1].str[5:]
 
 # %%
 import pybedtools
-
-# %%
-gff.query("gene == 'PCNA'")
 
 # %%
 genewindows = gff.copy()
@@ -104,7 +118,10 @@ genewindows["end"] = genewindows["end"] + 20000
 genewindows_bed = pybedtools.BedTool.from_dataframe(genewindows[["chr", "start", "end", "strand", "gene"]])
 
 # %%
-peaks = pybedtools.BedTool(folder_data_preproc/"atac_peaks.bed")
+peaks = pybedtools.BedTool(flow_data_preproc.path/"atac_peaks.bed")
+
+# %%
+flow_data_preproc.gene_peak_links["peak"].isin(accessibility.adata.var.index).sum()
 
 # %%
 intersect = genewindows_bed.intersect(peaks, wo = True)
@@ -118,19 +135,37 @@ gene_peak_links = intersect[["score", "peak_id"]].copy()
 gene_peak_links.columns = ["gene", "peak"]
 
 # %%
-gene_peak_links.to_csv(folder_data_preproc / "gene_peak_links_20k.csv")
+flow_data_preproc.gene_peak_links = gene_peak_links
+
+# %%
+accessibility.adata.var.index[accessibility.adata.var.index.str.startswith("chr1:")]
+
+# %%
+flow_data_preproc.peak_annot.query("start == 904341")
+
+# %%
+intersect
+
+# %%
+flow_data_preproc.gene_peak_links["peak"]
+
+# %%
+flow_data_preproc.gene_peak_links["peak"]
+
+# %%
+flow_data_preproc.gene_peak_links["peak"].isin(accessibility.adata.var.index.tolist()).mean()
+
+# %%
+# # !zcat {flow_data_preproc.path}/atac_fragments.tsv.gz | head -n 100
+
+# %%
+flow_data_preproc.peak_annot = laf.objects.DataFrame()
 
 # %% [markdown]
-# ## Transcriptome
+# ### Load expression
 
 # %%
-import peakfreeatac.transcriptome
-
-# %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc)
-
-# %%
-adata = sc.read_10x_h5(transcriptome.path / "filtered_feature_bc_matrix.h5")
+adata = sc.read_10x_h5(flow_data_preproc.path / "filtered_feature_bc_matrix.h5")
 
 # %%
 adata.var_names_make_unique()
@@ -157,12 +192,11 @@ sc.tl.umap(adata)
 sc.pl.umap(adata, color = ["PTPRC", "CD3E", "CD9", "MERTK", "ANPEP", "FCGR3A"])
 
 # %%
-transcriptome.adata = adata
-transcriptome.var = adata.var
-transcriptome.obs = adata.obs
+flow_data_preproc.adata = adata
 
 # %%
-adata.var.query("dispersions_norm > 0.5").index.to_series().to_json((folder_data_preproc/"variable_genes.json").open("w"))
+flow_data_preproc.variable_gene_ids = flow_data_preproc.adata.var.query("dispersions_norm > 0.5").index
+print(len(flow_data_preproc.variable_gene_ids))
 
 # %% [markdown]
 # ## Fragment distribution
@@ -172,7 +206,7 @@ import gzip
 
 # %%
 sizes = []
-with gzip.GzipFile(folder_data_preproc / "atac_fragments.tsv.gz", "r") as fragment_file:
+with gzip.GzipFile(flow_data_preproc.path / "atac_fragments.tsv.gz", "r") as fragment_file:
     i = 0
     for line in fragment_file:
         line = line.decode("utf-8")
@@ -188,33 +222,95 @@ with gzip.GzipFile(folder_data_preproc / "atac_fragments.tsv.gz", "r") as fragme
 sizes = np.array(sizes)
 
 # %%
-np.isnan(sizes).sum()
+fig, ax = plt.subplots()
+sns.histplot(sizes)
+ax.set_xlim(0, 1000)
+
+# %% [markdown]
+# ## Create peaks
 
 # %%
-fig, ax = plt.subplots()
-ax.hist(sizes, range = (0, 1000), bins = 100)
-ax.set_xlim(0, 1000)
+import sys
+if str(laf.get_git_root() / "package") not in sys.path:
+    sys.path.append(str(laf.get_git_root() / "package"))
+
+# %%
+import peakcheck
+
+# %%
+flow_accessibilities = laf.Flow("accessibilities")
+
+# %%
+flow_data_preproc.peak_annot.query("gene == 'RELA'")
+
+# %%
+# accessibility = peakcheck.accessibility.FullPeak(
+accessibility = peakcheck.accessibility.HalfPeak(
+# accessibility = peakcheck.accessibility.BroaderPeak(
+# accessibility = peakcheck.accessibility.FragmentPeak(
+    flow = flow_accessibilities / flow_data_preproc.name,
+    reset = True
+)
+
+# %%
+accessibility.create_peaks(flow_data_preproc.peak_annot, flow_data_preproc.variable_gene_ids)
+
+# %%
+accessibility.count_peaks(flow_data_preproc.path / "atac_fragments.tsv.gz", flow_data_preproc.adata.obs.index)
+
+# %%
+sns.histplot(np.log10(np.array(accessibility.counts.sum(0))[0]))
+
+# %%
+sns.histplot(np.log10(np.array(accessibility.counts.sum(1))[:, 0]))
+
+# %%
+accessibility.create_adata(flow_data_preproc.adata)
+
+# %% [markdown]
+# ## Load peaks
+
+# %%
+transcriptome.adata.var.sort_values("dispersions_norm")
+
+# %%
+# gene = "IGHE"
+gene = "CD3D"
+# gene = "IGHD"
+# gene = "PTPRC"
+# gene = "AL136456.1"
+# gene = "RALGPS2"
+# gene = "ANGPTL1"
+# gene = "CD247"
+# gene = "NVL"
+# gene = "PRF1"
+# gene = "IGHA1"
+
+# %%
+sc.pl.umap(flow_data_preproc.adata, color = [gene])
+
+# %%
+peaks_oi = accessibility.var.query("gene == @gene").index
+peaks_oi = accessibility.var.index[accessibility.var["original_peak"].isin(flow_data_preproc.gene_peak_links.query("gene == @gene")["peak"].tolist())]
+
+# %%
+sc.pl.umap(accessibility.adata, color = peaks_oi[:10])
+# sc.pl.umap(accessibility.adata, color = peak_ids[:10])
 
 # %% [markdown]
 # ## Prediction
 
 # %%
-folder_prediction = folder_root / "prediction"
-
-# %%
-import peakfreeatac.prediction
-
-# %%
-prediction = pfa.prediction.GenePrediction(
-    folder_prediction / "geneprediction",
-    transcriptome = transcriptome,
-    accessibility = accessibility
-)
-# prediction = peakcheck.prediction.OriginalPeakPrediction(
+# prediction = peakcheck.prediction.GenePrediction(
 #     flow = "prediction" / accessibility.path.relative_to(laf.Flow("accessibilities").path),
 #     transcriptome = flow_data_preproc,
 #     accessibility = accessibility
 # )
+prediction = peakcheck.prediction.OriginalPeakPrediction(
+    flow = "prediction" / accessibility.path.relative_to(laf.Flow("accessibilities").path),
+    transcriptome = flow_data_preproc,
+    accessibility = accessibility
+)
 
 # %%
 prediction.score()
@@ -603,7 +699,7 @@ tabix_location = peakcheck.accessibility.tabix_location
 import tqdm
 
 # %%
-fragments_location = folder_data_preproc / "atac_fragments.tsv.gz"
+fragments_location = flow_data_preproc.path / "atac_fragments.tsv.gz"
 
 # %%
 import math

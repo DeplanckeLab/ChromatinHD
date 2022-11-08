@@ -1,5 +1,3 @@
-import laflow as laf
-
 import numpy as np
 import pandas as pd
 
@@ -8,6 +6,10 @@ import scanpy as sc
 import xgboost as xgb
 
 import tqdm.auto as tqdm
+
+import dataclasses
+import pathlib
+import typing
 
 
 def split(n, seed=1, train_ratio=0.8):
@@ -21,16 +23,17 @@ def cal_mse(y, predicted):
     mse = np.sqrt(((predicted - y) ** 2).mean())
     return mse
 
+@dataclasses.dataclass
+class GenePrediction():
+    path:pathlib.Path
 
-class GenePrediction(laf.Flow):
-    default_name = "geneprediction"
+    transcriptome:'typing.Any'
+    accessibility :'typing.Any'
+    genes:pd.Series
 
-    transcriptome = laf.FlowObj()
-    accessibility = laf.FlowObj()
-
-    def score(self):
-        X_transcriptome = self.transcriptome.adata.X.tocsc().todense()
-        X_accessibility = self.accessibility.adata.X.tocsc().todense()
+    def score(self, genes = None):
+        X_transcriptome = self.transcriptome.adata.X.tocsc()
+        X_accessibility = self.accessibility.adata.X.tocsc()
 
         var_transcriptome = self.transcriptome.adata.var
         var_transcriptome["ix"] = np.arange(var_transcriptome.shape[0])
@@ -39,14 +42,18 @@ class GenePrediction(laf.Flow):
         var_accessibility["ix"] = np.arange(var_accessibility.shape[0])
 
         def extract_data(gene_oi, peaks_oi):
-            x = np.array(X_accessibility[:, peaks_oi["ix"]])
-            y = np.array(X_transcriptome[:, gene_oi["ix"]])[:, 0]
+            x = np.array(X_accessibility[:, peaks_oi["ix"]].todense())
+            y = np.array(X_transcriptome[:, gene_oi["ix"]].todense())[:, 0]
             return x, y
 
-        genes = var_accessibility["gene"].unique()
+        if self.genes is None:
+            genes = var_accessibility["gene"].unique()
+            genes = genes[~pd.isnull(genes)]
+        else:
+            genes = self.genes
 
         def create_regressor():
-            regressor = xgb.XGBRegressor()
+            regressor = xgb.XGBRegressor(n_estimators = 100)
             # regressor = lgb.LGBMRegressor()
             # import sklearn.linear_model
             # regressor = sklearn.linear_model.LinearRegression()
@@ -64,9 +71,14 @@ class GenePrediction(laf.Flow):
 
             for i in range(1):
                 train_ix, test_ix = split(x.shape[0], seed=i)
-                regressor.fit(x[train_ix], y[train_ix])
 
-                predicted = regressor.predict(x)
+                # if no peaks detected, simply predict mean
+                if len(peaks_oi) == 0:
+                    predicted = np.repeat(y[train_ix].mean(), len(train_ix))
+                else:
+                    regressor.fit(x[train_ix], y[train_ix])
+                    predicted = regressor.predict(x)
+
                 mse_train = cal_mse(y[train_ix], predicted[train_ix])
                 mse_test = cal_mse(y[test_ix], predicted[test_ix])
                 mse_test_mean = cal_mse(y[test_ix], y[test_ix].mean())
@@ -87,16 +99,21 @@ class GenePrediction(laf.Flow):
         scores["mse_test_ratio"] = scores["mse_test"] / scores["mse_test_mean"]
         scores["mse_train_ratio"] = scores["mse_train"] / scores["mse_train_mean"]
 
-        self.store("scores", scores)
+        self.scores = scores
+
+    _scores = None
+    @property
+    def scores(self):
+        if self._scores is None:
+            self._scores = pd.read_table(self.path / "scores.tsv", index_col = 0)
+        return self._scores
+    @scores.setter
+    def scores(self, value):
+        value.to_csv(self.path / "scores.tsv", sep = "\t")
 
 
-
-
-class OriginalPeakPrediction(laf.Flow):
+class OriginalPeakPrediction():
     default_name = "originalpeakprediction"
-
-    transcriptome = laf.FlowObj()
-    accessibility = laf.FlowObj()
 
     def score(self):
         X_transcriptome = self.transcriptome.adata.X.tocsc().todense()
