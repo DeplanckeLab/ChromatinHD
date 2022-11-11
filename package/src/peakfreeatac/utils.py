@@ -16,3 +16,7 @@ def get_git_root(cwd=None):
 
 def get_output():
     return get_git_root() / "output"
+
+
+def name_window(window_info):
+    return window_info["chrom" if "chrom" in window_info.index else "chr"] + ":" + str(window_info["start"]) + "-" + str(window_info["end"])
