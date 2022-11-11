@@ -137,4 +137,24 @@ f($\theta_3$), inclusion of gene information
 gene expression [cell, gene]
 
 
-### Biology: why?
+## Biology: why?
+
+
+Some positive controls
+
+
+### Pausing at 50 bp
+
+
+The polymerase often pauses at 50bp, waiting for some methylation according to Guido.
+Julia Zeitlinger is working on this (https://www.stowers.org/scientists/julia-zeitlinger)
+This pausing should be visibile with ATAC, but should be negatively correlated with expression.
+
+Check out: https://www.nature.com/articles/ng.3867
+
+This is a nice example of "distance-based" information.
+However, how sure are we of the TSS? Could we include knowledge of multiple possible TSS somehow?
+
+```python
+
+```
