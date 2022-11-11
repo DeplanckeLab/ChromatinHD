@@ -50,8 +50,8 @@ folder_data_preproc = folder_data / "lymphoma"
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
 
 # %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc)
-fragments = peakfreeatac.fragments.Fragments(pathlib.Path("./"))
+transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
+fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments")
 
 # %%
 # # !pip install torch==1.12.1 --force-reinstall --extra-index-url https://download.pytorch.org/whl/cu113

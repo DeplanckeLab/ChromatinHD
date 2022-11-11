@@ -3,6 +3,7 @@ import pandas as pd
 import pickle
 
 from peakfreeatac.flow import Flow
+from peakfreeatac import sparse
 
 class Transcriptome(Flow):
     @property
@@ -46,8 +47,7 @@ class Transcriptome(Flow):
 
     def create_X(self):
         X_scipy = self.adata.X
-        import latenta as la
-        X = la.sparse.COOMatrix.from_scipy_csr(X_scipy)
+        X = sparse.COOMatrix.from_scipy_csr(X_scipy)
         X.populate_mapping()
 
         self.X = X
