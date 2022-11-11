@@ -46,7 +46,22 @@ There is some literature that discusses how promoter architecture influences the
 - https://www.biorxiv.org/content/10.1101/2021.10.29.466407v2.full.pdf
 
 
-Why do we actually aggregate over peaks? It's historical...
+Guido suggested that the Signac authors found that using the whole gene body has better predictive ability than using promoter(?)
+
+
+Some discussion on fragment length information content [here](https://seandavi.github.io/AtacSeqWorkshop/articles/Workflow.html#fragment-lengths)
+> Finally, we expect nucleosome-free reads to be enriched near the TSS while mononucleosome reads should not be. We will use the heatmaps package to take a look at these two sets of reads with respect to the tss of the human genome.  
+> Enrichment of nucleosome free reads just upstream of the TSS.  
+> Depletion of nucleosome free reads just upstream of the TSS.
+
+
+No real discussion in the [*pioneering* SHARE-seq paper](https://www.sciencedirect.com/science/article/pii/S0092867420312538#!)
+
+
+### Why do we aggregate over peaks?
+
+
+It's historical...
 - From bulk
   - We've got a couple of samples => power is extremely low! There's not much more that you can detect except "this peak is higher in this condition"
   - However, with single-cell ATAC-seq, there are much more possibilities for mechanistic/biophysical insights
@@ -56,7 +71,7 @@ Why do we actually aggregate over peaks? It's historical...
 - From classical statistics/data analysis
   - Where modeling intervals on sequences is just not easy. Classical data analysis requires matrices
   - But, as was shown for images and sequences, if you create a "gradient-proof" pipeline, you can do anything
-- Based on an assumption
+- Based on a biological assumption
   - There are relatively static open chromatin regions (=enhancers) and these are the units of gene regulation
   - Might be, might not be... Did anyone check this hypothesis?
 
@@ -64,10 +79,15 @@ Why do we actually aggregate over peaks? It's historical...
 
 All in all, it might be worth exploring how a "peak-free" ATAC-seq (and others...) modeling framework would look like.
 
-In particular because in TF-seq we are considering looking at the earliest time points of gene regulation, and how TF binding / open chromatin changes. It would be a shame if we would miss the earliest causal events simply because we aggregate over peaks....
+Just persuing this question, and proving that more information is retained, is already interesting. However, there are also several potential future applications:
+
+- In TF-seq we are considering looking at the earliest time points of gene regulation, and how TF binding / open chromatin changes. It would be a shame if we would miss the earliest causal events simply because we aggregate over peaks....
+- In the VCM team, we are considering generating single-cell ATAC-seq (multiome?) + genotype data. A fragment-based algorithm may pave the way for something like VCM2.0 or PHM2.0
 
 
 ## Technology: what?
+
+
 ![image.png](atac_seq.png)
 
 
@@ -96,45 +116,18 @@ Overall we have three use cases
 The unsupervised learning task is essentially a combination of the two prediction tasks.
 
 
-We could work at the following scales:
-- Base-pair: model whether a base-pair is part of a fragment and in how much(?)
-$$
-\begin{align} 
-P(X_\text{infragment}|\theta) &= P(locus,chr|\theta) \\
-\end{align}
-$$
-- Cut sites: model where cuts are made (regardless of the other cut)
-$$
-\begin{align} 
-P(X_\text{cut}|\theta) &= P(locus,chr|\theta) \\
-\end{align}
-$$
-- Fragments: model the start and end cuts
-$$
-\begin{align} 
-P(X_\text{fragments}|\theta) &= P(start, end,chr|\theta) \\
-&= P(start, end|chr, \theta)P(chr|\theta) \\
-&= P\left(end|start, chr, \theta\right)P(start|chr,\theta)P\left(chr|\theta\right) \\
-\end{align}
-$$
-
-
 ### $X\rightarrow Z$
 
 
-fragments [fragment]
+#### fragments [fragment]
 
-f($\theta_1$)
+$\text{fe}_{[\text{fragment}, \text{component}]} = f_{\theta_1}(\text{fragment})$
 
-fragment embedding [fragment, comp]
+$\text{cge}_{[\text{cell}, \text{gene}, \text{component}]} = f_{\theta_2}(\text{fe})$, pooling per cell per gene
 
-f($\theta_2$), pooling per cell
+$\text{gex} = f_{\theta_2}(cge)$, inclusion of gene information
 
-locus embedding [cell, locus, comp]
-
-f($\theta_3$), inclusion of gene information
-
-gene expression [cell, gene]
+gex [cell, gene]
 
 
 ## Biology: why?
@@ -158,3 +151,17 @@ However, how sure are we of the TSS? Could we include knowledge of multiple poss
 ```python
 
 ```
+
+## Datasets
+
+
+### 10X example datasets
+
+
+https://www.10xgenomics.com/resources/datasets?query=&page=1&configure%5Bfacets%5D%5B0%5D=chemistryVersionAndThroughput&configure%5Bfacets%5D%5B1%5D=pipeline.version&configure%5BhitsPerPage%5D=500&configure%5BmaxValuesPerFacet%5D=1000&menu%5Bproducts.name%5D=Single%20Cell%20Multiome%20ATAC%20%2B%20Gene%20Expression
+
+
+### Public
+
+
+### SHARE-seq https://www.sciencedirect.com/science/article/pii/S0092867420312538
