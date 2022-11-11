@@ -59,13 +59,17 @@ Guido suggested that the Signac authors found that using the whole gene body has
 Some discussion on fragment length information content [here](https://seandavi.github.io/AtacSeqWorkshop/articles/Workflow.html#fragment-lengths)
 > Finally, we expect nucleosome-free reads to be enriched near the TSS while mononucleosome reads should not be. We will use the heatmaps package to take a look at these two sets of reads with respect to the tss of the human genome.  
 > Enrichment of nucleosome free reads just upstream of the TSS.  
-> Depletion of nucleosome free reads just upstream of the TSS.
-> (Buenrostro et al. 2013) ![](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3959825/bin/nihms554473f2.jpg)
+> Depletion of nucleosome free reads just upstream of the TSS.  
+> ![](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3959825/bin/nihms554473f2.jpg)  
+> (Buenrostro et al. 2013)  
 
 Based on this information, isn't it weird that none of the methods can use this?
 
 
 No real discussion in the [*pioneering* SHARE-seq paper ](https://www.sciencedirect.com/science/article/pii/S0092867420312538#!)
+
+
+Some analysis pipelines seem to remove small fragments, not really sure why honestly... https://seandavi.github.io/AtacSeqWorkshop/articles/Workflow.html#data-import-and-quality-control
 
 
 ### Why do we aggregate over peaks?
