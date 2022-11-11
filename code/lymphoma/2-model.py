@@ -39,15 +39,15 @@ import torch
 import tqdm.auto as tqdm
 
 # %%
+import peakfreeatac as pfa
+import peakfreeatac.fragments
+import peakfreeatac.transcriptome
+
+# %%
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 folder_data_preproc = folder_data / "lymphoma"
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
-
-# %%
-import peakfreeatac as pfa
-import peakfreeatac.fragments
-import peakfreeatac.transcriptome
 
 # %%
 transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc)
@@ -235,7 +235,7 @@ mapping_x = fragments.mapping[:, 0] * fragments.n_genes + fragments.mapping[:, 1
 import itertools
 
 # %%
-cell_start_test = fragments.n_cells - 10000
+cell_start_test = fragments.n_cells - 10000 # split train/test cells
 
 # %%
 import dataclasses
@@ -469,6 +469,9 @@ ax2.set_ylabel("Predicted")
 splits = [split.to("cuda") for split in splits]
 
 # %%
+transcriptome_X.shape
+
+# %%
 scores = []
 
 for split in tqdm.tqdm(splits):
@@ -500,6 +503,9 @@ for split in tqdm.tqdm(splits):
         "mse_dummy":float(mse_dummy.detach().cpu().numpy()),
     })
 scores = pd.DataFrame(scores)
+
+# %%
+transcriptome_X.dense_subset(np.array([11900]))
 
 # %% [markdown]
 # ### Global view
@@ -975,9 +981,9 @@ perc_retained_lengths = scores_lengths.groupby(["window_start", "phase"])["perc_
 
 # %%
 fig, ax = plt.subplots()
-ax.plot(mse_lengths.index, mse_lengths["test"])
 ax2 = ax.twinx()
-ax2.plot(perc_retained_lengths.index, -perc_retained_lengths["test"], color = "red")
+ax.plot(mse_lengths.index, mse_lengths["test"])
+ax2.plot(perc_retained_lengths.index, -perc_retained_lengths["test"], color = "#33333344")
 
 # %%
 fig, ax = plt.subplots()
