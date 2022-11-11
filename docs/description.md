@@ -36,6 +36,13 @@ There are "shape-based" differential expression methods, as discussed here (http
 > Shape-based peak callers are not currently used in ATAC-seq, but they utilize read density profile information directly or indirectly and are believed to improve peak calling in ChIP-seq [73]. PICS [74] models fragment positions other than counts and calculate enrichment score for each candidate region. PolyaPeak [75] ranks peaks using statistics describing peak shape. CLC [76] learns a Gaussian filter for peak shape from positive and negative peaks.
 
 
+The Gaussian mixture model is I think the closest method:
+
+![](https://media.springernature.com/lw685/springer-static/image/art%3A10.1186%2Fs13059-020-1929-3/MediaObjects/13059_2020_1929_Fig4_HTML.png?as=webp)
+
+Still, none of these really work for single-cell, and they all needlessly make so many assumptions...
+
+
 There are methods that look at windows of ATAC-seq (and count individual cut sites): https://www.biorxiv.org/content/10.1101/2022.03.16.484118v1 Not really super exciting...
 
 
@@ -53,9 +60,12 @@ Some discussion on fragment length information content [here](https://seandavi.g
 > Finally, we expect nucleosome-free reads to be enriched near the TSS while mononucleosome reads should not be. We will use the heatmaps package to take a look at these two sets of reads with respect to the tss of the human genome.  
 > Enrichment of nucleosome free reads just upstream of the TSS.  
 > Depletion of nucleosome free reads just upstream of the TSS.
+> (Buenrostro et al. 2013) ![](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3959825/bin/nihms554473f2.jpg)
+
+Based on this information, isn't it weird that none of the methods can use this?
 
 
-No real discussion in the [*pioneering* SHARE-seq paper](https://www.sciencedirect.com/science/article/pii/S0092867420312538#!)
+No real discussion in the [*pioneering* SHARE-seq paper ](https://www.sciencedirect.com/science/article/pii/S0092867420312538#!)
 
 
 ### Why do we aggregate over peaks?
@@ -125,9 +135,7 @@ $\text{fe}_{[\text{fragment}, \text{component}]} = f_{\theta_1}(\text{fragment})
 
 $\text{cge}_{[\text{cell}, \text{gene}, \text{component}]} = f_{\theta_2}(\text{fe})$, pooling per cell per gene
 
-$\text{gex} = f_{\theta_2}(cge)$, inclusion of gene information
-
-gex [cell, gene]
+$\text{gex} = f_{\theta_2}(\text{cge})$, inclusion of gene information
 
 
 ## Biology: why?
@@ -145,12 +153,12 @@ This pausing should be visibile with ATAC, but should be negatively correlated w
 
 Check out: https://www.nature.com/articles/ng.3867
 
-This is a nice example of "distance-based" information.
+This is a nice example of distance-based information that could be picked up by the neural network.
 However, how sure are we of the TSS? Could we include knowledge of multiple possible TSS somehow?
 
-```python
 
-```
+How to test whether the neural network picks this up? Removing fragments shortly after the TSS should increase the expression prediction?
+
 
 ## Datasets
 
@@ -165,3 +173,7 @@ https://www.10xgenomics.com/resources/datasets?query=&page=1&configure%5Bfacets%
 
 
 ### SHARE-seq https://www.sciencedirect.com/science/article/pii/S0092867420312538
+
+```python
+
+```

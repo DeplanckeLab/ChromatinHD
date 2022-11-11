@@ -78,6 +78,9 @@ main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphom
 # !wget {main_url}_atac_peak_annotation.tsv -O {folder_data_preproc}/peak_annot.tsv
 
 # %%
+# !wget {main_url}_atac_cut_sites.bigwig -O {folder_data_preproc}/atac_cut_sites.bigwig
+
+# %%
 # !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {folder_data_preproc}/genes.gff.gz
 
 # %%

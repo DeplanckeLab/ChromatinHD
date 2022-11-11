@@ -14,13 +14,17 @@ class Transcriptome(Flow):
         value.index.name = "gene"
         value.to_csv(self.path / "var.tsv", sep = "\t")
 
+    _obs = None
     @property
     def obs(self):
-        return pd.read_table(self.path / "obs.tsv", index_col = 0)
+        if self._obs is None:
+            self._obs = pd.read_table(self.path / "obs.tsv", index_col = 0)
+        return self._obs
     @obs.setter
     def obs(self, value):
         value.index.name = "cell"
         value.to_csv(self.path / "obs.tsv", sep = "\t")
+        self._obs = value
 
     _adata = None
     @property
