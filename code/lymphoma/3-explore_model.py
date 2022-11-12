@@ -381,6 +381,12 @@ import pyBigWig
 bw = pyBigWig.open(str(folder_data_preproc / "atac_cut_sites.bigwig"))
 
 # %%
+# ! pip install macs2
+
+# %%
+# ! pip install macs3
+
+# %%
 fig, (ax_mse, ax_perc, ax_peak, ax_bw) = plt.subplots(4, 1, height_ratios = [1, 0.5, 0.2, 0.2], sharex=True)
 ax_mse2 = ax_mse.twinx()
 
