@@ -5,6 +5,9 @@ import numpy as np
 import dataclasses
 
 class FragmentEmbedder(torch.nn.Sequential):
+    """
+    Embeds individual fragments    
+    """
     def __init__(self, n_virtual_dimensions = 100, n_embedding_dimensions = 100, **kwargs):
         self.n_virtual_dimensions = n_virtual_dimensions
         self.n_embedding_dimensions = n_embedding_dimensions
@@ -23,6 +26,9 @@ class FragmentEmbedder(torch.nn.Sequential):
         return super().forward(coordinates.float()/1000)
     
 class FragmentEmbedderCounter(torch.nn.Sequential):
+    """
+    Dummy embedding of fragments in a single embedding dimension of ones
+    """
     def __init__(self, *args, **kwargs):
         self.n_embedding_dimensions = 1
         super().__init__(*args, **kwargs)
@@ -31,6 +37,9 @@ class FragmentEmbedderCounter(torch.nn.Sequential):
         return torch.ones((*coordinates.shape[:-1], 1), device = coordinates.device, dtype = torch.float)
     
 class EmbeddingGenePooler(torch.nn.Module):
+    """
+    Pools fragments across genes and cells
+    """
     def __init__(self, debug = False):
         self.debug = debug
         super().__init__()
@@ -43,6 +52,9 @@ class EmbeddingGenePooler(torch.nn.Module):
         return cell_gene_embedding
     
 class EmbeddingToExpression(torch.nn.Module):
+    """
+    Predicts gene expression using a [cell, gene, component] embedding in a gene-specific manner
+    """
     def __init__(self, n_genes, mean_gene_expression, n_embedding_dimensions = 100, **kwargs):
         self.n_genes = n_genes
         self.n_embedding_dimensions = n_embedding_dimensions
@@ -62,13 +74,15 @@ class EmbeddingToExpression(torch.nn.Module):
     
 class EmbeddingToExpressionBias(EmbeddingToExpression):
     """
-    Only includes a bias, ignores the cell_gene_embedding
-    Used for testing
+    Dummy method for predicting the gene expression using a [cell, gene, component] embedding, by only including the bias
     """
     def forward(self, cell_gene_embedding, gene_idx):
         return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_idx])
     
 class FragmentsToExpression(torch.nn.Module):
+    """
+    Predicts gene expression from individual fragments
+    """
     def __init__(
         self,
         n_genes,
@@ -110,6 +124,8 @@ class Split():
     cell_end:int
     gene_start:int
     gene_end:int
+    test_cell_cutoff:int
+
     fragments_selected:torch.tensor
     fragments_coordinates:torch.tensor
     fragments_mappings:torch.tensor
@@ -121,39 +137,59 @@ class Split():
     
     cell_n:int
     gene_n:int
-    
-    @property
-    def cell_idx(self):
-        """
-        The cell index within the whole dataset
-        """
-        return slice(self.cell_start, self.cell_end)
+
+    def __init__(self, cell_idx, gene_idx, test_cell_cutoff):
+        self.cell_idx = cell_idx
+        self.gene_idx = gene_idx
+
+        self.test_cell_cutoff = test_cell_cutoff
+
+    def populate(self, fragments):
+        self.cell_start = self.cell_idx.start
+        self.cell_end = self.cell_idx.end
+        self.gene_start = self.gene_idx.start
+        self.gene_end = self.gene_idx.end
+
+        cell_end = min(self.cell_start + self.n_cell_step, fragments.n_cells)
+        gene_end = min(self.gene_start + self.n_gene_step, fragments.n_genes)
+        
+        self.phase = "train" if self.cell_start < self.test_cell_cutoff else "test"
+
+        fragments_selected = torch.where(
+            (fragments.mapping[:, 0] >= self.cell_start) &
+            (fragments.mapping[:, 0] < cell_end) &
+            (fragments.mapping[:, 1] >= self.gene_start) &
+            (fragments.mapping[:, 1] < gene_end)
+        )[0]
+        
+        self.cell_n = cell_end - self.cell_start
+        self.gene_n = gene_end - self.gene_start
+
+        self.fragments_coordinates = fragments.coordinates[fragments_selected]
+        fragments_mappings = fragments.mapping[fragments_selected]
+
+        # we should adapt this if the minibatch cells/genes would ever be non-contiguous
+        self.local_cell_idx = fragments_mappings[:, 0] - self.cell_start
+        self.local_gene_idx = fragments_mappings[:, 1] - self.gene_start
 
     @property
     def cell_idxs(self):
         """
-        The cell index within the whole dataset
+        The cell indices within the whole dataset as a numpy array
         """
         return np.arange(self.cell_start, self.cell_end)
-    
-    @property
-    def gene_idx(self):
-        """
-        The gene index within the whole dataset
-        """
-        return slice(self.gene_start, self.gene_end)
 
     @property
     def gene_idxs(self):
         """
-        The gene index within the whole dataset
+        The gene indices within the whole dataset as a numpy array
         """
         return np.arange(self.gene_start, self.gene_end)
     
     @property
     def fragment_cellxgene_idx(self):
         """
-        The local index of cellxgene
+        The local index of cellxgene, i.e. starting from 0 and going up to n_cells * n_genes - 1
         
         """
         return self.local_cell_idx * self.gene_n + self.local_gene_idx

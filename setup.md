@@ -1,4 +1,4 @@
-Setting up this folder
+Setting up output folder
 ```
 groupadd peak_free_atac
 
@@ -20,8 +20,6 @@ echo 'alias conda_peak_free_atac="conda activate /data/peak_free_atac/software/p
 source ~/.bash_profile
 
 conda_peak_free_atac
-
-conda install pytorch torchvision torchaudio cudatoolkit=11.1 -c pytorch -c conda-forge
 ```
 
 Per user
@@ -31,7 +29,6 @@ source ~/.bash_profile
 
 pip install -e ~/projects/peakcheck/package
 
-ln -s /data/peak_free_atac/setup.md
 ln -s /data/peak_free_atac/output
 ln -s /data/peak_free_atac/software
 ```
