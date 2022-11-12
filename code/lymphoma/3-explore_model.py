@@ -45,7 +45,6 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 folder_data_preproc = folder_data / "lymphoma"
-folder_data_preproc.mkdir(exist_ok = True, parents = True)
 
 # %%
 transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
@@ -122,17 +121,37 @@ for split in tqdm.tqdm(splits):
     expression_prediction.values[split.cell_idx, split.gene_idx] = expression_predicted.cpu().detach().numpy()
 scores = pd.DataFrame(scores)
 
+# %% [markdown]
+# ## Global visual check
+
 # %%
-cells_oi = np.random.choice(expression_prediction.index, size = 100, replace = False)
+cells_oi = np.random.choice(expression_prediction.index, size = 100, replace = False) # only subselect 100 cells
 plotdata = pd.DataFrame({"prediction":expression_prediction.loc[cells_oi].stack()})
 plotdata["observed"] = expression_observed.loc[cells_oi].stack().values
-plotdata = plotdata.loc[(plotdata["observed"] > 0) & (plotdata["prediction"] > 0)]
+
+print(np.corrcoef(plotdata["prediction"], plotdata["observed"])[0, 1])
+
+plotdata = plotdata.loc[(plotdata["observed"] > 0) & (plotdata["prediction"] > 0)] # only take cells with both values > 0
+
+print(np.corrcoef(plotdata["prediction"], plotdata["observed"])[0, 1])
 
 # %%
 plotdata["phase"] = transcriptome.obs["phase"].loc[plotdata.index.get_level_values("cell")].values
 
 # %%
-sns.scatterplot(x = "prediction", y = "observed", hue = "phase", data = plotdata, s = 1)
+fig, (ax_train, ax_validation) = plt.subplots(1, 2)
+
+plotdata_train = plotdata.query("phase == 'train'")
+sns.scatterplot(x = "prediction", y = "observed", color = "blue", data = plotdata_train, s = 1, ax = ax_train)
+correlation = np.corrcoef(plotdata_train["prediction"], plotdata_train["observed"])[0, 1]
+ax_train.annotate(f"{correlation:.2f}", (0.9, 0.9), xycoords = "axes fraction", ha = "right", va = "top")
+ax_train.set_title("Training")
+
+plotdata_validation = plotdata.query("phase == 'validation'")
+sns.scatterplot(x = "prediction", y = "observed", color = "red", data = plotdata_validation, s = 1, ax = ax_validation)
+correlation = np.corrcoef(plotdata_validation["prediction"], plotdata_validation["observed"])[0, 1]
+ax_validation.annotate(f"{correlation:.2f}", (0.9, 0.9), xycoords = "axes fraction", ha = "right", va = "top")
+ax_validation.set_title("Validation")
 
 # %% [markdown]
 # ### Global view
@@ -169,13 +188,13 @@ gene_scores = explode_dataframe(scores, "genescores").groupby(["phase", "gene"])
 # %%
 gene_scores_grouped = gene_scores.groupby(["phase", "gene"]).mean()
 gene_scores_grouped["mse_diff"] = gene_scores_grouped["mse"] - gene_scores_grouped["mse_dummy"]
-gene_scores_grouped["mse_diff"].unstack().T.sort_values("test").plot()
+gene_scores_grouped["mse_diff"].unstack().T.sort_values("validation").plot()
 
 # %%
 gene_scores_grouped["symbol"] = transcriptome.symbol(gene_scores_grouped.index.get_level_values("gene")).values
 
 # %%
-gene_scores_grouped.loc["test"].sort_values("mse_diff").head(20)
+gene_scores_grouped.loc["validation"].sort_values("mse_diff").head(20)
 
 # %%
 gene_mse = gene_scores_grouped["mse"]
@@ -276,15 +295,15 @@ ax_mse.axhline(mse["train"], dashes = (2, 2), color = "blue")
 
 ax_mse2 = ax_mse.twinx()
 
-patch_test = ax_mse2.plot(mse_windows.index, mse_windows["test"], color = "red", label = "test")
-ax_mse2.plot(mse_dummy_windows.index, mse_dummy_windows["test"], color = "red", alpha = 0.1)
-ax_mse2.axhline(mse["test"], color = "red", dashes = (2, 2))
+patch_validation = ax_mse2.plot(mse_windows.index, mse_windows["validation"], color = "red", label = "validation")
+ax_mse2.plot(mse_dummy_windows.index, mse_dummy_windows["validation"], color = "red", alpha = 0.1)
+ax_mse2.axhline(mse["validation"], color = "red", dashes = (2, 2))
 
 ax_mse.set_ylabel("MSE train", rotation = 0, ha = "right", color = "blue")
 ax_mse2.set_ylabel("MSE test", rotation = 0, ha = "left", color = "red")
 ax_mse.axvline(0, color = "#33333366", lw = 1)
 
-plt.legend([patch_train[0], patch_test[0]], ['train', 'test'])
+plt.legend([patch_train[0], patch_validation[0]], ['train', 'test'])
 
 # %% [markdown]
 # ### Gene-specific view
@@ -302,10 +321,10 @@ gene_mse_dummy_windows = gene_scores_windows.groupby(["phase", "gene", "window_m
 # %%
 fig, ax = plt.subplots()
 ax.hist(gene_mse_windows.loc["train"].idxmax(1), bins = cuts, histtype = "stepfilled", alpha = 0.5, color = "blue")
-ax.hist(gene_mse_windows.loc["test"].idxmax(1), bins = cuts, histtype = "stepfilled", alpha = 0.8, color = "red")
+ax.hist(gene_mse_windows.loc["validation"].idxmax(1), bins = cuts, histtype = "stepfilled", alpha = 0.8, color = "red")
 fig.suptitle("Most important window across genes")
 # .plot(kind = "hist", bins = len(cuts)-1, alpha = 0.5, zorder = 10)
-# gene_mse_windows.loc["test"].idxmax(1).plot(kind = "hist", bins = len(cuts)-1)
+# gene_mse_windows.loc["validation"].idxmax(1).plot(kind = "hist", bins = len(cuts)-1)
 None
 
 # %%
@@ -314,7 +333,7 @@ gene_mse_windows_notss = gene_mse_windows.loc[:, (cuts[:-1] < -1000) | (cuts[:-1
 # %%
 fig, ax = plt.subplots()
 ax.hist(gene_mse_windows_notss.loc["train"].idxmax(1), bins = cuts, histtype = "stepfilled", alpha = 0.5, color = "blue")
-ax.hist(gene_mse_windows_notss.loc["test"].idxmax(1), bins = cuts, histtype = "stepfilled", alpha = 0.8, color = "red")
+ax.hist(gene_mse_windows_notss.loc["validation"].idxmax(1), bins = cuts, histtype = "stepfilled", alpha = 0.8, color = "red")
 fig.suptitle("Most important window across genes outside of TSS")
 
 # %%
@@ -324,7 +343,7 @@ gene_mse_windows_norm = (gene_mse_windows - gene_mse_windows.values.min(1, keepd
 sns.heatmap(gene_mse_windows_norm)
 
 # %%
-gene_id = transcriptome.gene_id("LYN")
+gene_id = transcriptome.gene_id("ARHGAP24")
 
 # %% [markdown]
 # Extract promoter info of gene
@@ -375,23 +394,23 @@ show_dummy = False
 if show_dummy:
     plotdata = gene_mse_dummy_windows.loc["train"].loc[gene_id]
     ax_mse.plot(plotdata.index, plotdata, color = "blue", alpha = 0.1)
-    plotdata = gene_mse_dummy_windows.loc["test"].loc[gene_id]
+    plotdata = gene_mse_dummy_windows.loc["validation"].loc[gene_id]
     ax_mse2.plot(plotdata.index, plotdata, color = "red", alpha = 0.1)
 
 # unperturbed mse
 ax_mse.axhline(gene_mse["train"][gene_id], dashes = (2, 2), color = "blue")
-ax_mse2.axhline(gene_mse["test"][gene_id], dashes = (2, 2), color = "red")
+ax_mse2.axhline(gene_mse["validation"][gene_id], dashes = (2, 2), color = "red")
 
 # mse
 plotdata = gene_mse_windows.loc["train"].loc[gene_id]
 patch_train = ax_mse.plot(plotdata.index, plotdata, color = "blue", label = "train")
-plotdata = gene_mse_windows.loc["test"].loc[gene_id]
-patch_test = ax_mse2.plot(plotdata.index, plotdata, color = "red", label = "train")
+plotdata = gene_mse_windows.loc["validation"].loc[gene_id]
+patch_validation = ax_mse2.plot(plotdata.index, plotdata, color = "red", label = "train")
 
 # perc_retained
 plotdata = gene_perc_retained_windows.loc["train"].loc[gene_id]
 ax_perc.plot(plotdata.index, plotdata, color = "blue", label = "train")
-plotdata = gene_perc_retained_windows.loc["test"].loc[gene_id]
+plotdata = gene_perc_retained_windows.loc["validation"].loc[gene_id]
 ax_perc.plot(plotdata.index, plotdata, color = "red", label = "train")
 
 ax_perc.axvline(0, color = "#33333366", lw = 1)
@@ -416,7 +435,7 @@ ax_bw.set_ylabel("Smoothed\nfragments", rotation = 0, ha = "right", va = "center
 ax_bw.set_ylim(0)
 
 # legend
-ax_mse.legend([patch_train[0], patch_test[0]], ['train', 'test'])
+ax_mse.legend([patch_train[0], patch_validation[0]], ['train', 'test'])
 # ax_mse.set_xlim(*ax_mse.get_xlim()[::-1])
 fig.suptitle(transcriptome.symbol(gene_id) + " promoter")
 
@@ -525,7 +544,7 @@ mse_windowpairs = scores_windowpairs.groupby(["window_mid1", "window_mid2", "pha
 mse_dummy_windowpairs = scores_windowpairs.groupby(["window_mid1", "window_mid2", "phase"])["mse_dummy"].mean().unstack()
 
 # %%
-sns.heatmap(mse_windowpairs["test"].unstack())
+sns.heatmap(mse_windowpairs["validation"].unstack())
 
 # %% [markdown]
 # ### Gene-specific view
@@ -544,10 +563,10 @@ gene_mse_dummy_windowpairs = gene_scores_windowpairs.groupby(["phase", "gene", "
 gene_id = transcriptome.gene_id("FOXP1")
 
 # %%
-plotdata = gene_mse_windowpairs.loc["test"].loc[gene_id]
+plotdata = gene_mse_windowpairs.loc["validation"].loc[gene_id]
 
 # %%
-sns.heatmap(gene_mse_windowpairs.loc["test"].loc[gene_id], vmin = gene_mse.loc["test"].loc[gene_id])
+sns.heatmap(gene_mse_windowpairs.loc["validation"].loc[gene_id], vmin = gene_mse.loc["validation"].loc[gene_id])
 
 # %% [markdown]
 # ## Performance when masking peaks
@@ -633,12 +652,12 @@ perc_retained_lengths = scores_lengths.groupby(["window_start", "phase"])["perc_
 # %%
 fig, ax_perc = plt.subplots()
 ax_mse = ax_perc.twinx()
-ax_mse.plot(mse_lengths.index, mse_lengths["test"])
-ax_mse.axhline(mse["test"], color = "red", dashes = (2, 2))
+ax_mse.plot(mse_lengths.index, mse_lengths["validation"])
+ax_mse.axhline(mse["validation"], color = "red", dashes = (2, 2))
 ax_mse.set_ylabel("MSE", rotation = 0, ha = "left", va = "center", color = "blue")
-# ax_mse.plot(mse_dummy_lengths.index, mse_dummy_lengths["test"]) 
+# ax_mse.plot(mse_dummy_lengths.index, mse_dummy_lengths["validation"]) 
 
-ax_perc.plot(perc_retained_lengths.index, perc_retained_lengths["test"], color = "#33333344")
+ax_perc.plot(perc_retained_lengths.index, perc_retained_lengths["validation"], color = "#33333344")
 ax_perc.set_ylim(ax_perc.set_ylim()[::-1])
 ax_perc.set_ylabel("Fragments\nretained", rotation = 0, ha = "right", va = "center", color = "#33333344")
 ax_perc.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))

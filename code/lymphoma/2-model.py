@@ -71,36 +71,13 @@ import torch
 # ### Subset cells and genes
 
 # %%
-gene_start = 0
-gene_end = 100
-gene_n = gene_end - gene_start
-gene_idx = slice(gene_start, gene_end)
-
-cell_start = 1500
-cell_end = 2000
-cell_n = cell_end - cell_start
-cell_idx = slice(cell_start, cell_end)
+import peakfreeatac.models.promoter.v1
 
 # %%
-fragments_selected = (
-    (fragments.mapping[:, 0] >= cell_start) &
-    (fragments.mapping[:, 0] < cell_end) &
-    (fragments.mapping[:, 1] >= gene_start) &
-    (fragments.mapping[:, 1] < gene_end)
-)
-print(fragments_selected.sum())
+split = pfa.models.promoter.v1.Split(slice(0, 100), slice(1500, 2000))
 
 # %%
-fragment_coordinates = fragments.coordinates[fragments_selected]
-print(fragment_coordinates.shape)
-
-fragments_mapping = fragments.mapping[fragments_selected]
-
-# we should adapt this if the minibatch cells/genes would ever be non-contiguous
-local_cell_idx = fragments_mapping[:, 0] - cell_start
-local_gene_idx = fragments_mapping[:, 1] - gene_start
-
-fragment_cellxgene_idx = local_cell_idx * gene_n + local_gene_idx
+split.populate(fragments)
 
 # %% [markdown]
 # ### Create expression
@@ -186,54 +163,26 @@ mapping_x = fragments.mapping[:, 0] * fragments.n_genes + fragments.mapping[:, 1
 import itertools
 
 # %%
-cell_start_test = int((fragments.n_cells / 3)*2) # split train/test cells
+test_cell_cutoff = int((fragments.n_cells / 3)*2) # split train/test cells
+
+# %%
+cell_cuts =     [
+    *np.arange(0, test_cell_cutoff, step = n_cell_step),
+    *np.arange(test_cell_cutoff, fragments.n_cells, step = n_cell_step),
+    fragments.n_cells
+]
+cell_bins = [slice(a, b) for a, b in zip(cell_cuts[:-1], cell_cuts[1:])]
+gene_cuts = list(np.arange(fragments.n_genes, step = n_gene_step)) + [fragments.n_genes]
+gene_bins = [slice(a, b) for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]
+bins = list(itertools.product(cell_bins, gene_bins))
 
 # %%
 splits = []
 
-prev_fragment_idx_end = -1
+for cell_idx, gene_idx in tqdm.tqdm(bins):
+    split = Split(cell_idx, gene_idx, phase = "train" if cell_idx.start < test_cell_cutoff else "validation")
+    split.populate(fragments)
 
-starts = list(itertools.product(np.arange(fragments.n_cells, step = n_cell_step), np.arange(fragments.n_genes, step = n_gene_step)))
-for cell_start, gene_start in tqdm.tqdm(starts):
-    cell_end = min(cell_start + n_cell_step, fragments.n_cells)
-    gene_end = min(gene_start + n_gene_step, fragments.n_genes)
-    
-    phase = "train" if cell_start < cell_start_test else "test"
-
-    fragments_selected = torch.where(
-        (fragments.mapping[:, 0] >= cell_start) &
-        (fragments.mapping[:, 0] < cell_end) &
-        (fragments.mapping[:, 1] >= gene_start) &
-        (fragments.mapping[:, 1] < gene_end)
-    )[0]
-    
-    cell_n = cell_end - cell_start
-    gene_n = gene_end - gene_start
-
-    gene_idx = slice(gene_start, gene_end)
-    cell_idx = slice(cell_start, cell_end)
-
-    fragments_coordinates = fragments.coordinates[fragments_selected]
-    fragments_mappings = fragments.mapping[fragments_selected]
-
-    # we should adapt this if the minibatch cells/genes would ever be non-contiguous
-    local_cell_idx = fragments_mappings[:, 0] - cell_start
-    local_gene_idx = fragments_mappings[:, 1] - gene_start
-    
-    split = Split(
-        cell_start = cell_start,
-        cell_end = cell_end,
-        gene_start = gene_start,
-        gene_end = gene_end,
-        cell_n = cell_n,
-        gene_n = gene_n,
-        local_cell_idx = local_cell_idx,
-        local_gene_idx = local_gene_idx,
-        fragments_coordinates = fragments_coordinates,
-        fragments_mappings = fragments_mappings,
-        phase = phase,
-        fragments_selected = fragments_selected
-    )
     splits.append(split)
 
 # %%
@@ -309,15 +258,19 @@ for epoch in range(n_steps):
     if (epoch % trace_epoch_every) == 0:
         # mse
         epoch_mse = np.mean([t["mse"] for t in trace[-len(splits):]])
-        text = f"{epoch} {epoch_mse:.4f} Δ{prev_epoch_mse-epoch_mse if prev_epoch_mse is not None else ''}"
+        text = f"{epoch} {epoch_mse:.4f}"
+        
+        if prev_epoch_mse is not None:
+            text += f" Δ{prev_epoch_mse-epoch_mse:.1e}"
     
         prev_epoch_mse = epoch_mse
         
         # gene_mse
-        epoch_gene_mse = pd.concat([t["gene_mse"] for t in trace[-len(splits):]]).groupby(level = 0).mean()
-        if prev_epoch_gene_mse is not None:
-            text += " {0:.1%}".format((epoch_gene_mse < prev_epoch_gene_mse).mean())
-        prev_epoch_gene_mse = epoch_gene_mse
+        if len(trace) > 0:
+            epoch_gene_mse = pd.concat([t["gene_mse"] for t in trace[-len(splits):]]).groupby(level = 0).mean()
+            if prev_epoch_gene_mse is not None:
+                text += " {0:.1%}".format((epoch_gene_mse < prev_epoch_gene_mse).mean())
+            prev_epoch_gene_mse = epoch_gene_mse
         
         print(text)
 

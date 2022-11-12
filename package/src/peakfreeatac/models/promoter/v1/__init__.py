@@ -118,73 +118,62 @@ class FragmentsToExpression(torch.nn.Module):
         expression_predicted = self.embedding_to_expression(cell_gene_embedding, gene_idx)
         return expression_predicted
 
+from typing import Optional
+
+
 @dataclasses.dataclass
 class Split():
-    cell_start:int
-    cell_end:int
-    gene_start:int
-    gene_end:int
-    test_cell_cutoff:int
+    cell_idx:slice
+    gene_idx:slice
+    phase:int
 
-    fragments_selected:torch.tensor
-    fragments_coordinates:torch.tensor
-    fragments_mappings:torch.tensor
-
-    local_cell_idx:torch.tensor # the cell idx among the selected cells, i.e. 0, 1, 2, 3
-    local_gene_idx:torch.tensor # the gene idx within the selected genes, i.e. 0, 1, 2, 3
-
-    phase:str
-    
-    cell_n:int
-    gene_n:int
-
-    def __init__(self, cell_idx, gene_idx, test_cell_cutoff):
+    def __init__(self, cell_idx, gene_idx, phase="train"):
+        assert isinstance(cell_idx, slice)
+        assert isinstance(gene_idx, slice)
         self.cell_idx = cell_idx
         self.gene_idx = gene_idx
 
-        self.test_cell_cutoff = test_cell_cutoff
+        self.phase = phase
 
     def populate(self, fragments):
         self.cell_start = self.cell_idx.start
-        self.cell_end = self.cell_idx.end
+        self.cell_stop = self.cell_idx.stop
         self.gene_start = self.gene_idx.start
-        self.gene_end = self.gene_idx.end
+        self.gene_stop = self.gene_idx.stop
 
-        cell_end = min(self.cell_start + self.n_cell_step, fragments.n_cells)
-        gene_end = min(self.gene_start + self.n_gene_step, fragments.n_genes)
-        
-        self.phase = "train" if self.cell_start < self.test_cell_cutoff else "test"
+        assert self.gene_stop <= fragments.n_genes
+        assert self.cell_stop <= fragments.n_cells
 
-        fragments_selected = torch.where(
+        self.fragments_selected = torch.where(
             (fragments.mapping[:, 0] >= self.cell_start) &
-            (fragments.mapping[:, 0] < cell_end) &
+            (fragments.mapping[:, 0] < self.cell_stop) &
             (fragments.mapping[:, 1] >= self.gene_start) &
-            (fragments.mapping[:, 1] < gene_end)
+            (fragments.mapping[:, 1] < self.gene_stop)
         )[0]
         
-        self.cell_n = cell_end - self.cell_start
-        self.gene_n = gene_end - self.gene_start
+        self.cell_n = self.cell_stop - self.cell_start
+        self.gene_n = self.gene_stop - self.gene_start
 
-        self.fragments_coordinates = fragments.coordinates[fragments_selected]
-        fragments_mappings = fragments.mapping[fragments_selected]
+        self.fragments_coordinates = fragments.coordinates[self.fragments_selected]
+        self.fragments_mappings = fragments.mapping[self.fragments_selected]
 
         # we should adapt this if the minibatch cells/genes would ever be non-contiguous
-        self.local_cell_idx = fragments_mappings[:, 0] - self.cell_start
-        self.local_gene_idx = fragments_mappings[:, 1] - self.gene_start
+        self.local_cell_idx = self.fragments_mappings[:, 0] - self.cell_start
+        self.local_gene_idx = self.fragments_mappings[:, 1] - self.gene_start
 
     @property
     def cell_idxs(self):
         """
         The cell indices within the whole dataset as a numpy array
         """
-        return np.arange(self.cell_start, self.cell_end)
+        return np.arange(self.cell_start, self.cell_stop)
 
     @property
     def gene_idxs(self):
         """
         The gene indices within the whole dataset as a numpy array
         """
-        return np.arange(self.gene_start, self.gene_end)
+        return np.arange(self.gene_start, self.gene_stop)
     
     @property
     def fragment_cellxgene_idx(self):
