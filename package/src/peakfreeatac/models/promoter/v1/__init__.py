@@ -1,6 +1,7 @@
 import torch
 import torch_scatter
 import math
+import numpy as np
 import dataclasses
 
 class FragmentEmbedder(torch.nn.Sequential):
@@ -127,6 +128,13 @@ class Split():
         The cell index within the whole dataset
         """
         return slice(self.cell_start, self.cell_end)
+
+    @property
+    def cell_idxs(self):
+        """
+        The cell index within the whole dataset
+        """
+        return np.arange(self.cell_start, self.cell_end)
     
     @property
     def gene_idx(self):
@@ -134,6 +142,13 @@ class Split():
         The gene index within the whole dataset
         """
         return slice(self.gene_start, self.gene_end)
+
+    @property
+    def gene_idxs(self):
+        """
+        The gene index within the whole dataset
+        """
+        return np.arange(self.gene_start, self.gene_end)
     
     @property
     def fragment_cellxgene_idx(self):

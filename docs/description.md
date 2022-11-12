@@ -72,6 +72,9 @@ No real discussion in the [*pioneering* SHARE-seq paper ](https://www.sciencedir
 Some analysis pipelines seem to remove small fragments, not really sure why honestly... https://seandavi.github.io/AtacSeqWorkshop/articles/Workflow.html#data-import-and-quality-control
 
 
+ATAC footprinting goes somewhat into the direction. However, I don't think this really works that well (few people seem to use it), and particularly the differential footprinting seems elusive https://www.nature.com/articles/s41467-020-18035-1
+
+
 ### Why do we aggregate over peaks?
 
 
@@ -133,8 +136,6 @@ The unsupervised learning task is essentially a combination of the two predictio
 ### $X\rightarrow Z$
 
 
-#### fragments [fragment]
-
 $\text{fe}_{[\text{fragment}, \text{component}]} = f_{\theta_1}(\text{fragment})$
 
 $\text{cge}_{[\text{cell}, \text{gene}, \text{component}]} = f_{\theta_2}(\text{fe})$, pooling per cell per gene
@@ -164,6 +165,21 @@ However, how sure are we of the TSS? Could we include knowledge of multiple poss
 How to test whether the neural network picks this up? Removing fragments shortly after the TSS should increase the expression prediction?
 
 
+### Footprinting
+
+
+If a protein is strongly bound, it will lead to a "dip" of cut sites at the binding event
+
+It may be that the. We should at least see this at the TSS
+
+Could the model detect this at other sites?
+
+
+- https://www.nature.com/articles/s41467-020-18035-1
+- https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1642-2
+- https://pubmed.ncbi.nlm.nih.gov/28538187/ Only 20% of TFs leave a footprint
+
+
 ## Datasets
 
 
@@ -178,6 +194,13 @@ https://www.10xgenomics.com/resources/datasets?query=&page=1&configure%5Bfacets%
 
 ### SHARE-seq https://www.sciencedirect.com/science/article/pii/S0092867420312538
 
-```python
 
-```
+### SEA-AD
+
+
+https://knowledge.brain-map.org/data/R588LQLHCLCS728VSW8/summary
+
+
+Have to request access to the data
+
+Doesn't seem to be published yet?

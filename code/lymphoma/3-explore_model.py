@@ -324,7 +324,7 @@ gene_mse_windows_norm = (gene_mse_windows - gene_mse_windows.values.min(1, keepd
 sns.heatmap(gene_mse_windows_norm)
 
 # %%
-gene_id = transcriptome.gene_id("FOXP1")
+gene_id = transcriptome.gene_id("LYN")
 
 # %% [markdown]
 # Extract promoter info of gene

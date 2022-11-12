@@ -177,7 +177,7 @@ from peakfreeatac.models.promoter.v1 import Split
 
 # %%
 n_cell_step = 1000
-n_gene_step = 3000
+n_gene_step = 5000
 
 # %%
 mapping_x = fragments.mapping[:, 0] * fragments.n_genes + fragments.mapping[:, 1]
@@ -263,8 +263,12 @@ model = model.to("cuda")
 # And not all parameters are optimized (or have a grad) at every step, because we filter by gene.
 
 # %%
+import itertools
+
+# %%
 params = model.parameters()
-optim = torch.optim.SGD(params, lr = 10.0)
+optim1 = torch.optim.SGD(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters()), lr = 10.)
+optim2 = torch.optim.SGD(itertools.chain(model.embedding_to_expression.parameters()), lr = 10.)
 loss = torch.nn.MSELoss()
 
 # %%
@@ -275,6 +279,7 @@ trace_epoch_every = 10
 trace = []
 
 prev_epoch_mse = None
+prev_epoch_gene_mse = None
 for epoch in range(n_steps):
     for split in splits_training:
         expression_predicted = model(
@@ -290,16 +295,31 @@ for epoch in range(n_steps):
         mse = loss(expression_predicted, transcriptome_subset)
         
         mse.backward()
-        optim.step()
-        optim.zero_grad()
+        optim1.step()
+        optim2.step()
+        optim2.zero_grad()
+        optim1.zero_grad()
         
-        trace.append({"mse":mse.detach().cpu().numpy(), "epoch":epoch})
-    epoch_mse = np.mean([t["mse"] for t in trace[-len(splits):]])
+        trace.append({
+            "mse":mse.detach().cpu().numpy(),
+            "epoch":epoch,
+            "gene_mse":pd.Series(((expression_predicted - transcriptome_subset) ** 2).mean(0).detach().cpu().numpy(), split.gene_idxs)
+        })
     
     if (epoch % trace_epoch_every) == 0:
-        print(f"{epoch} {epoch_mse:.4f} Δ{prev_epoch_mse-epoch_mse if prev_epoch_mse is not None else ''}")
+        # mse
+        epoch_mse = np.mean([t["mse"] for t in trace[-len(splits):]])
+        text = f"{epoch} {epoch_mse:.4f} Δ{prev_epoch_mse-epoch_mse if prev_epoch_mse is not None else ''}"
     
-    prev_epoch_mse = epoch_mse
+        prev_epoch_mse = epoch_mse
+        
+        # gene_mse
+        epoch_gene_mse = pd.concat([t["gene_mse"] for t in trace[-len(splits):]]).groupby(level = 0).mean()
+        if prev_epoch_gene_mse is not None:
+            text += " {0:.1%}".format((epoch_gene_mse < prev_epoch_gene_mse).mean())
+        prev_epoch_gene_mse = epoch_gene_mse
+        
+        print(text)
 
 # %%
 trace = pd.DataFrame(list(trace))
@@ -354,6 +374,7 @@ def save(obj, fh, pickler=None, **kwargs):
 # move splits back to cpu
 # otherwise if you try to load them back in they might want to immediately go to gpu
 splits = [split.to("cpu") for split in splits]
+
 save(splits, open("splits.pkl", "wb"))
 save(model, open("model.pkl", "wb"))
 
