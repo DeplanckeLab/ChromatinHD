@@ -83,8 +83,9 @@ It's historical...
   - We've got a couple of samples => power is extremely low! There's not much more that you can detect except "this peak is higher in this condition"
   - However, with single-cell ATAC-seq, there are much more possibilities for mechanistic/biophysical insights
 - From ChIP-Seq
-  - Where a binding event is more likely to be discrete
+  - Where a binding event for TFs is more likely to be discrete
   - However, for ATAC-seq, this is almost certainly not gonna be true
+  - Furthermore, for most histone modifications this also doesn't make sense. Imagine all the information that has been missed by aggregating over broad peaks...
 - From classical statistics/data analysis
   - Where modeling intervals on sequences is just not easy. Classical data analysis requires matrices
   - But, as was shown for images and sequences, if you create a "gradient-proof" pipeline, you can do anything
