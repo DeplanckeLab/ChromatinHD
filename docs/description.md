@@ -13,8 +13,8 @@ jupyter:
     name: python3
 ---
 
-# I don't trust peaks
 # Fragment-based modeling of ATAC-seq data
+[![](https://upload.wikimedia.org/wikipedia/commons/2/24/Spot_the_cow.gif)](https://en.wikipedia.org/wiki/Spherical_cow)
 
 
 Hypotheses:
