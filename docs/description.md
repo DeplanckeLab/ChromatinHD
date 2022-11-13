@@ -171,7 +171,7 @@ How to test whether the neural network picks this up? Removing fragments shortly
 
 If a protein is strongly bound, it will lead to a "dip" of cut sites at the binding event
 
-It may be that the. We should at least see this at the TSS
+We should at least see this at the TSS
 
 Could the model detect this at other sites?
 
