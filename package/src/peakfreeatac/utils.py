@@ -20,3 +20,10 @@ def get_output():
 
 def name_window(window_info):
     return window_info["chrom" if "chrom" in window_info.index else "chr"] + ":" + str(window_info["start"]) + "-" + str(window_info["end"])
+
+def paircor(x, y, dim = 0):
+    import torch
+    if torch.is_tensor(x):
+        return ((x - x.mean(dim, keepdim = True)) * (y - y.mean(dim, keepdim = True))).mean(dim) / (y.std(dim) * x.std(dim))
+    else:
+        return ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / (y.std(dim) * x.std(dim))
