@@ -300,11 +300,6 @@ ax.plot(plotdata["epoch"], plotdata["mse"], zorder = 6, color = "red")
 
 
 # %%
-def paircor(x, y, dim = 0):
-    return ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / (y.std(dim) * x.std(dim))
-
-
-# %%
 def fix_class(obj):
     import importlib
 

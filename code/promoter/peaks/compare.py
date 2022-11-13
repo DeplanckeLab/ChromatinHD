@@ -43,8 +43,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 folder_data_preproc = folder_data / dataset_name
 
 
@@ -63,8 +63,7 @@ method_names = [
     "macs2",
     "macs2_linear",
     "cellranger_linear",
-    "genrich",
-    "genrich_linear"
+    "stack_linear"
 ]
 
 # %%
@@ -94,8 +93,7 @@ method_info = pd.DataFrame([
     ["macs2", "MACS2 + XGBoost"],
     ["cellranger_linear", "cellranger + Linear"],
     ["cellranger", "cellranger + XGBoost"],
-    ["genrich", "genrich + XGBoost"],
-    ["genrich_linear", "genrich + Linear"],
+    ["stack_linear", "Stacked + Linear"],
 ], columns = ["method", "label"]).set_index("method")
 
 # %%
@@ -108,6 +106,21 @@ ax_all.set_xlabel("MSE difference")
 ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
 
 # %%
+fig, (ax_all, ax_able) = plt.subplots(1, 2, figsize = (3, 3), sharey = True)
+scores.groupby(["method", "phase"])["cor"].mean().unstack().plot(kind = "barh", ax = ax_all, legend = False)
+scores.query("gene in @genes_oi").groupby(["method", "phase"])["cor"].mean().unstack().plot(kind = "barh", ax = ax_able, legend = False)
+ax_all.set_xlabel("Correlation")
+ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
+
+# %%
+scores.groupby(["method", "phase"])["mse_diff"].mean().unstack().T.plot()
+scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().unstack().T.plot()
+
+# %%
+scores.groupby(["method", "phase"])["cor"].mean().unstack().T.plot()
+
+# %%
+scores.query("gene in @genes_oi").groupby(["method", "phase"])["cor"].mean().unstack().T.plot()
 
 # %%
 

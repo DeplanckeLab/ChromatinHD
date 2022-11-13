@@ -21,21 +21,20 @@ class PeakCounts(Flow):
         self.adata = adata
     
     def count_peaks(self, fragments_location, cell_ids):
-        # add ix to peaks
+        # extract unique peaks
         peaks = self.peaks
-        peaks["ix"] = np.arange(peaks.shape[0])
+        unique_peak_ids = list(set(peaks.index))
+        peak_idxs = {peak_id:i for i, peak_id in enumerate(unique_peak_ids)}
 
         # create peaks file for tabix
         self.peaks_bed = peaks[["chrom", "start", "end"]]
 
         # count
         counts = collections.defaultdict(int)
-
-        peak_idxs = peaks["ix"].to_dict()
         barcode_idxs = {barcode:ix for ix, barcode in enumerate(cell_ids)}
 
         process = sp.Popen([tabix_location, fragments_location, "-R", self.peaks_bed_path, "--separate-regions"], stdout=sp.PIPE)
-        counter = tqdm.tqdm(total = peaks.shape[0], smoothing = 0)
+        counter = tqdm.tqdm(total = len(unique_peak_ids), smoothing = 0)
         for line in process.stdout:
             line = line.decode("utf-8")
             if line.startswith("#"):
@@ -62,7 +61,7 @@ class PeakCounts(Flow):
         self.obs = obs.copy()
 
         # create var
-        self.var = peaks.copy()
+        self.var = pd.DataFrame(index = pd.Series(unique_peak_ids, name = "peak"))
 
     @property
     def peaks_bed_path(self):

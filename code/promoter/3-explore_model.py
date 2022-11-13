@@ -37,6 +37,8 @@ import torch
 
 import tqdm.auto as tqdm
 
+device = "cuda:1"
+
 # %%
 import peakfreeatac as pfa
 import peakfreeatac.fragments
@@ -46,8 +48,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -62,35 +64,16 @@ prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name 
 
 # %%
 splits = pickle.load(open(prediction.path / "splits.pkl", "rb"))
-model = pickle.load(open(prediction.path / "model.pkl", "rb"))
+model = pickle.load(open(prediction.path / "model.pkl", "rb")).to(device)
 
 # %% [markdown]
 # ## Overall performace
 
 # %%
-splits = [split.to("cuda") for split in splits]
-transcriptome_X = transcriptome.X.to("cuda")
+splits = [split.to("cpu") for split in splits]
+transcriptome_X = transcriptome.X.to("cpu")
 
 loss = torch.nn.MSELoss()
-
-# %%
-# fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (8, 4))
-# ax1.scatter(
-#     y = expression_predicted.detach().cpu().numpy().mean(0),
-#     x = transcriptome_subset.detach().cpu().numpy().mean(0),
-#     lw = 0,
-#     s = 1
-# )
-# ax1.set_xlabel("Observed mean")
-# ax1.set_ylabel("Predicted mean")
-# ax2.scatter(
-#     y = expression_predicted.detach().cpu().numpy().flatten(),
-#     x = transcriptome_subset.detach().cpu().numpy().flatten(),
-#     lw = 0,
-#     s = 1
-# )
-# ax2.set_xlabel("Observed")
-# ax2.set_ylabel("Predicted")
 
 # %%
 scores = []
@@ -98,27 +81,31 @@ expression_prediction = pd.DataFrame(0., index = transcriptome.obs.index, column
 expression_observed = pd.DataFrame(transcriptome.X.dense().cpu().detach().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
 
 for split_ix, split in enumerate(tqdm.tqdm(splits)):
-    expression_predicted = model(
-        split.fragments_coordinates,
-        split.fragment_cellxgene_idx,
-        split.cell_n,
-        split.gene_n,
-        split.gene_idx
-    )
-
-    transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
-
-    mse = loss(expression_predicted, transcriptome_subset)
+    split = split.to("cuda:1")
     
-    expression_predicted_dummy = transcriptome_subset.mean(0, keepdim = True).expand(transcriptome_subset.shape)
-    mse_dummy = loss(expression_predicted_dummy, transcriptome_subset)
-    
-    transcriptome.obs.loc[transcriptome.obs.index[split.cell_idx], "phase"] = split.phase
+    with torch.no_grad():
+        expression_predicted = model(
+            split.fragments_coordinates,
+            split.fragment_cellxgene_idx,
+            split.cell_n,
+            split.gene_n,
+            split.gene_idx
+        ).to("cpu")
+
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+
+        mse = loss(expression_predicted, transcriptome_subset)
+
+        expression_predicted_dummy = transcriptome_subset.mean(0, keepdim = True).expand(transcriptome_subset.shape)
+        mse_dummy = loss(expression_predicted_dummy, transcriptome_subset)
+
+        transcriptome.obs.loc[transcriptome.obs.index[split.cell_idx], "phase"] = split.phase
     
     genescores = pd.DataFrame({
         "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
         "gene":transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
         "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
+        "cor":pfa.utils.paircor(expression_predicted, transcriptome_subset).cpu().detach().numpy(),
         "split_ix":split_ix
     })
 
@@ -131,6 +118,10 @@ for split_ix, split in enumerate(tqdm.tqdm(splits)):
     })
     
     expression_prediction.values[split.cell_idx, split.gene_idx] = expression_predicted.cpu().detach().numpy()
+    
+    split = split.to("cpu")
+    torch.cuda.empty_cache()
+    
 scores = pd.DataFrame(scores)
 
 # %% [markdown]
@@ -224,7 +215,10 @@ def explode_dataframe(df, column):
 
 
 # %%
-gene_aggscores = aggregate_splits(explode_dataframe(scores, "genescores").groupby(["phase", "gene"]))
+gene_aggscores = aggregate_splits(
+    explode_dataframe(scores, "genescores").groupby(["phase", "gene"]),
+    columns = ["mse", "mse_dummy", "cor"]
+)
 gene_aggscores["mse_diff"] = gene_aggscores["mse"]  - gene_aggscores["mse_dummy"]
 
 # %%
@@ -235,6 +229,32 @@ gene_aggscores["symbol"] = transcriptome.symbol(gene_aggscores.index.get_level_v
 
 # %%
 gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = True).head(20)
+
+# %%
+gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")
+
+# %% [markdown]
+# ### Gene correlation
+
+# %%
+cells_train = transcriptome.obs.index[list(set([cell_idx for split in splits for cell_idx in split.cell_idxs if split.phase == "train"]))]
+cells_validation = transcriptome.obs.index[list(set([cell_idx for split in splits for cell_idx in split.cell_idxs if split.phase == "validation"]))]
+
+# %%
+transcriptome_pd = pd.DataFrame(transcriptome_X.dense().cpu().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
+
+# %%
+cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
+cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
+
+# %%
+gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
+
+# %%
+gene_aggscores["cor"].unstack().T.sort_values("validation").plot()
+
+# %%
+gene_aggscores["cor"].groupby("phase").mean()
 
 # %%
 gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")

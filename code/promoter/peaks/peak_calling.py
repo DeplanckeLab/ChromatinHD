@@ -37,8 +37,8 @@ import peakfreeatac as pfa
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 
 folder_data_preproc = folder_data / dataset_name
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
@@ -73,9 +73,8 @@ peaks_folder.mkdir(exist_ok = True, parents = True)
 # !wget https://github.com/jsh58/Genrich/archive/refs/tags/v0.6.1.zip -P {software_folder}
 
 # %%
+# install
 # !echo 'cd {software_folder} && unzip v0.6.1.zip'
-
-# %%
 # !echo 'cd {software_folder}/Genrich-0.6.1 && make'
 
 # %%

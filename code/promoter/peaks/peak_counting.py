@@ -40,14 +40,14 @@ import peakfreeatac as pfa
 import peakfreeatac.peakcounts
 import peakfreeatac.transcriptome
 
-
 # %%
 dataset_name = "lymphoma"
 # dataset_name = "pbmc10k"
 
-peaks_name = "cellranger"
-peaks_name = "genrich"
-# peaks_name = "macs2"
+# peaks_name = "cellranger"
+# peaks_name = "genrich"
+peaks_name = "macs2"
+peaks_name = "stack"
 
 # %%
 folder_data_preproc = pfa.get_output() / "data" / dataset_name
@@ -63,17 +63,36 @@ promoters = pd.read_csv(folder_data_preproc / "promoters.csv", index_col = 0)
 peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)
 
 # %%
-peaks_folder = folder_root / "peaks" / dataset_name / peaks_name
+if peaks_name != "stack":
+    peaks_folder = folder_root / "peaks" / dataset_name / peaks_name
+    peaks = pd.read_table(peaks_folder / "peaks.bed", names = ["chrom", "start", "end"], usecols = [0, 1, 2])
+
+    if peaks_name == "genrich":
+        peaks["start"] += 1
+else:
+    peaks = promoters.reset_index()[["chr", "start", "end", "gene"]]
 
 # %%
-peaks = pd.read_table(peaks_folder / "peaks.bed", names = ["chrom", "start", "end"], usecols = [0, 1, 2])
+import pybedtools
+promoters_bed = pybedtools.BedTool.from_dataframe(promoters.reset_index()[["chr", "start", "end", "gene"]])
+peaks_bed = pybedtools.BedTool.from_dataframe(peaks)
 
 # %%
-if peaks_name == "genrich":
-    peaks["start"] += 1
+if peaks_name != "stack":
+    intersect = promoters_bed.intersect(peaks_bed)
+    intersect = intersect.to_dataframe()
+
+    # peaks = intersect[["score", "strand", "thickStart", "name"]]
+    peaks = intersect
+peaks.columns = ["chrom", "start", "end", "gene"]
+peaks = peaks.loc[peaks["start"] != -1]
+peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str), name = "peak")
 
 # %%
-peakcounts.create_peaks(peaks)
+peakcounts.peaks = peaks
+
+# %% [markdown]
+# ## Count
 
 # %%
 peakcounts.count_peaks(folder_data_preproc / "atac_fragments.tsv.gz", transcriptome.obs.index)
@@ -85,12 +104,11 @@ peakcounts.count_peaks(folder_data_preproc / "atac_fragments.tsv.gz", transcript
 import peakfreeatac.prediction
 
 # %%
-# method_suffix = ""
-method_suffix = "_linear"
+# method_suffix = ""; prediction_class = peakfreeatac.prediction.PeaksGene
+method_suffix = "_linear"; prediction_class = peakfreeatac.prediction.PeaksGeneLinear
 
 # %%
-# prediction = peakfreeatac.prediction.PeaksGene(
-prediction = peakfreeatac.prediction.PeaksGeneLinear(
+prediction = prediction_class(
     pfa.get_output() / "prediction_promoter" / dataset_name / (peaks_name + method_suffix),
     transcriptome,
     peakcounts
@@ -103,15 +121,7 @@ import pybedtools
 # Link peaks and genes (promoters)
 
 # %%
-promoters_bed = pybedtools.BedTool.from_dataframe(promoters.reset_index()[["chr", "start", "end", "gene"]])
-peaks_bed = pybedtools.BedTool.from_dataframe(peakcounts.peaks.reset_index()[["chrom", "start", "end", "peak"]])
-
-# %%
-intersect = promoters_bed.intersect(peaks_bed, wo = True)
-intersect = intersect.to_dataframe()
-
-# %%
-gene_peak_links = intersect[["name", "thickEnd"]].rename(columns = {"name":"gene", "thickEnd":"peak"})
+gene_peak_links = peaks.reset_index()
 gene_peak_links["gene"] = pd.Categorical(gene_peak_links["gene"], categories = transcriptome.adata.var.index)
 
 # %% [markdown]

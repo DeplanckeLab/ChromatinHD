@@ -118,13 +118,16 @@ class Split():
         """
         return np.arange(self.gene_start, self.gene_stop)
     
-    @functools.cached_property
+    _fragment_cellxgene_idx = None
+    @property
     def fragment_cellxgene_idx(self):
         """
         The local index of cellxgene, i.e. starting from 0 and going up to n_cells * n_genes - 1
-        
         """
-        return self.local_cell_idx * self.gene_n + self.local_gene_idx
+        if self._fragment_cellxgene_idx is None:
+            self._fragment_cellxgene_idx = self.local_cell_idx * self.gene_n + self.local_gene_idx
+            
+        return self._fragment_cellxgene_idx
     
     def to(self, device):
         self.fragments_selected = self.fragments_selected.to(device)
@@ -132,4 +135,7 @@ class Split():
         self.fragments_mappings = self.fragments_mappings.to(device)
         self.local_cell_idx = self.local_cell_idx.to(device)
         self.local_gene_idx = self.local_gene_idx.to(device)
+
+        if self._fragment_cellxgene_idx is not None:
+            self._fragment_cellxgene_idx = self._fragment_cellxgene_idx.to(device)
         return self

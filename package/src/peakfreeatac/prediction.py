@@ -82,13 +82,24 @@ class PeaksGene(Flow):
             mse_validation_dummy = cal_mse(y[validation_ix], y[validation_ix].mean())
             mse_train_dummy = cal_mse(y[train_ix], y[train_ix].mean())
 
+            # correlation
+            if (y[train_ix].std() < 1e-5) or (predicted[train_ix].std() < 1e-5):
+                cor_train = 0.
+            else:
+                cor_train = np.corrcoef(y[train_ix], predicted[train_ix])[0, 1]
+            if (y[validation_ix].std() < 1e-5) or (predicted[validation_ix].std() < 1e-5):
+                cor_validation = 0.
+            else:
+                cor_validation = np.corrcoef(y[validation_ix], predicted[validation_ix])[0, 1]
+
             scores.append(
                 pd.DataFrame({
                     "gene": gene,
                     "split_ix": 1,
                     "mse": [mse_train, mse_validation],
+                    "cor":[cor_train, cor_validation],
                     "mse_dummy": [mse_train_dummy, mse_validation_dummy],
-                    "phase":["train", "validation"]
+                    "phase":["train", "validation"],
                 })
             )
 
