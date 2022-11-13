@@ -32,6 +32,7 @@ sns.set_style('ticks')
 import pickle
 
 import scanpy as sc
+
 import pathlib
 
 import torch
@@ -46,8 +47,10 @@ import peakfreeatac.transcriptome
 # %%
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
-folder_data_preproc = folder_data / "lymphoma"
-folder_data_preproc.mkdir(exist_ok = True, parents = True)
+
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
+folder_data_preproc = folder_data / dataset_name
 
 # %%
 transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
@@ -71,10 +74,10 @@ import torch
 # ### Subset cells and genes
 
 # %%
-import peakfreeatac.models.promoter.v1
+import peakfreeatac.fragments
 
 # %%
-split = pfa.models.promoter.v1.Split(slice(0, 100), slice(1500, 2000))
+split = pfa.fragments.Split(slice(0, 100), slice(1500, 2000))
 
 # %%
 split.populate(fragments)
@@ -104,7 +107,7 @@ fragment_embedder = FragmentEmbedder(n_virtual_dimensions = 100, n_embedding_dim
 # fragment_embedder = FragmentEmbedderCounter()
 
 # %%
-fragment_embedding = fragment_embedder(fragment_coordinates)
+fragment_embedding = fragment_embedder(split.fragments_coordinates)
 
 # %% [markdown]
 # ### Pool fragments
@@ -116,7 +119,7 @@ from peakfreeatac.models.promoter.v1 import EmbeddingGenePooler
 embedding_gene_pooler = EmbeddingGenePooler(debug = True)
 
 # %%
-cell_gene_embedding = embedding_gene_pooler(fragment_embedding, fragment_cellxgene_idx, cell_n, gene_n)
+cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx, split.cell_n, split.gene_n)
 
 # %% [markdown]
 # ### Create expression predictor
@@ -129,7 +132,7 @@ embedding_to_expression = EmbeddingToExpression(fragments.n_genes, n_embedding_d
 # embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
 
 # %%
-expression_predicted = embedding_to_expression(cell_gene_embedding, gene_idx)
+expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
 
 # %% [markdown]
 # ### Whole model
@@ -141,7 +144,7 @@ from peakfreeatac.models.promoter.v1 import FragmentsToExpression
 model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
 
 # %%
-model(fragment_coordinates, fragment_cellxgene_idx, cell_n, gene_n, gene_idx)
+model(split.fragments_coordinates, split.fragment_cellxgene_idx, split.cell_n, split.gene_n, split.gene_idx)
 
 # %% [markdown]
 # ## Train
@@ -150,7 +153,8 @@ model(fragment_coordinates, fragment_cellxgene_idx, cell_n, gene_n, gene_idx)
 # ### Create training and test split
 
 # %%
-from peakfreeatac.models.promoter.v1 import Split
+# from peakfreeatac.models.promoter.v1 import Split
+from peakfreeatac.fragments import Split
 
 # %%
 n_cell_step = 1000
@@ -166,7 +170,7 @@ import itertools
 test_cell_cutoff = int((fragments.n_cells / 3)*2) # split train/test cells
 
 # %%
-cell_cuts =     [
+cell_cuts = [
     *np.arange(0, test_cell_cutoff, step = n_cell_step),
     *np.arange(test_cell_cutoff, fragments.n_cells, step = n_cell_step),
     fragments.n_cells
@@ -198,6 +202,9 @@ n_embedding_dimensions = 100
 # %%
 model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
 
+# %%
+# model = pickle.load(open("model.pkl", "rb"))
+
 # %% [markdown]
 # ### Train
 
@@ -225,12 +232,16 @@ n_steps = 2000
 trace_epoch_every = 10
 
 # %%
+transcriptome_X_dense = transcriptome_X.dense()
+
+# %%
 trace = []
 
 prev_epoch_mse = None
 prev_epoch_gene_mse = None
 for epoch in range(n_steps):
     for split in splits_training:
+        # start = time.time()
         expression_predicted = model(
             split.fragments_coordinates,
             split.fragment_cellxgene_idx,
@@ -239,7 +250,8 @@ for epoch in range(n_steps):
             split.gene_idx
         )
         
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        # transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X_dense[split.cell_idx, split.gene_idx]
         
         mse = loss(expression_predicted, transcriptome_subset)
         
@@ -254,6 +266,9 @@ for epoch in range(n_steps):
             "epoch":epoch,
             "gene_mse":pd.Series(((expression_predicted - transcriptome_subset) ** 2).mean(0).detach().cpu().numpy(), split.gene_idxs)
         })
+        
+        # end = time.time()
+        # print(end - start)
     
     if (epoch % trace_epoch_every) == 0:
         # mse
@@ -324,11 +339,16 @@ def save(obj, fh, pickler=None, **kwargs):
 
 
 # %%
+class Prediction(pfa.flow.Flow):
+    pass
+prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / "nn")
+
+# %%
 # move splits back to cpu
 # otherwise if you try to load them back in they might want to immediately go to gpu
 splits = [split.to("cpu") for split in splits]
 
-save(splits, open("splits.pkl", "wb"))
-save(model, open("model.pkl", "wb"))
+save(splits, open(prediction.path / "splits.pkl", "wb"))
+save(model, open(prediction.path / "model.pkl", "wb"))
 
 # %%

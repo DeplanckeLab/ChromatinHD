@@ -43,6 +43,11 @@ import peakfreeatac as pfa
 # %%
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
+
+dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"
+dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"
+
+# folder_data_preproc = folder_data / "lymphoma"
 folder_data_preproc = folder_data / "pbmc10k"
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
 
@@ -53,10 +58,14 @@ import torch
 # ## Download
 
 # %% [markdown]
+# For an overview on the output data format, see:
 # https://support.10xgenomics.com/single-cell-atac/software/pipelines/latest/algorithms/overview
 
 # %%
-main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"
+# # ! wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
+# # ! wget {main_url}_atac_possorted_bam.bam.bai -O {folder_data_preproc}/bam/atac_possorted_bam.bam.bai
+# ! echo wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
+# ! echo wget {main_url}_atac_possorted_bam.bam.bai -O {folder_data_preproc}/bam/atac_possorted_bam.bam.bai
 
 # %%
 # ! wget {main_url}_filtered_feature_bc_matrix.h5 -O {folder_data_preproc}/filtered_feature_bc_matrix.h5
@@ -97,6 +106,9 @@ genes["gene"] = genes["info"].str.split(";").str[0].str[8:]
 genes = genes.set_index("gene", drop = False)
 
 # %%
+genes.to_csv(folder_data_preproc / "genes.csv")
+
+# %%
 import pybedtools
 
 # %%
@@ -109,10 +121,10 @@ genes.query("symbol == 'PCNA'")
 import peakfreeatac.transcriptome
 
 # %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc)
+transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
 
 # %%
-adata = sc.read_10x_h5(transcriptome.path / "filtered_feature_bc_matrix.h5")
+adata = sc.read_10x_h5(folder_data_preproc / "filtered_feature_bc_matrix.h5")
 
 # %%
 chromosomes = ["chr" + str(i) for i in range(23)] + ["chrX", "chrY"]
@@ -159,41 +171,13 @@ transcriptome.var = adata.var
 transcriptome.obs = adata.obs
 
 # %%
-sc.pl.umap(adata, color = transcriptome.gene_id(["ANPEP", "FCGR3A"]))
+sc.pl.umap(adata, color = transcriptome.gene_id([ "ANPEP", "FCGR3A"]))
 
 # %%
-adata.var.query("dispersions_norm > 0.5").index.to_series().to_json((folder_data_preproc/"variable_genes.json").open("w"))
+adata.var.query("dispersions_norm > 0.5").index.to_series().to_json((transcriptome.path / "variable_genes.json").open("w"))
 
 # %% [markdown]
 # ## Create windows
-
-# %% [markdown]
-# ### Create windows around genes
-
-# %%
-genewindows = genes.copy()
-genewindows["start"] = np.maximum(genewindows["start"] - 20000, 0)
-genewindows["end"] = genewindows["end"] + 20000
-
-# %%
-genewindows_bed = pybedtools.BedTool.from_dataframe(genewindows[["chr", "start", "end", "strand", "gene"]])
-
-# %%
-peaks = pybedtools.BedTool(folder_data_preproc/"atac_peaks.bed")
-
-# %%
-intersect = genewindows_bed.intersect(peaks, wo = True)
-intersect = intersect.to_dataframe()
-
-# %%
-intersect["peak_id"] = intersect["strand"] + ":" + intersect["thickStart"].astype(str) + "-" + intersect["thickEnd"].astype(str)
-
-# %%
-gene_peak_links = intersect[["score", "peak_id"]].copy()
-gene_peak_links.columns = ["gene", "peak"]
-
-# %%
-gene_peak_links.to_csv(folder_data_preproc / "gene_peak_links_20k.csv")
 
 # %% [markdown]
 # ### Creating promoters
@@ -286,12 +270,9 @@ for i, (gene, promoter_info) in tqdm.tqdm(enumerate(promoters.iterrows())):
             ])
 
 # %%
-import torch
-
-# %%
 import pathlib
 import peakfreeatac.fragments
-fragments = pfa.fragments.Fragments(pathlib.Path("./"))
+fragments = pfa.fragments.Fragments(folder_data_preproc / "fragments")
 
 # %%
 fragments.var = var
@@ -331,6 +312,40 @@ fragments.mapping = mapping
 fragments.coordinates = coordinates
 
 # %% [markdown]
+# ### Create windows around genes
+
+# %% [markdown]
+# Old code used to create windows around genes and determine which peaks are in that window
+
+# %%
+genes = pd.read_csv(folder_data_preproc / "genes.csv", index_col = 0)
+
+# %%
+genewindows = genes.copy()
+genewindows["start"] = np.maximum(genewindows["start"] - 20000, 0)
+genewindows["end"] = genewindows["end"] + 20000
+
+# %%
+genewindows_bed = pybedtools.BedTool.from_dataframe(genewindows.reset_index()[["chr", "start", "end", "strand", "gene"]])
+
+# %%
+peaks = pybedtools.BedTool(folder_data_preproc/"atac_peaks.bed")
+
+# %%
+intersect = genewindows_bed.intersect(peaks, wo = True)
+intersect = intersect.to_dataframe()
+
+# %%
+intersect["peak_id"] = intersect["strand"] + ":" + intersect["thickStart"].astype(str) + "-" + intersect["thickEnd"].astype(str)
+
+# %%
+gene_peak_links = intersect[["score", "peak_id"]].copy()
+gene_peak_links.columns = ["gene", "peak"]
+
+# %%
+gene_peak_links.to_csv(folder_data_preproc / "gene_peak_links_20k.csv")
+
+# %% [markdown]
 # ## Fragment distribution
 
 # %%
@@ -360,5 +375,7 @@ np.isnan(sizes).sum()
 fig, ax = plt.subplots()
 ax.hist(sizes, range = (0, 1000), bins = 100)
 ax.set_xlim(0, 1000)
+
+# %%
 
 # %%
