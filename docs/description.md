@@ -75,6 +75,35 @@ Some analysis pipelines seem to remove small fragments, not really sure why hone
 ATAC footprinting goes somewhat into the direction. However, I don't think this really works that well (few people seem to use it), and particularly the differential footprinting seems elusive https://www.nature.com/articles/s41467-020-18035-1
 
 
+#### [Einarsson et al., 2022 bioarxiv](https://www.biorxiv.org/content/10.1101/2021.10.29.466407v3.full.pdf):
+
+**Data:** CAGE profiling of TSS in LCLs across individuals.
+
+**Example:**
+1. promoters of gene *RPL26L1*, encoding a putative component of the large 60S subunit of the ribosome, and transcription factor gene *SIX3* have highly different variance yet similar mean expression across individuals.
+2. Decomposed promoters of gene *UFSP2* (Fig. 4C,E) clearly illustrate that the activity of sub-clusters of TSSs within promoters and their contributions to the overall activity of the encompassing promoter can vary to a great extent between individuals. In contrast to the equal contribution of decomposed promoters to *RIT1* (Fig. 4D,F).
+
+**Results:**
+1. Promoter expression variability is reflected by the promoter sequence.
+Shown with CNN that was trained to classify low variable promoters from highly variable ones based on their DNA sequence. By topping it up with TF motif discovery they observed motifs for the ETS superfamily of TFs, including ELK1, ETV6, and ELK3 associated with low variable promoters, and motifs for PTF1A, ASCL2, and FOS-JUN heterodimer (AP-1) among highly variable promoters.
+2. Sequence features of promoters are highly predictive of promoter variability.
+Presence of high observed/expected CpG ratio and TATA-binding protein (TBP) binding sites (TATA-boxes), according to the results, are the strongest predictive features of low and high promoter variability, respectively. Variable promoters exhibit highly diverse binding grammars for TFs that are associated with relatively few promoters, while a more uniform regulatory grammar is indicated for stable promoters, being highly associated with higher CpG content and ETS binding sites.
+3. Variability in promoter activity reflects plasticity and robustness for distinct biological functions.
+Low variable promoters were highly enriched with basic cellular housekeeping processes, in particular metabolic processes (Fig. 3A). In contrast, highly variable promoters were enriched with more dynamic biological functions, including signaling, response to stimulus, and developmental processes. Interestingly, the same features found to be predictive of low and high promoter variability across individuals, including CpG-content and TATA-boxes (TBP binding sites), are also associated with low and high transcriptional noise across individual cells (Faure et al., 2017; Morgan and Marioni, 2018).
+3. Promoters with low variability have flexible transcription initiation architectures (!).
+Promoters are associated with different levels of spread of their TSS locations, which has led to their classification into broad or narrow (sharp) promoters according to their positional width (Akalin et al., 2009; Carninci et al., 2006; Lehner, 2008). Although the shape and distinct biological mechanisms of these promoter classes, e.g., housekeeping activities of broad promoters, are conserved across species (Carninci et al., 2006; Hoskins et al., 2011), the necessity for positional dispersion of TSSs and its association with promoter variability are poorly understood. *Weaker association between low promoter variability and broad width than with high entropy may be due to low variable promoters being composed of multiple clusters of TSSs (multi-modal peaks) from independent core promoters.* 
+
+The spread and dominant position of TSSs in broad promoters are tightly linked to immediate downstream (+1) nucleosome positioning, and changes in +1 nucleosome positioning can alter the preferred TSS (Dreos et al., 2016; FANTOM Consortium and the RIKEN PMI and CLST (DGT) et al., 2014; Haberle et al., 2014). *Variability and multi-modal TSS patterns of promoters could be related to their nucleosomal architectures.*
+
+* Highly multimodal peaks are mainly found to be associated with low variable promoters, we hypothesized that this flexibility in core promoter usage may act as a compensatory mechanism to stabilize their expression.
+
+* Low variable promoters with flexible TSS usage, ... are characterized by less restrictive and more fuzzy +1 nucleosome positioning.
+
+![](promoter_architecture_andersson.png)
+
+Low variable promoters (left) are frequently associated with high CpG content (CpG islands), multiple binding sites of ETS factors, and a highly flexible transcription initiation architecture arising from multiple redundant core promoters (decomposed promoters) in a permissive nucleosome positioning environment. These stabilizing features along with a less complex TF binding grammar likely also act to buffer transcriptional noise across single cells and cause ubiquitous expression across cell types. The flexibility in redundant core promoter activities confers a novel layer of mutational robustness to genes. Highly variable promoters (right), on the other hand, are associated with a highly versatile TF regulatory grammar, TATA boxes, and low flexibility in TSS usage. These features likely cause, in addition to high expression variability between individuals, a responsiveness to external stimuli, cell-type restricted activity, high transcriptional noise across single cells, and less tolerance for genetic variants.
+
+
 ### Why do we aggregate over peaks?
 
 
