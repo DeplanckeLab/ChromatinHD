@@ -14,7 +14,7 @@ from peakfreeatac.flow import Flow
 htslib_folder = pathlib.Path("/data/peak_free_atac/software/htslib-1.16/")
 tabix_location = htslib_folder / "tabix"
 
-class PeakDataset(Flow):
+class PeakCounts(Flow):
     def create_adata(self, original_adata):
         adata = sc.AnnData(self.counts, obs = self.obs, var = self.var)
         adata.obsm["X_umap"] = original_adata.obsm["X_umap"]
@@ -117,7 +117,7 @@ class PeakDataset(Flow):
         self._adata = value
 
 
-class FullPeak(PeakDataset):
+class FullPeak(PeakCounts):
     default_name = "full_peak"
     
     def create_peaks(self, original_peak_annot):
@@ -134,7 +134,7 @@ class FullPeak(PeakDataset):
         self.peaks = peaks
 
 
-class HalfPeak(PeakDataset):
+class HalfPeak(PeakCounts):
     default_name = "half_peak"
 
     def create_peaks(self, original_peak_annot):
@@ -159,7 +159,7 @@ class HalfPeak(PeakDataset):
         self.peaks = peaks
 
 
-class ThirdPeak(PeakDataset):
+class ThirdPeak(PeakCounts):
     default_name = "third_peak"
 
     def create_peaks(self, original_peak_annot):
@@ -190,7 +190,7 @@ class ThirdPeak(PeakDataset):
         self.peaks = peaks
 
 
-class BroaderPeak(PeakDataset):
+class BroaderPeak(PeakCounts):
     default_name = "broader_peak"
 
     def create_peaks(self, original_peak_annot):

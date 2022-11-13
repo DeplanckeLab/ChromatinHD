@@ -3,6 +3,7 @@ import torch_scatter
 import math
 import numpy as np
 import dataclasses
+import functools
 
 class FragmentEmbedder(torch.nn.Sequential):
     """
@@ -117,76 +118,3 @@ class FragmentsToExpression(torch.nn.Module):
         cell_gene_embedding = self.embedding_gene_pooler(fragment_embedding, fragment_cellxgene_idx, cell_n, gene_n)
         expression_predicted = self.embedding_to_expression(cell_gene_embedding, gene_idx)
         return expression_predicted
-
-from typing import Optional
-
-
-@dataclasses.dataclass
-class Split():
-    cell_idx:slice
-    gene_idx:slice
-    phase:int
-
-    def __init__(self, cell_idx, gene_idx, phase="train"):
-        assert isinstance(cell_idx, slice)
-        assert isinstance(gene_idx, slice)
-        self.cell_idx = cell_idx
-        self.gene_idx = gene_idx
-
-        self.phase = phase
-
-    def populate(self, fragments):
-        self.cell_start = self.cell_idx.start
-        self.cell_stop = self.cell_idx.stop
-        self.gene_start = self.gene_idx.start
-        self.gene_stop = self.gene_idx.stop
-
-        assert self.gene_stop <= fragments.n_genes
-        assert self.cell_stop <= fragments.n_cells
-
-        self.fragments_selected = torch.where(
-            (fragments.mapping[:, 0] >= self.cell_start) &
-            (fragments.mapping[:, 0] < self.cell_stop) &
-            (fragments.mapping[:, 1] >= self.gene_start) &
-            (fragments.mapping[:, 1] < self.gene_stop)
-        )[0]
-        
-        self.cell_n = self.cell_stop - self.cell_start
-        self.gene_n = self.gene_stop - self.gene_start
-
-        self.fragments_coordinates = fragments.coordinates[self.fragments_selected]
-        self.fragments_mappings = fragments.mapping[self.fragments_selected]
-
-        # we should adapt this if the minibatch cells/genes would ever be non-contiguous
-        self.local_cell_idx = self.fragments_mappings[:, 0] - self.cell_start
-        self.local_gene_idx = self.fragments_mappings[:, 1] - self.gene_start
-
-    @property
-    def cell_idxs(self):
-        """
-        The cell indices within the whole dataset as a numpy array
-        """
-        return np.arange(self.cell_start, self.cell_stop)
-
-    @property
-    def gene_idxs(self):
-        """
-        The gene indices within the whole dataset as a numpy array
-        """
-        return np.arange(self.gene_start, self.gene_stop)
-    
-    @property
-    def fragment_cellxgene_idx(self):
-        """
-        The local index of cellxgene, i.e. starting from 0 and going up to n_cells * n_genes - 1
-        
-        """
-        return self.local_cell_idx * self.gene_n + self.local_gene_idx
-    
-    def to(self, device):
-        self.fragments_selected = self.fragments_selected.to(device)
-        self.fragments_coordinates = self.fragments_coordinates.to(device)
-        self.fragments_mappings = self.fragments_mappings.to(device)
-        self.local_cell_idx = self.local_cell_idx.to(device)
-        self.local_gene_idx = self.local_gene_idx.to(device)
-        return self
