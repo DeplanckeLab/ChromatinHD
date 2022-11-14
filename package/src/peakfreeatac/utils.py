@@ -24,13 +24,18 @@ def name_window(window_info):
 def paircor(x, y, dim = 0):
     import torch
     import pandas as pd
+    import numpy as np
     if isinstance(x, pd.DataFrame):
         x_ = x.values
         y_ = y.values
-        cor = ((x_ - x_.mean(dim, keepdims = True)) * (y_ - y_.mean(dim, keepdims = True))).mean(dim) / (y_.std(dim) * x_.std(dim))
+        divisor = (y_.std(dim) * x_.std(dim))
+        divisor[np.isclose(divisor, 0)] = 1.
+        cor = ((x_ - x_.mean(dim, keepdims = True)) * (y_ - y_.mean(dim, keepdims = True))).mean(dim) / divisor
         cor = pd.Series(cor, x.index if dim == 1 else x.columns)
     elif torch.is_tensor(x):
         cor = ((x - x.mean(dim, keepdim = True)) * (y - y.mean(dim, keepdim = True))).mean(dim) / (y.std(dim) * x.std(dim))
     else:
-        cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / (y.std(dim) * x.std(dim))
+        divisor = (y.std(dim) * x.std(dim))
+        divisor[np.isclose(divisor, 0)] = 1.
+        cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / divisor
     return cor
