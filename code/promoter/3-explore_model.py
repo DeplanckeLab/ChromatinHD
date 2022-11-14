@@ -642,11 +642,17 @@ for col in cols:
 # %%
 gene_id = transcriptome.gene_id("LYN")
 # gene_id = transcriptome.gene_id("PLXDC2")
+# gene_id = transcriptome.gene_id("TNFAIP2")
 
 # %%
 plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_lost_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.RdBu_r, center = 0.)
+
+# %%
+plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["mse_loss"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata)
 
 # %%
 plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["mse_loss_interaction"].unstack()
