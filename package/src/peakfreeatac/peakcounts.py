@@ -14,28 +14,27 @@ from peakfreeatac.flow import Flow
 htslib_folder = pathlib.Path("/data/peak_free_atac/software/htslib-1.16/")
 tabix_location = htslib_folder / "tabix"
 
-class PeakDataset(Flow):
+class PeakCounts(Flow):
     def create_adata(self, original_adata):
         adata = sc.AnnData(self.counts, obs = self.obs, var = self.var)
         adata.obsm["X_umap"] = original_adata.obsm["X_umap"]
         self.adata = adata
     
     def count_peaks(self, fragments_location, cell_ids):
-        # add ix to peaks
+        # extract unique peaks
         peaks = self.peaks
-        peaks["ix"] = np.arange(peaks.shape[0])
+        unique_peak_ids = list(set(peaks.index))
+        peak_idxs = {peak_id:i for i, peak_id in enumerate(unique_peak_ids)}
 
         # create peaks file for tabix
         self.peaks_bed = peaks[["chrom", "start", "end"]]
 
         # count
         counts = collections.defaultdict(int)
-
-        peak_idxs = peaks["ix"].to_dict()
         barcode_idxs = {barcode:ix for ix, barcode in enumerate(cell_ids)}
 
         process = sp.Popen([tabix_location, fragments_location, "-R", self.peaks_bed_path, "--separate-regions"], stdout=sp.PIPE)
-        counter = tqdm.tqdm(total = peaks.shape[0], smoothing = 0)
+        counter = tqdm.tqdm(total = len(unique_peak_ids), smoothing = 0)
         for line in process.stdout:
             line = line.decode("utf-8")
             if line.startswith("#"):
@@ -62,7 +61,7 @@ class PeakDataset(Flow):
         self.obs = obs.copy()
 
         # create var
-        self.var = peaks.copy()
+        self.var = pd.DataFrame(index = pd.Series(unique_peak_ids, name = "peak"))
 
     @property
     def peaks_bed_path(self):
@@ -117,7 +116,7 @@ class PeakDataset(Flow):
         self._adata = value
 
 
-class FullPeak(PeakDataset):
+class FullPeak(PeakCounts):
     default_name = "full_peak"
     
     def create_peaks(self, original_peak_annot):
@@ -134,7 +133,7 @@ class FullPeak(PeakDataset):
         self.peaks = peaks
 
 
-class HalfPeak(PeakDataset):
+class HalfPeak(PeakCounts):
     default_name = "half_peak"
 
     def create_peaks(self, original_peak_annot):
@@ -159,7 +158,7 @@ class HalfPeak(PeakDataset):
         self.peaks = peaks
 
 
-class ThirdPeak(PeakDataset):
+class ThirdPeak(PeakCounts):
     default_name = "third_peak"
 
     def create_peaks(self, original_peak_annot):
@@ -190,7 +189,7 @@ class ThirdPeak(PeakDataset):
         self.peaks = peaks
 
 
-class BroaderPeak(PeakDataset):
+class BroaderPeak(PeakCounts):
     default_name = "broader_peak"
 
     def create_peaks(self, original_peak_annot):

@@ -20,3 +20,17 @@ def get_output():
 
 def name_window(window_info):
     return window_info["chrom" if "chrom" in window_info.index else "chr"] + ":" + str(window_info["start"]) + "-" + str(window_info["end"])
+
+def paircor(x, y, dim = 0):
+    import torch
+    import pandas as pd
+    if isinstance(x, pd.DataFrame):
+        x_ = x.values
+        y_ = y.values
+        cor = ((x_ - x_.mean(dim, keepdims = True)) * (y_ - y_.mean(dim, keepdims = True))).mean(dim) / (y_.std(dim) * x_.std(dim))
+        cor = pd.Series(cor, x.index if dim == 1 else x.columns)
+    elif torch.is_tensor(x):
+        cor = ((x - x.mean(dim, keepdim = True)) * (y - y.mean(dim, keepdim = True))).mean(dim) / (y.std(dim) * x.std(dim))
+    else:
+        cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / (y.std(dim) * x.std(dim))
+    return cor

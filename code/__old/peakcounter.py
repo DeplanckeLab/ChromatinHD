@@ -2,7 +2,6 @@
 
 import pathlib
 import collections
-import laflow as laf
 
 root = pathlib.Path("./")
 project_root = root / "output"
