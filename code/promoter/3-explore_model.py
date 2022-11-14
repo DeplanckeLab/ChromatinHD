@@ -607,13 +607,26 @@ sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
 # %% [markdown]
 # #### Calculate interaction effects
 
+# %% [markdown]
+# Test whether:
+# $$
+# \text{effect}_1 + \text{effect}_2 \neq \text{effect}_{1,2}
+# $$
+#
+# given:
+# $$
+# \text{effect} = \text{MSE}_\text{unperturbed} - \text{MSE}_\text{perturbed}
+# $$
+
 # %%
 gene_aggscores_windowpairs["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windowpairs["mse"]
 gene_aggscores_windowpairs["perc_lost"] = 1- gene_aggscores_windowpairs["perc_retained"]
 
 # %%
-# determine what the reference (single) mse values are
-# in this case, we can simply use the diagonal
+# determine what the reference mse values are for a single perturbation
+# in this case, we can simply use the "diagonal", i.e. where window_mid1 == window_mid2, because in that case only one fragment is removed
+# in other perturbation, you will probably have to use some other technique
+# you could for example include a "dummy" effect
 reference_idx = gene_aggscores_windowpairs.index.get_level_values("window_mid2") == gene_aggscores_windowpairs.index.get_level_values("window_mid1")
 reference = gene_aggscores_windowpairs.loc[reference_idx]
 reference1 = reference.droplevel("window_mid2")
