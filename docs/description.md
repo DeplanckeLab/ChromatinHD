@@ -144,6 +144,12 @@ $\text{cge}_{[\text{cell}, \text{gene}, \text{component}]} = f_{\theta_2}(\text{
 $\text{gex} = f_{\theta_2}(\text{cge})$, inclusion of gene information
 
 
+### Interpretability
+
+
+https://christophm.github.io/interpretable-ml-book/shapley.html
+
+
 ## Biology: why?
 
 

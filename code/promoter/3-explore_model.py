@@ -81,7 +81,7 @@ expression_prediction = pd.DataFrame(0., index = transcriptome.obs.index, column
 expression_observed = pd.DataFrame(transcriptome.X.dense().cpu().detach().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
 
 for split_ix, split in enumerate(tqdm.tqdm(splits)):
-    split = split.to("cuda:1")
+    split = split.to(device)
     
     with torch.no_grad():
         expression_predicted = model(
@@ -90,9 +90,9 @@ for split_ix, split in enumerate(tqdm.tqdm(splits)):
             split.cell_n,
             split.gene_n,
             split.gene_idx
-        ).to("cpu")
+        )#.to("cpu")
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx].to(device)
 
         mse = loss(expression_predicted, transcriptome_subset)
 

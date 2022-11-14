@@ -44,10 +44,11 @@ import peakfreeatac.transcriptome
 dataset_name = "lymphoma"
 # dataset_name = "pbmc10k"
 
-# peaks_name = "cellranger"
+peaks_name = "cellranger"
 # peaks_name = "genrich"
-peaks_name = "macs2"
-peaks_name = "stack"
+# peaks_name = "macs2"
+# peaks_name = "stack"
+peaks_name = "rolling_200"; window_size = 200
 
 # %%
 folder_data_preproc = pfa.get_output() / "data" / dataset_name
@@ -63,14 +64,24 @@ promoters = pd.read_csv(folder_data_preproc / "promoters.csv", index_col = 0)
 peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)
 
 # %%
-if peaks_name != "stack":
+promoter = promoters.iloc[0]
+
+# %%
+if peaks_name == "stack":
+    peaks = promoters.reset_index()[["chr", "start", "end", "gene"]]
+elif peaks_name.startswith("rolling"):
+    peaks = []
+    for gene, promoter in promoters.iterrows():
+        starts = np.arange(promoter["start"], promoter["end"], step = window_size)
+        ends = np.hstack([starts[1:], [promoter["end"]]])
+        peaks.append(pd.DataFrame({"chrom":promoter["chr"], "start":starts, "ends":ends, "gene":gene}))
+    peaks = pd.concat(peaks)
+else:
     peaks_folder = folder_root / "peaks" / dataset_name / peaks_name
     peaks = pd.read_table(peaks_folder / "peaks.bed", names = ["chrom", "start", "end"], usecols = [0, 1, 2])
 
     if peaks_name == "genrich":
         peaks["start"] += 1
-else:
-    peaks = promoters.reset_index()[["chr", "start", "end", "gene"]]
 
 # %%
 import pybedtools
@@ -99,6 +110,9 @@ peakcounts.count_peaks(folder_data_preproc / "atac_fragments.tsv.gz", transcript
 
 # %% [markdown]
 # ## Predict (temporarily here 👷)
+
+# %%
+peaks = peakcounts.peaks
 
 # %%
 import peakfreeatac.prediction

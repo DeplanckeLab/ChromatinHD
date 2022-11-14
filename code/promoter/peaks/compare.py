@@ -63,7 +63,9 @@ method_names = [
     "macs2",
     "macs2_linear",
     "cellranger_linear",
-    "stack_linear"
+    "stack_linear",
+    "rolling_200",
+    # "rolling_200_linear"
 ]
 
 # %%
@@ -94,14 +96,21 @@ method_info = pd.DataFrame([
     ["cellranger_linear", "cellranger + Linear"],
     ["cellranger", "cellranger + XGBoost"],
     ["stack_linear", "Stacked + Linear"],
+    ["rolling_200_linear", "Rolling window + Linear"],
+    ["rolling_200", "Rolling window + XGBoost"],
 ], columns = ["method", "label"]).set_index("method")
 
 # %%
 fig, (ax_all, ax_able) = plt.subplots(1, 2, figsize = (3, 3), sharey = True)
-scores.groupby(["method", "phase"])["mse_diff"].mean().unstack().plot(kind = "barh", ax = ax_all, legend = False)
-scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().unstack().plot(kind = "barh", ax = ax_able, legend = False)
+
+plotdata_all = scores.groupby(["method", "phase"])["mse_diff"].mean().unstack()
+plotdata_able = scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().unstack()
+
+plotdata_all.plot(kind = "barh", ax = ax_all, legend = False)
+plotdata_able.plot(kind = "barh", ax = ax_able, legend = False)
 ax_all.set_xlim(ax_all.get_xlim()[::-1])
 ax_able.set_xlim(ax_able.get_xlim()[::-1])
+# ax_all.set_xlim(
 ax_all.set_xlabel("MSE difference")
 ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
 
