@@ -241,6 +241,9 @@ aggscores.to_csv(prediction.path / "aggscores.csv")
 gene_aggscores["mse_diff"].unstack().T.sort_values("validation").plot()
 
 # %%
+gene_aggscores["cor"].unstack().T.sort_values("validation").plot()
+
+# %%
 gene_aggscores["symbol"] = transcriptome.symbol(gene_aggscores.index.get_level_values("gene")).values
 
 # %%
@@ -275,7 +278,7 @@ cuts = np.arange(-padding_negative, padding_positive, step = window_size)
 # %%
 aggscores_windows = []
 gene_aggscores_windows = []
-for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(zip(cuts[:-1], cuts[1:]))):
+for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(zip(cuts[:-1], cuts[1:])), total = len(cuts)-1):
     # take fragments within the window
     fragments_oi = select_window(fragments.coordinates, window_start, window_end)
     
@@ -356,7 +359,7 @@ gene_mse_windows_norm = (gene_mse_windows - gene_mse_windows.values.min(1, keepd
 sns.heatmap(gene_mse_windows_norm)
 
 # %%
-gene_id = transcriptome.gene_id("LYN")
+gene_id = transcriptome.gene_id("NAMPT")
 
 # %% [markdown]
 # Extract promoter info of gene
@@ -557,11 +560,14 @@ mse_dummy_windowpairs = aggscores_windowpairs["mse_dummy"].unstack()
 sns.heatmap(mse_windowpairs.loc["validation"])
 
 # %% [markdown]
+# #### Calculate interaction
+
+# %% [markdown]
 # Try to calculate whether an interactions occurs, i.e. if removing both windows make things worse or better than removing the windows individually
 
 # %%
 aggscores_windowpairs["mse_loss"] = aggscores["mse"] - aggscores_windowpairs["mse"]
-aggscores_windowpairs["perc_lost"] = 1- aggscores_windowpairs["perc_retained"]
+aggscores_windowpairs["perc_loss"] = 1- aggscores_windowpairs["perc_retained"]
 
 # %%
 # determine what the reference (single) mse values are
@@ -572,16 +578,32 @@ reference1 = reference.droplevel("window_mid2")
 reference2 = reference.droplevel("window_mid1")
 
 # %%
-cols = ["mse_loss", "perc_lost"]
+cols = ["mse_loss", "perc_loss"]
 
 # %%
 aggscores_windowpairs_test = aggscores_windowpairs.join(reference1[cols], rsuffix = "1").join(reference2[cols], rsuffix = "2")
 
-# %%
-for col in cols:
-    aggscores_windowpairs_test[col + "12"] = aggscores_windowpairs_test[col+"1"] + aggscores_windowpairs_test[col+"2"]
+# %% [markdown]
+# Fragments can be removed by both perturbations at the same time, e.g. if two windows are adjacent a lot of fragments will be shared.
+# We corrected for this bias using the `perc_loss_bias` column.
 
 # %%
+# calculate the bias
+aggscores_windowpairs_test["perc_loss12"] = (aggscores_windowpairs_test["perc_loss1"] + aggscores_windowpairs_test["perc_loss2"])
+aggscores_windowpairs_test["perc_loss_bias"] = (
+    aggscores_windowpairs_test["perc_loss"] /
+    aggscores_windowpairs_test["perc_loss12"]
+)
+
+# %%
+# calculate the (corrected) expected additive values
+for col in cols:
+    aggscores_windowpairs_test[col + "12"] = (
+        (aggscores_windowpairs_test[col+"1"] + aggscores_windowpairs_test[col+"2"]) * 
+        (aggscores_windowpairs_test["perc_loss_bias"])
+    )
+
+# calculate the interaction
 for col in cols:
     aggscores_windowpairs_test[col + "_interaction"] = (
         aggscores_windowpairs_test[col] -
@@ -589,12 +611,15 @@ for col in cols:
     )
 
 # %% [markdown]
-# The interaction with `perc_lost` is normal, given that many fragments overlapping between two adjacent windows.
+# We can check that the bias correction worked correctly by checking the interaction of perc_loss, which should be 0.
 
 # %%
-plotdata = aggscores_windowpairs_test.loc[("validation")]["perc_lost_interaction"].unstack()
+plotdata = aggscores_windowpairs_test.loc[("validation")]["perc_loss_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata, cmap = mpl.cm.RdBu_r, center = 0.)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu_r, center = 0., vmin = -1e-5, vmax = 1e-5)
+
+# %% [markdown]
+# #### Plot interaction
 
 # %%
 plotdata = aggscores_windowpairs_test.loc[("validation")]["mse_loss_interaction"].unstack()
@@ -620,7 +645,8 @@ sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
 
 # %%
 gene_aggscores_windowpairs["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windowpairs["mse"]
-gene_aggscores_windowpairs["perc_lost"] = 1- gene_aggscores_windowpairs["perc_retained"]
+gene_aggscores_windowpairs["cor_loss"] = -gene_aggscores["cor"] + gene_aggscores_windowpairs["cor"]
+gene_aggscores_windowpairs["perc_loss"] = 1- gene_aggscores_windowpairs["perc_retained"]
 
 # %%
 # determine what the reference mse values are for a single perturbation
@@ -633,16 +659,29 @@ reference1 = reference.droplevel("window_mid2")
 reference2 = reference.droplevel("window_mid1")
 
 # %%
-cols = ["mse_loss", "perc_lost"]
+cols = ["mse_loss", "perc_loss", "cor_loss"]
 
 # %%
 gene_aggscores_windowpairs_test = gene_aggscores_windowpairs.join(reference1[cols], rsuffix = "1").join(reference2[cols], rsuffix = "2")
 
 # %%
-for col in cols:
-    gene_aggscores_windowpairs_test[col + "12"] = gene_aggscores_windowpairs_test[col+"1"] + gene_aggscores_windowpairs_test[col+"2"]
+# calculate the bias
+gene_aggscores_windowpairs_test["perc_loss12"] = (gene_aggscores_windowpairs_test["perc_loss1"] + gene_aggscores_windowpairs_test["perc_loss2"])
+eps = 1e-8
+gene_aggscores_windowpairs_test["perc_loss_bias"] = (
+    gene_aggscores_windowpairs_test["perc_loss"] /
+    gene_aggscores_windowpairs_test["perc_loss12"]
+).fillna(1)
 
 # %%
+# calculate the (corrected) expected additive values
+for col in cols:
+    gene_aggscores_windowpairs_test[col + "12"] = (
+        (gene_aggscores_windowpairs_test[col+"1"] + gene_aggscores_windowpairs_test[col+"2"]) * 
+        (gene_aggscores_windowpairs_test["perc_loss_bias"])
+    )
+
+# calculate the interaction
 for col in cols:
     gene_aggscores_windowpairs_test[col + "_interaction"] = (
         gene_aggscores_windowpairs_test[col] -
@@ -653,24 +692,53 @@ for col in cols:
 # #### Plot for particular gene
 
 # %%
-gene_id = transcriptome.gene_id("LYN")
-# gene_id = transcriptome.gene_id("PLXDC2")
+# gene_id = transcriptome.gene_id("LYN")
+gene_id = transcriptome.gene_id("PLXDC2")
 # gene_id = transcriptome.gene_id("TNFAIP2")
+gene_id = transcriptome.gene_id("HLA-DRA")
+gene_id = transcriptome.gene_id("NKG7")
 
 # %%
-plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_lost_interaction"].unstack()
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
+
+plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_loss"].unstack()
 np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata, cmap = mpl.cm.RdBu_r, center = 0.)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0., ax = ax1)
+
+plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_loss12"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0., ax = ax2)
+
+plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_loss_interaction"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0., ax = ax3, vmin = -1e-5, vmax = 1e-5)
 
 # %%
-plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["mse_loss"].unstack()
-np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata)
+gene_aggscores_windowpairs_test["mse_loss_interaction"].loc["validation"].sort_values(ascending = True).head(10)
 
 # %%
-plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["mse_loss_interaction"].unstack()
+col = "mse_loss"
+
+# %%
+plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]
+
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
+
+norm = mpl.colors.Normalize(vmax = 0)
+
+plotdata = plotdata_all[f"{col}"].unstack()
 np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
+sns.heatmap(plotdata, cmap = mpl.cm.Reds_r, ax = ax1, norm = norm)
+
+plotdata = plotdata_all[f"{col}12"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.Reds_r, ax = ax2, norm = norm)
+
+norm = mpl.colors.CenteredNorm(0)
+
+plotdata = plotdata_all[f"{col}_interaction"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, norm = norm, ax = ax3)
 
 # %% [markdown]
 # ## Performance when masking peaks
