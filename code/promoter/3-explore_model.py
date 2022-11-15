@@ -102,6 +102,10 @@ transcriptome_pd = pd.DataFrame(transcriptome_X.dense().cpu().numpy(), index = t
 
 # %%
 def score_fragments(splits, fragments_oi):
+    """
+    Scores a set of fragments_oi using a set of splits
+    """
+    
     splitinfo = pd.DataFrame({"split_ix":i, "n_cells":split.cell_n, "phase":split.phase} for i, split in enumerate(splits))
     splitinfo["weight"] = splitinfo["n_cells"] / splitinfo.groupby("phase")["n_cells"].sum()[splitinfo["phase"]].values
     
@@ -119,6 +123,7 @@ def score_fragments(splits, fragments_oi):
         # scatter is needed here because the values are not sorted by gene (but by cellxgene)
         perc_retained_gene = torch_scatter.scatter_mean(fragments_oi_split.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
         
+        # run the model and calculate mse
         with torch.no_grad():
             expression_predicted = model(
                 split.fragments_coordinates[fragments_oi_split],
@@ -128,15 +133,14 @@ def score_fragments(splits, fragments_oi):
                 split.gene_idx
             )#.to("cpu")
 
-            transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx].to(device)
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx].to(device)
 
-            mse = ((expression_predicted - transcriptome_subset)**2).mean()
+        mse = ((expression_predicted - transcriptome_subset)**2).mean()
 
-            expression_predicted_dummy = transcriptome_subset.mean(0, keepdim = True).expand(transcriptome_subset.shape)
-            # mse_dummy = loss(expression_predicted_dummy, transcriptome_subset)
-            mse_dummy = ((expression_predicted_dummy - transcriptome_subset)**2).mean()
+        expression_predicted_dummy = transcriptome_subset.mean(0, keepdim = True).expand(transcriptome_subset.shape)
+        mse_dummy = ((expression_predicted_dummy - transcriptome_subset)**2).mean()
 
-            transcriptome.obs.loc[transcriptome.obs.index[split.cell_idx], "phase"] = split.phase
+        transcriptome.obs.loc[transcriptome.obs.index[split.cell_idx], "phase"] = split.phase
 
         genescores = pd.DataFrame({
             "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
@@ -254,6 +258,9 @@ gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")
 
 # %% [markdown]
 # ## Performance when masking a window
+
+# %% [markdown]
+# Hypothesis: are fragments from certain regions more predictive than others?
 
 # %%
 splits = [split.to("cuda") for split in splits]
@@ -497,6 +504,9 @@ IPython.display.HTML("<textarea>" + pfa.utils.name_window(promoters.loc[gene_id]
 # %% [markdown]
 # ## Performance when masking a pairs of windows
 
+# %% [markdown]
+# Hypothesis: are fragments from pairs of regions co-predictive, i.e. fragments from both regions together provide a non-linear prediction?
+
 # %%
 splits = [split.to("cuda") for split in splits]
 
@@ -692,29 +702,36 @@ for col in cols:
 # #### Plot for particular gene
 
 # %%
+col = "perc_loss"
+plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]
+
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
+
+norm = mpl.colors.Normalize(vmin = 0)
+
+plotdata = plotdata_all[f"{col}"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.Reds, ax = ax1, norm = norm)
+
+plotdata = plotdata_all[f"{col}12"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.Reds, ax = ax2, norm = norm)
+
+norm = mpl.colors.CenteredNorm(0, halfrange = 1e-5)
+
+plotdata = plotdata_all[f"{col}_interaction"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, norm = norm, ax = ax3)
+
+# %%
+gene_aggscores_windowpairs_test["mse_loss_interaction"].loc["validation"].sort_values(ascending = True).head(10)
+
+# %%
 # gene_id = transcriptome.gene_id("LYN")
 gene_id = transcriptome.gene_id("PLXDC2")
 # gene_id = transcriptome.gene_id("TNFAIP2")
 gene_id = transcriptome.gene_id("HLA-DRA")
 gene_id = transcriptome.gene_id("NKG7")
-
-# %%
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
-
-plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_loss"].unstack()
-np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0., ax = ax1)
-
-plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_loss12"].unstack()
-np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0., ax = ax2)
-
-plotdata = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]["perc_loss_interaction"].unstack()
-np.fill_diagonal(plotdata.values, 0)
-sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0., ax = ax3, vmin = -1e-5, vmax = 1e-5)
-
-# %%
-gene_aggscores_windowpairs_test["mse_loss_interaction"].loc["validation"].sort_values(ascending = True).head(10)
 
 # %%
 col = "mse_loss"
@@ -744,7 +761,13 @@ sns.heatmap(plotdata, cmap = mpl.cm.RdBu, norm = norm, ax = ax3)
 # ## Performance when masking peaks
 
 # %% [markdown]
+# Hypothesis: are fragments outside of peaks also predictive
+
+# %% [markdown]
 # ## Performance when removing fragment lengths
+
+# %% [markdown]
+# Hypothesis: **do fragments of certain lengths provide more or less predictive power?**
 
 # %%
 splits = [split.to("cuda") for split in splits]
