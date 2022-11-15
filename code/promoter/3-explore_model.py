@@ -101,7 +101,12 @@ transcriptome_pd = pd.DataFrame(transcriptome_X.dense().cpu().numpy(), index = t
 
 
 # %%
-def score_fragments(splits, fragments_oi):
+def score_fragments(
+    splits,
+    fragments_oi,
+    expression_prediction_full = None,
+    return_expression_prediction = False
+):
     """
     Scores a set of fragments_oi using a set of splits
     """
@@ -161,7 +166,7 @@ def score_fragments(splits, fragments_oi):
 
         expression_prediction.values[split.cell_idx, split.gene_idx] = expression_predicted.cpu().detach().numpy()
         
-    # aggregate scores
+    # aggregate overall scores
     scores = pd.DataFrame(scores)
     scores["phase"] = scores["phase"].astype("category")
     aggscores = aggregate_splits(
@@ -180,22 +185,34 @@ def score_fragments(splits, fragments_oi):
     )
     gene_aggscores["mse_diff"] = gene_aggscores["mse_dummy"] - gene_aggscores["mse"]
     
-    # calculate correlation
+    # calculate summary statistics on the predicted expression
+    # first extract train and validation cells
     cells_train = transcriptome.obs.index[list(set([cell_idx for split in splits for cell_idx in split.cell_idxs if split.phase == "train"]))]
     cells_validation = transcriptome.obs.index[list(set([cell_idx for split in splits for cell_idx in split.cell_idxs if split.phase == "validation"]))]
     
+    # calculate effect
+    if expression_prediction_full is not None:
+        effect_train = expression_prediction.loc[cells_train].mean() - expression_prediction_full.loc[cells_train].mean()
+        effect_validation = expression_prediction.loc[cells_validation].mean() - expression_prediction_full.loc[cells_validation].mean()
+        
+        aggscores["effect"] = pd.Series({"train":effect_train.mean(), "validation":effect_validation.mean()})
+        gene_aggscores["effect"] = pd.concat({"train":effect_train, "validation":effect_validation}, names = ["phase", "gene"])
+    
+    # calculate correlation
     cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
     cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
     
     gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
     aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
     
-    return aggscores, gene_aggscores, expression_prediction
+    if return_expression_prediction:
+        return aggscores, gene_aggscores, expression_prediction
+    return aggscores, gene_aggscores
 
 
 # %%
 fragments_oi = torch.tensor([True] * fragments.coordinates.shape[0], device = device)
-aggscores, gene_aggscores, expression_prediction = score_fragments(splits, fragments_oi)
+aggscores, gene_aggscores, expression_prediction = score_fragments(splits, fragments_oi, return_expression_prediction = True)
 
 # %% [markdown]
 # ### Global visual check
@@ -242,16 +259,16 @@ aggscores.to_csv(prediction.path / "aggscores.csv")
 # ### Gene-specific view
 
 # %%
-gene_aggscores["mse_diff"].unstack().T.sort_values("validation").plot()
-
-# %%
-gene_aggscores["cor"].unstack().T.sort_values("validation").plot()
-
-# %%
 gene_aggscores["symbol"] = transcriptome.symbol(gene_aggscores.index.get_level_values("gene")).values
 
 # %%
 gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = False).head(20).style.bar(subset = ["mse_diff", "cor"])
+
+# %%
+gene_aggscores["mse_diff"].unstack().T.sort_values("validation").plot()
+
+# %%
+gene_aggscores["cor"].unstack().T.sort_values("validation").plot()
 
 # %%
 gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")
@@ -289,7 +306,7 @@ for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(zip(cuts[:-1],
     # take fragments within the window
     fragments_oi = select_window(fragments.coordinates, window_start, window_end)
     
-    aggscores_window, gene_aggscores_window, _ = score_fragments(splits, fragments_oi)
+    aggscores_window, gene_aggscores_window = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
     
     window_mid = window_start + (window_end - window_start)/2
     aggscores_window["window_mid"] = window_mid
@@ -310,6 +327,10 @@ gene_aggscores_windows = gene_aggscores_windows.set_index("window_mid", append =
 # %%
 aggscores_windows.loc["train"]["perc_retained"].plot()
 aggscores_windows.loc["validation"]["perc_retained"].plot()
+
+# %%
+aggscores_windows.loc["train"]["effect"].plot()
+aggscores_windows.loc["validation"]["effect"].plot()
 
 # %%
 mse_windows = aggscores_windows["mse"].unstack().T
@@ -340,6 +361,7 @@ plt.legend([patch_train[0], patch_validation[0]], ['train', 'validation'])
 gene_mse_windows = gene_aggscores_windows["mse"].unstack()
 gene_perc_retained_windows = gene_aggscores_windows["perc_retained"].unstack()
 gene_mse_dummy_windows = gene_aggscores_windows["mse_dummy"].unstack()
+gene_effect_windows = gene_aggscores_windows["effect"].unstack()
 
 # %%
 fig, ax = plt.subplots()
@@ -365,8 +387,14 @@ gene_mse_windows_norm = (gene_mse_windows - gene_mse_windows.values.min(1, keepd
 # %%
 sns.heatmap(gene_mse_windows_norm)
 
+# %% [markdown]
+# #### Plot a single gene
+
 # %%
-gene_id = transcriptome.gene_id("NAMPT")
+gene_id = transcriptome.gene_id("PLXDC2")
+gene_id = transcriptome.gene_id("FOSB")
+gene_id = transcriptome.gene_id("C9orf72")
+gene_id = transcriptome.gene_id("WARS")
 
 # %% [markdown]
 # Extract promoter info of gene
@@ -426,6 +454,9 @@ peaks = pd.concat(peaks)
 peak_methods = pd.DataFrame({"method":peaks["method"].unique()}).set_index("method")
 peak_methods["ix"] = np.arange(peak_methods.shape[0])
 
+# %%
+gene_effect_windows.loc["validation"].max(1).sort_values()
+
 # %% [markdown]
 # Extract bigwig info of gene
 
@@ -434,7 +465,7 @@ import pyBigWig
 bw = pyBigWig.open(str(folder_data_preproc / "atac_cut_sites.bigwig"))
 
 # %%
-fig, (ax_mse, ax_perc, ax_peak, ax_bw) = plt.subplots(4, 1, height_ratios = [1, 0.5, 0.2, 0.2], sharex=True)
+fig, (ax_mse, ax_effect, ax_perc, ax_peak, ax_bw) = plt.subplots(5, 1, height_ratios = [1, 0.5, 0.5, 0.2, 0.2], sharex=True)
 ax_mse2 = ax_mse.twinx()
 
 # mse annot
@@ -460,6 +491,16 @@ plotdata = gene_mse_windows.loc["train"].loc[gene_id]
 patch_train = ax_mse.plot(plotdata.index, plotdata, color = "blue", label = "train")
 plotdata = gene_mse_windows.loc["validation"].loc[gene_id]
 patch_validation = ax_mse2.plot(plotdata.index, plotdata, color = "red", label = "train")
+
+# effect
+plotdata = gene_effect_windows.loc["train"].loc[gene_id]
+patch_train = ax_effect.plot(plotdata.index, plotdata, color = "blue", label = "train")
+plotdata = gene_effect_windows.loc["validation"].loc[gene_id]
+patch_validation = ax_effect.plot(plotdata.index, plotdata, color = "red", label = "train")
+
+ax_effect.axhline(0, color = "#333333")
+ax_effect.set_ylim(ax_effect.get_ylim()[::-1])
+ax_effect.set_ylabel("Effect", rotation = 0, ha = "right")
 
 # perc_retained
 plotdata = gene_perc_retained_windows.loc["train"].loc[gene_id]
@@ -500,6 +541,9 @@ fig.suptitle(transcriptome.symbol(gene_id) + " promoter")
 # if you want to explore this window in igv
 import IPython.display
 IPython.display.HTML("<textarea>" + pfa.utils.name_window(promoters.loc[gene_id]) + "</textarea>")
+
+# %% [markdown]
+# ### Are opposing effects put into the same peak?
 
 # %% [markdown]
 # ## Performance when masking a pairs of windows
