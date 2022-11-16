@@ -478,7 +478,7 @@ gene_effect_windows.loc["validation"].max(1).sort_values(ascending = False).head
 gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
 
 # %%
-gene_id = transcriptome.gene_id("FOSB")
+gene_id = transcriptome.gene_id("ZEB2")
 # gene_id = transcriptome.gene_id("ALOX5AP")
 # gene_id = transcriptome.gene_id("SIPA1L1")
 # gene_id = transcriptome.gene_id("TET3")
@@ -740,7 +740,7 @@ matched_peaks, matched_windows = np.where(((localpeaks["start"].values[:, None] 
 peak_window_matches = pd.DataFrame({"peak":localpeaks.index[matched_peaks], "window_mid":windows[matched_windows, 2]}).set_index("peak").join(peaks[["gene"]]).reset_index()
 
 # %% [markdown]
-# ### Is the most significant window inside a peak?
+# ### Is the most predictive window inside a peak?
 
 # %%
 gene_best_windows = gene_aggscores_windows.loc["validation"].loc[gene_aggscores_windows.loc["validation"].groupby(["gene"])["mse"].idxmax()]
@@ -755,7 +755,7 @@ gene_best_windows = gene_best_windows.join(peak_window_matches.set_index(["gene"
 gene_best_windows["matched"] = ~pd.isnull(gene_best_windows["peak"])
 
 # %%
-gene_best_windows = gene_best_windows.sort_values("mse_loss", ascending = True)
+gene_best_windows = gene_best_windows.sort_values("mse_diff", ascending = False)
 gene_best_windows["ix"] = np.arange(1, gene_best_windows.shape[0] + 1)
 gene_best_windows["cum_matched"] = (np.cumsum(gene_best_windows["matched"]) / gene_best_windows["ix"])
 gene_best_windows["perc"] = gene_best_windows["ix"] / gene_best_windows.shape[0]
@@ -765,7 +765,9 @@ gene_best_windows["perc"] = gene_best_windows["ix"] / gene_best_windows.shape[0]
 
 # %%
 top_cutoff = 0.05
-gene_best_windows["cum_matched"].iloc[int(gene_best_windows.shape[0] * top_cutoff)]
+perc_within_a_peak = gene_best_windows["cum_matched"].iloc[int(gene_best_windows.shape[0] * top_cutoff)]
+print(perc_within_a_peak)
+print(f"Perhaps the most predictive window in the promoter is not inside of a peak?\nIndeed, for {1-perc_within_a_peak:.2%} of the {top_cutoff:.0%} best predicted genes, the most predictive window does not lie within a peak.")
 
 # %%
 fig, ax = plt.subplots()
@@ -785,7 +787,7 @@ gene_best_windows["label"] = transcriptome.symbol(gene_best_windows.index)
 gene_best_windows.query("~matched")
 
 # %% [markdown]
-# ### Are *all* predictive windows within a peak?
+# ### Are all predictive windows within a peak?
 
 # %%
 gene_aggscores_windows_matched = gene_aggscores_windows.loc["validation"].join(peak_window_matches.set_index(["gene", "window_mid"])).groupby(["gene", "window_mid"]).first().reset_index(level = "window_mid")
@@ -804,7 +806,9 @@ gene_aggscores_windows_matched["perc"] = gene_aggscores_windows_matched["ix"] / 
 
 # %%
 top_cutoff = 0.05
-gene_aggscores_windows_matched["cum_matched"].iloc[int(gene_aggscores_windows_matched.shape[0] * top_cutoff)]
+perc_within_a_peak = gene_aggscores_windows_matched["cum_matched"].iloc[int(gene_aggscores_windows_matched.shape[0] * top_cutoff)]
+print(perc_within_a_peak)
+print(f"Perhaps there are many windows that are predictive, but are not contained in any peak?\nIndeed, {1-perc_within_a_peak:.2%} of the top {top_cutoff:.0%} predictive windows does not lie within a peak.")
 
 # %%
 fig, ax = plt.subplots()
@@ -847,11 +851,13 @@ gene_peak_scores["cum_updown"] = (np.cumsum(gene_peak_scores["updown"]) / gene_p
 gene_peak_scores["perc"] = gene_peak_scores["ix"] / gene_peak_scores.shape[0]
 
 # %% [markdown]
-# Of the top 5% most predictive sites, how many have a single effect?
+# Of the top 5% most predictive peaks, how many have a single effect?
 
 # %%
 top_cutoff = 0.05
-1-gene_peak_scores["cum_updown"].iloc[int(gene_peak_scores.shape[0] * top_cutoff)]
+perc_updown = gene_peak_scores["cum_updown"].iloc[int(gene_peak_scores.shape[0] * top_cutoff)]
+print(perc_updown)
+print(f"Perhaps within a peak there may be both windows that are positively and negatively correlated with gene expression?\nIndeed, {perc_updown:.2%} of the top {top_cutoff:.0%} predictive peaks contains both positive and negative effects.")
 
 # %%
 fig, ax = plt.subplots()
