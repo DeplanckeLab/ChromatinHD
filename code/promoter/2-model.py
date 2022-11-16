@@ -48,8 +48,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -197,10 +197,14 @@ splits_test = [split for split in splits if split.phase == "test"]
 # ### Create model
 
 # %%
-n_embedding_dimensions = 100
+n_embedding_dimensions = 200
 
 # %%
-model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
+model = FragmentsToExpression(
+    fragments.n_genes,
+    mean_gene_expression,
+    n_embedding_dimensions = n_embedding_dimensions
+)
 
 # %%
 # model = pickle.load(open("model.pkl", "rb"))
@@ -310,8 +314,6 @@ def fix_class(obj):
     except TypeError:
         pass
 
-
-# %%
 class Pickler(pickle.Pickler):
     def reducer_override(self, obj):
         if any(
@@ -324,9 +326,7 @@ class Pickler(pickle.Pickler):
             return NotImplemented
 
         return NotImplemented
-
-
-# %%
+    
 def save(obj, fh, pickler=None, **kwargs):
     if pickler is None:
         pickler = Pickler

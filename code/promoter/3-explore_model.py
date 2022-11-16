@@ -293,7 +293,7 @@ windows = [[cut0, cut1] for cut0, cut1 in zip(cuts, cuts[1:] + [9999999])]
 # %%
 aggscores_lengths = []
 gene_aggscores_lengths = []
-for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(windows)):
+for window_start, window_end in tqdm.tqdm(windows):
     # take fragments within the window
     fragment_lengths = (fragments.coordinates[:,1] - fragments.coordinates[:,0])
     fragments_oi = ~((fragment_lengths >= window_start) & (fragment_lengths < window_end))
@@ -344,6 +344,11 @@ ax_perc.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
 fig, ax = plt.subplots()
 (mse_lengths.std() * (zscore(mse_lengths) - zscore(1-perc_retained_lengths)))["validation"].plot()
 ax.set_ylabel("Relative MSE", rotation = 0, ha = "right", va = "center")
+
+# %%
+fig, ax = plt.subplots()
+(effect_lengths.std() * (zscore(effect_lengths) - zscore(1-perc_retained_lengths)))["validation"].plot()
+ax.set_ylabel("Relative effect", rotation = 0, ha = "right", va = "center")
 
 # %% [markdown]
 # ## Performance when masking a window
@@ -475,7 +480,7 @@ gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = False).head
 # %%
 gene_id = transcriptome.gene_id("FOSB")
 # gene_id = transcriptome.gene_id("ALOX5AP")
-# gene_id = transcriptome.gene_id("C9orf72")
+# gene_id = transcriptome.gene_id("SIPA1L1")
 # gene_id = transcriptome.gene_id("TET3")
 
 # %% [markdown]
@@ -625,50 +630,58 @@ IPython.display.HTML("<textarea>" + pfa.utils.name_window(promoters.loc[gene_id]
 # ### Is promoter opening purely positive for gene expression, negative, or a mix?
 
 # %% [markdown]
-# Make for each peak a list of windows
+# - "up" = gene expression goes up if we remove a window, i.e. if there are fragments in this window the gene expression goes down
+# - "down" = gene expression goes down if we remove a window, i.e. if there are fragments in this window the gene expression goes up
 
 # %%
-plotdata = pd.DataFrame({
+promoter_updown = pd.DataFrame({
     "max_increase":gene_effect_windows.loc["validation"].max(1),
     "max_decrease":gene_effect_windows.loc["validation"].min(1)
 })
 
-cutoff = np.abs(np.quantile(plotdata["max_decrease"], 0.01))
+cutoff = np.abs(np.quantile(promoter_updown["max_decrease"], 0.01))
 
-plotdata["decreases_somewhere"] = plotdata["max_decrease"] < -cutoff
-plotdata["increases_somewhere"] = plotdata["max_increase"] > cutoff
+promoter_updown["down"] = promoter_updown["max_decrease"] < -cutoff
+promoter_updown["up"] = promoter_updown["max_increase"] > cutoff
 
 # %%
-plotdata = pd.DataFrame({
+promoter_updown = pd.DataFrame({
     "max_increase":gene_effect_windows.loc["validation"].max(1),
     "max_decrease":gene_effect_windows.loc["validation"].min(1)
 })
-plotdata["label"] = transcriptome.symbol(plotdata.index)
+promoter_updown["label"] = transcriptome.symbol(promoter_updown.index)
 
-cutoff = np.abs(np.quantile(plotdata["max_decrease"], 0.1))
+cutoff = np.abs(np.quantile(promoter_updown["max_decrease"], 0.1))
 
-plotdata["decreases_somewhere"] = plotdata["max_decrease"] < -cutoff
-plotdata["increases_somewhere"] = plotdata["max_increase"] > cutoff
-plotdata["type"] = (pd.Series(["nothing", "decreases_somewhere"])[plotdata["decreases_somewhere"].values.astype(int)].reset_index(drop = True) + "_" + pd.Series(["nothing", "increases_somewhere"])[plotdata["increases_somewhere"].values.astype(int)].reset_index(drop = True)).values
+promoter_updown["down"] = promoter_updown["max_decrease"] < -cutoff
+promoter_updown["up"] = promoter_updown["max_increase"] > cutoff
+promoter_updown["type"] = (pd.Series(["nothing", "down"])[promoter_updown["down"].values.astype(int)].reset_index(drop = True) + "_" + pd.Series(["nothing", "up"])[promoter_updown["up"].values.astype(int)].reset_index(drop = True)).values
 
 fig, ax = plt.subplots()
 type_info = pd.DataFrame([
-    ["decreases_somewhere_nothing", "green"],
-    ["nothing_increases_somewhere", "blue"],
-    ["decreases_somewhere_increases_somewhere", "red"],
+    ["down_nothing", "green"],
+    ["nothing_up", "blue"],
+    ["down_up", "red"],
     ["nothing_nothing", "grey"],
 ])
 
-sns.scatterplot(x = plotdata["max_increase"], y = plotdata["max_decrease"], hue = plotdata["type"])
+sns.scatterplot(x = promoter_updown["max_increase"], y = promoter_updown["max_decrease"], hue = promoter_updown["type"])
 
 # %%
-plotdata.groupby("type").size()
+promoter_updown.groupby("type").size()/promoter_updown.shape[0]
 
 # %%
-plotdata.query("type == 'nothing_increases_somewhere'").sort_values("max_increase")
+# if you're interested in the genes with the strongest increase effect
+promoter_updown.query("type == 'nothing_up'").sort_values("max_increase", ascending = False)
 
 # %% [markdown]
-# ### Link windows to peaks
+# ## Comparing peaks and windows
+
+# %% [markdown]
+# ### Linking peaks to windows
+
+# %% [markdown]
+# Create a `peak_window_matches` dataframe that contains peak - window - gene in long format
 
 # %%
 promoters = pd.read_csv(folder_data_preproc / "promoters.csv", index_col = 0)
@@ -747,6 +760,13 @@ gene_best_windows["ix"] = np.arange(1, gene_best_windows.shape[0] + 1)
 gene_best_windows["cum_matched"] = (np.cumsum(gene_best_windows["matched"]) / gene_best_windows["ix"])
 gene_best_windows["perc"] = gene_best_windows["ix"] / gene_best_windows.shape[0]
 
+# %% [markdown]
+# Of the top 5% most predictive genes, how many are inside a peak?
+
+# %%
+top_cutoff = 0.05
+gene_best_windows["cum_matched"].iloc[int(gene_best_windows.shape[0] * top_cutoff)]
+
 # %%
 fig, ax = plt.subplots()
 ax.plot(
@@ -811,7 +831,7 @@ gene_peak_scores["label"] = transcriptome.symbol(gene_peak_scores.index.get_leve
 
 # %%
 gene_peak_scores["effect_highest"] = np.maximum(np.abs(gene_peak_scores["effect_min"]), np.abs(gene_peak_scores["effect_max"]))
-gene_peak_scores["effect_highest_cutoff"] = gene_peak_scores["effect_highest"]/3 # we put the cutoff at 1/3 of the highest effect
+gene_peak_scores["effect_highest_cutoff"] = gene_peak_scores["effect_highest"]/4 # we put the cutoff at 1/4 of the highest effect
 
 # %%
 gene_peak_scores["up"] = (gene_peak_scores["effect_max"] > gene_peak_scores["effect_highest_cutoff"])
@@ -826,6 +846,13 @@ gene_peak_scores["ix"] = np.arange(1, gene_peak_scores.shape[0] + 1)
 gene_peak_scores["cum_updown"] = (np.cumsum(gene_peak_scores["updown"]) / gene_peak_scores["ix"])
 gene_peak_scores["perc"] = gene_peak_scores["ix"] / gene_peak_scores.shape[0]
 
+# %% [markdown]
+# Of the top 5% most predictive sites, how many have a single effect?
+
+# %%
+top_cutoff = 0.05
+1-gene_peak_scores["cum_updown"].iloc[int(gene_peak_scores.shape[0] * top_cutoff)]
+
 # %%
 fig, ax = plt.subplots()
 ax.plot(
@@ -839,9 +866,6 @@ ax.set_ylabel("% of peaks with\nonly one effect", rotation = 0, ha = "right", va
 
 # %%
 gene_peak_scores.query("updown")
-
-# %% [markdown]
-# ### Is the whole peak important?
 
 # %% [markdown]
 # ## Performance when masking pairs of windows
