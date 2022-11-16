@@ -194,9 +194,11 @@ def score_fragments(
     if expression_prediction_full is not None:
         effect_train = expression_prediction.loc[cells_train].mean() - expression_prediction_full.loc[cells_train].mean()
         effect_validation = expression_prediction.loc[cells_validation].mean() - expression_prediction_full.loc[cells_validation].mean()
-        
         aggscores["effect"] = pd.Series({"train":effect_train.mean(), "validation":effect_validation.mean()})
         gene_aggscores["effect"] = pd.concat({"train":effect_train, "validation":effect_validation}, names = ["phase", "gene"])
+        
+        effect_train = (expression_prediction.loc[cells_train] - expression_prediction_full.loc[cells_train]).std()
+        effect_validation = (expression_prediction.loc[cells_validation] - expression_prediction_full.loc[cells_validation]).std()
     
     # calculate correlation
     cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
@@ -274,10 +276,80 @@ gene_aggscores["cor"].unstack().T.sort_values("validation").plot()
 gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")
 
 # %% [markdown]
+# ## Performance when removing fragment lengths
+
+# %% [markdown]
+# Hypothesis: **do fragments of certain lengths provide more or less predictive power?**
+
+# %%
+splits = [split.to("cuda") for split in splits]
+
+# %%
+# cuts = [200, 400, 600]
+# cuts = list(np.arange(0, 200, 10)) + list(np.arange(200, 1000, 50))
+cuts = list(np.arange(0, 1000, 25))
+windows = [[cut0, cut1] for cut0, cut1 in zip(cuts, cuts[1:] + [9999999])]
+
+# %%
+aggscores_lengths = []
+gene_aggscores_lengths = []
+for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(windows)):
+    # take fragments within the window
+    fragment_lengths = (fragments.coordinates[:,1] - fragments.coordinates[:,0])
+    fragments_oi = ~((fragment_lengths >= window_start) & (fragment_lengths < window_end))
+
+    aggscores_window, gene_aggscores_window = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
+
+    aggscores_window["window_start"] =  window_start
+    gene_aggscores_window["window_start"] =  window_start
+
+    aggscores_lengths.append(aggscores_window)
+    gene_aggscores_lengths.append(gene_aggscores_window)
+    
+aggscores_lengths = pd.concat(aggscores_lengths)
+aggscores_lengths = aggscores_lengths.set_index("window_start", append = True)
+
+gene_aggscores_lengths = pd.concat(gene_aggscores_lengths)
+gene_aggscores_lengths = gene_aggscores_lengths.set_index("window_start", append = True)
+
+# %% [markdown]
+# ### Global view
+
+# %%
+mse_lengths = aggscores_lengths["mse"].unstack().T
+mse_dummy_lengths = aggscores_lengths["mse_dummy"].unstack().T
+perc_retained_lengths = aggscores_lengths["perc_retained"].unstack().T
+effect_lengths = aggscores_lengths["effect"].unstack().T
+
+
+# %%
+def zscore(x):
+    return (x - x.mean())/x.std()
+
+
+# %%
+fig, ax_perc = plt.subplots()
+ax_mse = ax_perc.twinx()
+ax_mse.plot(mse_lengths.index, mse_lengths["validation"])
+ax_mse.axhline(aggscores.loc["validation", "mse"], color = "red", dashes = (2, 2))
+ax_mse.set_ylabel("MSE", rotation = 0, ha = "left", va = "center", color = "blue")
+# ax_mse.plot(mse_dummy_lengths.index, mse_dummy_lengths["validation"]) 
+
+ax_perc.plot(perc_retained_lengths.index, perc_retained_lengths["validation"], color = "#33333344")
+ax_perc.set_ylim(ax_perc.set_ylim()[::-1])
+ax_perc.set_ylabel("Fragments\nretained", rotation = 0, ha = "right", va = "center", color = "#33333344")
+ax_perc.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+
+# %%
+fig, ax = plt.subplots()
+(mse_lengths.std() * (zscore(mse_lengths) - zscore(1-perc_retained_lengths)))["validation"].plot()
+ax.set_ylabel("Relative MSE", rotation = 0, ha = "right", va = "center")
+
+# %% [markdown]
 # ## Performance when masking a window
 
 # %% [markdown]
-# Hypothesis: are fragments from certain regions more predictive than others?
+# Hypothesis: **are fragments from certain regions more predictive than others?**
 
 # %%
 splits = [split.to("cuda") for split in splits]
@@ -298,17 +370,17 @@ assert (select_window(np.array([[-100, 200], [-300, -100]]), -200, 20) == np.arr
 # %%
 window_size = 100
 cuts = np.arange(-padding_negative, padding_positive, step = window_size)
+windows = np.array(list(zip(cuts[:-1], cuts[1:], cuts[1:] + (cuts[:-1] - cuts[1:])/2)))
 
 # %%
 aggscores_windows = []
 gene_aggscores_windows = []
-for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(zip(cuts[:-1], cuts[1:])), total = len(cuts)-1):
+for window_start, window_end, window_mid in tqdm.tqdm(windows):
     # take fragments within the window
     fragments_oi = select_window(fragments.coordinates, window_start, window_end)
     
     aggscores_window, gene_aggscores_window = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
     
-    window_mid = window_start + (window_end - window_start)/2
     aggscores_window["window_mid"] = window_mid
     gene_aggscores_window["window_mid"] = window_mid
     
@@ -358,6 +430,9 @@ plt.legend([patch_train[0], patch_validation[0]], ['train', 'validation'])
 # ### Gene-specific view
 
 # %%
+gene_aggscores_windows["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windows["mse"]
+
+# %%
 gene_mse_windows = gene_aggscores_windows["mse"].unstack()
 gene_perc_retained_windows = gene_aggscores_windows["perc_retained"].unstack()
 gene_mse_dummy_windows = gene_aggscores_windows["mse_dummy"].unstack()
@@ -391,10 +466,17 @@ sns.heatmap(gene_mse_windows_norm)
 # #### Plot a single gene
 
 # %%
-gene_id = transcriptome.gene_id("PLXDC2")
+# if you want genes with a high "negative effect" somewhere
+gene_effect_windows.loc["validation"].max(1).sort_values(ascending = False).head(8)
+
+# if you want genes with the highest mse diff
+gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
+
+# %%
 gene_id = transcriptome.gene_id("FOSB")
-gene_id = transcriptome.gene_id("C9orf72")
-gene_id = transcriptome.gene_id("WARS")
+# gene_id = transcriptome.gene_id("ALOX5AP")
+# gene_id = transcriptome.gene_id("C9orf72")
+# gene_id = transcriptome.gene_id("TET3")
 
 # %% [markdown]
 # Extract promoter info of gene
@@ -454,9 +536,6 @@ peaks = pd.concat(peaks)
 peak_methods = pd.DataFrame({"method":peaks["method"].unique()}).set_index("method")
 peak_methods["ix"] = np.arange(peak_methods.shape[0])
 
-# %%
-gene_effect_windows.loc["validation"].max(1).sort_values()
-
 # %% [markdown]
 # Extract bigwig info of gene
 
@@ -500,7 +579,7 @@ patch_validation = ax_effect.plot(plotdata.index, plotdata, color = "red", label
 
 ax_effect.axhline(0, color = "#333333")
 ax_effect.set_ylim(ax_effect.get_ylim()[::-1])
-ax_effect.set_ylabel("Effect", rotation = 0, ha = "right")
+ax_effect.set_ylabel("Effect", rotation = 0, ha = "right", va = "center")
 
 # perc_retained
 plotdata = gene_perc_retained_windows.loc["train"].loc[gene_id]
@@ -510,7 +589,7 @@ ax_perc.plot(plotdata.index, plotdata, color = "red", label = "train")
 
 ax_perc.axvline(0, color = "#33333366", lw = 1)
 
-ax_perc.set_ylabel("Fragments\nretained", rotation = 0, ha = "right")
+ax_perc.set_ylabel("Fragments\nretained", rotation = 0, ha = "right", va = "center")
 ax_perc.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
 ax_perc.set_ylim([1, ax_perc.get_ylim()[0]])
 
@@ -543,13 +622,232 @@ import IPython.display
 IPython.display.HTML("<textarea>" + pfa.utils.name_window(promoters.loc[gene_id]) + "</textarea>")
 
 # %% [markdown]
+# ### Is promoter opening purely positive for gene expression, negative, or a mix?
+
+# %% [markdown]
+# Make for each peak a list of windows
+
+# %%
+plotdata = pd.DataFrame({
+    "max_increase":gene_effect_windows.loc["validation"].max(1),
+    "max_decrease":gene_effect_windows.loc["validation"].min(1)
+})
+
+cutoff = np.abs(np.quantile(plotdata["max_decrease"], 0.01))
+
+plotdata["decreases_somewhere"] = plotdata["max_decrease"] < -cutoff
+plotdata["increases_somewhere"] = plotdata["max_increase"] > cutoff
+
+# %%
+plotdata = pd.DataFrame({
+    "max_increase":gene_effect_windows.loc["validation"].max(1),
+    "max_decrease":gene_effect_windows.loc["validation"].min(1)
+})
+plotdata["label"] = transcriptome.symbol(plotdata.index)
+
+cutoff = np.abs(np.quantile(plotdata["max_decrease"], 0.1))
+
+plotdata["decreases_somewhere"] = plotdata["max_decrease"] < -cutoff
+plotdata["increases_somewhere"] = plotdata["max_increase"] > cutoff
+plotdata["type"] = (pd.Series(["nothing", "decreases_somewhere"])[plotdata["decreases_somewhere"].values.astype(int)].reset_index(drop = True) + "_" + pd.Series(["nothing", "increases_somewhere"])[plotdata["increases_somewhere"].values.astype(int)].reset_index(drop = True)).values
+
+fig, ax = plt.subplots()
+type_info = pd.DataFrame([
+    ["decreases_somewhere_nothing", "green"],
+    ["nothing_increases_somewhere", "blue"],
+    ["decreases_somewhere_increases_somewhere", "red"],
+    ["nothing_nothing", "grey"],
+])
+
+sns.scatterplot(x = plotdata["max_increase"], y = plotdata["max_decrease"], hue = plotdata["type"])
+
+# %%
+plotdata.groupby("type").size()
+
+# %%
+plotdata.query("type == 'nothing_increases_somewhere'").sort_values("max_increase")
+
+# %% [markdown]
+# ### Link windows to peaks
+
+# %%
+promoters = pd.read_csv(folder_data_preproc / "promoters.csv", index_col = 0)
+
+# %%
+peaks_name = "cellranger"
+peaks_name = "macs2"
+
+# %%
+peaks_folder = folder_root / "peaks" / dataset_name / peaks_name
+peaks = pd.read_table(peaks_folder / "peaks.bed", names = ["chrom", "start", "end"], usecols = [0, 1, 2])
+
+# %%
+import pybedtools
+promoters_bed = pybedtools.BedTool.from_dataframe(promoters.reset_index()[["chr", "start", "end", "gene"]])
+peaks_bed = pybedtools.BedTool.from_dataframe(peaks)
+
+# %%
+if peaks_name != "stack":
+    intersect = promoters_bed.intersect(peaks_bed)
+    intersect = intersect.to_dataframe()
+
+    # peaks = intersect[["score", "strand", "thickStart", "name"]]
+    peaks = intersect
+peaks.columns = ["chrom", "start", "end", "gene"]
+peaks = peaks.loc[peaks["start"] != -1]
+peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str), name = "peak")
+
+
+# %%
+def center_peaks(peaks, promoters):
+    promoter = promoters.loc[peaks["gene"]]
+    
+    peaks2 = peaks.copy()
+    
+    peaks2["start"] = np.where(
+        promoter["strand"].values == 1,
+        (peaks["start"] - promoter["tss"].values) * promoter["strand"].values,
+        (peaks["end"] - promoter["tss"].values) * promoter["strand"].values
+    )
+    peaks2["end"] = np.where(
+        promoter["strand"].values == 1,
+        (peaks["end"] - promoter["tss"].values) * promoter["strand"].values,
+        (peaks["start"] - promoter["tss"].values) * promoter["strand"].values,
+    )
+    return peaks2
+
+
+# %%
+localpeaks = center_peaks(peaks, promoters)
+
+# %%
+matched_peaks, matched_windows = np.where(((localpeaks["start"].values[:, None] < np.array(windows)[:, 1][None, :]) & (localpeaks["end"].values[:, None] > np.array(windows)[:, 0][None, :])))
+
+# %%
+peak_window_matches = pd.DataFrame({"peak":localpeaks.index[matched_peaks], "window_mid":windows[matched_windows, 2]}).set_index("peak").join(peaks[["gene"]]).reset_index()
+
+# %% [markdown]
+# ### Is the most significant window inside a peak?
+
+# %%
+gene_best_windows = gene_aggscores_windows.loc["validation"].loc[gene_aggscores_windows.loc["validation"].groupby(["gene"])["mse"].idxmax()]
+
+# %%
+genes_oi = gene_aggscores.loc["validation"].query("mse_diff > 1e-3").index
+
+# %%
+gene_best_windows = gene_best_windows.join(peak_window_matches.set_index(["gene", "window_mid"])).reset_index(level = "window_mid")
+
+# %%
+gene_best_windows["matched"] = ~pd.isnull(gene_best_windows["peak"])
+
+# %%
+gene_best_windows = gene_best_windows.sort_values("mse_loss", ascending = True)
+gene_best_windows["ix"] = np.arange(1, gene_best_windows.shape[0] + 1)
+gene_best_windows["cum_matched"] = (np.cumsum(gene_best_windows["matched"]) / gene_best_windows["ix"])
+gene_best_windows["perc"] = gene_best_windows["ix"] / gene_best_windows.shape[0]
+
+# %%
+fig, ax = plt.subplots()
+ax.plot(
+    gene_best_windows["perc"],
+    gene_best_windows["cum_matched"]
+)
+ax.xaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+ax.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+ax.set_xlabel("Top genes (acording to mse_loss)")
+ax.set_ylabel("% of genes for which\nthe top window is\ncontained in a peak", rotation = 0, ha = "right", va = "center")
+
+# %%
+gene_best_windows["label"] = transcriptome.symbol(gene_best_windows.index)
+
+# %%
+gene_best_windows.query("~matched")
+
+# %% [markdown]
+# ### Are *all* predictive windows within a peak?
+
+# %%
+gene_aggscores_windows_matched = gene_aggscores_windows.loc["validation"].join(peak_window_matches.set_index(["gene", "window_mid"])).groupby(["gene", "window_mid"]).first().reset_index(level = "window_mid")
+
+# %%
+gene_aggscores_windows_matched["matched"] = ~pd.isnull(gene_aggscores_windows_matched["peak"])
+gene_aggscores_windows_matched = gene_aggscores_windows_matched.sort_values("mse_loss")
+
+# %%
+gene_aggscores_windows_matched["ix"] = np.arange(1, gene_aggscores_windows_matched.shape[0] + 1)
+gene_aggscores_windows_matched["cum_matched"] = (np.cumsum(gene_aggscores_windows_matched["matched"]) / gene_aggscores_windows_matched["ix"])
+gene_aggscores_windows_matched["perc"] = gene_aggscores_windows_matched["ix"] / gene_aggscores_windows_matched.shape[0]
+
+# %% [markdown]
+# Of the top 5% most predictive sites, how many are inside a peak?
+
+# %%
+top_cutoff = 0.05
+gene_aggscores_windows_matched["cum_matched"].iloc[int(gene_aggscores_windows_matched.shape[0] * top_cutoff)]
+
+# %%
+fig, ax = plt.subplots()
+ax.plot(
+    gene_aggscores_windows_matched["perc"],
+    gene_aggscores_windows_matched["cum_matched"]
+)
+ax.xaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+ax.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+ax.set_xlabel("Top windows (acording to mse_loss of the best performing window)")
+ax.set_ylabel("% of most predictive windows\ncontained in a peak", rotation = 0, ha = "right", va = "center")
+
+# %% [markdown]
 # ### Are opposing effects put into the same peak?
 
-# %% [markdown]
-# ## Performance when masking a pairs of windows
+# %%
+gene_peak_scores = pd.DataFrame({
+    "effect_min":gene_aggscores_windows_matched.query("matched").groupby(["gene", "peak"])["effect"].min(),
+    "effect_max":gene_aggscores_windows_matched.query("matched").groupby(["gene", "peak"])["effect"].max(),
+    "mse_loss_max":gene_aggscores_windows_matched.query("matched").groupby(["gene", "peak"])["mse_loss"].max()
+})
+
+gene_peak_scores["label"] = transcriptome.symbol(gene_peak_scores.index.get_level_values("gene")).values
+
+# %%
+gene_peak_scores["effect_highest"] = np.maximum(np.abs(gene_peak_scores["effect_min"]), np.abs(gene_peak_scores["effect_max"]))
+gene_peak_scores["effect_highest_cutoff"] = gene_peak_scores["effect_highest"]/3 # we put the cutoff at 1/3 of the highest effect
+
+# %%
+gene_peak_scores["up"] = (gene_peak_scores["effect_max"] > gene_peak_scores["effect_highest_cutoff"])
+gene_peak_scores["down"] = (gene_peak_scores["effect_min"] < -gene_peak_scores["effect_highest_cutoff"])
+gene_peak_scores["updown"] = gene_peak_scores["up"] & gene_peak_scores["down"]
+
+# %%
+gene_peak_scores = gene_peak_scores.sort_values("mse_loss_max", ascending = False)
+
+# %%
+gene_peak_scores["ix"] = np.arange(1, gene_peak_scores.shape[0] + 1)
+gene_peak_scores["cum_updown"] = (np.cumsum(gene_peak_scores["updown"]) / gene_peak_scores["ix"])
+gene_peak_scores["perc"] = gene_peak_scores["ix"] / gene_peak_scores.shape[0]
+
+# %%
+fig, ax = plt.subplots()
+ax.plot(
+    gene_peak_scores["perc"],
+    1-gene_peak_scores["cum_updown"]
+)
+ax.xaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+ax.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+ax.set_xlabel("Top peaks (acording to max mse_loss within peak)")
+ax.set_ylabel("% of peaks with\nonly one effect", rotation = 0, ha = "right", va = "center")
+
+# %%
+gene_peak_scores.query("updown")
 
 # %% [markdown]
-# Hypothesis: are fragments from pairs of regions co-predictive, i.e. fragments from both regions together provide a non-linear prediction?
+# ### Is the whole peak important?
+
+# %% [markdown]
+# ## Performance when masking pairs of windows
+
+# %% [markdown]
+# Hypothesis: **are fragments from pairs of regions co-predictive, i.e. provide a non-linear prediction?**
 
 # %%
 splits = [split.to("cuda") for split in splits]
@@ -742,12 +1040,9 @@ for col in cols:
         gene_aggscores_windowpairs_test[f"{col}12"]
     )
 
-# %% [markdown]
-# #### Plot for particular gene
-
 # %%
 col = "perc_loss"
-plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]
+plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", transcriptome.gene_id("MERTK"))]
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
 
@@ -756,26 +1051,33 @@ norm = mpl.colors.Normalize(vmin = 0)
 plotdata = plotdata_all[f"{col}"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.Reds, ax = ax1, norm = norm)
+ax1.set_title(f"actual {col}")
 
 plotdata = plotdata_all[f"{col}12"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.Reds, ax = ax2, norm = norm)
+ax2.set_title(f"expected {col}")
 
 norm = mpl.colors.CenteredNorm(0, halfrange = 1e-5)
 
 plotdata = plotdata_all[f"{col}_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.RdBu, norm = norm, ax = ax3)
+ax3.set_title(f"interation {col}")
+
+# %% [markdown]
+# #### Plot for particular gene
 
 # %%
-gene_aggscores_windowpairs_test["mse_loss_interaction"].loc["validation"].sort_values(ascending = True).head(10)
+# if you're interested in genes with a strong interaction
+gene_aggscores_windowpairs_test.loc["validation"].sort_values("mse_loss_interaction", ascending = True).head(10)
 
 # %%
 # gene_id = transcriptome.gene_id("LYN")
 gene_id = transcriptome.gene_id("PLXDC2")
 # gene_id = transcriptome.gene_id("TNFAIP2")
 gene_id = transcriptome.gene_id("HLA-DRA")
-gene_id = transcriptome.gene_id("NKG7")
+# gene_id = transcriptome.gene_id("NKG7")
 
 # %%
 col = "mse_loss"
@@ -790,81 +1092,25 @@ norm = mpl.colors.Normalize(vmax = 0)
 plotdata = plotdata_all[f"{col}"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.Reds_r, ax = ax1, norm = norm)
+ax1.set_title(f"actual {col}")
 
 plotdata = plotdata_all[f"{col}12"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.Reds_r, ax = ax2, norm = norm)
+ax2.set_title(f"expected {col}")
 
 norm = mpl.colors.CenteredNorm(0)
 
 plotdata = plotdata_all[f"{col}_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.RdBu, norm = norm, ax = ax3)
+ax3.set_title(f"interation {col}")
 
 # %% [markdown]
 # ## Performance when masking peaks
 
 # %% [markdown]
-# Hypothesis: are fragments outside of peaks also predictive
-
-# %% [markdown]
-# ## Performance when removing fragment lengths
-
-# %% [markdown]
-# Hypothesis: **do fragments of certain lengths provide more or less predictive power?**
-
-# %%
-splits = [split.to("cuda") for split in splits]
-
-# %%
-# cuts = [200, 400, 600]
-# cuts = list(np.arange(0, 200, 10)) + list(np.arange(200, 1000, 50))
-cuts = list(np.arange(0, 1000, 25))
-windows = [[cut0, cut1] for cut0, cut1 in zip(cuts, cuts[1:] + [9999999])]
-
-# %%
-aggscores_lengths = []
-gene_aggscores_lengths = []
-for window_idx, (window_start, window_end) in tqdm.tqdm(enumerate(windows)):
-    # take fragments within the window
-    fragment_lengths = (fragments.coordinates[:,1] - fragments.coordinates[:,0])
-    fragments_oi = ~((fragment_lengths >= window_start) & (fragment_lengths < window_end))
-
-    aggscores_window, gene_aggscores_window, _ = score_fragments(splits, fragments_oi)
-
-    window_mid1 = window_start1 + (window_end1 - window_start1)/2
-    aggscores_window["window_start"] =  window_start
-    gene_aggscores_window["window_start"] =  window_start
-
-    aggscores_lengths.append(aggscores_window)
-    gene_aggscores_lengths.append(gene_aggscores_window)
-    
-aggscores_lengths = pd.concat(aggscores_lengths)
-aggscores_lengths = aggscores_lengths.set_index("window_start", append = True)
-
-gene_aggscores_lengths = pd.concat(gene_aggscores_lengths)
-gene_aggscores_lengths = gene_aggscores_lengths.set_index("window_start", append = True)
-
-# %% [markdown]
-# ### Global view
-
-# %%
-mse_lengths = aggscores_lengths["mse"].unstack().T
-mse_dummy_lengths = aggscores_lengths["mse_dummy"].unstack().T
-perc_retained_lengths = aggscores_lengths["perc_retained"].unstack().T
-
-# %%
-fig, ax_perc = plt.subplots()
-ax_mse = ax_perc.twinx()
-ax_mse.plot(mse_lengths.index, mse_lengths["validation"])
-ax_mse.axhline(aggscores.loc["validation", "mse"], color = "red", dashes = (2, 2))
-ax_mse.set_ylabel("MSE", rotation = 0, ha = "left", va = "center", color = "blue")
-# ax_mse.plot(mse_dummy_lengths.index, mse_dummy_lengths["validation"]) 
-
-ax_perc.plot(perc_retained_lengths.index, perc_retained_lengths["validation"], color = "#33333344")
-ax_perc.set_ylim(ax_perc.set_ylim()[::-1])
-ax_perc.set_ylabel("Fragments\nretained", rotation = 0, ha = "right", va = "center", color = "#33333344")
-ax_perc.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
+# Hypothesis: **are fragments outside of peaks also predictive?**
 
 # %% [markdown]
 # ## Visualize a gene fragments
@@ -875,7 +1121,7 @@ padding_negative = 4000
 lim = (-padding_negative, padding_positive)
 
 # %%
-gene_id = transcriptome.gene_id("IGKC")
+gene_id = transcriptome.gene_id("FOSB")
 
 # %%
 sc.pl.umap(transcriptome.adata, color = [gene_id])
