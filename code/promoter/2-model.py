@@ -207,7 +207,9 @@ model = FragmentsToExpression(
 )
 
 # %%
-# model = pickle.load(open("model.pkl", "rb"))
+# if you want to reload a model
+# make sure to run the "prediction = " first which is down the notebook
+# model = pickle.load(open(prediction.path / "model.pkl", "rb"))
 
 # %% [markdown]
 # ### Train

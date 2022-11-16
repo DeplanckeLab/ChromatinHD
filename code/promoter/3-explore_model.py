@@ -255,6 +255,9 @@ ax_validation.set_title("Validation")
 aggscores.style.bar()
 
 # %%
+aggscores.style.bar()
+
+# %%
 aggscores.to_csv(prediction.path / "aggscores.csv")
 
 # %% [markdown]
