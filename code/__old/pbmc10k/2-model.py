@@ -121,17 +121,17 @@ mean_gene_expression = transcriptome.X.dense().mean(0)
 
 # %%
 class FragmentEmbedder(torch.nn.Sequential):
-    def __init__(self, n_virtual_dimensions = 100, n_embedding_dimensions = 100, **kwargs):
-        self.n_virtual_dimensions = n_virtual_dimensions
+    def __init__(self, n_hidden_dimensions = 100, n_embedding_dimensions = 100, **kwargs):
+        self.n_hidden_dimensions = n_hidden_dimensions
         self.n_embedding_dimensions = n_embedding_dimensions
         args = [
-            torch.nn.Linear(2, n_virtual_dimensions),
+            torch.nn.Linear(2, n_hidden_dimensions),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_virtual_dimensions, n_virtual_dimensions),
+            torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_virtual_dimensions, n_virtual_dimensions),
+            torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
             torch.nn.ReLU(),
-            torch.nn.Linear(n_virtual_dimensions, n_embedding_dimensions)
+            torch.nn.Linear(n_hidden_dimensions, n_embedding_dimensions)
         ]
         super().__init__(*args, **kwargs)
         
@@ -149,7 +149,7 @@ class FragmentEmbedderCounter(torch.nn.Sequential):
 
 # %%
 n_embedding_dimensions = 1000
-fragment_embedder = FragmentEmbedder(n_virtual_dimensions = 100, n_embedding_dimensions = n_embedding_dimensions)
+fragment_embedder = FragmentEmbedder(n_hidden_dimensions = 100, n_embedding_dimensions = n_embedding_dimensions)
 # fragment_embedder = FragmentEmbedderCounter()
 
 # %%

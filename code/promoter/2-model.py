@@ -103,7 +103,7 @@ from peakfreeatac.models.promoter.v1 import FragmentEmbedder, FragmentEmbedderCo
 
 # %%
 n_embedding_dimensions = 1000
-fragment_embedder = FragmentEmbedder(n_virtual_dimensions = 100, n_embedding_dimensions = n_embedding_dimensions)
+fragment_embedder = FragmentEmbedder(n_hidden_dimensions = 100, n_embedding_dimensions = n_embedding_dimensions)
 # fragment_embedder = FragmentEmbedderCounter()
 
 # %%
@@ -247,7 +247,6 @@ prev_epoch_mse = None
 prev_epoch_gene_mse = None
 for epoch in range(n_steps):
     for split in splits_training:
-        # start = time.time()
         expression_predicted = model(
             split.fragments_coordinates,
             split.fragment_cellxgene_idx,
@@ -272,9 +271,6 @@ for epoch in range(n_steps):
             "epoch":epoch,
             "gene_mse":pd.Series(((expression_predicted - transcriptome_subset) ** 2).mean(0).detach().cpu().numpy(), split.gene_idxs)
         })
-        
-        # end = time.time()
-        # print(end - start)
     
     if (epoch % trace_epoch_every) == 0:
         # mse
@@ -347,5 +343,3 @@ splits = [split.to("cpu") for split in splits]
 
 save(splits, open(prediction.path / "splits.pkl", "wb"))
 save(model, open(prediction.path / "model.pkl", "wb"))
-
-# %%

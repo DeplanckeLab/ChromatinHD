@@ -13,6 +13,9 @@
 #     name: python3
 # ---
 
+# %% [markdown]
+# # Explore model
+
 # %%
 # %load_ext autoreload
 # %autoreload 2
@@ -66,13 +69,9 @@ prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name 
 splits = pickle.load(open(prediction.path / "splits.pkl", "rb"))
 model = pickle.load(open(prediction.path / "model.pkl", "rb")).to(device)
 
+
 # %% [markdown]
 # ## Overall performace
-
-# %%
-splits = [split.to(device) for split in splits]
-transcriptome_X = transcriptome.X.to(device)
-
 
 # %%
 def aggregate_splits(df, columns = ("mse", "mse_dummy"), splitinfo = None):
@@ -97,7 +96,7 @@ def explode_dataframe(df, column):
 
 
 # %%
-transcriptome_pd = pd.DataFrame(transcriptome_X.dense().cpu().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
+transcriptome_pd = pd.DataFrame(transcriptome.X.dense().cpu().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
 
 
 # %%
@@ -214,7 +213,15 @@ def score_fragments(
 
 # %%
 fragments_oi = torch.tensor([True] * fragments.coordinates.shape[0], device = device)
+
+splits = [split.to(device) for split in splits]
+transcriptome_X = transcriptome.X.to(device)
+
 aggscores, gene_aggscores, expression_prediction = score_fragments(splits, fragments_oi, return_expression_prediction = True)
+
+splits = [split.to("cpu") for split in splits]
+transcriptome_X = transcriptome.X.to("cpu")
+torch.cuda.empty_cache()
 
 # %% [markdown]
 # ### Global visual check
@@ -294,6 +301,9 @@ cuts = list(np.arange(0, 1000, 25))
 windows = [[cut0, cut1] for cut0, cut1 in zip(cuts, cuts[1:] + [9999999])]
 
 # %%
+splits = [split.to(device) for split in splits]
+transcriptome_X = transcriptome.X.to(device)
+
 aggscores_lengths = []
 gene_aggscores_lengths = []
 for window_start, window_end in tqdm.tqdm(windows):
@@ -308,6 +318,10 @@ for window_start, window_end in tqdm.tqdm(windows):
 
     aggscores_lengths.append(aggscores_window)
     gene_aggscores_lengths.append(gene_aggscores_window)
+    
+splits = [split.to("cpu") for split in splits]
+transcriptome_X = transcriptome.X.to("cpu")
+torch.cuda.empty_cache()
     
 aggscores_lengths = pd.concat(aggscores_lengths)
 aggscores_lengths = aggscores_lengths.set_index("window_start", append = True)
@@ -955,7 +969,7 @@ aggscores_windowpairs["mse_loss"] = aggscores["mse"] - aggscores_windowpairs["ms
 aggscores_windowpairs["perc_loss"] = 1- aggscores_windowpairs["perc_retained"]
 
 # %%
-# determine what the reference (single) mse values are
+# determine what the reference (single-perturbation) mse values are
 # in this case, we can simply use the diagonal
 reference_idx = aggscores_windowpairs.index.get_level_values("window_mid2") == aggscores_windowpairs.index.get_level_values("window_mid1")
 reference = aggscores_windowpairs.loc[reference_idx]
