@@ -44,9 +44,9 @@ import peakfreeatac.transcriptome
 dataset_name = "lymphoma"
 # dataset_name = "pbmc10k"
 
-peaks_name = "cellranger"
+# peaks_name = "cellranger"
 # peaks_name = "genrich"
-# peaks_name = "macs2"
+peaks_name = "macs2"
 # peaks_name = "stack"
 peaks_name = "rolling_200"; window_size = 200
 
@@ -107,6 +107,25 @@ peakcounts.peaks = peaks
 
 # %%
 peakcounts.count_peaks(folder_data_preproc / "atac_fragments.tsv.gz", transcriptome.obs.index)
+
+# %%
+adata = sc.AnnData(peakcounts.counts, obs = transcriptome.obs)
+sc.pp.normalize_per_cell(adata)
+sc.pp.log1p(adata)
+sc.pp.highly_variable_genes(adata)
+
+# %%
+adata.var["highly_variable"].sum()
+
+# %%
+sc.pp.pca(adata, use_highly_variable=True)
+sc.pp.neighbors(adata, use_rep = "X_pca")
+
+# %%
+sc.tl.umap(adata)
+
+# %%
+sc.pl.umap(adata)
 
 # %% [markdown]
 # ## Predict (temporarily here 👷)

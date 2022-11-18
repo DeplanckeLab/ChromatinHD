@@ -27,6 +27,5 @@ https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/JAX/tutoria
 
 https://jalammar.github.io/illustrated-transformer/
 
-```python
 
-```
+https://d2l.ai/chapter_attention-mechanisms-and-transformers/index.html

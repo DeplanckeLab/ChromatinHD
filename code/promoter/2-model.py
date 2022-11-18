@@ -48,8 +48,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -209,7 +209,7 @@ model = FragmentsToExpression(
 # %%
 # if you want to reload a model
 # make sure to run the "prediction = " first which is down the notebook
-# model = pickle.load(open(prediction.path / "model.pkl", "rb"))
+model = pickle.load(open(prediction.path / "model.pkl", "rb"))
 
 # %% [markdown]
 # ### Train
@@ -340,6 +340,9 @@ prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name 
 # move splits back to cpu
 # otherwise if you try to load them back in they might want to immediately go to gpu
 splits = [split.to("cpu") for split in splits]
+model = model.to("cpu")
 
 save(splits, open(prediction.path / "splits.pkl", "wb"))
 save(model, open(prediction.path / "model.pkl", "wb"))
+
+# %%

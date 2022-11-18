@@ -64,6 +64,27 @@ class Fragments(Flow):
 
 
 
+
+
+@dataclasses.dataclass
+class Splits():
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @dataclasses.dataclass
 class Split():
     cell_idx:slice
