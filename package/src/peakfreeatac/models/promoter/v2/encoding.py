@@ -9,22 +9,29 @@ class FragmentEmbedder(torch.nn.Sequential):
     """
     Embeds individual fragments    
     """
-    def __init__(self, n_hidden_dimensions = 100, n_embedding_dimensions = 100, **kwargs):
+    def __init__(self, n_hidden_dimensions = 100, n_embedding_dimensions = 100, range = None, **kwargs):
+        range = np.array((-4000, 2000))
+        self.scale = range[1] - range[0]
+        self.shift = range[0] + self.scale/2
+
         self.n_hidden_dimensions = n_hidden_dimensions
         self.n_embedding_dimensions = n_embedding_dimensions
         args = [
             torch.nn.Linear(2, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
             torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
             torch.nn.ReLU(),
             torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
             torch.nn.ReLU(),
             torch.nn.Linear(n_hidden_dimensions, n_embedding_dimensions)
         ]
+        args[0].bias.data.uniform_(-0.5, 0.5)
+        args[0].weight.data.uniform_(-0.01, 0.01)
+
         super().__init__(*args, **kwargs)
         
     def forward(self, coordinates):
-        return super().forward(coordinates.float()/1000)
+        return super().forward((coordinates.float() - self.shift) / self.scale)
     
 class FragmentEmbedderCounter(torch.nn.Sequential):
     """

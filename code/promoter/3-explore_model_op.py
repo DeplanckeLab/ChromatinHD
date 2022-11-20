@@ -102,24 +102,24 @@ expression_observed = pd.DataFrame(
 for split in tqdm.tqdm(splits):
     expression_predicted = model(
         split.fragments_coordinates,
-        split.fragment_cellxgene_idx,
+        split.fragment_cellxgene_ix,
         split.cell_n,
         split.gene_n,
-        split.gene_idx
+        split.gene_ix
     )
 
-    transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+    transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
     mse = loss(expression_predicted, transcriptome_subset)
     
     expression_predicted_dummy = transcriptome_subset.mean(0, keepdim = True).expand(transcriptome_subset.shape)
     mse_dummy = loss(expression_predicted_dummy, transcriptome_subset)
     
-    transcriptome.obs.loc[transcriptome.obs.index[split.cell_idx], "phase"] = split.phase
+    transcriptome.obs.loc[transcriptome.obs.index[split.cell_ix], "phase"] = split.phase
     
     genescores = pd.DataFrame({
         "mse": ((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-        "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+        "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
         "mse_dummy": ((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
     })
 
@@ -130,7 +130,7 @@ for split in tqdm.tqdm(splits):
         "mse_dummy": float(mse_dummy.detach().cpu().numpy()),
     })
     
-    expression_prediction.values[split.cell_idx, split.gene_idx] = expression_predicted.cpu().detach().numpy()
+    expression_prediction.values[split.cell_ix, split.gene_ix] = expression_predicted.cpu().detach().numpy()
 scores = pd.DataFrame(scores)
 
 # %% [markdown]
@@ -257,17 +257,17 @@ for split in tqdm.tqdm(splits):
 #         calculate how much is retained per gene
 #         scatter is needed here because the values are not sorted by gene (but by cellxgene)
         perc_retained_gene = torch_scatter.scatter_mean(
-            fragments_oi.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
+            fragments_oi.float().to("cpu"), split.local_gene_ix.to("cpu"), dim_size = split.gene_n)
         
         expression_predicted = model(
             split.fragments_coordinates[fragments_oi],
-            split.fragment_cellxgene_idx[fragments_oi],
+            split.fragment_cellxgene_ix[fragments_oi],
             split.cell_n,
             split.gene_n,
-            split.gene_idx
+            split.gene_ix
         )
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
         mse = loss(expression_predicted, transcriptome_subset)
 
@@ -279,7 +279,7 @@ for split in tqdm.tqdm(splits):
         genescores = pd.DataFrame({
             "mse": ((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
             "mse_dummy": ((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-            "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+            "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
             "perc_retained": perc_retained_gene.detach().cpu().numpy(),
             "expression_predicted": expression_predicted_mean.detach().cpu().numpy()
         })
@@ -508,19 +508,19 @@ for split in tqdm.tqdm(splits):
 
             # calculate how much is retained per gene
             # scatter is needed here because the values are not sorted by gene (but by cellxgene)
-            perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
+            perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_ix.to("cpu"), dim_size = split.gene_n)
 
             expression_predicted = model(
                 split.fragments_coordinates[fragments_oi],
-                split.fragment_cellxgene_idx[fragments_oi],
+                split.fragment_cellxgene_ix[fragments_oi],
                 split.cell_n,
                 split.gene_n,
-                split.gene_idx
+                split.gene_ix
             )
 
             ##
 
-            transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+            transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
             ##
 
@@ -537,7 +537,7 @@ for split in tqdm.tqdm(splits):
             genescores = pd.DataFrame({
                 "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
                 "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-                "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+                "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
                 "perc_retained":perc_retained_gene.detach().cpu().numpy(),
                 "exp_predicted":exp_predicted.detach().cpu().numpy()
             })
@@ -619,7 +619,7 @@ split.fragments_selected
 # %%
 scores_peaks = []
 for split in tqdm.tqdm(splits):
-    for gene_id in split.local_gene_idx.detach().cpu().numpy():
+    for gene_id in split.local_gene_ix.detach().cpu().numpy():
         gene_name = idx_gene_mapping.get(gene_id)
         promoter = promoters.loc[gene_name]
         promoter_bed = pybedtools.BedTool.from_dataframe(pd.DataFrame(promoter).T[["chr", "start", "end"]])
@@ -658,21 +658,21 @@ for split in tqdm.tqdm(splits):
         # scatter is needed here because the values are not sorted by gene (but by cellxgene)
         perc_retained_gene = torch_scatter.scatter_mean(
             fragments_oi.float().to("cpu"),
-            split.local_gene_idx.to("cpu"),
+            split.local_gene_ix.to("cpu"),
             dim_size = split.gene_n
         )
 
         expression_predicted = model(
             split.fragments_coordinates[fragments_oi],
-            split.fragment_cellxgene_idx[fragments_oi],
+            split.fragment_cellxgene_ix[fragments_oi],
             split.cell_n,
             split.gene_n,
-            split.gene_idx
+            split.gene_ix
         )
 
         ##
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
         ##
 
@@ -689,7 +689,7 @@ for split in tqdm.tqdm(splits):
         genescores = pd.DataFrame({
             "mse": ((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
             "mse_dummy": ((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-            "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+            "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
             "perc_retained": perc_retained_gene.detach().cpu().numpy(),
             "exp_predicted": exp_predicted.detach().cpu().numpy()
         })
@@ -765,21 +765,21 @@ for split in tqdm.tqdm(splits):
         # scatter is needed here because the values are not sorted by gene (but by cellxgene)
         perc_retained_gene = torch_scatter.scatter_mean(
             fragments_oi.float().to("cpu"),
-            split.local_gene_idx.to("cpu"),
+            split.local_gene_ix.to("cpu"),
             dim_size = split.gene_n
         )
         
         expression_predicted = model(
             split.fragments_coordinates[fragments_oi],
-            split.fragment_cellxgene_idx[fragments_oi],
+            split.fragment_cellxgene_ix[fragments_oi],
             split.cell_n,
             split.gene_n,
-            split.gene_idx
+            split.gene_ix
         )
 
         ##
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
         ##
 
@@ -792,7 +792,7 @@ for split in tqdm.tqdm(splits):
         genescores = pd.DataFrame({
             "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
             "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-            "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+            "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
             "perc_retained":perc_retained_gene.detach().cpu().numpy()
         })
 
@@ -868,18 +868,18 @@ for split in tqdm.tqdm(splits):
             # scatter is needed here because the values are not sorted by gene (but by cellxgene)
             perc_retained_gene = torch_scatter.scatter_mean(
                 fragments_oi.float().to("cpu"),
-                split.local_gene_idx.to("cpu"),
+                split.local_gene_ix.to("cpu"),
                 dim_size = split.gene_n
             )
             expression_predicted = model(
                 split.fragments_coordinates[fragments_oi],
-                split.fragment_cellxgene_idx[fragments_oi],
+                split.fragment_cellxgene_ix[fragments_oi],
                 split.cell_n,
                 split.gene_n,
-                split.gene_idx
+                split.gene_ix
             )
 
-            transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+            transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
             mse = loss(expression_predicted, transcriptome_subset)
 
@@ -890,7 +890,7 @@ for split in tqdm.tqdm(splits):
             genescores = pd.DataFrame({
                 "mse": ((expression_predicted - transcriptome_subset) ** 2).mean(0).detach().cpu().numpy(),
                 "mse_dummy": ((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-                "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+                "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
                 "perc_retained": perc_retained_gene.detach().cpu().numpy(),
                 "expression_predicted": expression_predicted_mean.detach().cpu().numpy()
             })

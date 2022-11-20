@@ -14,11 +14,17 @@ class FragmentEmbedder(torch.nn.Sequential):
         self.n_embedding_dimensions = n_embedding_dimensions
         args = [
             torch.nn.Linear(2, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(n_hidden_dimensions),
+            torch.nn.Dropout(0.5),
+            torch.nn.GELU(),
             torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(n_hidden_dimensions),
+            torch.nn.Dropout(0.5),
+            torch.nn.GELU(),
             torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(n_hidden_dimensions),
+            torch.nn.Dropout(0.5),
+            torch.nn.GELU(),
             torch.nn.Linear(n_hidden_dimensions, n_embedding_dimensions)
         ]
         super().__init__(*args, **kwargs)

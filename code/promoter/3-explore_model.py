@@ -53,6 +53,7 @@ folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
 dataset_name = "pbmc10k"
+dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -66,8 +67,26 @@ class Prediction(pfa.flow.Flow):
 prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / "nn")
 
 # %%
-splits = pickle.load(open(prediction.path / "splits.pkl", "rb"))
-model = pickle.load(open(prediction.path / "model.pkl", "rb")).to(device)
+folds = pickle.load(open(prediction.path / "folds.pkl", "rb"))
+models = pickle.load(open(prediction.path / "models3.pkl", "rb"))#[:1]
+
+# %%
+folds[0][0].fragment_cellxgene_ix.shape
+
+# %%
+fragment_i = 0
+cellxgene_i = 0
+idptr = []
+for fragment_i, cellxgene in enumerate(folds[0][0].fragment_cellxgene_ix):
+    while cellxgene_i < cellxgene:
+        idptr.append(fragment_i)
+        cellxgene_i += 1
+
+# %%
+len(idptr)
+
+# %%
+folds[0][0].fragment_cellxgene_ix
 
 
 # %% [markdown]
@@ -79,10 +98,10 @@ def aggregate_splits(df, columns = ("mse", "mse_dummy"), splitinfo = None):
     Calculates the weighted mean of certain columns according to the size (# cells) of each split
     Requires a grouped dataframe as input
     """
-    assert "split_ix" in df.obj.columns
+    assert "split" in df.obj.columns
     assert isinstance(df, pd.core.groupby.generic.DataFrameGroupBy)
     for col in columns:
-        df.obj[col + "_weighted"] = df.obj[col] * splitinfo.loc[df.obj["split_ix"], "weight"].values
+        df.obj[col + "_weighted"] = df.obj[col] * splitinfo.loc[df.obj["split"], "weight"].values
     
     df2 = df[[col + "_weighted" for col in columns]].sum()
     df2.columns = columns
@@ -100,58 +119,64 @@ transcriptome_pd = pd.DataFrame(transcriptome.X.dense().cpu().numpy(), index = t
 
 
 # %%
-def score_fragments(
-    splits,
-    fragments_oi,
-    expression_prediction_full = None,
-    return_expression_prediction = False
-):
-    """
-    Scores a set of fragments_oi using a set of splits
-    """
-    
-    splitinfo = pd.DataFrame({"split_ix":i, "n_cells":split.cell_n, "phase":split.phase} for i, split in enumerate(splits))
-    splitinfo["weight"] = splitinfo["n_cells"] / splitinfo.groupby("phase")["n_cells"].sum()[splitinfo["phase"]].values
-    
+def score_fold(coordinates, fold, model, fragments_oi = None, expression_prediction_full = None, return_expression_prediction = False):
     scores = []
+    
+    if fragments_oi is None:
+        fragments_oi = torch.tensor([True] * coordinates.shape[0], device = device)
+    
+    splits_oi = [fold[0]] + [split for split in fold if split.phase == "validation"]
+    
+    splitinfo = pd.DataFrame({"split":split_ix, "n_cells":split.cell_n, "phase":split.phase} for split_ix, split in enumerate(splits_oi))
+    splitinfo["weight"] = splitinfo["n_cells"] / splitinfo.groupby(["phase"])["n_cells"].sum()[splitinfo["phase"]].values
+    
     expression_prediction = pd.DataFrame(0., index = transcriptome.obs.index, columns = transcriptome.var.index)
     
-    # run all the splits
-    for split_ix, split in enumerate(splits):
-        fragments_oi_split = fragments_oi[split.fragments_selected]
-        
-        # calculate how much is retained overall
-        perc_retained = fragments_oi_split.float().mean().detach().item()
-        
-        # calculate how much is retained per gene
-        # scatter is needed here because the values are not sorted by gene (but by cellxgene)
-        perc_retained_gene = torch_scatter.scatter_mean(fragments_oi_split.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
-        
-        # run the model and calculate mse
-        with torch.no_grad():
-            expression_predicted = model(
-                split.fragments_coordinates[fragments_oi_split],
-                split.fragment_cellxgene_idx[fragments_oi_split],
-                split.cell_n,
-                split.gene_n,
-                split.gene_idx
-            )#.to("cpu")
+    model = model.to(device)
+    model = model.train(False)
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx].to(device)
+    # run all the splits
+    for split_ix, split in enumerate(splits_oi):
+        try:
+            split = split.to(device)
+
+            fragments_oi_split = fragments_oi[split.fragments_selected]
+
+            # calculate how much is retained overall
+            perc_retained = fragments_oi_split.float().mean().detach().item()
+
+            # calculate how much is retained per gene
+            # scatter is needed here because the values are not sorted by gene (but by cellxgene)
+            perc_retained_gene = torch_scatter.scatter_mean(fragments_oi_split.float().to("cpu"), split.local_gene_ix.to("cpu"), dim_size = split.gene_n)
+
+            # run the model and calculate mse
+            with torch.no_grad():
+                expression_predicted = model(
+                    coordinates[split.fragments_selected][fragments_oi_split],
+                    split.fragment_cellxgene_ix[fragments_oi_split],
+                    split.cell_n,
+                    split.gene_n,
+                    split.gene_ix
+                )
+
+        finally:
+            split = split.to("cpu")
+
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix].to(device)
 
         mse = ((expression_predicted - transcriptome_subset)**2).mean()
 
         expression_predicted_dummy = transcriptome_subset.mean(0, keepdim = True).expand(transcriptome_subset.shape)
         mse_dummy = ((expression_predicted_dummy - transcriptome_subset)**2).mean()
 
-        transcriptome.obs.loc[transcriptome.obs.index[split.cell_idx], "phase"] = split.phase
+        transcriptome.obs.loc[transcriptome.obs.index[split.cell_ix], "phase"] = split.phase
 
         genescores = pd.DataFrame({
             "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-            "gene":transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+            "gene":transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
             "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
             "perc_retained":perc_retained_gene.detach().cpu().numpy(),
-            "split_ix":split_ix
+            "split":split_ix
         })
 
         scores.append({
@@ -160,21 +185,23 @@ def score_fragments(
             "genescores":genescores,
             "mse_dummy":float(mse_dummy.detach().cpu().numpy()),
             "perc_retained":perc_retained,
-            "split_ix":split_ix
+            "split":split_ix
         })
 
-        expression_prediction.values[split.cell_idx, split.gene_idx] = expression_predicted.cpu().detach().numpy()
+        expression_prediction.values[split.cell_ix, split.gene_ix] = expression_predicted.cpu().detach().numpy()
         
+    model = model.to("cpu")
+
     # aggregate overall scores
     scores = pd.DataFrame(scores)
     scores["phase"] = scores["phase"].astype("category")
     aggscores = aggregate_splits(
-        scores.groupby("phase"),
+        scores.groupby(["phase"]),
         splitinfo = splitinfo,
         columns = ["perc_retained", "mse", "mse_dummy"]
     )
     aggscores["mse_diff"] = aggscores["mse"] - aggscores["mse_dummy"]
-    
+
     # aggregate gene scores
     gene_aggscores = (
         scores
@@ -183,43 +210,96 @@ def score_fragments(
             .pipe(aggregate_splits, columns = ["perc_retained", "mse", "mse_dummy"], splitinfo = splitinfo)
     )
     gene_aggscores["mse_diff"] = gene_aggscores["mse_dummy"] - gene_aggscores["mse"]
-    
+
     # calculate summary statistics on the predicted expression
     # first extract train and validation cells
-    cells_train = transcriptome.obs.index[list(set([cell_idx for split in splits for cell_idx in split.cell_idxs if split.phase == "train"]))]
-    cells_validation = transcriptome.obs.index[list(set([cell_idx for split in splits for cell_idx in split.cell_idxs if split.phase == "validation"]))]
-    
+    cells_train = transcriptome.obs.index[list(set([cell_ix for split in fold for cell_ix in split.cell_ixs if split.phase == "train"]))]
+    cells_validation = transcriptome.obs.index[list(set([cell_ix for split in fold for cell_ix in split.cell_ixs if split.phase == "validation"]))]
+
     # calculate effect
     if expression_prediction_full is not None:
         effect_train = expression_prediction.loc[cells_train].mean() - expression_prediction_full.loc[cells_train].mean()
         effect_validation = expression_prediction.loc[cells_validation].mean() - expression_prediction_full.loc[cells_validation].mean()
         aggscores["effect"] = pd.Series({"train":effect_train.mean(), "validation":effect_validation.mean()})
         gene_aggscores["effect"] = pd.concat({"train":effect_train, "validation":effect_validation}, names = ["phase", "gene"])
-        
+
         effect_train = (expression_prediction.loc[cells_train] - expression_prediction_full.loc[cells_train]).std()
         effect_validation = (expression_prediction.loc[cells_validation] - expression_prediction_full.loc[cells_validation]).std()
-    
+
     # calculate correlation
-    cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
-    cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
-    
-    gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
-    aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
+    # cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
+    # cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
+
+    # gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
+    # aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
     
     if return_expression_prediction:
         return aggscores, gene_aggscores, expression_prediction
-    return aggscores, gene_aggscores
+    return aggscores, gene_aggscores, None
 
 
 # %%
-fragments_oi = torch.tensor([True] * fragments.coordinates.shape[0], device = device)
-
-splits = [split.to(device) for split in splits]
+coordinates = fragments.coordinates.to("cuda")
 transcriptome_X = transcriptome.X.to(device)
 
-aggscores, gene_aggscores, expression_prediction = score_fragments(splits, fragments_oi, return_expression_prediction = True)
+score_fold(coordinates, folds[0], models[0])
 
-splits = [split.to("cpu") for split in splits]
+
+# %%
+def score_folds(
+    coordinates,
+    folds,
+    fold_runs,
+    fragments_oi = None,
+    expression_prediction_full = None,
+    return_expression_prediction = False
+):
+    """
+    Scores a set of fragments_oi using a set of splits
+    """
+    
+    scores = []
+    fold_ids = pd.Series(range(len(fold_runs)), name = "fold")
+    expression_prediction = pd.DataFrame(0., index = pd.MultiIndex.from_product([fold_ids, transcriptome.obs.index]), columns = transcriptome.var.index)
+    
+    splitinfo = pd.DataFrame({"split":i, "n_cells":split.cell_n, "phase":split.phase, "fold":fold_ix} for fold_ix, fold in enumerate(folds) for i, split in enumerate(fold))
+    splitinfo["weight"] = splitinfo["n_cells"] / splitinfo.groupby(["fold", "phase"])["n_cells"].sum()[pd.MultiIndex.from_frame(splitinfo[["fold", "phase"]])].values
+    
+    aggscores = {}
+    gene_aggscores = {}
+    expression_prediction = {}
+    
+    for model, (fold_ix, fold) in zip(fold_runs, enumerate(folds)):
+        aggscores_, gene_aggscores_, expression_prediction_ = score_fold(
+            coordinates,
+            fold,
+            model,
+            fragments_oi = fragments_oi,
+            return_expression_prediction = return_expression_prediction,
+            expression_prediction_full = expression_prediction_full.loc[fold_ix] if expression_prediction_full is not None else None
+        )
+        aggscores[fold_ix] = aggscores_
+        gene_aggscores[fold_ix] = gene_aggscores_
+        expression_prediction[fold_ix] = expression_prediction_
+        
+    aggscores = pd.concat(aggscores, names = ["fold", "phase"])
+    gene_aggscores = pd.concat(gene_aggscores, names = ["fold", "phase", "gene"])
+    if return_expression_prediction:
+        expression_prediction = pd.concat(expression_prediction, names = ["fold", "cell"])
+    
+    if return_expression_prediction:
+        return aggscores, gene_aggscores, expression_prediction
+    return aggscores, gene_aggscores, None
+
+
+# %%
+coordinates = fragments.coordinates.to(device)
+
+aggscores, gene_aggscores, expression_prediction = score_folds(coordinates, folds, models, return_expression_prediction = True)
+
+scores = aggscores.groupby(["phase"]).mean()
+gene_scores = gene_aggscores.groupby(["phase", "gene"]).mean()
+
 transcriptome_X = transcriptome.X.to("cpu")
 torch.cuda.empty_cache()
 
@@ -227,8 +307,8 @@ torch.cuda.empty_cache()
 # ### Global visual check
 
 # %%
-cells_oi = np.random.choice(expression_prediction.index, size = 100, replace = False) # only subselect 100 cells
-plotdata = pd.DataFrame({"prediction":expression_prediction.loc[cells_oi].stack()})
+cells_oi = np.random.choice(expression_prediction.loc[0].index, size = 100, replace = False) # only subselect 100 cells
+plotdata = pd.DataFrame({"prediction":expression_prediction.loc[0].loc[cells_oi].stack()})
 plotdata["observed"] = transcriptome_pd.loc[cells_oi].stack().values
 
 print(np.corrcoef(plotdata["prediction"], plotdata["observed"])[0, 1])
@@ -262,22 +342,34 @@ ax_validation.set_title("Validation")
 aggscores.style.bar()
 
 # %%
+aggscores.style.bar()
+
+# %%
+aggscores.style.bar()
+
+# %%
+aggscores.style.bar()
+
+# %%
+aggscores.style.bar()
+
+# %%
 aggscores.to_csv(prediction.path / "aggscores.csv")
 
 # %% [markdown]
 # ### Gene-specific view
 
 # %%
-gene_aggscores["symbol"] = transcriptome.symbol(gene_aggscores.index.get_level_values("gene")).values
+gene_scores["symbol"] = transcriptome.symbol(gene_scores.index.get_level_values("gene")).values
 
 # %%
-gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = False).head(20).style.bar(subset = ["mse_diff", "cor"])
+gene_scores.sort_values("mse_diff", ascending = False).head(20).style.bar(subset = ["mse_diff"])
 
 # %%
-gene_aggscores["mse_diff"].unstack().T.sort_values("validation").plot()
+gene_scores["mse_diff"].unstack().T.sort_values("validation").plot()
 
 # %%
-gene_aggscores["cor"].unstack().T.sort_values("validation").plot()
+# gene_scores["cor"].unstack().T.sort_values("validation").plot()
 
 # %%
 gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")
@@ -292,45 +384,52 @@ gene_aggscores.to_csv(prediction.path / "gene_aggscores.csv")
 # cuts = [200, 400, 600]
 # cuts = list(np.arange(0, 200, 10)) + list(np.arange(200, 1000, 50))
 cuts = list(np.arange(0, 1000, 25))
-windows = [[cut0, cut1] for cut0, cut1 in zip(cuts, cuts[1:] + [9999999])]
+
+windows = []
+for window_start, window_end in zip(cuts, cuts[1:] + [9999999]):  
+    windows.append({
+        "window_start":window_start,
+        "window_end":window_end
+    })
+windows = pd.DataFrame(windows).set_index("window_start", drop = False)
+windows.index.name = "window"
 
 # %%
-splits = [split.to(device) for split in splits]
-transcriptome_X = transcriptome.X.to(device)
-
 aggscores_lengths = []
 gene_aggscores_lengths = []
-for window_start, window_end in tqdm.tqdm(windows):
+for window_id, (window_start, window_end) in tqdm.tqdm(windows.iterrows(), total = windows.shape[0]):
     # take fragments within the window
     fragment_lengths = (fragments.coordinates[:,1] - fragments.coordinates[:,0])
     fragments_oi = ~((fragment_lengths >= window_start) & (fragment_lengths < window_end))
+    
+    aggscores_window, gene_aggscores_window, _ = score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
 
-    aggscores_window, gene_aggscores_window = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
-
-    aggscores_window["window_start"] =  window_start
-    gene_aggscores_window["window_start"] =  window_start
+    aggscores_window["window"] =  window_id
+    gene_aggscores_window["window"] =  window_id
 
     aggscores_lengths.append(aggscores_window)
     gene_aggscores_lengths.append(gene_aggscores_window)
     
-splits = [split.to("cpu") for split in splits]
-transcriptome_X = transcriptome.X.to("cpu")
 torch.cuda.empty_cache()
     
 aggscores_lengths = pd.concat(aggscores_lengths)
-aggscores_lengths = aggscores_lengths.set_index("window_start", append = True)
+aggscores_lengths = aggscores_lengths.set_index("window", append = True)
+
+scores_lengths = aggscores_lengths.groupby(["phase", "window"]).mean()
 
 gene_aggscores_lengths = pd.concat(gene_aggscores_lengths)
-gene_aggscores_lengths = gene_aggscores_lengths.set_index("window_start", append = True)
+gene_aggscores_lengths = gene_aggscores_lengths.set_index("window", append = True)
+
+gene_scores_lengths = gene_aggscores_lengths.groupby(["phase",  "gene", "window"]).mean()
 
 # %% [markdown]
 # ### Global view
 
 # %%
-mse_lengths = aggscores_lengths["mse"].unstack().T
-mse_dummy_lengths = aggscores_lengths["mse_dummy"].unstack().T
-perc_retained_lengths = aggscores_lengths["perc_retained"].unstack().T
-effect_lengths = aggscores_lengths["effect"].unstack().T
+mse_lengths = scores_lengths["mse"].unstack().T
+mse_dummy_lengths = scores_lengths["mse_dummy"].unstack().T
+perc_retained_lengths = scores_lengths["perc_retained"].unstack().T
+effect_lengths = scores_lengths["effect"].unstack().T
 
 
 # %%
@@ -344,7 +443,7 @@ def minmax(x):
 fig, ax_perc = plt.subplots()
 ax_mse = ax_perc.twinx()
 ax_mse.plot(mse_lengths.index, mse_lengths["validation"])
-ax_mse.axhline(aggscores.loc["validation", "mse"], color = "red", dashes = (2, 2))
+ax_mse.axhline(scores.loc["validation", "mse"], color = "blue", dashes = (2, 2))
 ax_mse.set_ylabel("MSE", rotation = 0, ha = "left", va = "center", color = "blue")
 # ax_mse.plot(mse_dummy_lengths.index, mse_dummy_lengths["validation"]) 
 
@@ -380,61 +479,71 @@ assert (select_window(np.array([[-100, 200], [-300, -100]]), -200, 20) == np.arr
 # %%
 window_size = 100
 cuts = np.arange(-padding_negative, padding_positive, step = window_size)
-windows = np.array(list(zip(cuts[:-1], cuts[1:], cuts[1:] + (cuts[:-1] - cuts[1:])/2)))
+
+windows = []
+for window_start, window_end in zip(cuts[:-1], cuts[1:]):  
+    windows.append({
+        "window_start":window_start,
+        "window_end":window_end,
+        "window":window_start + (window_end - window_start)/2
+    })
+windows = pd.DataFrame(windows).set_index("window")
 
 # %%
-splits = [split.to(device) for split in splits]
 transcriptome_X = transcriptome.X.to(device)
+coordinates = fragments.coordinates.to(device)
 
 aggscores_windows = []
 gene_aggscores_windows = []
-for window_start, window_end, window_mid in tqdm.tqdm(windows):
+for window_id, (window_start, window_end) in tqdm.tqdm(windows.iterrows(), total = windows.shape[0]):
     # take fragments within the window
     fragments_oi = select_window(fragments.coordinates, window_start, window_end)
     
-    aggscores_window, gene_aggscores_window = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
+    aggscores_window, gene_aggscores_window, _ = score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
     
-    aggscores_window["window_mid"] = window_mid
-    gene_aggscores_window["window_mid"] = window_mid
+    aggscores_window["window"] = window_id
+    gene_aggscores_window["window"] = window_id
     
     aggscores_windows.append(aggscores_window)
     gene_aggscores_windows.append(gene_aggscores_window)
     
-splits = [split.to("cpu") for split in splits]
 transcriptome_X = transcriptome.X.to("cpu")
 torch.cuda.empty_cache()
     
 aggscores_windows = pd.concat(aggscores_windows)
-aggscores_windows = aggscores_windows.set_index("window_mid", append = True)
+aggscores_windows = aggscores_windows.set_index("window", append = True)
 
 gene_aggscores_windows = pd.concat(gene_aggscores_windows)
-gene_aggscores_windows = gene_aggscores_windows.set_index("window_mid", append = True)
+gene_aggscores_windows = gene_aggscores_windows.set_index("window", append = True)
 
 aggscores_windows["mse_loss"] = aggscores["mse"] - aggscores_windows["mse"]
 gene_aggscores_windows["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windows["mse"]
+
+scores_windows = aggscores_windows.groupby(["phase", "window"]).mean()
+gene_scores_windows = gene_aggscores_windows.groupby(["phase", "gene", "window"]).mean()
 
 # %% [markdown]
 # ### Global view
 
 # %%
-aggscores_windows.loc["train"]["perc_retained"].plot()
-aggscores_windows.loc["validation"]["perc_retained"].plot()
+scores_windows.loc["train"]["perc_retained"].plot()
+scores_windows.loc["validation"]["perc_retained"].plot()
 
 # %%
-mse_windows = aggscores_windows["mse"].unstack().T
-mse_dummy_windows = aggscores_windows["mse_dummy"].unstack().T
+mse_windows = scores_windows["mse"].unstack().T
+mse_dummy_windows = scores_windows["mse_dummy"].unstack().T
 
 # %%
 fig, ax_mse = plt.subplots()
 patch_train = ax_mse.plot(mse_windows.index, mse_windows["train"], color = "blue", label = "train")
 ax_mse.plot(mse_dummy_windows.index, mse_dummy_windows["train"], color = "blue", alpha = 0.1)
-ax_mse.axhline(aggscores.loc["train", "mse"], dashes = (2, 2), color = "blue")
+ax_mse.axhline(scores.loc["train", "mse"], dashes = (2, 2), color = "blue")
 
 ax_mse2 = ax_mse.twinx()
 
 patch_validation = ax_mse2.plot(mse_windows.index, mse_windows["validation"], color = "red", label = "validation")
 ax_mse2.plot(mse_dummy_windows.index, mse_dummy_windows["validation"], color = "red", alpha = 0.1)
-ax_mse2.axhline(aggscores.loc["validation", "mse"], color = "red", dashes = (2, 2))
+ax_mse2.axhline(scores.loc["validation", "mse"], color = "red", dashes = (2, 2))
 
 ax_mse.set_ylabel("MSE train", rotation = 0, ha = "right", color = "blue")
 ax_mse2.set_ylabel("MSE validation", rotation = 0, ha = "left", color = "red")
@@ -447,8 +556,8 @@ import sklearn.linear_model
 
 # %%
 lm = sklearn.linear_model.LinearRegression()
-lm.fit(1-aggscores_windows.loc["validation"][["perc_retained"]], aggscores_windows.loc["validation"]["mse"])
-mse_residual = aggscores_windows.loc["validation"]["mse"] - lm.predict(1-aggscores_windows.loc["validation"][["perc_retained"]])
+lm.fit(1-scores_windows.loc["validation"][["perc_retained"]], scores_windows.loc["validation"]["mse"])
+mse_residual = scores_windows.loc["validation"]["mse"] - lm.predict(1-scores_windows.loc["validation"][["perc_retained"]])
 
 # %%
 mse_residual.plot()
@@ -456,14 +565,14 @@ mse_residual.plot()
 # %%
 fig, ax = plt.subplots()
 ax.set_ylabel("Relative MSE", rotation = 0, ha = "right", va = "center")
+# ax.plot(
+#     scores_windows.loc["train"].index,
+#     zscore(aggscores_windows.loc["train"]["mse"]) - zscore(1-aggscores_windows.loc["train"]["perc_retained"]),
+#     color = "blue"
+# )
 ax.plot(
-    aggscores_windows.loc["train"].index,
-    zscore(aggscores_windows.loc["train"]["mse"]) - zscore(1-aggscores_windows.loc["train"]["perc_retained"]),
-    color = "blue"
-)
-ax.plot(
-    aggscores_windows.loc["validation"].index,
-    zscore(aggscores_windows.loc["validation"]["mse"]) - zscore(1-aggscores_windows.loc["validation"]["perc_retained"]),
+    scores_windows.loc["validation"].index,
+    zscore(scores_windows.loc["validation"]["mse"]) - zscore(1-scores_windows.loc["validation"]["perc_retained"]),
     color = "red"
 )
 
@@ -471,10 +580,16 @@ ax.plot(
 # ### Gene-specific view
 
 # %%
-gene_mse_windows = gene_aggscores_windows["mse"].unstack()
-gene_perc_retained_windows = gene_aggscores_windows["perc_retained"].unstack()
-gene_mse_dummy_windows = gene_aggscores_windows["mse_dummy"].unstack()
-gene_effect_windows = gene_aggscores_windows["effect"].unstack()
+special_genes = pd.DataFrame(index = transcriptome.var.index)
+
+# %%
+gene_scores["label"] = transcriptome.symbol(gene_scores.index.get_level_values("gene")).values
+
+# %%
+gene_mse_windows = gene_scores_windows["mse"].unstack()
+gene_perc_retained_windows = gene_scores_windows["perc_retained"].unstack()
+gene_mse_dummy_windows = gene_scores_windows["mse_dummy"].unstack()
+gene_effect_windows = gene_scores_windows["effect"].unstack()
 
 # %%
 fig, ax = plt.subplots()
@@ -508,14 +623,17 @@ sns.heatmap(gene_mse_windows_norm)
 gene_effect_windows.loc["validation"].max(1).sort_values(ascending = False).head(8)
 
 # if you want genes with the highest mse diff
-gene_aggscores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
+gene_scores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
 
 # %%
 # gene_id = transcriptome.gene_id("HLA-B")
 # gene_id = transcriptome.gene_id("PTPRC")
 # gene_id = transcriptome.gene_id("SIPA1L1")
-gene_id = transcriptome.gene_id("IL1B")
-gene_id = transcriptome.gene_id("FLT3LG")
+# gene_id = transcriptome.gene_id("IL1B")
+gene_id = transcriptome.gene_id("ITK")
+
+# gene_id = transcriptome.gene_id("Nrxn1")
+# gene_id = transcriptome.gene_id("Cadm1")
 
 # %% [markdown]
 # Extract promoter info of gene
@@ -552,27 +670,32 @@ peaks = []
 import pybedtools
 promoter_bed = pybedtools.BedTool.from_dataframe(pd.DataFrame(promoter).T[["chr", "start", "end"]])
 
+peak_methods = []
+
 peaks_bed = pybedtools.BedTool(folder_data_preproc / "atac_peaks.bed")
 peaks_cellranger = promoter_bed.intersect(peaks_bed).to_dataframe()
 peaks_cellranger["method"] = "cellranger"
 peaks_cellranger = center_peaks(peaks_cellranger, promoter)
 peaks.append(peaks_cellranger)
+peak_methods.append({"method":"cellranger"})
 
-peaks_bed = pybedtools.BedTool(pfa.get_output() / "peaks" / dataset_name / "macs2" / "peaks.bed")
-peaks_macs2 = promoter_bed.intersect(peaks_bed).to_dataframe()
-peaks_macs2["method"] = "macs2"
-peaks_macs2 = center_peaks(peaks_macs2, promoter)
-peaks.append(peaks_macs2)
+# peaks_bed = pybedtools.BedTool(pfa.get_output() / "peaks" / dataset_name / "macs2" / "peaks.bed")
+# peaks_macs2 = promoter_bed.intersect(peaks_bed).to_dataframe()
+# peaks_macs2["method"] = "macs2"
+# peaks_macs2 = center_peaks(peaks_macs2, promoter)
+# peaks.append(peaks_macs2)
+# peak_methods.append({"method":"macs2"})
 
 # peaks_bed = pybedtools.BedTool(pfa.get_output() / "peaks" / dataset_name / "genrich" / "peaks.bed")
 # peaks_genrich = promoter_bed.intersect(peaks_bed).to_dataframe()
 # peaks_genrich["method"] = "genrich"
 # peaks_genrich = center_peaks(peaks_genrich, promoter)
 # peaks.append(peaks_genrich)
+# peak_methods.append({"method":"genrich"})
 
 peaks = pd.concat(peaks)
 
-peak_methods = pd.DataFrame({"method":peaks["method"].unique()}).set_index("method")
+peak_methods = pd.DataFrame(peak_methods).set_index("method")
 peak_methods["ix"] = np.arange(peak_methods.shape[0])
 
 # %% [markdown]
@@ -601,8 +724,8 @@ if show_dummy:
     ax_mse2.plot(plotdata.index, plotdata, color = "red", alpha = 0.1)
 
 # unperturbed mse
-ax_mse.axhline(gene_aggscores.loc[("train", gene_id), "mse"], dashes = (2, 2), color = "blue")
-ax_mse2.axhline(gene_aggscores.loc[("validation", gene_id), "mse"], dashes = (2, 2), color = "red")
+ax_mse.axhline(gene_scores.loc[("train", gene_id), "mse"], dashes = (2, 2), color = "blue")
+ax_mse2.axhline(gene_scores.loc[("validation", gene_id), "mse"], dashes = (2, 2), color = "red")
 
 # mse
 plotdata = gene_mse_windows.loc["train"].loc[gene_id]
@@ -708,23 +831,26 @@ promoter_updown.groupby("type").size()/promoter_updown.shape[0]
 # if you're interested in the genes with the strongest increase effect
 promoter_updown.query("type == 'nothing_up'").sort_values("max_increase", ascending = False)
 
+# %%
+special_genes["opening_decreases_expression"] = promoter_updown["up"]
+
 # %% [markdown]
 # ### Is information content of a window associated with the number of fragments?
 
 # %%
-sns.scatterplot(x = gene_aggscores_windows["mse_loss"], y = gene_aggscores_windows["perc_retained"], s = 1)
+sns.scatterplot(x = gene_scores_windows["mse_loss"], y = gene_scores_windows["perc_retained"], s = 1)
 
 # %%
-gene_mse_correlations = gene_aggscores_windows.groupby(["phase", "gene"]).apply(lambda x: x["perc_retained"].corr(x["mse"]))
-
-# %%
-gene_mse_correlations = gene_aggscores_windows.query("perc_retained < 0.98").groupby(["phase", "gene"]).apply(lambda x: x["perc_retained"].corr(x["mse"]))
+gene_mse_correlations = gene_scores_windows.groupby(["phase", "gene"]).apply(lambda x: x["perc_retained"].corr(x["mse"]))
+# gene_mse_correlations = gene_aggscores_windows.query("perc_retained < 0.98").groupby(["phase", "gene"]).apply(lambda x: x["perc_retained"].corr(x["mse"]))
 gene_mse_correlations = gene_mse_correlations.to_frame("cor")
 gene_mse_correlations = gene_mse_correlations[~pd.isnull(gene_mse_correlations["cor"])]
 gene_mse_correlations["label"] = transcriptome.symbol(gene_mse_correlations.index.get_level_values("gene")).values
+gene_mse_correlations["mse_diff"] = gene_scores["mse_diff"]
 
 # %%
-genes_oi = gene_aggscores.loc["validation"].query("mse_diff > 1e-3").index
+genes_oi = gene_scores.loc["validation"].query("mse_diff > 1e-3").index
+print(f"{len(genes_oi)=}")
 
 # %%
 fig, ax = plt.subplots()
@@ -732,13 +858,14 @@ ax.hist(gene_mse_correlations.loc["validation"].loc[:, "cor"], range = (-1, 1))
 ax.hist(gene_mse_correlations.loc["validation"].loc[genes_oi, "cor"], range = (-1, 1))
 
 # %%
-gene_mse_correlations.loc["validation"].loc[genes_oi].sort_values("cor", ascending = False).head(10)
+# if you're interested in genes with relatively high correlation with nontheless a good prediction somewhere
+gene_mse_correlations.loc["validation"].query("cor > =-.5").sort_values("mse_diff", ascending = False)
+
+# %%
+special_genes["n_fragments_importance_not_correlated"] = gene_mse_correlations.loc["validation"]["cor"] > -0.5
 
 # %% [markdown]
 # IL1B in pbmc10k is interesting here
-
-# %%
-gene_mse_correlations.loc["validation"].loc[genes_oi].sort_values("cor", ascending = True).iloc[400:]
 
 # %% [markdown]
 # ## Comparing peaks and windows
@@ -753,8 +880,8 @@ gene_mse_correlations.loc["validation"].loc[genes_oi].sort_values("cor", ascendi
 promoters = pd.read_csv(folder_data_preproc / "promoters.csv", index_col = 0)
 
 # %%
-# peaks_name = "cellranger"
-peaks_name = "macs2"
+peaks_name = "cellranger"
+# peaks_name = "macs2"
 
 # %%
 peaks_folder = folder_root / "peaks" / dataset_name / peaks_name
@@ -803,19 +930,20 @@ localpeaks = center_peaks(peaks, promoters)
 matched_peaks, matched_windows = np.where(((localpeaks["start"].values[:, None] < np.array(windows)[:, 1][None, :]) & (localpeaks["end"].values[:, None] > np.array(windows)[:, 0][None, :])))
 
 # %%
-peak_window_matches = pd.DataFrame({"peak":localpeaks.index[matched_peaks], "window_mid":windows[matched_windows, 2]}).set_index("peak").join(peaks[["gene"]]).reset_index()
+peak_window_matches = pd.DataFrame({"peak":localpeaks.index[matched_peaks], "window":windows.index[matched_windows]}).set_index("peak").join(peaks[["gene"]]).reset_index()
 
 # %% [markdown]
 # ### Is the most predictive window inside a peak?
 
 # %%
-gene_best_windows = gene_aggscores_windows.loc["validation"].loc[gene_aggscores_windows.loc["validation"].groupby(["gene"])["mse"].idxmax()]
+gene_best_windows = gene_scores_windows.loc["validation"].loc[gene_scores_windows.loc["validation"].groupby(["gene"])["mse"].idxmax()]
 
 # %%
-genes_oi = gene_aggscores.loc["validation"].query("mse_diff > 1e-3").index
+genes_oi = gene_scores.loc["validation"].query("mse_diff > 1e-3").index
 
 # %%
-gene_best_windows = gene_best_windows.join(peak_window_matches.set_index(["gene", "window_mid"])).reset_index(level = "window_mid")
+gene_best_windows = gene_best_windows.join(peak_window_matches.set_index(["gene", "window"])).reset_index(level = "window")
+gene_best_windows = gene_best_windows.groupby("gene").first()
 
 # %%
 gene_best_windows["matched"] = ~pd.isnull(gene_best_windows["peak"])
@@ -850,51 +978,58 @@ ax.set_ylabel("% of genes for which\nthe top window is\ncontained in a peak", ro
 gene_best_windows["label"] = transcriptome.symbol(gene_best_windows.index)
 
 # %%
-gene_best_windows.query("~matched")
+# if you're interested in genes where the best window is not inside a peak
+gene_best_windows.query("~matched").sort_values("mse_diff", ascending = False)
+
+# %%
+special_genes["most_predictive_position_not_in_peak"] = ~gene_best_windows["matched"]
 
 # %% [markdown]
 # ### Are all predictive windows within a peak?
 
 # %%
-gene_aggscores_windows_matched = gene_aggscores_windows.loc["validation"].join(peak_window_matches.set_index(["gene", "window_mid"])).groupby(["gene", "window_mid"]).first().reset_index(level = "window_mid")
+gene_scores_windows_matched = gene_scores_windows.loc["validation"].join(peak_window_matches.set_index(["gene", "window"])).groupby(["gene", "window"]).first().reset_index(level = "window")
 
 # %%
-gene_aggscores_windows_matched["matched"] = ~pd.isnull(gene_aggscores_windows_matched["peak"])
-gene_aggscores_windows_matched = gene_aggscores_windows_matched.sort_values("mse_loss")
+gene_scores_windows_matched["matched"] = ~pd.isnull(gene_scores_windows_matched["peak"])
+gene_scores_windows_matched = gene_scores_windows_matched.sort_values("mse_loss")
 
 # %%
-gene_aggscores_windows_matched["ix"] = np.arange(1, gene_aggscores_windows_matched.shape[0] + 1)
-gene_aggscores_windows_matched["cum_matched"] = (np.cumsum(gene_aggscores_windows_matched["matched"]) / gene_aggscores_windows_matched["ix"])
-gene_aggscores_windows_matched["perc"] = gene_aggscores_windows_matched["ix"] / gene_aggscores_windows_matched.shape[0]
+gene_scores_windows_matched["ix"] = np.arange(1, gene_scores_windows_matched.shape[0] + 1)
+gene_scores_windows_matched["cum_matched"] = (np.cumsum(gene_scores_windows_matched["matched"]) / gene_scores_windows_matched["ix"])
+gene_scores_windows_matched["perc"] = gene_scores_windows_matched["ix"] / gene_scores_windows_matched.shape[0]
 
 # %% [markdown]
 # Of the top 5% most predictive sites, how many are inside a peak?
 
 # %%
 top_cutoff = 0.05
-perc_within_a_peak = gene_aggscores_windows_matched["cum_matched"].iloc[int(gene_aggscores_windows_matched.shape[0] * top_cutoff)]
+perc_within_a_peak = gene_scores_windows_matched["cum_matched"].iloc[int(gene_scores_windows_matched.shape[0] * top_cutoff)]
 print(perc_within_a_peak)
 print(f"Perhaps there are many windows that are predictive, but are not contained in any peak?\nIndeed, {1-perc_within_a_peak:.2%} of the top {top_cutoff:.0%} predictive windows does not lie within a peak.")
 
 # %%
 fig, ax = plt.subplots()
 ax.plot(
-    gene_aggscores_windows_matched["perc"],
-    gene_aggscores_windows_matched["cum_matched"]
+    gene_scores_windows_matched["perc"],
+    gene_scores_windows_matched["cum_matched"]
 )
 ax.xaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
 ax.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
 ax.set_xlabel("Top windows (acording to mse_loss of the best performing window)")
 ax.set_ylabel("% of most predictive windows\ncontained in a peak", rotation = 0, ha = "right", va = "center")
 
+# %%
+special_genes["predictive_positions_not_in_peak"] = gene_scores_windows_matched.iloc[:int(gene_scores_windows_matched.shape[0] * top_cutoff)].groupby("gene")["matched"].all()
+
 # %% [markdown]
 # ### Are opposing effects put into the same peak?
 
 # %%
 gene_peak_scores = pd.DataFrame({
-    "effect_min":gene_aggscores_windows_matched.query("matched").groupby(["gene", "peak"])["effect"].min(),
-    "effect_max":gene_aggscores_windows_matched.query("matched").groupby(["gene", "peak"])["effect"].max(),
-    "mse_loss_max":gene_aggscores_windows_matched.query("matched").groupby(["gene", "peak"])["mse_loss"].max()
+    "effect_min":gene_scores_windows_matched.query("matched").groupby(["gene", "peak"])["effect"].min(),
+    "effect_max":gene_scores_windows_matched.query("matched").groupby(["gene", "peak"])["effect"].max(),
+    "mse_loss_max":gene_scores_windows_matched.query("matched").groupby(["gene", "peak"])["mse_loss"].max()
 })
 
 gene_peak_scores["label"] = transcriptome.symbol(gene_peak_scores.index.get_level_values("gene")).values
@@ -937,25 +1072,38 @@ ax.set_xlabel("Top peaks (acording to max mse_loss within peak)")
 ax.set_ylabel("% of peaks with\nonly one effect", rotation = 0, ha = "right", va = "center")
 
 # %%
+special_genes["up_and_down_in_peak"] = gene_peak_scores.groupby("gene")["updown"].any()
+
+# %%
+# if you're interested in the most predictive peaks with both up and down effects
 gene_peak_scores.query("updown")
 
 # %% [markdown]
 # ### How much information do the non-peak regions contain?
 
 # %%
-gene_aggscores_windows_matched = gene_aggscores_windows.loc["validation"].join(peak_window_matches.set_index(["gene", "window_mid"]))
+gene_scores_windows_matched = gene_scores_windows.loc["validation"].join(peak_window_matches.set_index(["gene", "window"]))
 
 # %%
-gene_aggscores_windows_matched["in_peak"] = (~pd.isnull(gene_aggscores_windows_matched["peak"])).astype("category")
+gene_scores_windows_matched["in_peak"] = (~pd.isnull(gene_scores_windows_matched["peak"])).astype("category")
 
 # %%
-gene_aggscores_windows_matched.groupby(["gene", "in_peak"])["mse_loss"].sum().unstack().T.mean(1)
+matched_scores = gene_scores_windows_matched.groupby(["gene", "in_peak"])["mse_loss"].sum().unstack()
+matched_scores
+print(f"Perhaps there is information outside of peaks?\nIndeed, {matched_scores.mean(0)[False] / matched_scores.mean(0).sum():.2%} of the MSE is gained outside of peaks.")
 
 # %%
-plotdata = gene_aggscores_windows_matched.groupby(["gene", "in_peak"]).sum().reset_index()
-
-# %%
+plotdata = gene_scores_windows_matched.groupby(["gene", "in_peak"]).sum().reset_index()
 sns.boxplot(x = "in_peak", y = "mse_loss", data = plotdata)
+
+# %%
+special_genes["information_beyond_peaks"] = (matched_scores[False] / (matched_scores[True] + matched_scores[False])) > 0.2
+
+# %% [markdown]
+# ### Summarizing special genes
+
+# %%
+special_genes.any(1)
 
 # %% [markdown]
 # ## Performance when masking cuts within a window
@@ -971,43 +1119,53 @@ padding_negative = 4000
 # %%
 def select_cutwindow(coordinates, window_start, window_end):
     return ~(((coordinates[:, 0] < window_end) & (coordinates[:, 0] > window_start)) | ((coordinates[:, 1] < window_end) & (coordinates[:, 1] > window_start)))
-assert (select_window(np.array([[-100, 200], [-300, -100]]), -50, 50) == np.array([True, True])).all()
-assert (select_window(np.array([[-100, 200], [-300, -100]]), -310, -309) == np.array([True, True])).all()
-assert (select_window(np.array([[-100, 200], [-300, -100]]), 201, 202) == np.array([True, True])).all()
-assert (select_window(np.array([[-100, 200], [-300, -100]]), -200, 20) == np.array([False, False])).all()
+assert (select_cutwindow(np.array([[-100, 200], [-300, -100]]), -50, 50) == np.array([True, True])).all()
+assert (select_cutwindow(np.array([[-100, 200], [-300, -100]]), -310, -309) == np.array([True, True])).all()
+assert (select_cutwindow(np.array([[-100, 200], [-300, -100]]), 201, 202) == np.array([True, True])).all()
+assert (select_cutwindow(np.array([[-100, 200], [-300, -100]]), -200, 20) == np.array([False, False])).all()
 
 # %%
 window_size = 100
 cuts = np.arange(-padding_negative, padding_positive, step = window_size)
-windows = np.array(list(zip(cuts[:-1], cuts[1:], cuts[1:] + (cuts[:-1] - cuts[1:])/2)))
+
+windows = []
+for window_start, window_end in zip(cuts[:-1], cuts[1:]):  
+    windows.append({
+        "window_start":window_start,
+        "window_end":window_end,
+        "window":window_start + (window_end - window_start)/2
+    })
+windows = pd.DataFrame(windows).set_index("window")
 
 # %%
-splits = [split.to(device) for split in splits]
 transcriptome_X = transcriptome.X.to(device)
+coordinates = fragments.coordinates.to(device)
 
 aggscores_cutwindows = []
 gene_aggscores_cutwindows = []
-for window_start, window_end, window_mid in tqdm.tqdm(windows):
+for window_id, (window_start, window_end) in tqdm.tqdm(windows.iterrows(), total = windows.shape[0]):
     # take fragments within the window
-    fragments_oi = select_cutwindow(fragments.coordinates, window_start, window_end)
+    fragments_oi = select_window(fragments.coordinates, window_start, window_end)
     
-    aggscores_cutwindow, gene_aggscores_cutwindow = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
+    aggscores_cutwindow, gene_aggscores_cutwindow, _ = score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
     
-    aggscores_cutwindow["window_mid"] = window_mid
-    gene_aggscores_cutwindow["window_mid"] = window_mid
+    aggscores_cutwindow["window"] = window_id
+    gene_aggscores_cutwindow["window"] = window_id
     
     aggscores_cutwindows.append(aggscores_cutwindow)
     gene_aggscores_cutwindows.append(gene_aggscores_cutwindow)
     
-splits = [split.to("cpu") for split in splits]
 transcriptome_X = transcriptome.X.to("cpu")
 torch.cuda.empty_cache()
     
 aggscores_cutwindows = pd.concat(aggscores_cutwindows)
-aggscores_cutwindows = aggscores_cutwindows.set_index("window_mid", append = True)
+aggscores_cutwindows = aggscores_cutwindows.set_index("window", append = True)
 
 gene_aggscores_cutwindows = pd.concat(gene_aggscores_cutwindows)
-gene_aggscores_cutwindows = gene_aggscores_cutwindows.set_index("window_mid", append = True)
+gene_aggscores_cutwindows = gene_aggscores_cutwindows.set_index("window", append = True)
+
+scores_cutwindows = aggscores_cutwindows.groupby(["phase", "window"]).mean()
+gene_scores_cutwindows = gene_aggscores_cutwindows.groupby(["phase", "gene", "window"]).mean()
 
 # %% [markdown]
 # ### Global view
@@ -1048,7 +1206,7 @@ cut_residual = plotdata_cut["mse_loss"] - lm.predict(plotdata_cut[["perc_retaine
 plt.legend()
 
 # %% [markdown]
-# ## Performance when masking cuts around promoter
+# ## Performance when masking cuts around TSS
 
 # %%
 padding_positive = 200
@@ -1057,62 +1215,75 @@ padding_negative = 200
 # %%
 window_size = 10
 cuts = np.arange(-padding_negative, padding_positive, step = window_size)
-windows = np.array(list(zip(cuts[:-1], cuts[1:], cuts[1:] + (cuts[:-1] - cuts[1:])/2)))
+
+windows = []
+for window_start, window_end in zip(cuts[:-1], cuts[1:]):  
+    windows.append({
+        "window_start":window_start,
+        "window_end":window_end,
+        "window":window_start + (window_end - window_start)/2
+    })
+windows = pd.DataFrame(windows).set_index("window")
 
 # %%
-splits = [split.to(device) for split in splits]
 transcriptome_X = transcriptome.X.to(device)
+coordinates = fragments.coordinates.to(device)
 
 aggscores_cutwindows = []
 gene_aggscores_cutwindows = []
-for window_start, window_end, window_mid in tqdm.tqdm(windows):
+for window_id, (window_start, window_end) in tqdm.tqdm(windows.iterrows(), total = windows.shape[0]):
     # take fragments within the window
     fragments_oi = select_window(fragments.coordinates, window_start, window_end)
     
-    aggscores_cutwindow, gene_aggscores_cutwindow = score_fragments(splits, fragments_oi, expression_prediction_full=expression_prediction)
+    aggscores_cutwindow, gene_aggscores_cutwindow, _ = score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
     
-    aggscores_cutwindow["window_mid"] = window_mid
-    gene_aggscores_cutwindow["window_mid"] = window_mid
+    aggscores_cutwindow["window"] = window_id
+    gene_aggscores_cutwindow["window"] = window_id
     
     aggscores_cutwindows.append(aggscores_cutwindow)
     gene_aggscores_cutwindows.append(gene_aggscores_cutwindow)
     
-splits = [split.to("cpu") for split in splits]
 transcriptome_X = transcriptome.X.to("cpu")
 torch.cuda.empty_cache()
     
 aggscores_cutwindows = pd.concat(aggscores_cutwindows)
-aggscores_cutwindows = aggscores_cutwindows.set_index("window_mid", append = True)
+aggscores_cutwindows = aggscores_cutwindows.set_index("window", append = True)
 
 gene_aggscores_cutwindows = pd.concat(gene_aggscores_cutwindows)
-gene_aggscores_cutwindows = gene_aggscores_cutwindows.set_index("window_mid", append = True)
+gene_aggscores_cutwindows = gene_aggscores_cutwindows.set_index("window", append = True)
+
+scores_cutwindows = aggscores_cutwindows.groupby(["phase", "window"]).mean()
+gene_scores_cutwindows = gene_aggscores_cutwindows.groupby(["phase", "gene", "window"]).mean()
+
+# %%
+aggscores_cutwindows
 
 # %% [markdown]
 # ### Global view
 
 # %%
-aggscores_cutwindows.loc["train"]["perc_retained"].plot()
-aggscores_cutwindows.loc["validation"]["perc_retained"].plot()
+scores_cutwindows
 
 # %%
-mse_cutwindows = aggscores_cutwindows["mse"].unstack().T
-mse_dummy_cutwindows = aggscores_cutwindows["mse_dummy"].unstack().T
+scores_cutwindows.loc["train"]["perc_retained"].plot()
+scores_cutwindows.loc["validation"]["perc_retained"].plot()
 
 # %%
-aggscores_cutwindows["mse_loss"] = aggscores["mse"] - aggscores_cutwindows["mse"]
+mse_cutwindows = scores_cutwindows["mse"].unstack().T
+mse_dummy_cutwindows = scores_cutwindows["mse_dummy"].unstack().T
 
 # %%
-aggscores_cutwindows.loc["validation"]["mse_loss"].plot()
+scores_cutwindows["mse_loss"] = scores["mse"] - scores_cutwindows["mse"]
 
 # %%
-plotdata_cut["perc_retained"].plot()
+scores_cutwindows.loc["validation"]["mse_loss"].plot()
 
 # %%
-aggscores_cutwindows.loc["validation"]["effect"].plot()
+scores_cutwindows.loc["validation"]["effect"].plot()
 
 # %%
-lm = sklearn.linear_model.LinearRegression().fit(aggscores_cutwindows[["perc_retained"]],aggscores_cutwindows["mse_loss"])
-cut_residual = aggscores_cutwindows["mse_loss"] - lm.predict(aggscores_cutwindows[["perc_retained"]])
+lm = sklearn.linear_model.LinearRegression().fit(scores_cutwindows[["perc_retained"]],scores_cutwindows["mse_loss"])
+cut_residual = scores_cutwindows["mse_loss"] - lm.predict(scores_cutwindows[["perc_retained"]])
 
 (cut_residual.loc["validation"]).plot(label = "validation")
 (cut_residual.loc["train"]).plot(label = "train")
@@ -1125,47 +1296,54 @@ plt.legend()
 # Hypothesis: **are fragments from pairs of regions co-predictive, i.e. provide a non-linear prediction?**
 
 # %%
-splits = [split.to("cuda") for split in splits]
-
-# %%
 padding_positive = 2000
 padding_negative = 4000
 
-
 # %%
-def select_window(coordinates, window_start, window_end):
-    return ~((coordinates[:, 0] < window_end) & (coordinates[:, 1] > window_start))
-assert (select_window(np.array([[-100, 200], [-300, -100]]), -50, 50) == np.array([False, True])).all()
-assert (select_window(np.array([[-100, 200], [-300, -100]]), -310, -309) == np.array([True, True])).all()
-assert (select_window(np.array([[-100, 200], [-300, -100]]), 201, 202) == np.array([True, True])).all()
-assert (select_window(np.array([[-100, 200], [-300, -100]]), -200, 20) == np.array([False, False])).all()
+import itertools
 
 # %%
 window_size = 500
 cuts = np.arange(-padding_negative, padding_positive, step = window_size)
 
+bins = list(itertools.product(zip(cuts[:-1], cuts[1:]), zip(cuts[:-1], cuts[1:])))
+
 # %%
+windowpairs = pd.DataFrame(bins, columns = ["window1", "window2"])
+windowpairs["window_start1"] = windowpairs["window1"].str[0]
+windowpairs["window_start2"] = windowpairs["window2"].str[0]
+windowpairs["window_end1"] = windowpairs["window1"].str[1]
+windowpairs["window_end2"] = windowpairs["window2"].str[1]
+
+# %%
+transcriptome_X = transcriptome.X.to(device)
+coordinates = fragments.coordinates.to(device)
+
 aggscores_windowpairs = []
 gene_aggscores_windowpairs = []
-for window_idx, (window_start1, window_end1) in tqdm.tqdm(enumerate(zip(cuts[:-1], cuts[1:]))):
-    for window_idx, (window_start2, window_end2) in enumerate(zip(cuts[:-1], cuts[1:])):
-        # take fragments within the window
-        fragments_oi1 = select_window(fragments.coordinates, window_start1, window_end1)
-        fragments_oi2 = select_window(fragments.coordinates, window_start2, window_end2)
+for _, (window_start1, window_end1, window_start2, window_end2) in tqdm.tqdm(windowpairs[["window_start1", "window_end1", "window_start2", "window_end2"]].iterrows()):
+    # take fragments within the window
+    fragments_oi1 = select_window(fragments.coordinates, window_start1, window_end1)
+    fragments_oi2 = select_window(fragments.coordinates, window_start2, window_end2)
 
-        fragments_oi = fragments_oi1 & fragments_oi2
+    fragments_oi = fragments_oi1 & fragments_oi2
 
-        aggscores_window, gene_aggscores_window, _ = score_fragments(splits, fragments_oi)
+    aggscores_window, gene_aggscores_window = score_fragments(coordinates, splits, fragments_oi)
 
-        window_mid1 = window_start1 + (window_end1 - window_start1)/2
-        aggscores_window["window_mid1"] = window_mid1
-        gene_aggscores_window["window_mid1"] = window_mid1
-        window_mid2 = window_start2 + (window_end2 - window_start2)/2
-        aggscores_window["window_mid2"] = window_mid2
-        gene_aggscores_window["window_mid2"] = window_mid2
+    window_mid1 = window_start1 + (window_end1 - window_start1)/2
+    aggscores_window["window_mid1"] = window_mid1
+    gene_aggscores_window["window_mid1"] = window_mid1
+    window_mid2 = window_start2 + (window_end2 - window_start2)/2
+    aggscores_window["window_mid2"] = window_mid2
+    gene_aggscores_window["window_mid2"] = window_mid2
 
-        aggscores_windowpairs.append(aggscores_window)
-        gene_aggscores_windowpairs.append(gene_aggscores_window)
+    aggscores_windowpairs.append(aggscores_window)
+    gene_aggscores_windowpairs.append(gene_aggscores_window)
+        
+splits = [split.to("cpu") for split in splits]
+transcriptome_X = transcriptome.X.to("cpu")
+coordinates = coordinates.to("cpu")
+torch.cuda.empty_cache()
     
 aggscores_windowpairs = pd.concat(aggscores_windowpairs)
 aggscores_windowpairs = aggscores_windowpairs.set_index(["window_mid1", "window_mid2"], append = True)
@@ -1317,7 +1495,7 @@ for col in cols:
 
 # %%
 col = "perc_loss"
-plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", transcriptome.gene_id("MERTK"))]
+plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", gene_aggscores_windowpairs_test.index.get_level_values("gene")[0])]
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
 
@@ -1344,15 +1522,18 @@ ax3.set_title(f"interation {col}")
 # #### Plot for particular gene
 
 # %%
+gene_aggscores_windowpairs_test["label"] = transcriptome.symbol(gene_aggscores_windowpairs_test.index.get_level_values("gene")).values
+
+# %%
 # if you're interested in genes with a strong interaction
-gene_aggscores_windowpairs_test.loc["validation"].sort_values("mse_loss_interaction", ascending = True).head(10)
+gene_aggscores_windowpairs_test.loc["validation"].sort_values("mse_loss_interaction", ascending = True).head(10)[["mse_loss_interaction", "label"]]
 
 # %%
 # gene_id = transcriptome.gene_id("LYN")
-gene_id = transcriptome.gene_id("PLXDC2")
+# gene_id = transcriptome.gene_id("PLXDC2")
 # gene_id = transcriptome.gene_id("TNFAIP2")
-gene_id = transcriptome.gene_id("HLA-DRA")
-# gene_id = transcriptome.gene_id("NKG7")
+# gene_id = transcriptome.gene_id("HLA-DRA")
+gene_id = transcriptome.gene_id("Ptprd")
 
 # %%
 col = "mse_loss"
@@ -1390,19 +1571,24 @@ ax3.set_title(f"interation {col}")
 # %% [markdown]
 # ## Visualize a gene fragments
 
+# %% [markdown]
+# Interesting examples:
+# - *ITK* in the lymphoma dataset
+
+# %%
+transcriptome.var.query("means > 1").sort_values("dispersions_norm", ascending = False).head(20)
+
 # %%
 padding_positive = 2000
 padding_negative = 4000
 lim = (-padding_negative, padding_positive)
 
 # %%
-gene_id = transcriptome.gene_id("FLT3LG")
+gene_id = transcriptome.gene_id("ITK")
+# gene_id = transcriptome.gene_id("Cadm1")
 
 # %%
 sc.pl.umap(transcriptome.adata, color = [gene_id])
-
-# %%
-transcriptome.var.head(20)
 
 # %%
 gene_ix = fragments.var.loc[gene_id]["ix"]

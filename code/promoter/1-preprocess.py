@@ -44,14 +44,12 @@ import peakfreeatac as pfa
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"
-dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"
+dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
+dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
+dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
 
 folder_data_preproc = folder_data / dataset_name
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
-
-# %%
-import torch
 
 # %% [markdown]
 # ## Download
@@ -88,13 +86,15 @@ import torch
 # !wget {main_url}_atac_cut_sites.bigwig -O {folder_data_preproc}/atac_cut_sites.bigwig
 
 # %%
-# !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {folder_data_preproc}/genes.gff.gz
+if genome == "GRCh38.107":
+    # !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {folder_data_preproc}/genes.gff.gz
+    # !wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
+elif genome == "mm10":
+    # !wget http://ftp.ensembl.org/pub/release-98/gff3/mus_musculus/Mus_musculus.GRCm38.98.gff3.gz -O {folder_data_preproc}/genes.gff.gz
+    # !wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
 
 # %%
 # !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "gene"' > {folder_data_preproc}/genes.gff
-
-# %%
-# !wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
 
 # %%
 gff = pd.read_table(folder_data_preproc / "genes.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
@@ -113,6 +113,10 @@ import pybedtools
 # %%
 genes.query("symbol == 'PCNA'")
 
+# %%
+print(pd.read_table(folder_data_preproc / "peak_annot.tsv").query("gene == 'Neurod1'"))
+print(genes.query("symbol == 'Neurod1'"))
+
 # %% [markdown]
 # ## Create transcriptome
 
@@ -126,7 +130,10 @@ transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "
 adata = sc.read_10x_h5(folder_data_preproc / "filtered_feature_bc_matrix.h5")
 
 # %%
-chromosomes = ["chr" + str(i) for i in range(23)] + ["chrX", "chrY"]
+if organism == "mm":
+    chromosomes = ["chr" + str(i) for i in range(19)] + ["chrX", "chrY"]
+elif organism == "hs":
+    chromosomes = ["chr" + str(i) for i in range(23)] + ["chrX", "chrY"]
 
 # %%
 adata.var.index.name = "symbol"
@@ -170,7 +177,7 @@ transcriptome.var = adata.var
 transcriptome.obs = adata.obs
 
 # %%
-sc.pl.umap(adata, color = transcriptome.gene_id([ "ANPEP", "FCGR3A"]))
+sc.pl.umap(adata, color=adata.var.sort_values("dispersions_norm", ascending = False).index[:5])
 
 # %%
 adata.var.query("dispersions_norm > 0.5").index.to_series().to_json((transcriptome.path / "variable_genes.json").open("w"))

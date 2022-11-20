@@ -48,8 +48,9 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
+# dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -71,18 +72,6 @@ import torch
 # ## Single example
 
 # %% [markdown]
-# ### Subset cells and genes
-
-# %%
-import peakfreeatac.fragments
-
-# %%
-split = pfa.fragments.Split(slice(0, 100), slice(1500, 2000))
-
-# %%
-split.populate(fragments)
-
-# %% [markdown]
 # ### Create expression
 
 # %%
@@ -96,6 +85,18 @@ transcriptome.X.shape
 mean_gene_expression = transcriptome.X.dense().mean(0)
 
 # %% [markdown]
+# ### Subset cells and genes
+
+# %%
+import peakfreeatac.fragments
+
+# %%
+split = pfa.fragments.Split(torch.arange(0, 100), slice(1500, 2000))
+
+# %%
+split.populate(fragments)
+
+# %% [markdown]
 # ### Create fragment embedder
 
 # %%
@@ -107,7 +108,7 @@ fragment_embedder = FragmentEmbedder(n_hidden_dimensions = 100, n_embedding_dime
 # fragment_embedder = FragmentEmbedderCounter()
 
 # %%
-fragment_embedding = fragment_embedder(split.fragments_coordinates)
+fragment_embedding = fragment_embedder(fragments.coordinates[split.fragments_selected])
 
 # %% [markdown]
 # ### Pool fragments
@@ -119,7 +120,7 @@ from peakfreeatac.models.promoter.v1 import EmbeddingGenePooler
 embedding_gene_pooler = EmbeddingGenePooler(debug = True)
 
 # %%
-cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx, split.cell_n, split.gene_n)
+cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix, split.cell_n, split.gene_n)
 
 # %% [markdown]
 # ### Create expression predictor
@@ -132,92 +133,65 @@ embedding_to_expression = EmbeddingToExpression(fragments.n_genes, n_embedding_d
 # embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
 
 # %%
-expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
+expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
 
 # %% [markdown]
 # ### Whole model
 
 # %%
-from peakfreeatac.models.promoter.v1 import FragmentsToExpression
+from peakfreeatac.models.promoter.v2 import FragmentsToExpression
 
 # %%
 model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
 
-# %%
-model(split.fragments_coordinates, split.fragment_cellxgene_idx, split.cell_n, split.gene_n, split.gene_idx)
 
 # %% [markdown]
 # ## Train
+
+# %%
+class Prediction(pfa.flow.Flow):
+    pass
+prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / "nn")
 
 # %% [markdown]
 # ### Create training and test split
 
 # %%
-# from peakfreeatac.models.promoter.v1 import Split
-from peakfreeatac.fragments import Split
-
-# %%
-n_cell_step = 1000
-n_gene_step = 5000
-
-# %%
-mapping_x = fragments.mapping[:, 0] * fragments.n_genes + fragments.mapping[:, 1]
-
-# %%
-import itertools
-
-# %%
-test_cell_cutoff = int((fragments.n_cells / 3)*2) # split train/test cells
-
-# %%
-cell_cuts = [
-    *np.arange(0, test_cell_cutoff, step = n_cell_step),
-    *np.arange(test_cell_cutoff, fragments.n_cells, step = n_cell_step),
-    fragments.n_cells
-]
-cell_bins = [slice(a, b) for a, b in zip(cell_cuts[:-1], cell_cuts[1:])]
-gene_cuts = list(np.arange(fragments.n_genes, step = n_gene_step)) + [fragments.n_genes]
-gene_bins = [slice(a, b) for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]
-bins = list(itertools.product(cell_bins, gene_bins))
-
-# %%
-splits = []
-
-for cell_idx, gene_idx in tqdm.tqdm(bins):
-    split = Split(cell_idx, gene_idx, phase = "train" if cell_idx.start < test_cell_cutoff else "validation")
-    split.populate(fragments)
-
-    splits.append(split)
-
-# %%
-splits_training = [split for split in splits if split.phase == "train"]
-splits_test = [split for split in splits if split.phase == "test"]
+from peakfreeatac.fragments import Folds
+folds = pfa.fragments.Folds(fragments.n_cells, fragments.n_genes, 1000, 5000, n_folds = 5)
 
 # %% [markdown]
-# ### Create model
+# ### Create models
 
 # %%
-n_embedding_dimensions = 200
+n_embedding_dimensions = 100
 
 # %%
-model = FragmentsToExpression(
-    fragments.n_genes,
-    mean_gene_expression,
-    n_embedding_dimensions = n_embedding_dimensions
-)
+from peakfreeatac.models.promoter.v4 import FragmentsToExpression
+
+# %%
+models = []
+for i in range(len(folds)):
+    model = FragmentsToExpression(
+        fragments.n_genes,
+        mean_gene_expression,
+        n_embedding_dimensions = n_embedding_dimensions
+    )
+    models.append(model)
 
 # %%
 # if you want to reload a model
 # make sure to run the "prediction = " first which is down the notebook
-model = pickle.load(open(prediction.path / "model.pkl", "rb"))
+# model = pickle.load(open(prediction.path / "model.pkl", "rb"))
+# models = pickle.load(open(prediction.path / "models.pkl", "rb"))
+# models = pickle.load(open(prediction.path / "models2.pkl", "rb"))
+
+# %%
+model_ixs = [0, 1, 2, 3, 4]
+# model_ixs = [0]
 
 # %% [markdown]
 # ### Train
-
-# %%
-splits_training = [split.to("cuda") for split in splits_training]
-transcriptome_X = transcriptome.X.to("cuda")
-model = model.to("cuda")
 
 # %% [markdown]
 # Note: we cannot use ADAM!
@@ -228,68 +202,81 @@ model = model.to("cuda")
 import itertools
 
 # %%
-params = model.parameters()
-optim1 = torch.optim.SGD(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters()), lr = 10.)
-optim2 = torch.optim.SGD(itertools.chain(model.embedding_to_expression.parameters()), lr = 10.)
-loss = torch.nn.MSELoss()
-
-# %%
-n_steps = 2000
+n_steps = 500
 trace_epoch_every = 10
 
 # %%
+transcriptome_X = transcriptome.X.to("cuda")
 transcriptome_X_dense = transcriptome_X.dense()
 
 # %%
-trace = []
+coordinates = fragments.coordinates.to("cuda")
 
-prev_epoch_mse = None
-prev_epoch_gene_mse = None
-for epoch in range(n_steps):
-    for split in splits_training:
-        expression_predicted = model(
-            split.fragments_coordinates,
-            split.fragment_cellxgene_idx,
-            split.cell_n,
-            split.gene_n,
-            split.gene_idx
-        )
-        
-        # transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
-        transcriptome_subset = transcriptome_X_dense[split.cell_idx, split.gene_idx]
-        
-        mse = loss(expression_predicted, transcriptome_subset)
-        
-        mse.backward()
-        optim1.step()
-        optim2.step()
-        optim2.zero_grad()
-        optim1.zero_grad()
-        
-        trace.append({
-            "mse":mse.detach().cpu().numpy(),
-            "epoch":epoch,
-            "gene_mse":pd.Series(((expression_predicted - transcriptome_subset) ** 2).mean(0).detach().cpu().numpy(), split.gene_idxs)
-        })
+# %%
+folds.populate(fragments)
+
+# %%
+for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_ixs]):
+    params = model.parameters()
+    optim1 = torch.optim.SGD(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters()), lr = 10.)
+    optim2 = torch.optim.SGD(itertools.chain(model.embedding_to_expression.parameters()), lr = 10.)
+    loss = torch.nn.MSELoss()
     
-    if (epoch % trace_epoch_every) == 0:
-        # mse
-        epoch_mse = np.mean([t["mse"] for t in trace[-len(splits):]])
-        text = f"{epoch} {epoch_mse:.4f}"
-        
-        if prev_epoch_mse is not None:
-            text += f" Δ{prev_epoch_mse-epoch_mse:.1e}"
-    
-        prev_epoch_mse = epoch_mse
-        
-        # gene_mse
-        if len(trace) > 0:
-            epoch_gene_mse = pd.concat([t["gene_mse"] for t in trace[-len(splits):]]).groupby(level = 0).mean()
-            if prev_epoch_gene_mse is not None:
-                text += " {0:.1%}".format((epoch_gene_mse < prev_epoch_gene_mse).mean())
-            prev_epoch_gene_mse = epoch_gene_mse
-        
-        print(text)
+    splits_training = [split.to("cuda") for split in fold if split.phase == "train"]
+    model = model.to("cuda").train(True)
+
+    trace = []
+
+    prev_epoch_mse = None
+    prev_epoch_gene_mse = None
+    for epoch in range(n_steps):
+        for split in splits_training:
+            expression_predicted = model(
+                coordinates[split.fragments_selected],
+                split.fragment_cellxgene_ix,
+                split.cell_n,
+                split.gene_n,
+                split.gene_ix
+            )
+
+            # transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
+            transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
+
+            mse = loss(expression_predicted, transcriptome_subset)
+
+            mse.backward()
+            optim1.step()
+            optim2.step()
+            optim2.zero_grad()
+            optim1.zero_grad()
+
+            trace.append({
+                "mse":mse.detach().cpu().numpy(),
+                "epoch":epoch,
+                "gene_mse":pd.Series(((expression_predicted - transcriptome_subset) ** 2).mean(0).detach().cpu().numpy(), split.gene_ixs)
+            })
+
+        # reshuffle the order of the splits
+        splits_training = [splits_training[i] for i in np.random.choice(len(splits_training), len(splits_training), replace = False)]
+
+        if (epoch % trace_epoch_every) == 0:
+            # mse
+            epoch_mse = np.mean([t["mse"] for t in trace[-len(splits_training):]])
+            text = f"{epoch} {epoch_mse:.4f}"
+
+            if prev_epoch_mse is not None:
+                text += f" Δ{prev_epoch_mse-epoch_mse:.1e}"
+
+            prev_epoch_mse = epoch_mse
+
+            # gene_mse
+            if len(trace) > 0:
+                epoch_gene_mse = pd.concat([t["gene_mse"] for t in trace[-len(splits_training):]]).groupby(level = 0).mean()
+                if prev_epoch_gene_mse is not None:
+                    text += " {0:.1%}".format((epoch_gene_mse < prev_epoch_gene_mse).mean())
+                prev_epoch_gene_mse = epoch_gene_mse
+
+            print(text)
 
 # %%
 trace = pd.DataFrame(list(trace))
@@ -332,17 +319,17 @@ def save(obj, fh, pickler=None, **kwargs):
 
 
 # %%
-class Prediction(pfa.flow.Flow):
-    pass
-prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / "nn")
+# models = [pickle.load(open(prediction.path / "model.pkl", "rb"))] + [pickle.load(open(prediction.path / "model2.pkl", "rb"))] + models
 
 # %%
 # move splits back to cpu
 # otherwise if you try to load them back in they might want to immediately go to gpu
-splits = [split.to("cpu") for split in splits]
-model = model.to("cpu")
+folds = folds.to("cpu")
+models = [model.to("cpu") for model in models]
 
-save(splits, open(prediction.path / "splits.pkl", "wb"))
-save(model, open(prediction.path / "model.pkl", "wb"))
+save(folds, open(prediction.path / "folds.pkl", "wb"))
+save(models, open(prediction.path / "models3.pkl", "wb"))
+
+# %%
 
 # %%

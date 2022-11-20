@@ -74,12 +74,12 @@ import torch
 gene_start = 0
 gene_end = 100
 gene_n = gene_end - gene_start
-gene_idx = slice(gene_start, gene_end)
+gene_ix = slice(gene_start, gene_end)
 
 cell_start = 1500
 cell_end = 2000
 cell_n = cell_end - cell_start
-cell_idx = slice(cell_start, cell_end)
+cell_ix = slice(cell_start, cell_end)
 
 # %%
 fragments_selected = (
@@ -97,10 +97,10 @@ print(fragment_coordinates.shape)
 fragments_mapping = fragments.mapping[fragments_selected]
 
 # we should adapt this if the minibatch cells/genes would ever be non-contiguous
-local_cell_idx = fragments_mapping[:, 0] - cell_start
-local_gene_idx = fragments_mapping[:, 1] - gene_start
+local_cell_ix = fragments_mapping[:, 0] - cell_start
+local_gene_ix = fragments_mapping[:, 1] - gene_start
 
-fragment_cellxgene_idx = local_cell_idx * gene_n + local_gene_idx
+fragment_cellxgene_ix = local_cell_ix * gene_n + local_gene_ix
 
 # %% [markdown]
 # ### Create expression
@@ -165,10 +165,10 @@ class EmbeddingGenePooler(torch.nn.Module):
         self.debug = debug
         super().__init__()
     
-    def forward(self, embedding, fragment_cellxgene_idx, cell_n, gene_n):
+    def forward(self, embedding, fragment_cellxgene_ix, cell_n, gene_n):
         if self.debug:
-            assert (torch.diff(fragment_cellxgene_idx) >= 0).all(), "fragment_cellxgene_idx should be sorted"
-        cellxgene_embedding = torch_scatter.segment_mean_coo(fragment_embedding, fragment_cellxgene_idx, dim_size = cell_n * gene_n)
+            assert (torch.diff(fragment_cellxgene_ix) >= 0).all(), "fragment_cellxgene_ix should be sorted"
+        cellxgene_embedding = torch_scatter.segment_mean_coo(fragment_embedding, fragment_cellxgene_ix, dim_size = cell_n * gene_n)
         cell_gene_embedding = cellxgene_embedding.reshape((cell_n, gene_n, cellxgene_embedding.shape[-1]))
         return cell_gene_embedding
 
@@ -177,7 +177,7 @@ class EmbeddingGenePooler(torch.nn.Module):
 embedding_gene_pooler = EmbeddingGenePooler(debug = True)
 
 # %%
-cell_gene_embedding = embedding_gene_pooler(fragment_embedding, fragment_cellxgene_idx, cell_n, gene_n)
+cell_gene_embedding = embedding_gene_pooler(fragment_embedding, fragment_cellxgene_ix, cell_n, gene_n)
 
 # %% [markdown]
 # ### Create expression predictor
@@ -203,16 +203,16 @@ class EmbeddingToExpression(torch.nn.Module):
         # set bias to empirical mean
         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
         
-    def forward(self, cell_gene_embedding, gene_idx):
-        return (cell_gene_embedding * self.weight1[gene_idx]).sum(-1) + self.bias1[gene_idx]
+    def forward(self, cell_gene_embedding, gene_ix):
+        return (cell_gene_embedding * self.weight1[gene_ix]).sum(-1) + self.bias1[gene_ix]
     
 class EmbeddingToExpressionBias(EmbeddingToExpression):
     """
     Only includes a bias, ignores the cell_gene_embedding
     Used for testing
     """
-    def forward(self, cell_gene_embedding, gene_idx):
-        return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_idx])
+    def forward(self, cell_gene_embedding, gene_ix):
+        return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_ix])
 
 
 # %%
@@ -220,7 +220,7 @@ embedding_to_expression = EmbeddingToExpression(fragments.n_genes, n_embedding_d
 # embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
 
 # %%
-expression_predicted = embedding_to_expression(cell_gene_embedding, gene_idx)
+expression_predicted = embedding_to_expression(cell_gene_embedding, gene_ix)
 
 # %% [markdown]
 # ## Train
@@ -252,31 +252,31 @@ class Split():
     fragments_selected:torch.tensor
     fragments_coordinates:torch.tensor
     fragments_mappings:torch.tensor
-    local_cell_idx:torch.tensor # the cell idx sta
-    local_gene_idx:torch.tensor
+    local_cell_ix:torch.tensor # the cell idx sta
+    local_gene_ix:torch.tensor
     phase:str
     
     cell_n:int
     gene_n:int
     
     @property
-    def cell_idx(self):
+    def cell_ix(self):
         return slice(self.cell_start, self.cell_end)
     
     @property
-    def gene_idx(self):
+    def gene_ix(self):
         return slice(self.gene_start, self.gene_end)
     
     @property
-    def fragment_cellxgene_idx(self):
-        return self.local_cell_idx * self.gene_n + self.local_gene_idx
+    def fragment_cellxgene_ix(self):
+        return self.local_cell_ix * self.gene_n + self.local_gene_ix
     
     def to(self, device):
         self.fragments_selected = self.fragments_selected.to(device)
         self.fragments_coordinates = self.fragments_coordinates.to(device)
         self.fragments_mappings = self.fragments_mappings.to(device)
-        self.local_cell_idx = self.local_cell_idx.to(device)
-        self.local_gene_idx = self.local_gene_idx.to(device)
+        self.local_cell_ix = self.local_cell_ix.to(device)
+        self.local_gene_ix = self.local_gene_ix.to(device)
         return self
 
 
@@ -303,15 +303,15 @@ for cell_start, gene_start in tqdm.tqdm(starts):
     cell_n = cell_end - cell_start
     gene_n = gene_end - gene_start
 
-    gene_idx = slice(gene_start, gene_end)
-    cell_idx = slice(cell_start, cell_end)
+    gene_ix = slice(gene_start, gene_end)
+    cell_ix = slice(cell_start, cell_end)
 
     fragments_coordinates = fragments.coordinates[fragments_selected]
     fragments_mappings = fragments.mapping[fragments_selected]
 
     # we should adapt this if the minibatch cells/genes would ever be non-contiguous
-    local_cell_idx = fragments_mappings[:, 0] - cell_start
-    local_gene_idx = fragments_mappings[:, 1] - gene_start
+    local_cell_ix = fragments_mappings[:, 0] - cell_start
+    local_gene_ix = fragments_mappings[:, 1] - gene_start
     
     split = Split(
         cell_start = cell_start,
@@ -320,8 +320,8 @@ for cell_start, gene_start in tqdm.tqdm(starts):
         gene_end = gene_end,
         cell_n = cell_n,
         gene_n = gene_n,
-        local_cell_idx = local_cell_idx,
-        local_gene_idx = local_gene_idx,
+        local_cell_ix = local_cell_ix,
+        local_gene_ix = local_gene_ix,
         fragments_coordinates = fragments_coordinates,
         fragments_mappings = fragments_mappings,
         phase = phase,
@@ -381,12 +381,12 @@ prev_epoch_mse = None
 for epoch in range(n_steps):
     for split in splits_training:
         fragment_embedding = fragment_embedder(split.fragments_coordinates)
-        cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx, split.cell_n, split.gene_n)
-        expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
+        cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix, split.cell_n, split.gene_n)
+        expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
         
         ##
         
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
         
         ##
         
@@ -477,12 +477,12 @@ scores = []
 
 for split in tqdm.tqdm(splits):
     fragment_embedding = fragment_embedder(split.fragments_coordinates)
-    cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx, split.cell_n, split.gene_n)
-    expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
+    cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix, split.cell_n, split.gene_n)
+    expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
 
     ##
 
-    transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+    transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
     ##
 
@@ -493,7 +493,7 @@ for split in tqdm.tqdm(splits):
     
     genescores = pd.DataFrame({
         "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-        "gene":transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+        "gene":transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
         "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
     })
 
@@ -596,15 +596,15 @@ for split in tqdm.tqdm(splits):
         
         # calculate how much is retained per gene
         # scatter is needed here because the values are not sorted by gene (but by cellxgene)
-        perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
+        perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_ix.to("cpu"), dim_size = split.gene_n)
         
         fragment_embedding = fragment_embedder(split.fragments_coordinates[fragments_oi])
-        cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx[fragments_oi], split.cell_n, split.gene_n)
-        expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
+        cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix[fragments_oi], split.cell_n, split.gene_n)
+        expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
 
         ##
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
         ##
 
@@ -620,7 +620,7 @@ for split in tqdm.tqdm(splits):
         genescores = pd.DataFrame({
             "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
             "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-            "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+            "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
             "perc_retained":perc_retained_gene.detach().cpu().numpy(),
             "expression_predicted":expression_predicted_mean.detach().cpu().numpy()
         })
@@ -843,15 +843,15 @@ for split in tqdm.tqdm(splits):
 
             # calculate how much is retained per gene
             # scatter is needed here because the values are not sorted by gene (but by cellxgene)
-            perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
+            perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_ix.to("cpu"), dim_size = split.gene_n)
 
             fragment_embedding = fragment_embedder(split.fragments_coordinates[fragments_oi])
-            cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx[fragments_oi], split.cell_n, split.gene_n)
-            expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
+            cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix[fragments_oi], split.cell_n, split.gene_n)
+            expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
 
             ##
 
-            transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+            transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
             ##
 
@@ -868,7 +868,7 @@ for split in tqdm.tqdm(splits):
             genescores = pd.DataFrame({
                 "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
                 "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-                "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+                "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
                 "perc_retained":perc_retained_gene.detach().cpu().numpy(),
                 "exp_predicted":exp_predicted.detach().cpu().numpy()
             })
@@ -954,15 +954,15 @@ for split in tqdm.tqdm(splits):
         
         # calculate how much is retained per gene
         # scatter is needed here because the values are not sorted by gene (but by cellxgene)
-        perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_idx.to("cpu"), dim_size = split.gene_n)
+        perc_retained_gene = torch_scatter.scatter_mean(fragments_oi.float().to("cpu"), split.local_gene_ix.to("cpu"), dim_size = split.gene_n)
         
         fragment_embedding = fragment_embedder(split.fragments_coordinates[fragments_oi])
-        cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_idx[fragments_oi], split.cell_n, split.gene_n)
-        expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_idx)
+        cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix[fragments_oi], split.cell_n, split.gene_n)
+        expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
 
         ##
 
-        transcriptome_subset = transcriptome_X.dense_subset(split.cell_idx)[:, split.gene_idx]
+        transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
 
         ##
 
@@ -975,7 +975,7 @@ for split in tqdm.tqdm(splits):
         genescores = pd.DataFrame({
             "mse":((expression_predicted - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
             "mse_dummy":((expression_predicted_dummy - transcriptome_subset)**2).mean(0).detach().cpu().numpy(),
-            "gene": transcriptome.var.index[np.arange(split.gene_idx.start, split.gene_idx.stop)],
+            "gene": transcriptome.var.index[np.arange(split.gene_ix.start, split.gene_ix.stop)],
             "perc_retained":perc_retained_gene.detach().cpu().numpy()
         })
 

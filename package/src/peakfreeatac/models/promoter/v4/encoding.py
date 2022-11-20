@@ -14,11 +14,17 @@ class FragmentEmbedder(torch.nn.Sequential):
         self.n_embedding_dimensions = n_embedding_dimensions
         args = [
             torch.nn.Linear(2, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(n_hidden_dimensions),
+            torch.nn.Dropout(0.5),
+            torch.nn.GELU(),
             torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(n_hidden_dimensions),
+            torch.nn.Dropout(0.5),
+            torch.nn.GELU(),
             torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
-            torch.nn.ReLU(),
+            torch.nn.BatchNorm1d(n_hidden_dimensions),
+            torch.nn.Dropout(0.5),
+            torch.nn.GELU(),
             torch.nn.Linear(n_hidden_dimensions, n_embedding_dimensions)
         ]
         super().__init__(*args, **kwargs)
@@ -48,7 +54,7 @@ class EmbeddingGenePooler(torch.nn.Module):
     def forward(self, embedding, fragment_cellxgene_ix, cell_n, gene_n):
         if self.debug:
             assert (torch.diff(fragment_cellxgene_ix) >= 0).all(), "fragment_cellxgene_ix should be sorted"
-        cellxgene_embedding = torch_scatter.segment_mean_coo(embedding, fragment_cellxgene_ix, dim_size = cell_n * gene_n)
+        cellxgene_embedding = torch_scatter.segment_sum_coo(embedding, fragment_cellxgene_ix, dim_size = cell_n * gene_n)
         cell_gene_embedding = cellxgene_embedding.reshape((cell_n, gene_n, cellxgene_embedding.shape[-1]))
         return cell_gene_embedding
     

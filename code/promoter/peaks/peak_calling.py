@@ -39,6 +39,7 @@ folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
 dataset_name = "pbmc10k"
+dataset_name = "e18brain"
 
 folder_data_preproc = folder_data / dataset_name
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
