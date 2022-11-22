@@ -67,14 +67,21 @@ class Fragments(Flow):
     @property
     def cell_fragment_mapping(self):
         if self._cell_fragment_mapping is None:
-            cell_fragment_mapping = [[] for i in range(self.n_cells)]
-            cur_cell_ix = -1
-            for fragment_ix, cell_ix in enumerate(self.mapping[:, 0]):
-                if cell_ix > cur_cell_ix:
-                    cur_cell_ix = cell_ix.item()
-                cell_fragment_mapping[cur_cell_ix].append(fragment_ix)
-            self._cell_fragment_mapping = cell_fragment_mapping
+            self._cell_fragment_mapping = pickle.load((self.path / "cell_fragment_mapping.pkl").open("rb"))
         return self._cell_fragment_mapping
+    @cell_fragment_mapping.setter
+    def cell_fragment_mapping(self, value):
+        pickle.dump(value, (self.path / "cell_fragment_mapping.pkl").open("wb"))
+        self._cell_fragment_mapping = value
+
+    def create_cell_fragment_mapping(self):
+        cell_fragment_mapping = [[] for i in range(self.n_cells)]
+        cur_cell_ix = -1
+        for fragment_ix, cell_ix in enumerate(self.mapping[:, 0]):
+            if cell_ix > cur_cell_ix:
+                cur_cell_ix = cell_ix.item()
+            cell_fragment_mapping[cur_cell_ix].append(fragment_ix)
+        self.cell_fragment_mapping = cell_fragment_mapping
 
 
 

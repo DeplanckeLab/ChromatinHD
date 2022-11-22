@@ -49,8 +49,8 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
-# dataset_name = "e18brain"
+# dataset_name = "pbmc10k"
+dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -94,18 +94,34 @@ import peakfreeatac.fragments
 split = pfa.fragments.Split(torch.arange(0, 100), slice(1500, 2000))
 
 # %%
+# fragments.create_cell_fragment_mapping()
+
+# %%
 split.populate(fragments)
 
 # %% [markdown]
 # ### Create fragment embedder
 
 # %%
-from peakfreeatac.models.promoter.v1 import FragmentEmbedder, FragmentEmbedderCounter
+from peakfreeatac.models.promoter.v1 import FragmentEmbedderCounter
+from peakfreeatac.models.promoter.v5 import FragmentEmbedder
 
 # %%
-n_embedding_dimensions = 1000
-fragment_embedder = FragmentEmbedder(n_hidden_dimensions = 100, n_embedding_dimensions = n_embedding_dimensions)
+fragment_embedder = FragmentEmbedder()
 # fragment_embedder = FragmentEmbedderCounter()
+
+# %%
+coordinates = torch.stack([torch.linspace(-6000, 3500, 200), torch.linspace(-5500, 4000, 200)], -1)
+fragment_embedding = fragment_embedder(coordinates)
+
+# %%
+fragment_embedder.frequencies
+
+# %%
+fig, axes = plt.subplots(1, 2, figsize = (10, 5), sharey = True)
+sns.heatmap(coordinates.numpy(), ax = axes[0])
+sns.heatmap(fragment_embedding.numpy(), ax = axes[1])
+axes[0].set_ylabel("Fragment")
 
 # %%
 fragment_embedding = fragment_embedder(fragments.coordinates[split.fragments_selected])
@@ -122,31 +138,43 @@ embedding_gene_pooler = EmbeddingGenePooler(debug = True)
 # %%
 cell_gene_embedding = embedding_gene_pooler(fragment_embedding, split.fragment_cellxgene_ix, split.cell_n, split.gene_n)
 
+# %%
+cell_gene_embedding.numpy().flatten().max()
+
+# %%
+plt.hist(cell_gene_embedding.numpy().flatten())
+
 # %% [markdown]
 # ### Create expression predictor
 
 # %%
-from peakfreeatac.models.promoter.v1 import EmbeddingToExpression
+from peakfreeatac.models.promoter.v5 import EmbeddingToExpression
 
 # %%
-embedding_to_expression = EmbeddingToExpression(fragments.n_genes, n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
+embedding_to_expression = EmbeddingToExpression(fragments.n_genes, n_embedding_dimensions = fragment_embedder.n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
 # embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
 
 # %%
 expression_predicted = embedding_to_expression(cell_gene_embedding, split.gene_ix)
 
+# %%
+expression_predicted
+
 # %% [markdown]
 # ### Whole model
 
 # %%
-from peakfreeatac.models.promoter.v2 import FragmentsToExpression
+from peakfreeatac.models.promoter.v5 import FragmentsToExpression
 
 # %%
 model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
 
-
 # %% [markdown]
 # ## Train
+
+# %%
+from peakfreeatac.fragments import Folds
+
 
 # %%
 class Prediction(pfa.flow.Flow):
@@ -157,37 +185,42 @@ prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name 
 # ### Create training and test split
 
 # %%
-from peakfreeatac.fragments import Folds
 folds = pfa.fragments.Folds(fragments.n_cells, fragments.n_genes, 1000, 5000, n_folds = 5)
+
+# %%
+folds.populate(fragments)
 
 # %% [markdown]
 # ### Create models
 
 # %%
-n_embedding_dimensions = 100
-
-# %%
-from peakfreeatac.models.promoter.v4 import FragmentsToExpression
+from peakfreeatac.models.promoter.v5 import FragmentsToExpression
 
 # %%
 models = []
 for i in range(len(folds)):
     model = FragmentsToExpression(
         fragments.n_genes,
-        mean_gene_expression,
-        n_embedding_dimensions = n_embedding_dimensions
+        mean_gene_expression
     )
     models.append(model)
+
+# %%
+models[0] = FragmentsToExpression(
+        fragments.n_genes,
+        mean_gene_expression
+    )
 
 # %%
 # if you want to reload a model
 # make sure to run the "prediction = " first which is down the notebook
 # model = pickle.load(open(prediction.path / "model.pkl", "rb"))
 # models = pickle.load(open(prediction.path / "models.pkl", "rb"))
-# models = pickle.load(open(prediction.path / "models2.pkl", "rb"))
+# models = pickle.load(open(prediction.path / "models5.pkl", "rb"))
 
 # %%
 model_ixs = [0, 1, 2, 3, 4]
+# model_ixs = [0, 1, 2, 3]
 # model_ixs = [0]
 
 # %% [markdown]
@@ -202,8 +235,10 @@ model_ixs = [0, 1, 2, 3, 4]
 import itertools
 
 # %%
-n_steps = 500
+n_steps = 1000
 trace_epoch_every = 10
+
+lr = 0.1
 
 # %%
 transcriptome_X = transcriptome.X.to("cuda")
@@ -213,14 +248,11 @@ transcriptome_X_dense = transcriptome_X.dense()
 coordinates = fragments.coordinates.to("cuda")
 
 # %%
-folds.populate(fragments)
-
-# %%
 for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_ixs]):
     params = model.parameters()
-    optim1 = torch.optim.SGD(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters()), lr = 10.)
-    optim2 = torch.optim.SGD(itertools.chain(model.embedding_to_expression.parameters()), lr = 10.)
-    loss = torch.nn.MSELoss()
+    optim = torch.optim.SGD(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()), lr = lr)
+    # optim = torch.optim.Adam(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()), lr = 0.01)
+    loss = torch.nn.MSELoss(reduction = "mean")
     
     splits_training = [split.to("cuda") for split in fold if split.phase == "train"]
     model = model.to("cuda").train(True)
@@ -229,7 +261,7 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
 
     prev_epoch_mse = None
     prev_epoch_gene_mse = None
-    for epoch in range(n_steps):
+    for epoch in tqdm.tqdm(range(n_steps)):
         for split in splits_training:
             expression_predicted = model(
                 coordinates[split.fragments_selected],
@@ -245,10 +277,8 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
             mse = loss(expression_predicted, transcriptome_subset)
 
             mse.backward()
-            optim1.step()
-            optim2.step()
-            optim2.zero_grad()
-            optim1.zero_grad()
+            optim.step()
+            optim.zero_grad()
 
             trace.append({
                 "mse":mse.detach().cpu().numpy(),
@@ -279,7 +309,8 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
             print(text)
 
 # %%
-trace = pd.DataFrame(list(trace))
+if isinstance(trace, list):
+    trace = pd.DataFrame(list(trace))
 
 # %%
 fig, ax = plt.subplots()
@@ -328,8 +359,48 @@ folds = folds.to("cpu")
 models = [model.to("cpu") for model in models]
 
 save(folds, open(prediction.path / "folds.pkl", "wb"))
-save(models, open(prediction.path / "models3.pkl", "wb"))
+save(models, open(prediction.path / "models5.pkl", "wb"))
+
+# %% [markdown]
+# ## COO vs CSR
 
 # %%
+split.fragment_cellxgene_ix
 
 # %%
+fragment_i = 0
+cellxgene_i = 0
+idptr = []
+for fragment_i, cellxgene in enumerate(split.fragment_cellxgene_ix):
+    while cellxgene_i < cellxgene:
+        idptr.append(fragment_i)
+        cellxgene_i += 1
+
+n_cellxgene = split.cell_n * split.gene_n
+while cellxgene_i < n_cellxgene:
+    idptr.append(fragment_i)
+    cellxgene_i += 1
+
+idptr = torch.tensor(idptr)
+len(idptr)
+
+folds[0][0].fragment_cellxgene_ix
+
+# %%
+coordinates = fragments.coordinates[split.fragments_selected].to("cuda:1")[:, [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0]]
+fragment_cellxgene_ix = split.fragment_cellxgene_ix.to("cuda:1")
+idptr = idptr.to("cuda:1")
+
+# %%
+# %%timeit -n 100
+y = torch_scatter.segment_sum_coo(coordinates, fragment_cellxgene_ix, dim_size = n_cellxgene)
+
+# %%
+y.shape
+
+# %%
+# %%timeit -n 100
+y = torch_scatter.segment_sum_csr(coordinates, idptr)
+
+# %%
+y.shape

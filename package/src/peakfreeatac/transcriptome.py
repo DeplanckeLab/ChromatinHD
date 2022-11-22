@@ -6,13 +6,17 @@ from peakfreeatac.flow import Flow
 from peakfreeatac import sparse
 
 class Transcriptome(Flow):
+    _var = None
     @property
     def var(self):
-        return pd.read_table(self.path / "var.tsv", index_col = 0)
+        if self._var is None:
+            self._var = pd.read_table(self.path / "var.tsv", index_col = 0)
+        return self._var
     @var.setter
     def var(self, value):
-        value.index.name = "gene"
+        value.index.name = "cell"
         value.to_csv(self.path / "var.tsv", sep = "\t")
+        self._var = value
 
     _obs = None
     @property

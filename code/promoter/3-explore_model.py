@@ -52,7 +52,7 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+# dataset_name = "pbmc10k"
 dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -68,26 +68,23 @@ prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name 
 
 # %%
 folds = pickle.load(open(prediction.path / "folds.pkl", "rb"))
-models = pickle.load(open(prediction.path / "models3.pkl", "rb"))#[:1]
+models = pickle.load(open(prediction.path / "models5.pkl", "rb"))#[:1]
+
 
 # %%
-folds[0][0].fragment_cellxgene_ix.shape
+# folds[0][0].fragment_cellxgene_ix.shape
 
-# %%
-fragment_i = 0
-cellxgene_i = 0
-idptr = []
-for fragment_i, cellxgene in enumerate(folds[0][0].fragment_cellxgene_ix):
-    while cellxgene_i < cellxgene:
-        idptr.append(fragment_i)
-        cellxgene_i += 1
+# fragment_i = 0
+# cellxgene_i = 0
+# idptr = []
+# for fragment_i, cellxgene in enumerate(folds[0][0].fragment_cellxgene_ix):
+#     while cellxgene_i < cellxgene:
+#         idptr.append(fragment_i)
+#         cellxgene_i += 1
 
-# %%
-len(idptr)
+# len(idptr)
 
-# %%
-folds[0][0].fragment_cellxgene_ix
-
+# folds[0][0].fragment_cellxgene_ix
 
 # %% [markdown]
 # ## Overall performace
@@ -223,15 +220,12 @@ def score_fold(coordinates, fold, model, fragments_oi = None, expression_predict
         aggscores["effect"] = pd.Series({"train":effect_train.mean(), "validation":effect_validation.mean()})
         gene_aggscores["effect"] = pd.concat({"train":effect_train, "validation":effect_validation}, names = ["phase", "gene"])
 
-        effect_train = (expression_prediction.loc[cells_train] - expression_prediction_full.loc[cells_train]).std()
-        effect_validation = (expression_prediction.loc[cells_validation] - expression_prediction_full.loc[cells_validation]).std()
-
     # calculate correlation
-    # cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
-    # cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
+#     cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
+#     cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
 
-    # gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
-    # aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
+#     gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
+#     aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
     
     if return_expression_prediction:
         return aggscores, gene_aggscores, expression_prediction
@@ -342,25 +336,13 @@ ax_validation.set_title("Validation")
 aggscores.style.bar()
 
 # %%
-aggscores.style.bar()
-
-# %%
-aggscores.style.bar()
-
-# %%
-aggscores.style.bar()
-
-# %%
-aggscores.style.bar()
-
-# %%
 aggscores.to_csv(prediction.path / "aggscores.csv")
 
 # %% [markdown]
 # ### Gene-specific view
 
 # %%
-gene_scores["symbol"] = transcriptome.symbol(gene_scores.index.get_level_values("gene")).values
+gene_scores["label"] = transcriptome.symbol(gene_scores.index.get_level_values("gene")).values
 
 # %%
 gene_scores.sort_values("mse_diff", ascending = False).head(20).style.bar(subset = ["mse_diff"])
@@ -433,10 +415,10 @@ effect_lengths = scores_lengths["effect"].unstack().T
 
 
 # %%
-def zscore(x):
-    return (x - x.mean())/x.std()
-def minmax(x):
-    return (x - x.min())/(x.max() - x.min())
+def zscore(x, dim = 0):
+    return (x - x.values.mean(dim, keepdims = True))/x.values.std(dim, keepdims = True)
+def minmax(x, dim = 0):
+    return (x - x.values.min(dim, keepdims = True))/(x.max(dim, keepdims = True) - x.min(dim, keepdims = True))
 
 
 # %%
@@ -456,6 +438,31 @@ ax_perc.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(xmax = 1))
 fig, ax = plt.subplots()
 (mse_lengths.std() * (zscore(mse_lengths) - zscore(1-perc_retained_lengths)))["validation"].plot()
 ax.set_ylabel("Relative MSE", rotation = 0, ha = "right", va = "center")
+
+# %% [markdown]
+# Do (mono/di/...)"nucleosome" fragments still have an overall positive or negative effect on gene expression?
+
+# %%
+fig, ax = plt.subplots()
+ax.plot(effect_lengths["validation"].index, effect_lengths["validation"])
+
+# %% [markdown]
+# ### Gene-specific view
+
+# %%
+gene_scores_lengths["label"] = pd.Categorical(transcriptome.symbol(gene_scores_lengths.index.get_level_values("gene")).values)
+gene_scores_lengths["perc_lost"] = 1 - gene_scores_lengths["perc_retained"]
+
+# %%
+gene_normmse_lengths = (gene_scores_lengths.loc["validation"]["mse"].unstack().pipe(zscore, dim = 1) - gene_scores_lengths.loc["validation"]["perc_lost"].unstack().pipe(zscore, dim = 1))
+
+# %%
+transcriptome.var["mean_expression"] = transcriptome.X.dense().mean(0).cpu().numpy()
+
+# %%
+gene_order = gene_scores.loc["validation"].sort_values("mse_diff").index
+# gene_order = transcriptome.var.sort_values("mean_expression").index
+sns.heatmap(gene_normmse_lengths.loc[gene_order])
 
 # %% [markdown]
 # ## Performance when masking a window
@@ -488,6 +495,19 @@ for window_start, window_end in zip(cuts[:-1], cuts[1:]):
         "window":window_start + (window_end - window_start)/2
     })
 windows = pd.DataFrame(windows).set_index("window")
+
+# %%
+# def run():
+#     score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
+
+# import cProfile
+
+# stats = cProfile.run("run()", "restats")
+# import pstats
+
+# p = pstats.Stats("restats")
+# p.sort_stats("cumulative").print_stats()
+
 
 # %%
 transcriptome_X = transcriptome.X.to(device)
@@ -626,14 +646,15 @@ gene_effect_windows.loc["validation"].max(1).sort_values(ascending = False).head
 gene_scores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
 
 # %%
-# gene_id = transcriptome.gene_id("HLA-B")
+# gene_id = transcriptome.gene_id("HLA-DRA")
 # gene_id = transcriptome.gene_id("PTPRC")
-# gene_id = transcriptome.gene_id("SIPA1L1")
-# gene_id = transcriptome.gene_id("IL1B")
-gene_id = transcriptome.gene_id("ITK")
+# gene_id = transcriptome.gene_id("LTB")
+# gene_id = transcriptome.gene_id("FOSB")
+# gene_id = transcriptome.gene_id("WARS")
+# gene_id = transcriptome.gene_id("RPL28")
 
-# gene_id = transcriptome.gene_id("Nrxn1")
-# gene_id = transcriptome.gene_id("Cadm1")
+gene_id = transcriptome.gene_id("Nrxn1")
+gene_id = transcriptome.gene_id("Ccnd2")
 
 # %% [markdown]
 # Extract promoter info of gene
@@ -795,17 +816,6 @@ promoter_updown = pd.DataFrame({
     "max_increase":gene_effect_windows.loc["validation"].max(1),
     "max_decrease":gene_effect_windows.loc["validation"].min(1)
 })
-
-cutoff = np.abs(np.quantile(promoter_updown["max_decrease"], 0.01))
-
-promoter_updown["down"] = promoter_updown["max_decrease"] < -cutoff
-promoter_updown["up"] = promoter_updown["max_increase"] > cutoff
-
-# %%
-promoter_updown = pd.DataFrame({
-    "max_increase":gene_effect_windows.loc["validation"].max(1),
-    "max_decrease":gene_effect_windows.loc["validation"].min(1)
-})
 promoter_updown["label"] = transcriptome.symbol(promoter_updown.index)
 
 cutoff = np.abs(np.quantile(promoter_updown["max_decrease"], 0.1))
@@ -861,11 +871,18 @@ ax.hist(gene_mse_correlations.loc["validation"].loc[genes_oi, "cor"], range = (-
 # if you're interested in genes with relatively high correlation with nontheless a good prediction somewhere
 gene_mse_correlations.loc["validation"].query("cor > =-.5").sort_values("mse_diff", ascending = False)
 
+# %% [markdown]
+# Interesting genes:
+#  - *IL1B* in pbmc10k
+
 # %%
 special_genes["n_fragments_importance_not_correlated"] = gene_mse_correlations.loc["validation"]["cor"] > -0.5
 
 # %% [markdown]
-# IL1B in pbmc10k is interesting here
+# ### Does removing a window improve test performances?
+
+# %%
+gene_scores_windows.loc["validation"].sort_values("mse_loss", ascending = False)
 
 # %% [markdown]
 # ## Comparing peaks and windows
@@ -1009,6 +1026,9 @@ print(perc_within_a_peak)
 print(f"Perhaps there are many windows that are predictive, but are not contained in any peak?\nIndeed, {1-perc_within_a_peak:.2%} of the top {top_cutoff:.0%} predictive windows does not lie within a peak.")
 
 # %%
+gene_scores_windows_matched.iloc[:int(gene_scores_windows_matched.shape[0] * top_cutoff) - gene_scores_windows_matched.shape[0]]
+
+# %%
 fig, ax = plt.subplots()
 ax.plot(
     gene_scores_windows_matched["perc"],
@@ -1076,7 +1096,7 @@ special_genes["up_and_down_in_peak"] = gene_peak_scores.groupby("gene")["updown"
 
 # %%
 # if you're interested in the most predictive peaks with both up and down effects
-gene_peak_scores.query("updown")
+gene_peak_scores.query("updown").sort_values("effect_highest", ascending = False)
 
 # %% [markdown]
 # ### How much information do the non-peak regions contain?
@@ -1321,45 +1341,57 @@ coordinates = fragments.coordinates.to(device)
 
 aggscores_windowpairs = []
 gene_aggscores_windowpairs = []
-for _, (window_start1, window_end1, window_start2, window_end2) in tqdm.tqdm(windowpairs[["window_start1", "window_end1", "window_start2", "window_end2"]].iterrows()):
+for _, (window_start1, window_end1, window_start2, window_end2) in tqdm.tqdm(windowpairs[["window_start1", "window_end1", "window_start2", "window_end2"]].iterrows(), total = windowpairs.shape[0]):
     # take fragments within the window
     fragments_oi1 = select_window(fragments.coordinates, window_start1, window_end1)
     fragments_oi2 = select_window(fragments.coordinates, window_start2, window_end2)
 
     fragments_oi = fragments_oi1 & fragments_oi2
 
-    aggscores_window, gene_aggscores_window = score_fragments(coordinates, splits, fragments_oi)
+    aggscores_window, gene_aggscores_window, _ = score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
 
     window_mid1 = window_start1 + (window_end1 - window_start1)/2
-    aggscores_window["window_mid1"] = window_mid1
-    gene_aggscores_window["window_mid1"] = window_mid1
+    aggscores_window["window1"] = window_mid1
+    gene_aggscores_window["window1"] = window_mid1
     window_mid2 = window_start2 + (window_end2 - window_start2)/2
-    aggscores_window["window_mid2"] = window_mid2
-    gene_aggscores_window["window_mid2"] = window_mid2
+    aggscores_window["window2"] = window_mid2
+    gene_aggscores_window["window2"] = window_mid2
 
     aggscores_windowpairs.append(aggscores_window)
     gene_aggscores_windowpairs.append(gene_aggscores_window)
         
-splits = [split.to("cpu") for split in splits]
 transcriptome_X = transcriptome.X.to("cpu")
 coordinates = coordinates.to("cpu")
 torch.cuda.empty_cache()
     
 aggscores_windowpairs = pd.concat(aggscores_windowpairs)
-aggscores_windowpairs = aggscores_windowpairs.set_index(["window_mid1", "window_mid2"], append = True)
+aggscores_windowpairs = aggscores_windowpairs.set_index(["window1", "window2"], append = True)
 
 gene_aggscores_windowpairs = pd.concat(gene_aggscores_windowpairs)
-gene_aggscores_windowpairs = gene_aggscores_windowpairs.set_index(["window_mid1", "window_mid2"], append = True)
+gene_aggscores_windowpairs = gene_aggscores_windowpairs.set_index(["window1", "window2"], append = True)
+
+aggscores_windowpairs["mse_loss"] = aggscores["mse"] - aggscores_windowpairs["mse"]
+gene_aggscores_windowpairs["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windowpairs["mse"]
+
+scores_windowpairs = aggscores_windowpairs.groupby(["phase", "window1", "window2"]).mean()
+gene_scores_windowpairs = gene_aggscores_windowpairs.groupby(["phase", "gene", "window1", "window2"]).mean()
+
+# %%
+aggscores_windowpairs["mse_loss"] = aggscores["mse"] - aggscores_windowpairs["mse"]
+gene_aggscores_windowpairs["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windowpairs["mse"]
+
+scores_windowpairs = aggscores_windowpairs.groupby(["phase", "window1", "window2"]).mean()
+gene_scores_windowpairs = gene_aggscores_windowpairs.groupby(["phase", "gene", "window1", "window2"]).mean()
 
 # %% [markdown]
 # ### Global view
 
 # %%
-aggscores_windowpairs.loc["train", "perc_retained"].plot()
+scores_windowpairs.loc["train", "perc_retained"].plot()
 
 # %%
-mse_windowpairs = aggscores_windowpairs["mse"].unstack()
-mse_dummy_windowpairs = aggscores_windowpairs["mse_dummy"].unstack()
+mse_windowpairs = scores_windowpairs["mse"].unstack()
+mse_dummy_windowpairs = scores_windowpairs["mse_dummy"].unstack()
 
 # %%
 sns.heatmap(mse_windowpairs.loc["validation"])
@@ -1371,22 +1403,22 @@ sns.heatmap(mse_windowpairs.loc["validation"])
 # Try to calculate whether an interactions occurs, i.e. if removing both windows make things worse or better than removing the windows individually
 
 # %%
-aggscores_windowpairs["mse_loss"] = aggscores["mse"] - aggscores_windowpairs["mse"]
-aggscores_windowpairs["perc_loss"] = 1- aggscores_windowpairs["perc_retained"]
+scores_windowpairs["mse_loss"] = scores["mse"] - scores_windowpairs["mse"]
+scores_windowpairs["perc_loss"] = 1- scores_windowpairs["perc_retained"]
 
 # %%
 # determine what the reference (single-perturbation) mse values are
 # in this case, we can simply use the diagonal
-reference_idx = aggscores_windowpairs.index.get_level_values("window_mid2") == aggscores_windowpairs.index.get_level_values("window_mid1")
-reference = aggscores_windowpairs.loc[reference_idx]
-reference1 = reference.droplevel("window_mid2")
-reference2 = reference.droplevel("window_mid1")
+reference_idx = scores_windowpairs.index.get_level_values("window2") == scores_windowpairs.index.get_level_values("window1")
+reference = scores_windowpairs.loc[reference_idx]
+reference1 = reference.droplevel("window2")
+reference2 = reference.droplevel("window1")
 
 # %%
-cols = ["mse_loss", "perc_loss"]
+cols = ["mse_loss", "perc_loss", "effect"]
 
 # %%
-aggscores_windowpairs_test = aggscores_windowpairs.join(reference1[cols], rsuffix = "1").join(reference2[cols], rsuffix = "2")
+scores_windowpairs_test = scores_windowpairs.join(reference1[cols], rsuffix = "1").join(reference2[cols], rsuffix = "2")
 
 # %% [markdown]
 # Fragments can be removed by both perturbations at the same time, e.g. if two windows are adjacent a lot of fragments will be shared.
@@ -1394,32 +1426,32 @@ aggscores_windowpairs_test = aggscores_windowpairs.join(reference1[cols], rsuffi
 
 # %%
 # calculate the bias
-aggscores_windowpairs_test["perc_loss12"] = (aggscores_windowpairs_test["perc_loss1"] + aggscores_windowpairs_test["perc_loss2"])
-aggscores_windowpairs_test["perc_loss_bias"] = (
-    aggscores_windowpairs_test["perc_loss"] /
-    aggscores_windowpairs_test["perc_loss12"]
+scores_windowpairs_test["perc_loss12"] = scores_windowpairs_test["perc_loss1"] + scores_windowpairs_test["perc_loss2"]
+scores_windowpairs_test["perc_loss_bias"] = (
+    scores_windowpairs_test["perc_loss"] /
+    scores_windowpairs_test["perc_loss12"]
 )
 
 # %%
 # calculate the (corrected) expected additive values
 for col in cols:
-    aggscores_windowpairs_test[col + "12"] = (
-        (aggscores_windowpairs_test[col+"1"] + aggscores_windowpairs_test[col+"2"]) * 
-        (aggscores_windowpairs_test["perc_loss_bias"])
+    scores_windowpairs_test[col + "12"] = (
+        (scores_windowpairs_test[col+"1"] + scores_windowpairs_test[col+"2"]) * 
+        (scores_windowpairs_test["perc_loss_bias"])
     )
 
 # calculate the interaction
 for col in cols:
-    aggscores_windowpairs_test[col + "_interaction"] = (
-        aggscores_windowpairs_test[col] -
-        aggscores_windowpairs_test[f"{col}12"]
+    scores_windowpairs_test[col + "_interaction"] = (
+        scores_windowpairs_test[col] -
+        scores_windowpairs_test[f"{col}12"]
     )
 
 # %% [markdown]
 # We can check that the bias correction worked correctly by checking the interaction of perc_loss, which should be 0.
 
 # %%
-plotdata = aggscores_windowpairs_test.loc[("validation")]["perc_loss_interaction"].unstack()
+plotdata = scores_windowpairs_test.loc[("validation")]["perc_loss_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.RdBu_r, center = 0., vmin = -1e-5, vmax = 1e-5)
 
@@ -1427,7 +1459,22 @@ sns.heatmap(plotdata, cmap = mpl.cm.RdBu_r, center = 0., vmin = -1e-5, vmax = 1e
 # #### Plot interaction
 
 # %%
-plotdata = aggscores_windowpairs_test.loc[("validation")]["mse_loss_interaction"].unstack()
+plotdata = scores_windowpairs_test.loc[("validation")]["mse_loss_interaction"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
+
+# %%
+plotdata = scores_windowpairs_test.loc[("validation")]["mse_loss_interaction"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
+
+# %%
+plotdata = scores_windowpairs_test.loc[("validation")]["effect_interaction"].unstack()
+np.fill_diagonal(plotdata.values, 0)
+sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
+
+# %%
+plotdata = scores_windowpairs_test.loc[("validation")]["effect_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
 
@@ -1449,53 +1496,61 @@ sns.heatmap(plotdata, cmap = mpl.cm.RdBu, center = 0.)
 # $$
 
 # %%
-gene_aggscores_windowpairs["mse_loss"] = gene_aggscores["mse"] - gene_aggscores_windowpairs["mse"]
-gene_aggscores_windowpairs["cor_loss"] = -gene_aggscores["cor"] + gene_aggscores_windowpairs["cor"]
-gene_aggscores_windowpairs["perc_loss"] = 1- gene_aggscores_windowpairs["perc_retained"]
+gene_scores_windowpairs["mse_loss"] = gene_scores["mse"] - gene_scores_windowpairs["mse"]
+# gene_scores_windowpairs["cor_loss"] = -gene_scores["cor"] + gene_scores_windowpairs["cor"]
+gene_scores_windowpairs["perc_loss"] = 1- gene_scores_windowpairs["perc_retained"]
 
 # %%
 # determine what the reference mse values are for a single perturbation
 # in this case, we can simply use the "diagonal", i.e. where window_mid1 == window_mid2, because in that case only one fragment is removed
 # in other perturbation, you will probably have to use some other technique
 # you could for example include a "dummy" effect
-reference_idx = gene_aggscores_windowpairs.index.get_level_values("window_mid2") == gene_aggscores_windowpairs.index.get_level_values("window_mid1")
-reference = gene_aggscores_windowpairs.loc[reference_idx]
-reference1 = reference.droplevel("window_mid2")
-reference2 = reference.droplevel("window_mid1")
+reference_idx = gene_scores_windowpairs.index.get_level_values("window2") == gene_scores_windowpairs.index.get_level_values("window1")
+reference = gene_scores_windowpairs.loc[reference_idx]
+reference1 = reference.droplevel("window2")
+reference2 = reference.droplevel("window1")
 
 # %%
-cols = ["mse_loss", "perc_loss", "cor_loss"]
+cols = [
+    "mse_loss",
+    "perc_loss",
+    "effect"
+    # "cor_loss"
+]
 
 # %%
-gene_aggscores_windowpairs_test = gene_aggscores_windowpairs.join(reference1[cols], rsuffix = "1").join(reference2[cols], rsuffix = "2")
+gene_scores_windowpairs_test = gene_scores_windowpairs.join(reference1[cols], rsuffix = "1").join(reference2[cols], rsuffix = "2")
 
 # %%
 # calculate the bias
-gene_aggscores_windowpairs_test["perc_loss12"] = (gene_aggscores_windowpairs_test["perc_loss1"] + gene_aggscores_windowpairs_test["perc_loss2"])
+gene_scores_windowpairs_test["perc_loss12"] = (gene_scores_windowpairs_test["perc_loss1"] + gene_scores_windowpairs_test["perc_loss2"])
 eps = 1e-8
-gene_aggscores_windowpairs_test["perc_loss_bias"] = (
-    gene_aggscores_windowpairs_test["perc_loss"] /
-    gene_aggscores_windowpairs_test["perc_loss12"]
+gene_scores_windowpairs_test["perc_loss_bias"] = (
+    gene_scores_windowpairs_test["perc_loss"] /
+    gene_scores_windowpairs_test["perc_loss12"]
 ).fillna(1)
 
 # %%
 # calculate the (corrected) expected additive values
 for col in cols:
-    gene_aggscores_windowpairs_test[col + "12"] = (
-        (gene_aggscores_windowpairs_test[col+"1"] + gene_aggscores_windowpairs_test[col+"2"]) * 
-        (gene_aggscores_windowpairs_test["perc_loss_bias"])
+    gene_scores_windowpairs_test[col + "12"] = (
+        (gene_scores_windowpairs_test[col+"1"] + gene_scores_windowpairs_test[col+"2"]) * 
+        (gene_scores_windowpairs_test["perc_loss_bias"])
     )
 
 # calculate the interaction
 for col in cols:
-    gene_aggscores_windowpairs_test[col + "_interaction"] = (
-        gene_aggscores_windowpairs_test[col] -
-        gene_aggscores_windowpairs_test[f"{col}12"]
+    gene_scores_windowpairs_test[col + "_interaction"] = (
+        gene_scores_windowpairs_test[col] -
+        gene_scores_windowpairs_test[f"{col}12"]
     )
 
 # %%
-col = "perc_loss"
-plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", gene_aggscores_windowpairs_test.index.get_level_values("gene")[0])]
+gene_scores_windowpairs_test.groupby("gene")["effect_interaction"].max().sort_values()
+
+# %%
+col = "effect"
+plotdata_all = gene_scores_windowpairs_test.loc[("validation", gene_scores_windowpairs_test.index.get_level_values("gene")[0])]
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
 
@@ -1522,24 +1577,26 @@ ax3.set_title(f"interation {col}")
 # #### Plot for particular gene
 
 # %%
-gene_aggscores_windowpairs_test["label"] = transcriptome.symbol(gene_aggscores_windowpairs_test.index.get_level_values("gene")).values
+gene_scores_windowpairs_test["label"] = transcriptome.symbol(gene_scores_windowpairs_test.index.get_level_values("gene")).values
 
 # %%
 # if you're interested in genes with a strong interaction
-gene_aggscores_windowpairs_test.loc["validation"].sort_values("mse_loss_interaction", ascending = True).head(10)[["mse_loss_interaction", "label"]]
+gene_scores_windowpairs_test.loc["validation"].sort_values("mse_loss_interaction", ascending = True).groupby("gene").first().sort_values("mse_loss_interaction", ascending = True).head(10)[["mse_loss_interaction", "label"]]
+
+# if you're interested in genes with a strong negative interaction
+# gene_scores_windowpairs_test.loc["validation"].sort_values("mse_loss_interaction", ascending = False).head(10)[["mse_loss_interaction", "label"]]
 
 # %%
-# gene_id = transcriptome.gene_id("LYN")
+gene_id = transcriptome.gene_id("HLA-DRA")
 # gene_id = transcriptome.gene_id("PLXDC2")
 # gene_id = transcriptome.gene_id("TNFAIP2")
-# gene_id = transcriptome.gene_id("HLA-DRA")
-gene_id = transcriptome.gene_id("Ptprd")
+# gene_id = transcriptome.gene_id("RAB11FIP1")
 
 # %%
 col = "mse_loss"
 
 # %%
-plotdata_all = gene_aggscores_windowpairs_test.loc[("validation", gene_id)]
+plotdata_all = gene_scores_windowpairs_test.loc[("validation", gene_id)]
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize = (12, 4), sharey = True, sharex = True)
 
@@ -1561,6 +1618,12 @@ plotdata = plotdata_all[f"{col}_interaction"].unstack()
 np.fill_diagonal(plotdata.values, 0)
 sns.heatmap(plotdata, cmap = mpl.cm.RdBu, norm = norm, ax = ax3)
 ax3.set_title(f"interation {col}")
+
+# %%
+fragments.n_cells
+
+# %%
+plt.hist(np.bincount(fragments.mapping[:, 0][(fragments.mapping[:, 1] == fragments.var.loc[gene_id]["ix"])].cpu()))
 
 # %% [markdown]
 # ## Performance when masking peaks
@@ -1584,8 +1647,8 @@ padding_negative = 4000
 lim = (-padding_negative, padding_positive)
 
 # %%
-gene_id = transcriptome.gene_id("ITK")
-# gene_id = transcriptome.gene_id("Cadm1")
+# gene_id = transcriptome.gene_id("RPL28")
+gene_id = transcriptome.gene_id("Ccnd2")
 
 # %%
 sc.pl.umap(transcriptome.adata, color = [gene_id])
@@ -1600,22 +1663,34 @@ mapping = fragments.mapping[fragments.mapping[:, 1] == gene_ix].numpy()
 # %%
 n_cells = fragments.n_cells
 
-cell_order = np.argsort(sc.get.obs_df(transcriptome.adata, gene_id))
+cell_order = sc.get.obs_df(transcriptome.adata, gene_id).sample(3000).sort_values().index
+
+n_cells = len(cell_order)
+
 obs = fragments.obs.copy()
-obs["gex"] = sc.get.obs_df(transcriptome.adata, gene_id)
-obs = obs.iloc[cell_order]
+obs["gex"] = sc.get.obs_df(transcriptome.adata, gene_id)[cell_order]
+obs = obs.loc[cell_order]
 obs["y"] = np.arange(obs.shape[0])
 obs = obs.set_index("ix")
 
 # %%
-fig, (ax_fragments, ax_gex) = plt.subplots(1, 2, figsize = (4, n_cells/300), sharey = True)
+fig, (ax_fragments, ax_gex) = plt.subplots(1, 2, figsize = (6, n_cells/300), sharey = True, width_ratios = [2, 0.5])
 ax_fragments.set_xlim(lim)
 ax_fragments.set_ylim(0, n_cells)
 
 for (start, end, cell_ix) in zip(coordinates[:, 0], coordinates[:, 1], mapping[:, 0]):
-    rect = mpl.patches.Rectangle((start, obs.loc[cell_ix, "y"]), end - start, 10, fc = "black", ec = None)
-    ax_fragments.add_patch(rect)
+    if cell_ix in obs.index:
+        rect = mpl.patches.Rectangle((start, obs.loc[cell_ix, "y"]), end - start, 10, fc = "black", ec = None)
+        ax_fragments.add_patch(rect)
+        
 ax_gex.plot(obs["gex"], obs["y"])
+ax_gex.set_xlabel(transcriptome.symbol(gene_id) + " expression")
+ax_gex.xaxis.set_label_position('top')
+ax_gex.xaxis.tick_top()
+
+ax_fragments.set_xlabel("Distance from TSS")
+ax_fragments.xaxis.set_label_position('top')
+ax_fragments.xaxis.tick_top()
 
 # %%
 
