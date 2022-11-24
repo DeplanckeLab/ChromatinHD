@@ -41,14 +41,14 @@ import peakfreeatac.peakcounts
 import peakfreeatac.transcriptome
 
 # %%
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 
-# peaks_name = "cellranger"
+peaks_name = "cellranger"
 # peaks_name = "genrich"
-peaks_name = "macs2"
+# peaks_name = "macs2"
 # peaks_name = "stack"
-peaks_name = "rolling_200"; window_size = 200
+# peaks_name = "rolling_200"; window_size = 200
 
 # %%
 folder_data_preproc = pfa.get_output() / "data" / dataset_name
@@ -58,7 +58,8 @@ folder_root = pfa.get_output()
 transcriptome = pfa.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
 
 # %%
-promoters = pd.read_csv(folder_data_preproc / "promoters.csv", index_col = 0)
+promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
+promoters = pd.read_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"), index_col = 0)
 
 # %%
 peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)

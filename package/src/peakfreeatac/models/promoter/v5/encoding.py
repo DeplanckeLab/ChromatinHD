@@ -70,69 +70,6 @@ class EmbeddingToExpression(torch.nn.Module):
         
     def forward(self, cell_gene_embedding, gene_ix):
         return torch.einsum('abc,bc->ab', cell_gene_embedding, self.weight1[gene_ix]) + self.bias1[gene_ix]
-
-
-# class EmbeddingToExpression(torch.nn.Module):
-#     """
-#     Predicts gene expression using a [cell, gene, component] embedding in a gene-specific manner
-#     """
-#     def __init__(self, n_genes, mean_gene_expression, n_embedding_dimensions = 100, **kwargs):
-#         self.n_genes = n_genes
-#         self.n_embedding_dimensions = n_embedding_dimensions
-        
-#         super().__init__()
-
-#         n_hidden_dimensions = 10
-        
-#         # default initialization same as a torch.nn.Linear
-#         self.weight1 = torch.nn.Parameter(torch.empty((n_genes, n_hidden_dimensions), requires_grad = True))
-#         stdv = 1. / math.sqrt(self.weight1.size(1)) / 100
-#         self.weight1.data.uniform_(-stdv, stdv)
-        
-#         # set bias to empirical mean
-#         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
-
-#         # default initialization same as a torch.nn.Linear
-#         self.weight2 = torch.nn.Parameter(torch.empty((n_genes, n_embedding_dimensions, n_hidden_dimensions), requires_grad = True))
-#         stdv = 1. / math.sqrt(self.weight2.size(1))# / 100
-#         self.weight2.data.uniform_(-stdv, stdv)
-        
-#     def forward(self, cell_gene_embedding, gene_ix):
-#         # print(cell_gene_embedding.shape)
-#         # print(self.weight1[gene_ix][None, ...].shape)
-#         # return torch.matmul(cell_gene_embedding * self.weight1[gene_ix].T[None, ...]) + self.bias1[gene_ix]
-
-#         x = cell_gene_embedding
-
-#         x = torch.einsum('abc,bcd->abd', cell_gene_embedding, self.weight2[gene_ix])
-#         x = torch.nn.functional.relu(x)
-#         x = torch.nn.functional.dropout(x, 0.5)
-#         x = torch.einsum('abc,bc->ab', x, self.weight1[gene_ix])+ self.bias1[gene_ix]
-#         return x
-
-# class EmbeddingToExpression(torch.nn.Module):
-#     """
-#     Predicts gene expression using a [cell, gene, component] embedding in a gene-specific manner
-#     """
-#     def __init__(self, n_genes, mean_gene_expression, n_embedding_dimensions = 100, **kwargs):
-#         self.n_genes = n_genes
-#         self.n_embedding_dimensions = n_embedding_dimensions
-        
-#         super().__init__()
-        
-#         # default initialization same as a torch.nn.Linear
-#         self.weight1 = torch.nn.Parameter(torch.empty((n_genes, n_embedding_dimensions), requires_grad = True))
-#         stdv = 1. / math.sqrt(self.weight1.size(1)) / 100
-#         self.weight1.data.uniform_(-stdv, stdv)
-        
-#         # set bias to empirical mean
-#         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
-        
-#     def forward(self, cell_gene_embedding, gene_ix):
-#         y = torch.einsum('abc,bc->ab', cell_gene_embedding, self.weight1[gene_ix])+ self.bias1[gene_ix]
-#         # y = (cell_gene_embedding * self.weight1[gene_ix]).sum(-1) + self.bias1[gene_ix] 
-#         return y
-        
     
 class EmbeddingToExpressionBias(EmbeddingToExpression):
     """

@@ -49,13 +49,19 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
-dataset_name = "e18brain"
+dataset_name = "pbmc10k"
+# dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
+# promoter_name, (padding_negative, padding_positive) = "4k2k", (2000, 4000)
+promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
+
+promoter_size = padding_negative + padding_positive
+
+# %%
 transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
-fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments")
+fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 # # !pip install torch==1.12.1 --force-reinstall --extra-index-url https://download.pytorch.org/whl/cu113
@@ -111,7 +117,7 @@ fragment_embedder = FragmentEmbedder()
 # fragment_embedder = FragmentEmbedderCounter()
 
 # %%
-coordinates = torch.stack([torch.linspace(-6000, 3500, 200), torch.linspace(-5500, 4000, 200)], -1)
+coordinates = torch.stack([torch.arange(-padding_negative, padding_positive - 200, 200), torch.arange(-padding_negative + 200, padding_positive, 200)], -1)
 fragment_embedding = fragment_embedder(coordinates)
 
 # %%
@@ -172,17 +178,11 @@ model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
 # %% [markdown]
 # ## Train
 
-# %%
-from peakfreeatac.fragments import Folds
-
-
-# %%
-class Prediction(pfa.flow.Flow):
-    pass
-prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / "nn")
-
 # %% [markdown]
 # ### Create training and test split
+
+# %%
+from peakfreeatac.fragments import Folds
 
 # %%
 folds = pfa.fragments.Folds(fragments.n_cells, fragments.n_genes, 1000, 5000, n_folds = 5)
@@ -194,7 +194,14 @@ folds.populate(fragments)
 # ### Create models
 
 # %%
-from peakfreeatac.models.promoter.v5 import FragmentsToExpression
+# from peakfreeatac.models.promoter.v6 import FragmentsToExpression; model_name = "v6"
+from peakfreeatac.models.promoter.v5 import FragmentsToExpression; model_name = "v5"
+
+
+# %%
+class Prediction(pfa.flow.Flow):
+    pass
+prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / model_name)
 
 # %%
 models = []
@@ -226,11 +233,6 @@ model_ixs = [0, 1, 2, 3, 4]
 # %% [markdown]
 # ### Train
 
-# %% [markdown]
-# Note: we cannot use ADAM!
-# Because it has momentum.
-# And not all parameters are optimized (or have a grad) at every step, because we filter by gene.
-
 # %%
 import itertools
 
@@ -250,17 +252,25 @@ coordinates = fragments.coordinates.to("cuda")
 # %%
 for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_ixs]):
     params = model.parameters()
-    optim = torch.optim.SGD(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()), lr = lr)
-    # optim = torch.optim.Adam(itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()), lr = 0.01)
+    optim = torch.optim.SGD(
+        itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()),
+        lr = lr
+    )
+    # optim = torch.optim.Adam(
+    #     itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()),
+    #     lr = 0.001
+    # )
     loss = torch.nn.MSELoss(reduction = "mean")
     
     splits_training = [split.to("cuda") for split in fold if split.phase == "train"]
+    splits_test = [split.to("cuda") for split in fold if split.phase == "validation"]
     model = model.to("cuda").train(True)
 
     trace = []
 
     prev_epoch_mse = None
     prev_epoch_gene_mse = None
+    prev_epoch_mse_test = None
     for epoch in tqdm.tqdm(range(n_steps)):
         for split in splits_training:
             expression_predicted = model(
@@ -290,6 +300,24 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
         splits_training = [splits_training[i] for i in np.random.choice(len(splits_training), len(splits_training), replace = False)]
 
         if (epoch % trace_epoch_every) == 0:
+            # test mse
+            mse_test = []
+            for split in splits_test:
+                with torch.no_grad():
+                    expression_predicted = model(
+                        coordinates[split.fragments_selected],
+                        split.fragment_cellxgene_ix,
+                        split.cell_n,
+                        split.gene_n,
+                        split.gene_ix
+                    )
+                    
+                    transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
+                    mse = loss(expression_predicted, transcriptome_subset)
+                    
+                    mse_test.append(mse.detach().cpu().item())
+            epoch_mse_test = np.mean(mse_test)
+            
             # mse
             epoch_mse = np.mean([t["mse"] for t in trace[-len(splits_training):]])
             text = f"{epoch} {epoch_mse:.4f}"
@@ -305,7 +333,15 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
                 if prev_epoch_gene_mse is not None:
                     text += " {0:.1%}".format((epoch_gene_mse < prev_epoch_gene_mse).mean())
                 prev_epoch_gene_mse = epoch_gene_mse
-
+            
+            # mse test
+            text += f" {epoch_mse_test:.4f}"
+            
+            if prev_epoch_mse_test is not None:
+                text += f" Δ{prev_epoch_mse_test-epoch_mse_test:.1e}"
+                
+            prev_epoch_mse_test = epoch_mse_test
+            
             print(text)
 
 # %%
@@ -359,7 +395,7 @@ folds = folds.to("cpu")
 models = [model.to("cpu") for model in models]
 
 save(folds, open(prediction.path / "folds.pkl", "wb"))
-save(models, open(prediction.path / "models5.pkl", "wb"))
+save(models, open(prediction.path / "models.pkl", "wb"))
 
 # %% [markdown]
 # ## COO vs CSR

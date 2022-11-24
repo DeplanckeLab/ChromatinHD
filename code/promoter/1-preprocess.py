@@ -31,6 +31,7 @@ sns.set_style('ticks')
 
 import torch
 
+
 import pickle
 
 import scanpy as sc
@@ -45,11 +46,16 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
-dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
-dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
+# dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
+# dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
 
 folder_data_preproc = folder_data / dataset_name
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
+
+if organism == "mm":
+    chromosomes = ["chr" + str(i) for i in range(20)] + ["chrX", "chrY"]
+elif organism == "hs":
+    chromosomes = ["chr" + str(i) for i in range(24)] + ["chrX", "chrY"]
 
 # %% [markdown]
 # ## Download
@@ -86,15 +92,55 @@ folder_data_preproc.mkdir(exist_ok = True, parents = True)
 # !wget {main_url}_atac_cut_sites.bigwig -O {folder_data_preproc}/atac_cut_sites.bigwig
 
 # %%
+# !wget http://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.primary_assembly.fa.gz -O {folder_data_preproc}/dna.fa.gz
+
+# %%
 if genome == "GRCh38.107":
     # !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {folder_data_preproc}/genes.gff.gz
     # !wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
+    # !wget http://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
 elif genome == "mm10":
     # !wget http://ftp.ensembl.org/pub/release-98/gff3/mus_musculus/Mus_musculus.GRCm38.98.gff3.gz -O {folder_data_preproc}/genes.gff.gz
     # !wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
+    # !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
+
+# %%
+# !wget http://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
+
+# %%
+# !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
+
+# %%
+import gzip
+genome = {}
+chromosome = None
+translate_table = {"A":0, "T":1, "G":2, "C":3, "N":4}
+for i, line in enumerate(gzip.GzipFile(folder_data_preproc / "dna.fa.gz")):
+    line = str(line,'utf-8')
+    if line.startswith(">"):
+        if chromosome is not None:
+            genome[chromosome] = np.array(genome_chromosome, dtype = np.int8)
+        chromosome = "chr" + line[1:line.find(" ")]
+        genome_chromosome = []
+        
+        print(chromosome)
+        
+        if chromosome not in chromosomes:
+            break
+    else:
+        genome_chromosome += [translate_table[x] for x in line.strip("\n").upper()]
+
+# %%
+pickle.dump(genome, gzip.GzipFile((folder_data_preproc / "genome.pkl.gz"), "wb", compresslevel = 3))
+
+# %%
+# !ls -lh {folder_data_preproc}
 
 # %%
 # !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "gene"' > {folder_data_preproc}/genes.gff
+
+# %% [markdown]
+# ## Create genes
 
 # %%
 gff = pd.read_table(folder_data_preproc / "genes.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
@@ -128,12 +174,6 @@ transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "
 
 # %%
 adata = sc.read_10x_h5(folder_data_preproc / "filtered_feature_bc_matrix.h5")
-
-# %%
-if organism == "mm":
-    chromosomes = ["chr" + str(i) for i in range(19)] + ["chrX", "chrY"]
-elif organism == "hs":
-    chromosomes = ["chr" + str(i) for i in range(23)] + ["chrX", "chrY"]
 
 # %%
 adata.var.index.name = "symbol"
@@ -214,8 +254,10 @@ promoters["negative_strand"] = (promoters["strand"] == -1).astype(int)
 promoters["chr"] = genes.loc[promoters.index, "chr"]
 
 # %%
-padding_positive = 2000
-padding_negative = 4000
+promoter_name, (padding_negative, padding_positive) = "4k2k", (2000, 4000)
+promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
+
+# %%
 promoters["start"] = promoters["tss"] - padding_negative * promoters["positive_strand"] - padding_positive * promoters["negative_strand"]
 promoters["end"] = promoters["tss"] + padding_negative * promoters["negative_strand"] + padding_positive * promoters["positive_strand"]
 
@@ -226,7 +268,7 @@ promoters = promoters.drop(columns = ["positive_strand", "negative_strand"], err
 promoters
 
 # %%
-promoters.to_csv(folder_data_preproc / "promoters.csv")
+promoters.to_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"))
 
 # %% [markdown]
 # #### Create fragments
@@ -278,7 +320,7 @@ for i, (gene, promoter_info) in tqdm.tqdm(enumerate(promoters.iterrows())):
 # %%
 import pathlib
 import peakfreeatac.fragments
-fragments = pfa.fragments.Fragments(folder_data_preproc / "fragments")
+fragments = pfa.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 fragments.var = var
@@ -316,6 +358,9 @@ np.product(coordinates.size()) * 32 / 8 / 1024 / 1024
 # %%
 fragments.mapping = mapping
 fragments.coordinates = coordinates
+
+# %%
+fragments.create_cell_fragment_mapping()
 
 # %% [markdown]
 # ### Create windows around genes

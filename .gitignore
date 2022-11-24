@@ -170,3 +170,4 @@ cython_debug/
 # manually added
 *.pkl
 *.tsv
+package/src/peakfreeatac/models/promoter/v6/encoding.py

@@ -63,7 +63,7 @@ Some discussion on fragment length information content [here](https://seandavi.g
 > ![](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3959825/bin/nihms554473f2.jpg)  
 > (Buenrostro et al. 2013)  
 
-Based on this information, isn't it weird that none of the methods can use this?
+[This paper](https://academic.oup.com/nar/article/47/16/e91/5519166) claims Buenrostro's paper models the fragment length distribution using several nucleosome models, but I was unable to find it.
 
 
 No real discussion in the [*pioneering* SHARE-seq paper ](https://www.sciencedirect.com/science/article/pii/S0092867420312538#!)
