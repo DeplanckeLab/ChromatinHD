@@ -14,7 +14,7 @@ class Transcriptome(Flow):
         return self._var
     @var.setter
     def var(self, value):
-        value.index.name = "cell"
+        value.index.name = "gene"
         value.to_csv(self.path / "var.tsv", sep = "\t")
         self._var = value
 

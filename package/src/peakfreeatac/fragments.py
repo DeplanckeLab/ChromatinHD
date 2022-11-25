@@ -155,8 +155,14 @@ class Split():
 @dataclasses.dataclass
 class Fold():
     _splits = None
+
+    cells_train = None
+    cells_validation = None
     def __init__(self, cells_train, cells_validation, n_cell_step, n_genes, n_gene_step):
         self._splits = []
+
+        self.cells_train = cells_train
+        self.cells_validation = cells_validation
 
         gene_cuts = list(np.arange(n_genes, step = n_gene_step)) + [n_genes]
         gene_bins = [slice(a, b) for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]

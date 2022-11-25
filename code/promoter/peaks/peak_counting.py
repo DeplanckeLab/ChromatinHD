@@ -41,31 +41,33 @@ import peakfreeatac.peakcounts
 import peakfreeatac.transcriptome
 
 # %%
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
+# dataset_name = "e18brain"
 
 peaks_name = "cellranger"
 # peaks_name = "genrich"
 # peaks_name = "macs2"
 # peaks_name = "stack"
-# peaks_name = "rolling_200"; window_size = 200
+# peaks_name = "rolling_1000"; window_size = 1000
 
 # %%
 folder_data_preproc = pfa.get_output() / "data" / dataset_name
 folder_root = pfa.get_output()
 
 # %%
-transcriptome = pfa.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
-
-# %%
 promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
 promoters = pd.read_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"), index_col = 0)
 
 # %%
-peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)
+transcriptome = pfa.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
+fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
-promoter = promoters.iloc[0]
+peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)
+
+# %% [markdown]
+# ## Merge peaks with promoters
 
 # %%
 if peaks_name == "stack":
@@ -83,6 +85,10 @@ else:
 
     if peaks_name == "genrich":
         peaks["start"] += 1
+
+# %%
+transcriptome.var.index.name = "gene"
+transcriptome.var = transcriptome.var
 
 # %%
 import pybedtools
@@ -140,10 +146,11 @@ import peakfreeatac.prediction
 # %%
 # method_suffix = ""; prediction_class = peakfreeatac.prediction.PeaksGene
 method_suffix = "_linear"; prediction_class = peakfreeatac.prediction.PeaksGeneLinear
+# method_suffix = "_polynomial"; prediction_class = peakfreeatac.prediction.PeaksGenePolynomial
 
 # %%
 prediction = prediction_class(
-    pfa.get_output() / "prediction_promoter" / dataset_name / (peaks_name + method_suffix),
+    pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / (peaks_name + method_suffix),
     transcriptome,
     peakcounts
 )
@@ -162,14 +169,10 @@ gene_peak_links["gene"] = pd.Categorical(gene_peak_links["gene"], categories = t
 # Split train/validation
 
 # %%
-test_cell_cutoff = int((transcriptome.obs.shape[0] / 3)*2) # split train/test cells
+folds = pickle.load((fragments.path / "folds.pkl").open("rb"))[:1]
 
 # %%
-cells_train = transcriptome.obs.index[:test_cell_cutoff]
-cells_validation = transcriptome.obs.index[test_cell_cutoff:]
-
-# %%
-prediction.score(gene_peak_links, cells_train, cells_validation)
+prediction.score(gene_peak_links, folds)
 
 # %%
 prediction.scores["mse_diff"] = prediction.scores["mse"] - prediction.scores["mse_dummy"]
@@ -182,5 +185,17 @@ prediction.scores = prediction.scores
 
 # %%
 # !ls {prediction.path}
+
+# %%
+prediction.scores.loc["validation"].groupby("fold")["mse_diff"].mean().mean()
+
+# %%
+# prediction.scores.loc["validation"].loc[transcriptome.gene_id("HLA-DRA")]
+
+# %%
+gene_scores = prediction.scores.groupby(["phase", "gene"]).mean()
+
+# %%
+gene_scores["mse_diff"].unstack().T.sort_values("validation").plot()
 
 # %%

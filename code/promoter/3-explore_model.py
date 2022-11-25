@@ -51,8 +51,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -68,28 +68,13 @@ fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" /
 class Prediction(pfa.flow.Flow):
     pass
 
-model_name = "v5"
+model_name = "v9"
 prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / model_name)
 
 # %%
-folds = pickle.load(open(prediction.path / "folds.pkl", "rb"))
-models = pickle.load(open(prediction.path / "models.pkl", "rb"))#[:1]
+folds = pickle.load(open(fragments.path / "folds.pkl", "rb"))
+models = pickle.load(open(prediction.path / "models.pkl", "rb"))[:1]
 
-
-# %%
-# folds[0][0].fragment_cellxgene_ix.shape
-
-# fragment_i = 0
-# cellxgene_i = 0
-# idptr = []
-# for fragment_i, cellxgene in enumerate(folds[0][0].fragment_cellxgene_ix):
-#     while cellxgene_i < cellxgene:
-#         idptr.append(fragment_i)
-#         cellxgene_i += 1
-
-# len(idptr)
-
-# folds[0][0].fragment_cellxgene_ix
 
 # %% [markdown]
 # ## Overall performace
@@ -119,15 +104,32 @@ def explode_dataframe(df, column):
 # %%
 transcriptome_pd = pd.DataFrame(transcriptome.X.dense().cpu().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
 
+# %%
+transcriptome.var.index.name = "gene"
+
 
 # %%
-def score_fold(coordinates, fold, model, fragments_oi = None, expression_prediction_full = None, return_expression_prediction = False):
+def score_fold(
+    coordinates,
+    mapping,
+    fold,
+    model,
+    fragments_oi = None,
+    expression_prediction_full = None,
+    return_expression_prediction = False,
+    use_all_train_splits = False,
+    calculate_cor = False
+):
     scores = []
     
     if fragments_oi is None:
         fragments_oi = torch.tensor([True] * coordinates.shape[0], device = device)
     
-    splits_oi = [fold[0]] + [split for split in fold if split.phase == "validation"]
+    # extract splits
+    if use_all_train_splits:
+        splits_oi = [split for split in fold if split.phase == "train"] + [split for split in fold if split.phase == "validation"]
+    else:
+        splits_oi = [fold[0]] + [split for split in fold if split.phase == "validation"]
     
     splitinfo = pd.DataFrame({"split":split_ix, "n_cells":split.cell_n, "phase":split.phase} for split_ix, split in enumerate(splits_oi))
     splitinfo["weight"] = splitinfo["n_cells"] / splitinfo.groupby(["phase"])["n_cells"].sum()[splitinfo["phase"]].values
@@ -156,6 +158,7 @@ def score_fold(coordinates, fold, model, fragments_oi = None, expression_predict
                 expression_predicted = model(
                     coordinates[split.fragments_selected][fragments_oi_split],
                     split.fragment_cellxgene_ix[fragments_oi_split],
+                    mapping[split.fragments_selected, 1][fragments_oi_split],
                     split.cell_n,
                     split.gene_n,
                     split.gene_ix
@@ -211,13 +214,13 @@ def score_fold(coordinates, fold, model, fragments_oi = None, expression_predict
             .groupby(["phase", "gene"])
             .pipe(aggregate_splits, columns = ["perc_retained", "mse", "mse_dummy"], splitinfo = splitinfo)
     )
-    gene_aggscores["mse_diff"] = gene_aggscores["mse_dummy"] - gene_aggscores["mse"]
+    gene_aggscores["mse_diff"] = gene_aggscores["mse"] - gene_aggscores["mse_dummy"]
 
     # calculate summary statistics on the predicted expression
-    # first extract train and validation cells
-    cells_train = transcriptome.obs.index[list(set([cell_ix for split in fold for cell_ix in split.cell_ixs if split.phase == "train"]))]
-    cells_validation = transcriptome.obs.index[list(set([cell_ix for split in fold for cell_ix in split.cell_ixs if split.phase == "validation"]))]
-
+    # first extract train/test splits
+    cells_train = transcriptome.obs.index[list(set([cell_ix for split in splits_oi for cell_ix in split.cell_ixs if split.phase == "train"]))].unique()
+    cells_validation = transcriptome.obs.index[list(set([cell_ix for split in fold for cell_ix in split.cell_ixs if split.phase == "validation"]))].unique()
+    
     # calculate effect
     if expression_prediction_full is not None:
         effect_train = expression_prediction.loc[cells_train].mean() - expression_prediction_full.loc[cells_train].mean()
@@ -226,11 +229,12 @@ def score_fold(coordinates, fold, model, fragments_oi = None, expression_predict
         gene_aggscores["effect"] = pd.concat({"train":effect_train, "validation":effect_validation}, names = ["phase", "gene"])
 
     # calculate correlation
-#     cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
-#     cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
+    if calculate_cor:
+        cor_train = pfa.utils.paircor(expression_prediction.loc[cells_train], transcriptome_pd.loc[cells_train])
+        cor_validation = pfa.utils.paircor(expression_prediction.loc[cells_validation], transcriptome_pd.loc[cells_validation])
 
-#     gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
-#     aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
+        gene_aggscores["cor"] = pd.concat({"train":cor_train, "validation":cor_validation}, names = ["phase", "gene"])
+        aggscores["cor"] = pd.Series({"train":cor_train.mean(), "validation":cor_validation.mean()})
     
     if return_expression_prediction:
         return aggscores, gene_aggscores, expression_prediction
@@ -239,19 +243,22 @@ def score_fold(coordinates, fold, model, fragments_oi = None, expression_predict
 
 # %%
 coordinates = fragments.coordinates.to("cuda")
+mapping = fragments.mapping.to("cuda")
 transcriptome_X = transcriptome.X.to(device)
 
-score_fold(coordinates, folds[0], models[0])
+score_fold(coordinates, mapping, folds[0], models[0])
 
 
 # %%
 def score_folds(
     coordinates,
+    mapping,
     folds,
     fold_runs,
     fragments_oi = None,
     expression_prediction_full = None,
-    return_expression_prediction = False
+    return_expression_prediction = False,
+    **kwargs
 ):
     """
     Scores a set of fragments_oi using a set of splits
@@ -271,11 +278,13 @@ def score_folds(
     for model, (fold_ix, fold) in zip(fold_runs, enumerate(folds)):
         aggscores_, gene_aggscores_, expression_prediction_ = score_fold(
             coordinates,
+            mapping,
             fold,
             model,
             fragments_oi = fragments_oi,
             return_expression_prediction = return_expression_prediction,
-            expression_prediction_full = expression_prediction_full.loc[fold_ix] if expression_prediction_full is not None else None
+            expression_prediction_full = expression_prediction_full.loc[fold_ix] if expression_prediction_full is not None else None,
+            **kwargs
         )
         aggscores[fold_ix] = aggscores_
         gene_aggscores[fold_ix] = gene_aggscores_
@@ -294,7 +303,15 @@ def score_folds(
 # %%
 coordinates = fragments.coordinates.to(device)
 
-aggscores, gene_aggscores, expression_prediction = score_folds(coordinates, folds, models, return_expression_prediction = True)
+aggscores, gene_aggscores, expression_prediction = score_folds(
+    coordinates,
+    mapping,
+    folds, 
+    models,
+    return_expression_prediction = True,
+    use_all_train_splits = True,
+    calculate_cor = True
+)
 
 scores = aggscores.groupby(["phase"]).mean()
 gene_scores = gene_aggscores.groupby(["phase", "gene"]).mean()
@@ -347,6 +364,15 @@ gene_scores.to_pickle(scores_dir / "gene_scores.pkl")
 # %%
 aggscores.style.bar()
 
+# %%
+aggscores.style.bar()
+
+# %%
+aggscores.style.bar()
+
+# %%
+aggscores.style.bar()
+
 # %% [markdown]
 # ### Gene-specific view
 
@@ -354,7 +380,7 @@ aggscores.style.bar()
 gene_scores["label"] = transcriptome.symbol(gene_scores.index.get_level_values("gene")).values
 
 # %%
-gene_scores.sort_values("mse_diff", ascending = False).head(20).style.bar(subset = ["mse_diff"])
+gene_scores.sort_values("mse_diff", ascending = True).head(20).style.bar(subset = ["mse_diff", "cor"])
 
 # %%
 gene_scores["mse_diff"].unstack().T.sort_values("validation").plot()
@@ -662,8 +688,8 @@ gene_scores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
 gene_id = transcriptome.gene_id("HLA-DRA")
 # gene_id = transcriptome.gene_id("PTPRC")
 # gene_id = transcriptome.gene_id("LTB")
-# gene_id = transcriptome.gene_id("FOSB")
-gene_id = transcriptome.gene_id("CD74")
+gene_id = transcriptome.gene_id("FOSB")
+# gene_id = transcriptome.gene_id("LYN")
 
 # gene_id = transcriptome.gene_id("Fabp7")
 # gene_id = transcriptome.gene_id("Ccnd2")
@@ -883,6 +909,49 @@ ax.hist(gene_mse_correlations.loc["validation"].loc[genes_oi, "cor"], range = (-
 # %%
 # if you're interested in genes with relatively high correlation with nontheless a good prediction somewhere
 gene_mse_correlations.loc["validation"].query("cor > =-.5").sort_values("mse_diff", ascending = False)
+
+# %% [markdown]
+# Interesting genes:
+#  - *IL1B* and *CD74* in pbmc10k
+
+# %%
+special_genes["n_fragments_importance_not_correlated"] = gene_mse_correlations.loc["validation"]["cor"] > -0.5
+
+# %% [markdown]
+# ### Is effect of a window associated with the number of fragments?
+
+# %%
+sns.scatterplot(x = gene_scores_windows["effect"], y = gene_scores_windows["perc_retained"], s = 1)
+
+# %%
+perc_retained_cutoff = gene_scores_windows.loc["validation"]["perc_retained"].quantile(0.05)
+
+# %%
+gene_scores_windows.query("perc_retained < @perc_retained_cutoff").loc["validation"].index.get_level_values("gene").unique()
+
+# %%
+gene_effect_correlations = gene_scores_windows.query("mse_diff > @mse_loss_cutoff").groupby(["phase", "gene"]).apply(lambda x: x["perc_retained"].corr(x["effect"]))
+# gene_mse_correlations = gene_aggscores_windows.query("perc_retained < 0.98").groupby(["phase", "gene"]).apply(lambda x: x["perc_retained"].corr(x["mse"]))
+gene_effect_correlations = gene_effect_correlations.to_frame("cor")
+gene_effect_correlations = gene_effect_correlations[~pd.isnull(gene_effect_correlations["cor"])]
+gene_effect_correlations["label"] = transcriptome.symbol(gene_effect_correlations.index.get_level_values("gene")).values
+gene_effect_correlations["mse_diff"] = gene_scores["mse_diff"]
+
+# %%
+genes_oi = gene_scores.loc["validation"].query("mse_diff > 1e-3").index.intersection(gene_effect_correlations.index.get_level_values("gene"))
+print(f"{len(genes_oi)=}")
+
+# %%
+fig, ax = plt.subplots()
+ax.hist(gene_effect_correlations.loc["validation"].loc[:, "cor"], range = (-1, 1))
+ax.hist(gene_effect_correlations.loc["validation"].loc[genes_oi, "cor"], range = (-1, 1))
+
+# %%
+# if you're interested in genes with relatively low correlation with nontheless a good prediction somewhere
+gene_effect_correlations.loc["validation"].query("cor <= .5").sort_values("mse_diff", ascending = False)
+
+# if you're interested in genes with relatively high correlation
+# gene_effect_correlations.loc["validation"].query("cor > .9").sort_values("mse_diff", ascending = False)
 
 # %% [markdown]
 # Interesting genes:

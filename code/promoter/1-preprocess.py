@@ -45,8 +45,8 @@ import peakfreeatac as pfa
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
-# dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
+# dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
+dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
 
 folder_data_preproc = folder_data / dataset_name
@@ -361,6 +361,19 @@ fragments.coordinates = coordinates
 
 # %%
 fragments.create_cell_fragment_mapping()
+
+# %% [markdown]
+# #### Create training folds
+
+# %% [markdown]
+# Splits up the fragments into "splits" for training, and precalculates several elements that a model can use:
+# - `fragments_cellxgene_idx`, the cellxgene index locally, i.e. for the chosen cells and genes
+# - (soon?) `fragment_count_mapping`: a dictionary with k:# fragments and v:fragments for which the cellxgene contains k number of fragments
+
+# %%
+folds = pfa.fragments.Folds(fragments.n_cells, fragments.n_genes, 1000, 5000, n_folds = 5)
+folds.populate(fragments)
+pfa.save(folds, open(fragments.path / "folds.pkl", "wb"))
 
 # %% [markdown]
 # ### Create windows around genes

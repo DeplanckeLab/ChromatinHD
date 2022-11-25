@@ -1,5 +1,6 @@
 import os
 import pathlib
+import pickle
 
 def get_git_root(cwd=None):
     """
@@ -39,3 +40,32 @@ def paircor(x, y, dim = 0):
         divisor[np.isclose(divisor, 0)] = 1.
         cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / divisor
     return cor
+
+
+def fix_class(obj):
+    import importlib
+
+    module = importlib.import_module(obj.__class__.__module__)
+    cls = getattr(module, obj.__class__.__name__)
+    try:
+        obj.__class__ = cls
+    except TypeError:
+        pass
+
+class Pickler(pickle.Pickler):
+    def reducer_override(self, obj):
+        if any(
+            obj.__class__.__module__.startswith(module)
+            for module in ["peakfreeatac."]
+        ):
+            fix_class(obj)
+        else:
+            # For any other object, fallback to usual reduction
+            return NotImplemented
+
+        return NotImplemented
+    
+def save(obj, fh, pickler=None, **kwargs):
+    if pickler is None:
+        pickler = Pickler
+    return pickler(fh).dump(obj)

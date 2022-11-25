@@ -37,10 +37,13 @@ class PeaksGene(Flow):
         self.peaks = peaks
 
     def _create_regressor(self):
-            regressor = xgb.XGBRegressor()
-            return regressor
+        regressor = xgb.XGBRegressor(n_estimators = 100)
+        return regressor
+            
+    def _preprocess_features(self, X):
+        return X
 
-    def score(self, peak_gene_links, cells_train, cells_validation):
+    def score(self, peak_gene_links, folds):
         X_transcriptome = self.transcriptome.adata.X.tocsc()
         X_peaks = self.peaks.counts.tocsc()
 
@@ -60,48 +63,52 @@ class PeaksGene(Flow):
         obs = self.transcriptome.obs
         obs["ix"] = np.arange(obs.shape[0])
 
-        train_ix = obs["ix"][cells_train]
-        validation_ix = obs["ix"][cells_validation]
-
         scores = []
-        for gene, peak_gene_links_oi in tqdm.tqdm(peak_gene_links.groupby("gene")):
-            peaks_oi = var_peaks.loc[peak_gene_links_oi["peak"]]
-            gene_oi = var_transcriptome.loc[gene]
 
-            x, y = extract_data(gene_oi, peaks_oi)
+        for fold_ix, fold in enumerate(folds):
+            train_ix, validation_ix = fold.cells_train.numpy(), fold.cells_validation.numpy()
 
-            # if no peaks detected, simply predict mean
-            if len(peaks_oi) == 0:
-                predicted = np.repeat(y[train_ix].mean(), len(train_ix) + len(validation_ix))
-            else:
-                regressor.fit(x[train_ix], y[train_ix])
-                predicted = regressor.predict(x)
+            # train_ix = obs["ix"][cells_train]
+            # validation_ix = obs["ix"][cells_validation]
 
-            mse_train = cal_mse(y[train_ix], predicted[train_ix])
-            mse_validation = cal_mse(y[validation_ix], predicted[validation_ix])
-            mse_validation_dummy = cal_mse(y[validation_ix], y[validation_ix].mean())
-            mse_train_dummy = cal_mse(y[train_ix], y[train_ix].mean())
+            for gene, peak_gene_links_oi in tqdm.tqdm(peak_gene_links.groupby("gene")):
+                peaks_oi = var_peaks.loc[peak_gene_links_oi["peak"]]
+                gene_oi = var_transcriptome.loc[gene]
 
-            # correlation
-            if (y[train_ix].std() < 1e-5) or (predicted[train_ix].std() < 1e-5):
-                cor_train = 0.
-            else:
-                cor_train = np.corrcoef(y[train_ix], predicted[train_ix])[0, 1]
-            if (y[validation_ix].std() < 1e-5) or (predicted[validation_ix].std() < 1e-5):
-                cor_validation = 0.
-            else:
-                cor_validation = np.corrcoef(y[validation_ix], predicted[validation_ix])[0, 1]
+                x, y = extract_data(gene_oi, peaks_oi)
 
-            scores.append(
-                pd.DataFrame({
-                    "gene": gene,
-                    "split_ix": 1,
-                    "mse": [mse_train, mse_validation],
-                    "cor":[cor_train, cor_validation],
-                    "mse_dummy": [mse_train_dummy, mse_validation_dummy],
-                    "phase":["train", "validation"],
-                })
-            )
+                # if no peaks detected, simply predict mean
+                if len(peaks_oi) == 0:
+                    predicted = np.repeat(y[train_ix].mean(), len(train_ix) + len(validation_ix))
+                else:
+                    regressor.fit(self._preprocess_features(x[train_ix]), y[train_ix])
+                    predicted = regressor.predict(self._preprocess_features(x))
+
+                mse_train = cal_mse(y[train_ix], predicted[train_ix])
+                mse_validation = cal_mse(y[validation_ix], predicted[validation_ix])
+                mse_validation_dummy = cal_mse(y[validation_ix], y[validation_ix].mean())
+                mse_train_dummy = cal_mse(y[train_ix], y[train_ix].mean())
+
+                # correlation
+                if (y[train_ix].std() < 1e-5) or (predicted[train_ix].std() < 1e-5):
+                    cor_train = 0.
+                else:
+                    cor_train = np.corrcoef(y[train_ix], predicted[train_ix])[0, 1]
+                if (y[validation_ix].std() < 1e-5) or (predicted[validation_ix].std() < 1e-5):
+                    cor_validation = 0.
+                else:
+                    cor_validation = np.corrcoef(y[validation_ix], predicted[validation_ix])[0, 1]
+
+                scores.append(
+                    pd.DataFrame({
+                        "gene": gene,
+                        "fold": fold_ix,
+                        "mse": [mse_train, mse_validation],
+                        "cor":[cor_train, cor_validation],
+                        "mse_dummy": [mse_train_dummy, mse_validation_dummy],
+                        "phase":["train", "validation"],
+                    })
+                )
 
         scores = pd.concat(scores, ignore_index= True).set_index(["phase", "gene"])
 
@@ -126,6 +133,20 @@ class PeaksGeneLinear(PeaksGene):
             import sklearn.linear_model
             regressor = sklearn.linear_model.LinearRegression()
             return regressor
+
+
+class PeaksGenePolynomial(PeaksGeneLinear):
+    default_name = "geneprediction_poly"
+
+    def _create_regressor(self):
+        import sklearn.linear_model
+        regressor = sklearn.linear_model.Ridge()
+        return regressor
+
+    def _preprocess_features(self, X):
+        import sklearn.preprocessing
+        poly = sklearn.preprocessing.PolynomialFeatures(interaction_only=True,include_bias = False)
+        return poly.fit_transform(X)
 
 class OriginalPeakPrediction():
     default_name = "originalpeakprediction"

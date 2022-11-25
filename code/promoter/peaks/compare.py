@@ -43,37 +43,48 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
+# dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
+
+# %%
+promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
 
 
 # %%
 class Prediction(pfa.flow.Flow):
     pass
-prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / "nn")
+
+model_name = "v7"
+prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / model_name)
 
 # %%
-gene_aggrscores = pd.read_csv(prediction.path / "gene_aggscores.csv", index_col = ["phase", "gene"])
+# !ls {prediction.path}
+
+# %%
+gene_scores = pd.read_pickle(prediction.path / "scoring" / "overall" / "gene_scores.pkl")
 
 # %%
 method_names = [
-    "nn",
-    "cellranger",
-    "macs2",
-    "macs2_linear",
-    "cellranger_linear",
-    "stack_linear",
-    "rolling_200",
+    # "v3",
+    "v5",
+    # "cellranger",
+    # "macs2",
+    # "macs2_linear",
+    # "cellranger_linear",
+    "cellranger_polynomial",
+    # "stack_linear",
+    # "rolling_200",
     # "rolling_200_linear"
 ]
 
 # %%
 scores = {}
 for method_name in method_names:
-    prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / method_name)
-    if method_name == "nn":
-        gene_aggscores = pd.read_csv(prediction.path / "gene_aggscores.csv", index_col = ["phase", "gene"])
+    prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / method_name)
+    if method_name in ["v5"]:
+        gene_aggscores = pd.read_pickle(prediction.path / "scoring" / "overall" / "gene_scores.pkl")
     else:
         gene_aggscores = pd.read_table(prediction.path / "scores.tsv", index_col = ["phase", "gene"])
         
@@ -81,7 +92,7 @@ for method_name in method_names:
 scores = pd.concat(scores, names = ["method", *gene_aggscores.index.names])
 
 # %%
-genes_oi = scores.query("phase == 'validation'").groupby("gene")["mse_diff"].min() < -1e-2
+genes_oi = scores.query("phase == 'validation'").groupby("gene")["mse_diff"].min() < -1e-3
 genes_oi = genes_oi.index[genes_oi]
 genes_oi.shape[0]
 
@@ -90,10 +101,11 @@ transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "
 
 # %%
 method_info = pd.DataFrame([
-    ["nn", "NN (ours)"],
+    ["v5", "V5 (ours)"],
     ["macs2_linear", "MACS2 + Linear"],
     ["macs2", "MACS2 + XGBoost"],
     ["cellranger_linear", "cellranger + Linear"],
+    ["cellranger_polynomial", "cellranger + Polynomial"],
     ["cellranger", "cellranger + XGBoost"],
     ["stack_linear", "Stacked + Linear"],
     ["rolling_200_linear", "Rolling window + Linear"],
@@ -103,33 +115,48 @@ method_info = pd.DataFrame([
 # %%
 fig, (ax_all, ax_able) = plt.subplots(1, 2, figsize = (3, 3), sharey = True)
 
-plotdata_all = scores.groupby(["method", "phase"])["mse_diff"].mean().unstack()
-plotdata_able = scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().unstack()
+plotdata_all = scores.groupby(["method", "phase"])["mse_diff"].mean().to_frame().reset_index()
+plotdata_able = scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().to_frame().reset_index()
 
-plotdata_all.plot(kind = "barh", ax = ax_all, legend = False)
-plotdata_able.plot(kind = "barh", ax = ax_able, legend = False)
+sns.barplot(plotdata_all, y = "method", hue = "phase", x = "mse_diff", ax = ax_all)
+sns.barplot(plotdata_able, y = "method", hue = "phase", x = "mse_diff", ax = ax_able)
+
+ax_all.legend([],[], frameon=False)
+ax_able.legend([],[], frameon=False)
 ax_all.set_xlim(ax_all.get_xlim()[::-1])
 ax_able.set_xlim(ax_able.get_xlim()[::-1])
 # ax_all.set_xlim(
 ax_all.set_xlabel("MSE difference")
-ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
+# ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
 
 # %%
 fig, (ax_all, ax_able) = plt.subplots(1, 2, figsize = (3, 3), sharey = True)
-scores.groupby(["method", "phase"])["cor"].mean().unstack().plot(kind = "barh", ax = ax_all, legend = False)
-scores.query("gene in @genes_oi").groupby(["method", "phase"])["cor"].mean().unstack().plot(kind = "barh", ax = ax_able, legend = False)
-ax_all.set_xlabel("Correlation")
-ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
+
+plotdata_all = scores.groupby(["method", "phase"])["mse_diff"].mean().to_frame().reset_index()#scores.groupby(["method", "phase"])["mse_diff"].mean().unstack()
+plotdata_able = scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().to_frame().reset_index()#scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().unstack()
+
+sns.barplot(plotdata_all, y = "method", hue = "phase", x = "mse_diff", ax = ax_all)
+sns.barplot(plotdata_able, y = "method", hue = "phase", x = "mse_diff", ax = ax_able)
+
+ax_all.legend([],[], frameon=False)
+ax_able.legend([],[], frameon=False)
+ax_all.set_xlim(ax_all.get_xlim()[::-1])
+ax_able.set_xlim(ax_able.get_xlim()[::-1])
+# ax_all.set_xlim(
+ax_all.set_xlabel("MSE difference")
+# ax_all.set_yticklabels(method_info.loc[[tick._text for tick in ax_all.get_yticklabels()]]["label"])
 
 # %%
 scores.groupby(["method", "phase"])["mse_diff"].mean().unstack().T.plot()
 scores.query("gene in @genes_oi").groupby(["method", "phase"])["mse_diff"].mean().unstack().T.plot()
 
 # %%
-scores.groupby(["method", "phase"])["cor"].mean().unstack().T.plot()
+fig, ax = plt.subplots()
+scores.groupby(["method", "phase"])["cor"].mean().unstack().T.plot(ax = ax)
+scores.query("gene in @genes_oi").groupby(["method", "phase"])["cor"].mean().unstack().T.plot(ax = ax)
+ax.set_ylim(0)
 
 # %%
-scores.query("gene in @genes_oi").groupby(["method", "phase"])["cor"].mean().unstack().T.plot()
 
 # %%
 
