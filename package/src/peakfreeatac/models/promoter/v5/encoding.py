@@ -106,6 +106,7 @@ class FragmentsToExpression(torch.nn.Module):
         self,
         fragment_coordinates,
         fragment_cellxgene_ix,
+        fragment_gene_ix,
         cell_n,
         gene_n,
         gene_ix

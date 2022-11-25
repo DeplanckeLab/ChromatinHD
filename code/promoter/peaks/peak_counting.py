@@ -87,10 +87,6 @@ else:
         peaks["start"] += 1
 
 # %%
-transcriptome.var.index.name = "gene"
-transcriptome.var = transcriptome.var
-
-# %%
 import pybedtools
 promoters_bed = pybedtools.BedTool.from_dataframe(promoters.reset_index()[["chr", "start", "end", "gene"]])
 peaks_bed = pybedtools.BedTool.from_dataframe(peaks)
@@ -185,15 +181,6 @@ prediction.scores = prediction.scores
 
 # %%
 # !ls {prediction.path}
-
-# %%
-prediction.scores.loc["validation"].groupby("fold")["mse_diff"].mean().mean()
-
-# %%
-# prediction.scores.loc["validation"].loc[transcriptome.gene_id("HLA-DRA")]
-
-# %%
-gene_scores = prediction.scores.groupby(["phase", "gene"]).mean()
 
 # %%
 gene_scores["mse_diff"].unstack().T.sort_values("validation").plot()

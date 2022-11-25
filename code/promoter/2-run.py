@@ -22,8 +22,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -43,7 +43,7 @@ folds = pickle.load(open(fragments.path / "folds.pkl", "rb"))
 from peakfreeatac.models.promoter.v5 import FragmentsToExpression; model_name = "v5"
 from peakfreeatac.models.promoter.v7 import FragmentsToExpression; model_name = "v7"
 from peakfreeatac.models.promoter.v8 import FragmentsToExpression; model_name = "v8"
-from peakfreeatac.models.promoter.v9 import FragmentsToExpression; model_name = "v9"
+from peakfreeatac.models.promoter.v10 import FragmentsToExpression; model_name = "v10"
 # from peakfreeatac.models.promoter.v3 import FragmentsToExpression; model_name = "v3"
 
 
@@ -66,7 +66,6 @@ n_steps = 1000
 trace_epoch_every = 10
 
 lr = 1.0
-# lr = 0.1
 
 # choose which models to infer
 # model_ixs = [0, 1, 2, 3, 4]
@@ -80,15 +79,12 @@ mapping = fragments.mapping.to("cuda")
 
 
 for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_ixs]):
-    params = model.parameters()
+    params = model.get_parameters()
+
     optim = torch.optim.SGD(
-        itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()),
+        params,
         lr = lr
     )
-    # optim = torch.optim.Adam(
-    #     itertools.chain(model.fragment_embedder.parameters(), model.embedding_gene_pooler.parameters(), model.embedding_to_expression.parameters()),
-    #     lr = 0.001
-    # )
     loss = torch.nn.MSELoss(reduction = "mean")
     
     splits_training = [split.to("cuda") for split in fold if split.phase == "train"]
@@ -97,10 +93,60 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
 
     trace = []
 
-    prev_epoch_mse = None
-    prev_epoch_gene_mse = None
-    prev_epoch_mse_test = None
+    prev_mse_train = None
+    prev_mse_test = None
     for epoch in tqdm.tqdm(range(n_steps)):
+        # trace
+        if (epoch % trace_epoch_every) == 0:
+            # mse
+            mse_test = []
+            mse_train = []
+            for split in itertools.chain(splits_training, splits_test):
+                with torch.no_grad():
+                    expression_predicted = model(
+                        coordinates[split.fragments_selected],
+                        split.fragment_cellxgene_ix,
+                        mapping[split.fragments_selected, 1],
+                        split.cell_n,
+                        split.gene_n,
+                        split.gene_ix
+                    )
+                    
+                    transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
+                    mse = loss(expression_predicted, transcriptome_subset)
+                    
+                    if split.phase == "train":
+                        mse_train.append(mse.detach().cpu().item())
+                    else:
+                        mse_test.append(mse.detach().cpu().item())
+            mse_train = np.mean(mse_train)
+            mse_test = np.mean(mse_test)
+            
+            # train mse
+            text = f"{epoch} {mse_train:.6f}"
+
+            if prev_mse_train is not None:
+                text += f" Δ{prev_mse_train-mse_train:.1e}"
+
+            prev_mse_train = mse_train
+            
+            # mse test
+            text += f" {mse_test:.6f}"
+            
+            if prev_mse_test is not None:
+                text += f" Δ{prev_mse_test-mse_test:.1e}"
+                
+            prev_mse_test = mse_test
+            
+            print(text)
+            
+            trace.append({
+                "mse_train":mse_train,
+                "mse_test":mse_test,
+                "epoch":epoch
+            })
+
+        # train
         for split in splits_training:
             expression_predicted = model(
                 coordinates[split.fragments_selected],
@@ -122,55 +168,6 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
 
         # reshuffle the order of the splits
         splits_training = [splits_training[i] for i in np.random.choice(len(splits_training), len(splits_training), replace = False)]
-
-        if (epoch % trace_epoch_every) == 0:
-            # test mse
-            mse_test = []
-            mse_train = []
-            for split in itertools.chain(splits_training, splits_test):
-                with torch.no_grad():
-                    expression_predicted = model(
-                        coordinates[split.fragments_selected],
-                        split.fragment_cellxgene_ix,
-                        mapping[split.fragments_selected, 1],
-                        split.cell_n,
-                        split.gene_n,
-                        split.gene_ix
-                    )
-                    
-                    transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
-                    mse = loss(expression_predicted, transcriptome_subset)
-                    
-                    if split.phase == "train":
-                        mse_train.append(mse.detach().cpu().item())
-                    else:
-                        mse_test.append(mse.detach().cpu().item())
-            epoch_mse = np.mean(mse_train)
-            epoch_mse_test = np.mean(mse_test)
-            
-            # mse
-            text = f"{epoch} {epoch_mse:.6f}"
-
-            if prev_epoch_mse is not None:
-                text += f" Δ{prev_epoch_mse-epoch_mse:.1e}"
-
-            prev_epoch_mse = epoch_mse
-            
-            # mse test
-            text += f" {epoch_mse_test:.6f}"
-            
-            if prev_epoch_mse_test is not None:
-                text += f" Δ{prev_epoch_mse_test-epoch_mse_test:.1e}"
-                
-            prev_epoch_mse_test = epoch_mse_test
-            
-            print(text)
-            
-            trace.append({
-                "mse":epoch_mse,
-                "mse_test":epoch_mse_test,
-                "epoch":epoch
-            })
             
             
             
@@ -179,8 +176,7 @@ if isinstance(trace, list):
     
 fig, ax = plt.subplots()
 plotdata = trace.groupby("epoch").mean().reset_index()
-# ax.scatter(trace["epoch"], trace["mse"])
-ax.plot(plotdata["epoch"], plotdata["mse"], zorder = 6, color = "red")
+ax.plot(plotdata["epoch"], plotdata["mse_train"], zorder = 6, color = "red")
 ax.plot(plotdata["epoch"], plotdata["mse_test"], zorder = 6, color = "orange")
 fig.savefig("trace.png")
 

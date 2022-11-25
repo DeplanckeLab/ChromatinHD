@@ -49,8 +49,8 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
-dataset_name = "e18brain"
+dataset_name = "pbmc10k"
+# dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
@@ -110,7 +110,7 @@ split.populate(fragments)
 
 # %%
 from peakfreeatac.models.promoter.v1 import FragmentEmbedderCounter
-from peakfreeatac.models.promoter.v7 import FragmentEmbedder
+from peakfreeatac.models.promoter.v10 import FragmentEmbedder
 
 # %%
 # fragment_embedder = FragmentEmbedder()
@@ -122,6 +122,10 @@ coordinates = torch.stack([torch.arange(-padding_negative, padding_positive - 20
 global_gene_ix = torch.zeros((coordinates.shape[0], ), dtype = torch.long)
 # fragment_embedding = fragment_embedder(coordinates)
 fragment_embedding = fragment_embedder(coordinates, global_gene_ix)
+
+# %%
+if fragment_embedding.ndim == 1:
+    fragment_embedding = fragment_embedding[:, None]
 
 # %%
 fig, axes = plt.subplots(1, 2, figsize = (10, 5), sharey = True)
@@ -178,7 +182,7 @@ plt.hist(cell_gene_embedding.detach().numpy().flatten(), range = (0, 10), bins =
 # ### Create expression predictor
 
 # %%
-from peakfreeatac.models.promoter.v7 import EmbeddingToExpression
+from peakfreeatac.models.promoter.v10 import EmbeddingToExpression
 
 # %%
 embedding_to_expression = EmbeddingToExpression(fragments.n_genes, n_embedding_dimensions = fragment_embedder.n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
@@ -194,10 +198,20 @@ expression_predicted
 # ### Whole model
 
 # %%
-from peakfreeatac.models.promoter.v7 import FragmentsToExpression
+from peakfreeatac.models.promoter.v10 import FragmentsToExpression
 
 # %%
 model = FragmentsToExpression(fragments.n_genes, mean_gene_expression)
+
+# %%
+params = [{"params":[]}]
+for param in model.get_parameters():
+    if torch.is_tensor(param):
+        params[0]["params"].append(param)
+    else:
+        params.append(param)
+
+print(len(params))
 
 # %% [markdown]
 # ## COO vs CSR

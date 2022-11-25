@@ -51,8 +51,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -68,7 +68,7 @@ fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" /
 class Prediction(pfa.flow.Flow):
     pass
 
-model_name = "v9"
+model_name = "v10"
 prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / model_name)
 
 # %%
@@ -367,12 +367,6 @@ aggscores.style.bar()
 # %%
 aggscores.style.bar()
 
-# %%
-aggscores.style.bar()
-
-# %%
-aggscores.style.bar()
-
 # %% [markdown]
 # ### Gene-specific view
 
@@ -413,7 +407,7 @@ for window_id, (window_start, window_end) in tqdm.tqdm(windows.iterrows(), total
     fragment_lengths = (fragments.coordinates[:,1] - fragments.coordinates[:,0])
     fragments_oi = ~((fragment_lengths >= window_start) & (fragment_lengths < window_end))
     
-    aggscores_window, gene_aggscores_window, _ = score_folds(coordinates, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
+    aggscores_window, gene_aggscores_window, _ = score_folds(coordinates, mapping, folds, models, fragments_oi, expression_prediction_full = expression_prediction)
 
     aggscores_window["window"] =  window_id
     gene_aggscores_window["window"] =  window_id

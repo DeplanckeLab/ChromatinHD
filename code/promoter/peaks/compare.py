@@ -43,8 +43,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -56,7 +56,7 @@ promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
 class Prediction(pfa.flow.Flow):
     pass
 
-model_name = "v7"
+model_name = "v9"
 prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / model_name)
 
 # %%
@@ -69,12 +69,13 @@ gene_scores = pd.read_pickle(prediction.path / "scoring" / "overall" / "gene_sco
 method_names = [
     # "v3",
     "v5",
+    "v9",
     # "cellranger",
     # "macs2",
-    # "macs2_linear",
-    # "cellranger_linear",
+    "macs2_linear",
+    "cellranger_linear",
     "cellranger_polynomial",
-    # "stack_linear",
+    "stack_linear",
     # "rolling_200",
     # "rolling_200_linear"
 ]
@@ -83,7 +84,7 @@ method_names = [
 scores = {}
 for method_name in method_names:
     prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / method_name)
-    if method_name in ["v5"]:
+    if method_name in ["v9", "v5"]:
         gene_aggscores = pd.read_pickle(prediction.path / "scoring" / "overall" / "gene_scores.pkl")
     else:
         gene_aggscores = pd.read_table(prediction.path / "scores.tsv", index_col = ["phase", "gene"])
@@ -101,7 +102,8 @@ transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "
 
 # %%
 method_info = pd.DataFrame([
-    ["v5", "V5 (ours)"],
+    ["v5", "Ours"],
+    ["v9", "Ours"],
     ["macs2_linear", "MACS2 + Linear"],
     ["macs2", "MACS2 + XGBoost"],
     ["cellranger_linear", "cellranger + Linear"],
