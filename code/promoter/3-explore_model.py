@@ -104,9 +104,6 @@ def explode_dataframe(df, column):
 # %%
 transcriptome_pd = pd.DataFrame(transcriptome.X.dense().cpu().numpy(), index = transcriptome.obs.index, columns = transcriptome.var.index)
 
-# %%
-transcriptome.var.index.name = "gene"
-
 
 # %%
 def score_fold(
@@ -360,6 +357,9 @@ gene_scores.to_pickle(scores_dir / "gene_scores.pkl")
 
 # %% [markdown]
 # ### Global view
+
+# %%
+aggscores.style.bar()
 
 # %%
 aggscores.style.bar()

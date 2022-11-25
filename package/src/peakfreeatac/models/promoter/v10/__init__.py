@@ -48,7 +48,7 @@ class FragmentEmbedder(torch.nn.Module):
     
     def forward(self, coordinates, gene_ix):
         embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
-        embedding = torch.einsum('ab,abc->ac', embedding, self.weight1[gene_ix])# + torch.einsum('ab,bc->ac', embedding, self.weight2)
+        embedding = torch.einsum('ab,abc->ac', embedding, self.weight1[gene_ix]) + torch.einsum('ab,bc->ac', embedding, self.weight2)
 
         return embedding
 
