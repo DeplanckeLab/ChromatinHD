@@ -41,13 +41,13 @@ import peakfreeatac.peakcounts
 import peakfreeatac.transcriptome
 
 # %%
-dataset_name = "lymphoma"
+# dataset_name = "lymphoma"
 # dataset_name = "pbmc10k"
-# dataset_name = "e18brain"
+dataset_name = "e18brain"
 
-peaks_name = "cellranger"
+# peaks_name = "cellranger"
 # peaks_name = "genrich"
-# peaks_name = "macs2"
+peaks_name = "macs2"
 # peaks_name = "stack"
 # peaks_name = "rolling_1000"; window_size = 1000
 
@@ -141,8 +141,8 @@ import peakfreeatac.prediction
 
 # %%
 # method_suffix = ""; prediction_class = peakfreeatac.prediction.PeaksGene
-method_suffix = "_linear"; prediction_class = peakfreeatac.prediction.PeaksGeneLinear
-# method_suffix = "_polynomial"; prediction_class = peakfreeatac.prediction.PeaksGenePolynomial
+# method_suffix = "_linear"; prediction_class = peakfreeatac.prediction.PeaksGeneLinear
+method_suffix = "_polynomial"; prediction_class = peakfreeatac.prediction.PeaksGenePolynomial
 
 # %%
 prediction = prediction_class(
@@ -181,6 +181,7 @@ prediction.scores = prediction.scores
 
 # %%
 # !ls {prediction.path}
+prediction.path
 
 # %%
 gene_scores["mse_diff"].unstack().T.sort_values("validation").plot()

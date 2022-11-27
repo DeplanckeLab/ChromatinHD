@@ -1,5 +1,4 @@
 """
-Fragment embedder which uses 
 - a positional encoding per fragment
 - summarizes the encoding using a linear layer to 1 dimension
 - summation over cellxgene
@@ -54,7 +53,7 @@ class EmbeddingGenePooler(torch.nn.Module):
         if self.debug:
             assert (torch.diff(fragment_cellxgene_ix) >= 0).all(), "fragment_cellxgene_ix should be sorted"
         cellxgene_embedding = torch_scatter.segment_sum_coo(embedding, fragment_cellxgene_ix, dim_size = cell_n * gene_n)
-        cell_gene_embedding = cellxgene_embedding.reshape((cell_n, gene_n))
+        cell_gene_embedding = cellxgene_embedding.reshape((cell_n, gene_n, cellxgene_embedding.shape[-1]))
         return cell_gene_embedding
     
 class EmbeddingToExpression(torch.nn.Module):
@@ -71,7 +70,7 @@ class EmbeddingToExpression(torch.nn.Module):
         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
         
     def forward(self, cell_gene_embedding, gene_ix):
-        return cell_gene_embedding + self.bias1[gene_ix]
+        return cell_gene_embedding.mean(-1) + self.bias1[gene_ix]
     
 class FragmentsToExpression(torch.nn.Module):
     """

@@ -40,8 +40,7 @@ setuptools.setup(
         "torch-scatter" # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
         "scanpy",
         "seaborn",
-        "pybedtools",
-        ""
+        "pybedtools"
     ],
     extras_require={
         "full": [],
@@ -52,6 +51,7 @@ setuptools.setup(
             "black",
             "pylint",
             "jupytext",
+            "pytest"
         ],
     },
 )

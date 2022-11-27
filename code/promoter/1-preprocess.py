@@ -45,8 +45,8 @@ import peakfreeatac as pfa
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-# dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
-dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
+dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
+# dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
 
 folder_data_preproc = folder_data / dataset_name
@@ -63,6 +63,12 @@ elif organism == "hs":
 # %% [markdown]
 # For an overview on the output data format, see:
 # https://support.10xgenomics.com/single-cell-atac/software/pipelines/latest/algorithms/overview
+
+# %%
+# ! echo mkdir {folder_data_preproc}
+# ! echo mkdir {folder_data_preproc}/bam
+
+# %%
 
 # %%
 # # ! wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
@@ -189,6 +195,28 @@ adata = adata[:, all_gene_ids]
 adata.var_names_make_unique()
 
 # %%
+print(adata.obs.shape[0])
+sc.pp.filter_cells(adata, min_counts = 1000)
+print(adata.obs.shape[0])
+sc.pp.filter_cells(adata, min_genes= 200)
+print(adata.obs.shape[0])
+sc.pp.filter_genes(adata, min_cells=3)
+print(adata.var.shape[0])
+
+# %%
+sc.external.pp.scrublet(adata)
+
+# %%
+adata.obs["doublet_score"].plot(kind = "hist")
+
+# %%
+adata.obs["doublet"] = (adata.obs["doublet_score"] > 0.1).astype("category")
+
+print(adata.obs.shape[0])
+adata = adata[~adata.obs["doublet"].astype(bool)]
+print(adata.obs.shape[0])
+
+# %%
 sc.pp.normalize_per_cell(adata)
 
 # %%
@@ -201,14 +229,18 @@ sc.pp.pca(adata)
 sc.pp.highly_variable_genes(adata)
 
 # %%
-adata = adata[:, adata.var["dispersions_norm"].sort_values(ascending = False)[:5000].index]
+adata.var["n_cells"] = np.array((adata.X > 0).sum(0))[0]
+
+# %%
+# adata = adata[:, adata.var["dispersions_norm"].sort_values(ascending = False)[:5000].index]
+print(adata.var.shape[0])
+adata = adata[:, adata.var.query("n_cells > 100")["dispersions_norm"].sort_values(ascending = False)[:5000].index]
+print(adata.var.shape[0])
 
 all_gene_ids = adata.var.index
 
 # %%
 sc.pp.neighbors(adata)
-
-# %%
 sc.tl.umap(adata)
 
 # %%
@@ -217,10 +249,143 @@ transcriptome.var = adata.var
 transcriptome.obs = adata.obs
 
 # %%
-sc.pl.umap(adata, color=adata.var.sort_values("dispersions_norm", ascending = False).index[:5])
+transcriptome.create_X()
+
+# %%
+fig, ax = plt.subplots()
+sns.scatterplot(
+    adata.var,
+    x = "means", y = "dispersions_norm"
+)
+ax.set_xscale("log")
+
+# %%
+# adata.var['mt'] = adata.var["symbol"].str.startswith('MT')  # annotate the group of mitochondrial genes as 'mt'
+# sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+
+# %%
+genes_oi = adata.var.sort_values("dispersions_norm", ascending = False).index[:10]
+sc.pl.umap(adata, color=genes_oi, title = transcriptome.symbol(genes_oi))
+
+# %%
+# genes_oi = transcriptome.gene_id(["LEF1"])
+sc.pl.umap(adata, color=genes_oi, title = transcriptome.symbol(genes_oi))
 
 # %%
 adata.var.query("dispersions_norm > 0.5").index.to_series().to_json((transcriptome.path / "variable_genes.json").open("w"))
+
+# %%
+sc.tl.leiden(adata)
+
+# %% [markdown]
+# ### Interpret PBMC10K
+
+# %%
+sc.tl.rank_genes_groups(adata, 'leiden', method='t-test')
+# sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, gene_symbols = "symbol")
+
+# %%
+import io
+
+# %%
+marker_annotation = pd.read_table(io.StringIO("""ix	symbols	celltype
+0	IL7R, CD3D	CD4 T cells
+1	CD14, LYZ	CD14+ Monocytes
+2	MS4A1	B cells
+3	CD8A, CD3D	CD8 T cells
+4	GNLY, NKG7	NK cells
+4	GNLY, NKG7, CD3D, CCL5	 NKT cells
+5	FCGR3A, MS4A7	FCGR3A+ Monocytes
+5	IGLC2, CD27	Plasma cells
+6	TCF4	pDCs
+6	FCER1A, CST3	cDCs
+""")).set_index("celltype")
+marker_annotation["symbols"] = marker_annotation["symbols"].str.split(", ")
+# marker_annotation = marker_annotation.explode("symbols")
+
+# %%
+#Define cluster score for all markers
+def evaluate_partition(anndata, marker_dict, gene_symbol_key=None, partition_key='louvain_r1'):
+    # Inputs:
+    #    anndata         - An AnnData object containing the data set and a partition
+    #    marker_dict     - A dictionary with cell-type markers. The markers should be stores as anndata.var_names or 
+    #                      an anndata.var field with the key given by the gene_symbol_key input
+    #    gene_symbol_key - The key for the anndata.var field with gene IDs or names that correspond to the marker 
+    #                      genes
+    #    partition_key   - The key for the anndata.obs field where the cluster IDs are stored. The default is
+    #                      'louvain_r1' 
+
+    #Test inputs
+    if partition_key not in anndata.obs.columns.values:
+        print('KeyError: The partition key was not found in the passed AnnData object.')
+        print('   Have you done the clustering? If so, please tell pass the cluster IDs with the AnnData object!')
+        raise
+
+    if (gene_symbol_key != None) and (gene_symbol_key not in anndata.var.columns.values):
+        print('KeyError: The provided gene symbol key was not found in the passed AnnData object.')
+        print('   Check that your cell type markers are given in a format that your anndata object knows!')
+        raise
+        
+
+    if gene_symbol_key:
+        gene_ids = anndata.var[gene_symbol_key]
+    else:
+        gene_ids = anndata.var_names
+
+    clusters = np.unique(anndata.obs[partition_key])
+    n_clust = len(clusters)
+    n_groups = len(marker_dict)
+    
+    marker_res = np.zeros((n_groups, n_clust))
+    z_scores = sc.pp.scale(anndata, copy=True)
+
+    i = 0
+    for group in marker_dict:
+        # Find the corresponding columns and get their mean expression in the cluster
+        j = 0
+        for clust in clusters:
+            cluster_cells = np.in1d(z_scores.obs[partition_key], clust)
+            marker_genes = np.in1d(gene_ids, marker_dict[group])
+            marker_res[i,j] = z_scores.X[np.ix_(cluster_cells,marker_genes)].mean()
+            j += 1
+        i+=1
+
+    variances = np.nanvar(marker_res, axis=0)
+    if np.all(np.isnan(variances)):
+        print("No variances could be computed, check if your cell markers are in the data set.")
+        print("Maybe the cell marker IDs do not correspond to your gene_symbol_key input or the var_names")
+        raise
+
+    marker_res_df = pd.DataFrame(marker_res, columns=clusters, index=marker_dict.keys())
+
+    #Return the median of the variances over the clusters
+    return(marker_res_df)
+
+# %%
+cluster_celltypes = evaluate_partition(adata, marker_annotation["symbols"].to_dict(), "symbol", partition_key="leiden").idxmax()
+
+# %%
+adata.obs["celltype"] = cluster_celltypes[adata.obs["leiden"]].values
+adata.obs["celltype"] = adata.obs["celltype"].astype(str)
+adata.obs.loc[adata.obs["leiden"] == "4", "celltype"] = "NKT"
+
+# %%
+# transcriptome.adata.obs["log_n_counts"] = np.log(transcriptome.adata.obs["n_counts"])
+
+# %%
+sc.pl.umap(
+    adata,
+    color = ["celltype", "log_n_counts", "leiden"]
+)
+sc.pl.umap(
+    adata,
+    color = transcriptome.gene_id(marker_annotation["symbols"].explode()),
+    title = marker_annotation["symbols"].explode()
+)
+
+# %%
+transcriptome.obs = adata.obs
+transcriptome.adata = adata
 
 # %% [markdown]
 # ## Create windows
@@ -236,6 +401,10 @@ fragments_tabix = tabix.open(str(folder_data_preproc / "atac_fragments.tsv.gz"))
 
 # %% [markdown]
 # #### Define promoters
+
+# %%
+promoter_name, (padding_negative, padding_positive) = "4k2k", (2000, 4000)
+promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
 
 # %%
 import pybedtools
@@ -254,10 +423,6 @@ promoters["negative_strand"] = (promoters["strand"] == -1).astype(int)
 promoters["chr"] = genes.loc[promoters.index, "chr"]
 
 # %%
-promoter_name, (padding_negative, padding_positive) = "4k2k", (2000, 4000)
-promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
-
-# %%
 promoters["start"] = promoters["tss"] - padding_negative * promoters["positive_strand"] - padding_positive * promoters["negative_strand"]
 promoters["end"] = promoters["tss"] + padding_negative * promoters["negative_strand"] + padding_positive * promoters["positive_strand"]
 
@@ -272,6 +437,11 @@ promoters.to_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"))
 
 # %% [markdown]
 # #### Create fragments
+
+# %%
+import pathlib
+import peakfreeatac.fragments
+fragments = pfa.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 var = pd.DataFrame(index = promoters.index)
@@ -296,7 +466,7 @@ cell_to_fragments = [[] for i in obs["ix"]]
 fragments_raw = []
 fragment_mappings_raw = []
 
-for i, (gene, promoter_info) in tqdm.tqdm(enumerate(promoters.iterrows())):
+for i, (gene, promoter_info) in tqdm.tqdm(enumerate(promoters.iterrows()), total = promoters.shape[0]):
     gene_ix = var.loc[gene, "ix"]
     fragments_promoter = fragments_tabix.query(*promoter_info[["chr", "start", "end"]])
     
@@ -316,11 +486,6 @@ for i, (gene, promoter_info) in tqdm.tqdm(enumerate(promoters.iterrows())):
                 cell_to_cell_ix[fragment[3]],
                 gene_ix
             ])
-
-# %%
-import pathlib
-import peakfreeatac.fragments
-fragments = pfa.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 fragments.var = var
@@ -355,9 +520,15 @@ np.product(mapping.size()) * 64 / 8 / 1024 / 1024
 # %%
 np.product(coordinates.size()) * 32 / 8 / 1024 / 1024
 
+# %% [markdown]
+# Store
+
 # %%
 fragments.mapping = mapping
 fragments.coordinates = coordinates
+
+# %% [markdown]
+# Create cell -> fragment mapping
 
 # %%
 fragments.create_cell_fragment_mapping()
@@ -368,12 +539,36 @@ fragments.create_cell_fragment_mapping()
 # %% [markdown]
 # Splits up the fragments into "splits" for training, and precalculates several elements that a model can use:
 # - `fragments_cellxgene_idx`, the cellxgene index locally, i.e. for the chosen cells and genes
-# - (soon?) `fragment_count_mapping`: a dictionary with k:# fragments and v:fragments for which the cellxgene contains k number of fragments
+# - `fragment_count_mapping`: a dictionary with k:# fragments and v:fragments for which the cellxgene contains k number of fragments
 
 # %%
 folds = pfa.fragments.Folds(fragments.n_cells, fragments.n_genes, 1000, 5000, n_folds = 5)
 folds.populate(fragments)
+
+# %% [markdown]
+# Create mapping between # of fragments per cellxgene
+
+# %%
+# save
 pfa.save(folds, open(fragments.path / "folds.pkl", "wb"))
+
+# %%
+# !ls -lh {fragments.path}
+
+# %% [markdown]
+# Split across genes too
+
+# %%
+folds = pfa.fragments.FoldsDouble(fragments.n_cells, fragments.n_genes, 1000, n_folds = 1, perc_train = 4/5)
+folds.populate(fragments)
+
+# %%
+folds[0].plot()
+None
+
+# %%
+# save
+pfa.save(folds, open(fragments.path / "folds2.pkl", "wb"))
 
 # %% [markdown]
 # ### Create windows around genes

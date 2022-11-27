@@ -74,6 +74,9 @@ fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" /
 import torch_scatter
 import torch
 
+# %%
+folds = pickle.load(open(fragments.path / "folds.pkl", "rb"))
+
 # %% [markdown]
 # ## Single example
 
@@ -110,18 +113,33 @@ split.populate(fragments)
 
 # %%
 from peakfreeatac.models.promoter.v1 import FragmentEmbedderCounter
-from peakfreeatac.models.promoter.v10 import FragmentEmbedder
+from peakfreeatac.models.promoter.v5 import FragmentEmbedder
 
 # %%
 # fragment_embedder = FragmentEmbedder()
-fragment_embedder = FragmentEmbedder(fragments.n_genes)
+fragment_embedder = FragmentEmbedder()
 # fragment_embedder = FragmentEmbedderCounter()
 
 # %%
 coordinates = torch.stack([torch.arange(-padding_negative, padding_positive - 200, 200), torch.arange(-padding_negative + 200, padding_positive, 200)], -1)
 global_gene_ix = torch.zeros((coordinates.shape[0], ), dtype = torch.long)
-# fragment_embedding = fragment_embedder(coordinates)
-fragment_embedding = fragment_embedder(coordinates, global_gene_ix)
+fragment_embedding = fragment_embedder(coordinates)
+# fragment_embedding = fragment_embedder(coordinates, global_gene_ix)
+# fragment_embedding = fragment_embedder(coordinates, global_gene_ix, {2:[]})
+
+# %%
+d = 20
+k = torch.arange(20)
+
+# %%
+1/(10000)**(2 * k / d)
+
+# %%
+n_frequencies = 20
+torch.tensor([[1 / 100**(2 * i/n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
+
+# %%
+fragment_embedder.frequencies
 
 # %%
 if fragment_embedding.ndim == 1:
@@ -143,9 +161,18 @@ pd.Series(counts).plot(kind = "hist", range = (0, 10), bins = 10)
 fragment_embedding = fragment_embedder(fragments.coordinates[split.fragments_selected], fragments.mapping[split.fragments_selected, 1])
 
 # %%
-cellxgene_idxs = torch.tensor(counts.index[counts == 2])
-x = fragment_embedding[torch.isin(split.fragment_cellxgene_ix, cellxgene_idxs)]
-x = x.reshape((x.shape[0]//2, 2, x.shape[1]))
+cellxgene_idxs = split.count_mapper[2]
+x_stacked = fragment_embedding[cellxgene_idxs]
+x = x.reshape((x_stacked.shape[0]//2, 2, *x_stacked.shape[1:]))
+
+
+# %%
+def self_attention(x):
+    dotproduct = torch.matmul(x, x.transpose(-1, -2))
+    weights = torch.nn.functional.softmax(dotproduct, -1)
+    y = torch.matmul(weights, x)
+    return y
+
 
 # %%
 dotproduct = torch.matmul(x, x.transpose(-1, -2))
@@ -158,7 +185,10 @@ y = torch.matmul(weights, x)
 idx = 0
 fig, ax = plt.subplots()
 ax.set_aspect(1)
-plt.scatter(x[idx][0].detach().numpy(), y[idx][0].detach().numpy())
+plt.scatter(x[idx][1].detach().numpy(), y[idx][1].detach().numpy())
+
+# %%
+y.reshape(x_stacked.shape).shape
 
 # %% [markdown]
 # ### Pool fragments

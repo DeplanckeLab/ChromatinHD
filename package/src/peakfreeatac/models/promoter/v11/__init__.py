@@ -1,39 +1,48 @@
+"""
+- a positional encoding per fragment
+- summarizes the encoding using a linear layer to 3 dimensions
+- relu over the (gene-specific) fragment embedding
+- summation over cellxgene
+- summation over the component
+- gene expression by adding an intercept
+
+Intuitively, for each gene, a fragment at a particular position has a positive or negative impact on expression
+This effect is simply summed, without any interactions between positions
+"""
+
+
 import torch
 import torch_scatter
 import math
-import numpy as np
-import dataclasses
-import functools
+import itertools
 
 class FragmentEmbedder(torch.nn.Module):
-    def __init__(self, n_frequencies = 20, **kwargs):
-        self.n_embedding_dimensions = n_frequencies * 2 * 2
+    def __init__(self, n_genes, n_frequencies = 20, **kwargs):
+        self.n_positional_dimensions = n_frequencies * 2 * 2
+        self.n_embedding_dimensions = 3
         
         super().__init__(**kwargs)
 
         self.register_buffer(
             "frequencies",
-            torch.tensor([[1 / 100**(2 * i/n_frequencies)] * 2 for i in range(n_frequencies)]).flatten(-2)
-            # torch.tensor([[1 / 100**(2 * i/n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
+            torch.tensor([[1 / 100**(2 * i/n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
             # torch.tensor([[i * 2 * torch.pi / 6000] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
         )
-        print(self.frequencies.shape)
         self.register_buffer(
             "shifts",
             torch.tensor([[0, torch.pi/2] for i in range(1, n_frequencies + 1)]).flatten(-2)
         )
+
+        # default initialization same as a torch.nn.Linear
+        self.weight1 = torch.nn.Parameter(torch.empty((n_genes, self.n_positional_dimensions, self.n_embedding_dimensions), requires_grad = True))
+        stdv = 1. / math.sqrt(self.weight1.size(-1)) / 100
+        self.weight1.data.uniform_(-stdv, stdv)
     
-    def forward(self, coordinates):
-        # embedding = torch.cat(
-        #     [torch.sin((coordinates[..., None] * self.frequencies).flatten(-2, -1)), 
-        #     torch.cos((coordinates[..., None] * self.frequencies).flatten(-2, -1))
-        # ], dim = -1)
+    def forward(self, coordinates, gene_ix):
         embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
-        # embedding = torch.nn.functional.dropout(embedding, 0.5)
-        # embedding = torch.cat([
-        #     torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2)),
-        #     (coordinates[..., [1]] - coordinates[..., [0]]) / 3000
-        # ], -1)
+        embedding = torch.einsum('ab,abc->ac', embedding, self.weight1[gene_ix])
+        embedding = torch.relu(embedding)
+
         return embedding
     
 class EmbeddingGenePooler(torch.nn.Module):
@@ -61,24 +70,11 @@ class EmbeddingToExpression(torch.nn.Module):
         
         super().__init__()
         
-        # default initialization same as a torch.nn.Linear
-        self.weight1 = torch.nn.Parameter(torch.empty((n_genes, n_embedding_dimensions), requires_grad = True))
-        # stdv = 1. / math.sqrt(self.weight1.size(1)) / 100
-        # self.weight1.data.uniform_(-stdv, stdv)
-        self.weight1.data.zero_()
-        
         # set bias to empirical mean
         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
         
     def forward(self, cell_gene_embedding, gene_ix):
-        return torch.einsum('abc,bc->ab', cell_gene_embedding, self.weight1[gene_ix]) + self.bias1[gene_ix]
-    
-class EmbeddingToExpressionBias(EmbeddingToExpression):
-    """
-    Dummy method for predicting the gene expression using a [cell, gene, component] embedding, by only including the bias
-    """
-    def forward(self, cell_gene_embedding, gene_ix):
-        return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_ix])
+        return cell_gene_embedding.sum(-1) + self.bias1[gene_ix]
     
 class FragmentsToExpression(torch.nn.Module):
     """
@@ -95,7 +91,8 @@ class FragmentsToExpression(torch.nn.Module):
         super().__init__()
         
         self.fragment_embedder = FragmentEmbedder(
-            n_frequencies = n_frequencies
+            n_frequencies = n_frequencies,
+            n_genes = n_genes
         )
         self.embedding_gene_pooler = EmbeddingGenePooler(debug = debug)
         self.embedding_to_expression = EmbeddingToExpression(
@@ -113,7 +110,32 @@ class FragmentsToExpression(torch.nn.Module):
         gene_n,
         gene_ix
     ):
-        fragment_embedding = self.fragment_embedder(fragment_coordinates)
+        fragment_embedding = self.fragment_embedder(fragment_coordinates, fragment_gene_ix)
         cell_gene_embedding = self.embedding_gene_pooler(fragment_embedding, fragment_cellxgene_ix, cell_n, gene_n)
         expression_predicted = self.embedding_to_expression(cell_gene_embedding, gene_ix)
         return expression_predicted
+
+    def forward2(
+        self,
+        split,
+        coordinates,
+        mapping,
+        fragments_oi = None
+    ):
+        if fragments_oi is None:
+            fragments_oi = torch.tensor([True] * split.fragments_selected.sum(), device = coordinates.device)
+        return self.forward(
+            coordinates[split.fragments_selected][fragments_oi],
+            split.fragment_cellxgene_ix[fragments_oi],
+            mapping[split.fragments_selected, 1][fragments_oi],
+            split.cell_n,
+            split.gene_n,
+            split.gene_ix
+        )
+
+    def get_parameters(self):
+        return itertools.chain(
+            self.fragment_embedder.parameters(),
+            self.embedding_gene_pooler.parameters(),
+            self.embedding_to_expression.parameters()
+        )

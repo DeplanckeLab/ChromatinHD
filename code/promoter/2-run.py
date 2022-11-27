@@ -22,8 +22,8 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -35,7 +35,7 @@ fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" /
 
 mean_gene_expression = transcriptome.X.dense().mean(0)
 
-
+print(fragments.path)
 folds = pickle.load(open(fragments.path / "folds.pkl", "rb"))
 
 
@@ -43,7 +43,9 @@ folds = pickle.load(open(fragments.path / "folds.pkl", "rb"))
 from peakfreeatac.models.promoter.v5 import FragmentsToExpression; model_name = "v5"
 from peakfreeatac.models.promoter.v7 import FragmentsToExpression; model_name = "v7"
 from peakfreeatac.models.promoter.v8 import FragmentsToExpression; model_name = "v8"
-from peakfreeatac.models.promoter.v10 import FragmentsToExpression; model_name = "v10"
+# from peakfreeatac.models.promoter.v11 import FragmentsToExpression; model_name = "v11"
+from peakfreeatac.models.promoter.v12 import FragmentsToExpression; model_name = "v12"
+# from peakfreeatac.models.promoter.v13 import FragmentsToExpression; model_name = "v13"
 # from peakfreeatac.models.promoter.v3 import FragmentsToExpression; model_name = "v3"
 
 
@@ -62,10 +64,11 @@ for i in range(len(folds)):
     models.append(model)
     
     
-n_steps = 1000
+n_steps = 200
 trace_epoch_every = 10
 
-lr = 1.0
+# lr = 1.0
+lr = 1e-3
 
 # choose which models to infer
 # model_ixs = [0, 1, 2, 3, 4]
@@ -83,7 +86,8 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
 
     optim = torch.optim.SGD(
         params,
-        lr = lr
+        lr = lr,
+        momentum=0.9
     )
     loss = torch.nn.MSELoss(reduction = "mean")
     
@@ -103,13 +107,10 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
             mse_train = []
             for split in itertools.chain(splits_training, splits_test):
                 with torch.no_grad():
-                    expression_predicted = model(
-                        coordinates[split.fragments_selected],
-                        split.fragment_cellxgene_ix,
-                        mapping[split.fragments_selected, 1],
-                        split.cell_n,
-                        split.gene_n,
-                        split.gene_ix
+                    expression_predicted = model.forward2(
+                        split,
+                        coordinates,
+                        mapping,
                     )
                     
                     transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
@@ -135,6 +136,9 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
             
             if prev_mse_test is not None:
                 text += f" Δ{prev_mse_test-mse_test:.1e}"
+
+                if prev_mse_test-mse_test < 0:
+                    break
                 
             prev_mse_test = mse_test
             
@@ -148,28 +152,24 @@ for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_
 
         # train
         for split in splits_training:
-            expression_predicted = model(
-                coordinates[split.fragments_selected],
-                split.fragment_cellxgene_ix,
-                mapping[split.fragments_selected, 1],
-                split.cell_n,
-                split.gene_n,
-                split.gene_ix
+            expression_predicted = model.forward2(
+                split,
+                coordinates,
+                mapping,
             )
 
             # transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
             transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
 
-            mse = loss(expression_predicted, transcriptome_subset)
+            mse = loss(expression_predicted, transcriptome_subset) * 1000
 
             mse.backward()
+        
             optim.step()
             optim.zero_grad()
 
         # reshuffle the order of the splits
         splits_training = [splits_training[i] for i in np.random.choice(len(splits_training), len(splits_training), replace = False)]
-            
-            
             
 if isinstance(trace, list):
     trace = pd.DataFrame(list(trace))

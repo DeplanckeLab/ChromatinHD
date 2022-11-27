@@ -3,38 +3,18 @@ import torch_scatter
 import math
 import numpy as np
 import dataclasses
-import functools
+import itertools
 
-class FragmentEmbedder(torch.nn.Module):
-    def __init__(self, n_frequencies = 20, **kwargs):
-        self.n_embedding_dimensions = n_frequencies * 2 * 2
+class FragmentEmbedder(torch.nn.Sequential):
+    """
+    Dummy embedding of fragments in a single embedding dimension of ones
+    """
+    def __init__(self, *args, **kwargs):
+        self.n_embedding_dimensions = 1
+        super().__init__(*args, **kwargs)
         
-        super().__init__(**kwargs)
-
-        self.register_buffer(
-            "frequencies",
-            torch.tensor([[1 / 100**(2 * i/n_frequencies)] * 2 for i in range(n_frequencies)]).flatten(-2)
-            # torch.tensor([[1 / 100**(2 * i/n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
-            # torch.tensor([[i * 2 * torch.pi / 6000] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
-        )
-        print(self.frequencies.shape)
-        self.register_buffer(
-            "shifts",
-            torch.tensor([[0, torch.pi/2] for i in range(1, n_frequencies + 1)]).flatten(-2)
-        )
-    
     def forward(self, coordinates):
-        # embedding = torch.cat(
-        #     [torch.sin((coordinates[..., None] * self.frequencies).flatten(-2, -1)), 
-        #     torch.cos((coordinates[..., None] * self.frequencies).flatten(-2, -1))
-        # ], dim = -1)
-        embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
-        # embedding = torch.nn.functional.dropout(embedding, 0.5)
-        # embedding = torch.cat([
-        #     torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2)),
-        #     (coordinates[..., [1]] - coordinates[..., [0]]) / 3000
-        # ], -1)
-        return embedding
+        return torch.ones((*coordinates.shape[:-1], 1), device = coordinates.device, dtype = torch.float)
     
 class EmbeddingGenePooler(torch.nn.Module):
     """
@@ -71,14 +51,7 @@ class EmbeddingToExpression(torch.nn.Module):
         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
         
     def forward(self, cell_gene_embedding, gene_ix):
-        return torch.einsum('abc,bc->ab', cell_gene_embedding, self.weight1[gene_ix]) + self.bias1[gene_ix]
-    
-class EmbeddingToExpressionBias(EmbeddingToExpression):
-    """
-    Dummy method for predicting the gene expression using a [cell, gene, component] embedding, by only including the bias
-    """
-    def forward(self, cell_gene_embedding, gene_ix):
-        return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_ix])
+        return (cell_gene_embedding * self.weight1[gene_ix]).sum(-1) + self.bias1[gene_ix]
     
 class FragmentsToExpression(torch.nn.Module):
     """
@@ -94,9 +67,7 @@ class FragmentsToExpression(torch.nn.Module):
     ):
         super().__init__()
         
-        self.fragment_embedder = FragmentEmbedder(
-            n_frequencies = n_frequencies
-        )
+        self.fragment_embedder = FragmentEmbedder()
         self.embedding_gene_pooler = EmbeddingGenePooler(debug = debug)
         self.embedding_to_expression = EmbeddingToExpression(
             n_genes = n_genes,
@@ -117,3 +88,37 @@ class FragmentsToExpression(torch.nn.Module):
         cell_gene_embedding = self.embedding_gene_pooler(fragment_embedding, fragment_cellxgene_ix, cell_n, gene_n)
         expression_predicted = self.embedding_to_expression(cell_gene_embedding, gene_ix)
         return expression_predicted
+
+    def forward2(
+        self,
+        split,
+        coordinates,
+        mapping,
+        fragments_oi = None
+    ):
+        if fragments_oi is not None:
+            return self.forward(
+                coordinates[split.fragments_selected][fragments_oi],
+                split.fragment_cellxgene_ix[fragments_oi],
+                mapping[split.fragments_selected, 1][fragments_oi],
+                split.cell_n,
+                split.gene_n,
+                split.gene_ix,
+            )
+        else:
+            return self.forward(
+                coordinates[split.fragments_selected],
+                split.fragment_cellxgene_ix,
+                mapping[split.fragments_selected, 1],
+                split.cell_n,
+                split.gene_n,
+                split.gene_ix
+            )
+
+
+    def get_parameters(self):
+        return itertools.chain(
+            self.fragment_embedder.parameters(),
+            self.embedding_gene_pooler.parameters(),
+            self.embedding_to_expression.parameters()
+        )

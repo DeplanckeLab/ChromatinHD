@@ -12,6 +12,7 @@ This effect is simply summed, without any interactions between positions
 import torch
 import torch_scatter
 import math
+import itertools
 
 class FragmentEmbedder(torch.nn.Module):
     def __init__(self, n_genes, n_frequencies = 20, **kwargs):
@@ -110,3 +111,10 @@ class FragmentsToExpression(torch.nn.Module):
         cell_gene_embedding = self.embedding_gene_pooler(fragment_embedding, fragment_cellxgene_ix, cell_n, gene_n)
         expression_predicted = self.embedding_to_expression(cell_gene_embedding, gene_ix)
         return expression_predicted
+
+    def get_parameters(self):
+        return itertools.chain(
+            self.fragment_embedder.parameters(),
+            self.embedding_gene_pooler.parameters(),
+            self.embedding_to_expression.parameters()
+        )

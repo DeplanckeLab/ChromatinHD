@@ -38,8 +38,8 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
-# dataset_name = "e18brain"
+# dataset_name = "pbmc10k"
+dataset_name = "e18brain"
 
 folder_data_preproc = folder_data / dataset_name
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
@@ -108,10 +108,16 @@ peaks_folder.mkdir(exist_ok = True, parents = True)
 # !ls {peaks_folder}
 
 # %%
-# !echo 'cd {folder_data_preproc}/bam/{peaks_folder} && macs2 callpeak -t atac_possorted_bam.bam -f BAMPE'
+peaks_folder
 
 # %%
 # !echo 'mkdir -p {peaks_folder}'
+
+# %%
+# !echo 'ls {folder_data_preproc}'
+
+# %%
+# !echo 'cd {peaks_folder} && macs2 callpeak -t atac_possorted_bam.bam -f BAMPE'
 
 # %%
 # !echo 'ls {folder_data_preproc}/bam'
