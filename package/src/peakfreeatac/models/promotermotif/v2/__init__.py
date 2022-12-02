@@ -14,13 +14,10 @@ class EmbeddingGenePooler(torch.nn.Module):
     def __init__(self, n_components, debug = False):
         self.debug = debug
         super().__init__()
-
-        # self.batchnorm = torch.nn.BatchNorm1d(n_components)
     
     def forward(self, embedding, fragment_cellxgene_ix, cell_n, gene_n):
         if self.debug:
             assert (torch.diff(fragment_cellxgene_ix) >= 0).all(), "fragment_cellxgene_ix should be sorted"
-        # embedding = self.batchnorm(embedding)
         cellxgene_embedding = torch_scatter.segment_sum_coo(embedding, fragment_cellxgene_ix, dim_size = cell_n * gene_n)
         cell_gene_embedding = cellxgene_embedding.reshape((cell_n, gene_n, cellxgene_embedding.shape[-1]))
         return cell_gene_embedding
@@ -40,14 +37,25 @@ class EmbeddingToExpression(torch.nn.Module):
         self.bias_normal = mean_gene_expression.clone().detach().to("cpu")
         self.bias1 = torch.nn.Parameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = True)
 
-        if not self.dummy:
-            self.weight1 = torch.nn.Parameter(torch.ones((n_components, ), requires_grad = True))
-            self.weight1.data.zero_()
+        self.directnn = torch.nn.Linear(n_components, 1, bias = False)
+        self.directnn.weight.data /= 100
+
+        self.nn = torch.nn.Sequential(
+            torch.nn.Linear(n_components, n_components, bias = False),
+            torch.nn.ReLU(),
+            torch.nn.Linear(n_components, 1, bias = False),
+        )
+        self.nn[2].weight.data /= 100
         
     def forward(self, cell_gene_embedding, gene_ix):
-        if not self.dummy:
-            return (cell_gene_embedding * self.weight1).sum(-1) + self.bias1[gene_ix]
-        return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_ix])
+        if self.dummy:
+            return (torch.ones((cell_gene_embedding.shape[0], 1), device = cell_gene_embedding.device) * self.bias1[gene_ix])
+        return self.directnn(cell_gene_embedding).sum(-1) + self.nn(cell_gene_embedding).sum(-1) + self.bias1[gene_ix]
+        
+
+    @property
+    def linear_weight(self):
+        return self.directnn.weight
         
     
 class FragmentEmbeddingToExpression(torch.nn.Module):
