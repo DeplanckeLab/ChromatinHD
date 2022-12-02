@@ -1,9 +1,5 @@
 import torch
 import torch_scatter
-import math
-import numpy as np
-import dataclasses
-import functools
 
 class FragmentEmbedder(torch.nn.Module):
     def __init__(self, n_frequencies = 20, **kwargs):
