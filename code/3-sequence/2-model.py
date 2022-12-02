@@ -167,11 +167,10 @@ import Cython
 # %load_ext cython
 
 # %%
-import pyximport; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
-import peakfreeatac.loaders.motifs
-if "peakfreeatac.loaders.motifs" in sys.modules:
-    del sys.modules['peakfreeatac.loaders.motifs']
-import peakfreeatac.loaders.motifs
+import pyximport; import sys; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
+if "peakfreeatac.loaders.extraction.motifs" in sys.modules:
+    del sys.modules['peakfreeatac.loaders.extraction.motifs']
+import peakfreeatac.loaders.extraction.motifs
 
 # %%
 cutwindow = np.array([-150, 150])
@@ -207,7 +206,7 @@ out_distance = torch.from_numpy(np.zeros(buffer_size, dtype = int)).numpy()
 out_motifcounts = torch.from_numpy(np.ascontiguousarray(np.zeros((n_fragments, n_motifs), dtype = int))).numpy()
 
 # %%
-out_n = pfa.loaders.motifs.extract_all(
+out_n = pfa.loaders.extraction.motifs.extract_all(
     coordinates,
     genemapping,
     motifscores_indptr,
@@ -297,10 +296,18 @@ onehot = create_onehot(seq[site_start:site_end])
 # ![](https://www.frontiersin.org/files/Articles/437612/fimmu-10-01176-HTML/image_m/fimmu-10-01176-g001.jpg)
 
 # %%
+nucleotides = pd.DataFrame({"nucleotide":np.arange(4), "label":["A", "C", "G", "T"]})
+nucleotides["color"] = sns.color_palette(n_colors = 4)
+
+# %%
 fig, (ax_score, ax_onehot, ax_pwm, ax_onehotrev, ax_scorerev) = plt.subplots(5, 1, figsize = (3, 4), sharex = True)
 
 ntscores = pwm.flatten()[onehot.flatten().to(bool)]
 ax_score.fill_between(np.arange(onehot.shape[0]), ntscores, color = "#55555533")
+for (nucleotide, x), y in pd.DataFrame(pwm).unstack().items():
+    s = nucleotides.loc[nucleotide, "label"]
+    c = nucleotides.loc[nucleotide, "color"]
+    ax_score.text(x, y, s, ha = "center", va = "center", color = c, alpha = 0.3)
 for x, y, s, c in zip(np.arange(onehot.shape[0]), ntscores, np.array(["A", "C", "G", "T"])[onehot.argmax(1)], np.array(sns.color_palette(n_colors = 4))[onehot.argmax(1)]):
     ax_score.text(x, y, s, ha = "center", va = "center", color = "white", path_effects = [mpl.patheffects.Stroke(linewidth = 2, foreground = c), mpl.patheffects.Normal()])
 
@@ -315,6 +322,10 @@ ntscores = pwm.flatten()[onehot_rev.flatten().astype(bool)]
 ax_scorerev.fill_between(np.arange(onehot.shape[0]), ntscores, color = "#55555533")
 for x, y, s, c in zip(np.arange(onehot.shape[0]), ntscores, np.array(["A", "C", "G", "T"])[onehot_rev.argmax(1)], np.array(sns.color_palette(n_colors = 4))[onehot_rev.argmax(1)]):
     ax_scorerev.text(x, y, s, ha = "center", va = "center", color = "white", path_effects = [mpl.patheffects.Stroke(linewidth = 2, foreground = c), mpl.patheffects.Normal()])
+for (nucleotide, x), y in pd.DataFrame(pwm.numpy()[::-1, [3, 2, 1, 0]]).unstack().items():
+    s = nucleotides.loc[nucleotide, "label"]
+    c = nucleotides.loc[nucleotide, "color"]
+    ax_scorerev.text(x, y, s, ha = "center", va = "center", color = c, alpha = 0.3)
 
 # %%
 forward_score = (onehot.numpy() * pwm.numpy()).sum()
@@ -325,14 +336,13 @@ forward_score, reverse_score
 assert np.isclose(best["locus_score"], reverse_score) or np.isclose(best["locus_score"], forward_score)
 
 # %% [markdown]
-# ## Subsetting cellxgene
+# ## Extracting fragments
 
 # %%
-import pyximport; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
-import peakfreeatac.loaders.fragments
-if "peakfreeatac.loaders.fragments" in sys.modules:
-    del sys.modules['peakfreeatac.loaders.fragments']
-import peakfreeatac.loaders.fragments
+import sys; import pyximport; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
+if "peakfreeatac.loaders.extraction.fragments" in sys.modules:
+    del sys.modules['peakfreeatac.loaders.extraction.fragments']
+import peakfreeatac.loaders.extraction.fragments
 
 # %%
 cells_oi = np.arange(0, 10000)
@@ -353,7 +363,7 @@ coordinates = fragments.coordinates.numpy().astype(np.int64)
 genemapping = fragments.mapping[:, 1].numpy().astype(np.int64)
 
 # %%
-n_fragments = extract_fragments.extract_fragments(
+n_fragments = peakfreeatac.loaders.extraction.fragments.extract_fragments(
     cellxgene_oi,
     cellxgene_indptr,
     coordinates,
@@ -364,108 +374,29 @@ n_fragments = extract_fragments.extract_fragments(
 )
 
 # %% [markdown]
-# ## Subset both
+# ## Load fragments & motifs
 
 # %%
-# # !rm extract_1.cpython-39-x86_64-linux-gnu.so
-import pyximport; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
-
-import sys
-if "extract_motifs" in sys.modules:
-    del sys.modules['extract_motifs']
-import extract_motifs
-
-import sys
-if "extract_fragments" in sys.modules:
-    del sys.modules['extract_fragments']
-import extract_fragments
-
+import pyximport; import sys; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
+if "peakfreeatac.loaders.extraction.fragments" in sys.modules:
+    del sys.modules['peakfreeatac.loaders.extraction.fragments']
+import peakfreeatac.loaders.extraction.fragments
+if "peakfreeatac.loaders.extraction.motifs" in sys.modules:
+    del sys.modules['peakfreeatac.loaders.extraction.motifs']
+import peakfreeatac.loaders.extraction.motifs
 
 # %%
-class FragmentMotifLoader():
-    def __init__(self, fragments, motifscores, batch_size, window, cutwindow):
-        self.batch_size = batch_size
-        
-        # store auxilliary information
-        self.window = window
-        self.cutwindow = cutwindow
-        self.window_width = window[1] - window[0]
-        self.cutwindow_width = cutwindow[1] - cutwindow[0]
-        
-        # store fragment data
-        self.cellxgene_indptr = fragments.cellxgene_indptr.numpy().astype(np.int64)
-        self.coordinates = fragments.coordinates.numpy().astype(np.int64)
-        self.genemapping = fragments.mapping[:, 1].numpy().astype(np.int64)
-        
-        # create buffers for coordinates
-        n_fragment_per_cellxgene = 2
-        fragment_buffer_size = batch_size * n_fragment_per_cellxgene
+import peakfreeatac.loaders.fragments
+import peakfreeatac.loaders.fragmentmotif
 
-        self.out_coordinates = torch.from_numpy(np.zeros((fragment_buffer_size, 2), dtype = np.int64))#.pin_memory()
-        self.out_genemapping = torch.from_numpy(np.zeros(fragment_buffer_size, dtype = np.int64))#.pin_memory()
-        self.out_local_cellxgene_ix = torch.from_numpy(np.zeros(fragment_buffer_size, dtype = np.int64))#.pin_memory()
-        
-        # create buffers for motifs
-        n_motifs = motifscores.shape[1]
-        n_motifs_per_fragment = 1000 # 400 motifs
-        motif_buffer_size = fragment_buffer_size * n_motifs_per_fragment
-        
-        self.motifscores_indptr = motifscores.indptr.astype(np.int64)
-        self.motifscores_indices = motifscores.indices.astype(np.int64)
-        self.motifscores_data = motifscores.data.astype(np.float64)
-
-        self.out_fragment_indptr = torch.from_numpy(np.zeros(motif_buffer_size, dtype = int))#.pin_memory()
-        self.out_motif_ix = torch.from_numpy(np.zeros(motif_buffer_size, dtype = int))#.pin_memory()
-        self.out_score = torch.from_numpy(np.zeros(motif_buffer_size, dtype = np.float64))#.pin_memory()
-        self.out_distance = torch.from_numpy(np.zeros(motif_buffer_size, dtype = int))#.pin_memory()
-        self.out_motifcounts = torch.from_numpy(np.ascontiguousarray(np.zeros((fragment_buffer_size, n_motifs), dtype = int)))#.pin_memory()
-        
-    def load(self, cellxgenes_oi):
-        assert len(cellxgenes_oi) <= self.batch_size
-        n_fragments = extract_fragments.extract_fragments(
-            cellxgene_oi,
-            self.cellxgene_indptr,
-            self.coordinates,
-            self.genemapping,
-            self.out_coordinates.numpy(),
-            self.out_genemapping.numpy(),
-            self.out_local_cellxgene_ix.numpy()
-        )
-        self.out_coordinates.resize_((n_fragments, 2))
-        self.out_genemapping.resize_((n_fragments))
-        self.out_local_cellxgene_ix.resize_((n_fragments))
-        
-        self.out_motifcounts.data.zero_() # this is a big slow down (~20% of function) but unsure how to fix honestly
-        
-        n_motifs = extract_motifs.extract_motifcounts(
-            self.out_coordinates.numpy(),
-            self.out_genemapping.numpy(),
-            self.motifscores_indptr,
-            self.motifscores_indices,
-            self.motifscores_data,
-            *self.window,
-            self.window_width,
-            *self.cutwindow,
-            # self.out_fragment_indptr.numpy(),
-            # self.out_motif_ix.numpy(),
-            # self.out_score.numpy(),
-            # self.out_distance.numpy(),
-            self.out_motifcounts.numpy()
-        )
-        # self.out_fragment_indptr.resize_(n_fragments+1)
-        # self.out_motif_ix.resize_(n_motifs)
-        # self.out_score.resize_(n_motifs)
-        # self.out_distance.resize_(n_motifs)
-        self.out_motifcounts.resize_((n_fragments, self.out_motifcounts.shape[1]))
-        
-        return self.out_motifcounts, self.out_local_cellxgene_ix
-
+# %% [markdown]
+# ### Full
 
 # %%
-n_cells = 100
+n_cells = 1000
 n_genes = 100
 cutwindow = np.array([-150, 150])
-loader = FragmentMotifLoader(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+loader = peakfreeatac.loaders.fragmentmotif.Full(fragments, motifscores, n_cells * n_genes, window, cutwindow)
 
 # %%
 cells_oi = np.arange(0, n_cells)
@@ -473,14 +404,85 @@ genes_oi = np.arange(0, n_genes)
 
 cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
 
-motifcounts, local_cellxgene_ix = loader.load(cellxgene_oi)
+full_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
 
 # %%
 # %%timeit -n 1
-motifcounts, local_cellxgene_ix = loader.load(cellxgene_oi)
+full_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
 
 # %%
 (fragments.n_cells * fragments.n_genes) / len(cellxgene_oi)
+
+# %% [markdown]
+# ### Motifcounts
+
+# %%
+n_cells = 1000
+n_genes = 100
+cutwindow = np.array([-150, 150])
+loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+
+# %%
+cells_oi = np.random.choice(fragments.n_cells, n_cells)
+genes_oi = np.random.choice(fragments.n_genes, n_genes)
+
+cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
+
+motifcounts_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+
+# %%
+# %%timeit -n 1
+motifcounts_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+
+# %%
+(fragments.n_cells * fragments.n_genes) / len(cellxgene_oi)
+
+# %% [markdown]
+# ## Loading using multithreading
+
+# %%
+import pyximport; import sys; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
+if "peakfreeatac.loaders.extraction.fragments" in sys.modules:
+    del sys.modules['peakfreeatac.loaders.extraction.fragments']
+import peakfreeatac.loaders.extraction.fragments
+if "peakfreeatac.loaders.extraction.motifs" in sys.modules:
+    del sys.modules['peakfreeatac.loaders.extraction.motifs']
+import peakfreeatac.loaders.extraction.motifs
+
+# %%
+n_cells = 2000
+n_genes = 100
+
+cutwindow = np.array([-150, 150])
+
+# %%
+import peakfreeatac.loaders.fragmentmotif
+
+# %%
+loaderpool = peakfreeatac.loaders.pool.LoaderPool(
+    peakfreeatac.loaders.fragmentmotif.Motifcounts,
+    (fragments, motifscores, n_cells * n_genes, window, cutwindow),
+    n_workers = 20
+)
+
+# %%
+import gc
+gc.collect()
+
+# %%
+data = []
+for i in range(100):
+    cells_oi = np.random.choice(fragments.n_cells, n_cells, replace = False)
+    genes_oi = np.random.choice(fragments.n_genes, n_genes, replace = False)
+
+    cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
+    
+    data.append(dict(cells_oi = cells_oi, genes_oi = genes_oi, cellxgene_oi=cellxgene_oi))
+loaderpool.initialize(data)
+
+# %%
+for i, data in enumerate(tqdm.tqdm(loaderpool)):
+    loaderpool.submit_next()
 
 # %% [markdown]
 # ## Single example
@@ -502,13 +504,13 @@ mean_gene_expression = transcriptome.X.dense().mean(0)
 # ### Create fragment embedder
 
 # %%
-fragment_embedding = motifcounts.to(torch.float) # 😅
+fragment_embedding = torch.from_numpy(data.motifcounts).to(torch.float) # 😅
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize = (10, 5), sharey = True)
-# sns.heatmap(coordinates.numpy(), ax = axes[0])
-sns.heatmap(fragment_embedding.detach().numpy()[:100], ax = axes[1])
-axes[0].set_ylabel("Fragment")
+fig, ax0 = plt.subplots(1, 1, figsize = (5, 5), sharey = True)
+sns.heatmap(fragment_embedding.detach().numpy()[:100], ax = ax0)
+ax0.set_ylabel("Fragment")
+ax0.set_xlabel("Component")
 
 # %% [markdown]
 # ### Pool fragments
@@ -517,19 +519,19 @@ axes[0].set_ylabel("Fragment")
 from peakfreeatac.models.promotermotif.v1 import EmbeddingGenePooler
 
 # %%
-n_embedding_dimensions = motifscores.shape[1]
+n_components = motifscores.shape[1]
 
 # %%
-embedding_gene_pooler = EmbeddingGenePooler(n_embedding_dimensions, debug = True)
+embedding_gene_pooler = EmbeddingGenePooler(n_components, debug = True)
 
 # %%
-cell_gene_embedding = embedding_gene_pooler(fragment_embedding, local_cellxgene_ix, n_cells, n_genes)
+cell_gene_embedding = embedding_gene_pooler(fragment_embedding, torch.from_numpy(data.local_cellxgene_ix), data.n_cells, data.n_genes)
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize = (10, 5), sharey = True)
-# sns.heatmap(coordinates.numpy(), ax = axes[0])
-sns.heatmap(cell_gene_embedding[0].detach().numpy()[:100], ax = axes[1])
-axes[0].set_ylabel("Fragment")
+fig, ax0 = plt.subplots(1, 1, figsize = (5, 5), sharey = True)
+sns.heatmap(cell_gene_embedding[0].detach().numpy()[:100], ax = ax0)
+ax0.set_ylabel("cellxgene")
+ax0.set_xlabel("component")
 
 # %% [markdown]
 # ### Create expression predictor
@@ -538,38 +540,53 @@ axes[0].set_ylabel("Fragment")
 from peakfreeatac.models.promotermotif.v1 import EmbeddingToExpression
 
 # %%
-embedding_to_expression = EmbeddingToExpression(n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
-# embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_embedding_dimensions = n_embedding_dimensions, mean_gene_expression = mean_gene_expression)
+embedding_to_expression = EmbeddingToExpression(n_components = n_components, mean_gene_expression = mean_gene_expression)
+# embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_components = n_components, mean_gene_expression = mean_gene_expression)
 
 # %%
-expression_predicted = embedding_to_expression(cell_gene_embedding, torch.from_numpy(genes_oi))
+expression_predicted = embedding_to_expression(cell_gene_embedding, data.genes_oi)
 
 # %% [markdown]
 # ### Whole model
 
 # %%
-from peakfreeatac.models.promotermotif.v1 import FragmentEmbeddingToExpression
+from peakfreeatac.models.promotermotif.v2 import FragmentEmbeddingToExpression
 
 # %%
-model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_embedding_dimensions)
+model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_components)
 
 # %%
-model(motifcounts.to(torch.float), local_cellxgene_ix, n_cells, n_genes, genes_oi)
+model(
+    torch.from_numpy(data.motifcounts).to(torch.float),
+    torch.from_numpy(data.local_cellxgene_ix),
+    data.n_cells,
+    data.n_genes,
+    data.genes_oi
+)
 
 # %% [markdown]
 # ## Infer
 
 # %%
-model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_embedding_dimensions)
+from peakfreeatac.models.promotermotif.v1 import FragmentEmbeddingToExpression
+import peakfreeatac.loaders.fragmentmotif
 
 # %%
-n_epochs = 1000
+mean_gene_expression = transcriptome.X.dense().mean(0)
+
+# %%
+n_components = motifscores.shape[1]
+cutwindow = np.array([-150, 150])
+
+# %%
+model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_components)
+
+# %%
+n_epochs = 1
+device = "cuda"
 
 # %%
 import itertools
-
-# %%
-device = "cpu"
 
 # %%
 transcriptome_X = transcriptome.X.to(device)
@@ -579,7 +596,9 @@ transcriptome_X_dense = transcriptome_X.dense()
 params = model.get_parameters()
 
 # lr = 1.0
-lr = 1e-4
+trace_every_step = 10
+optimize_every_step = 1
+lr = 1e-4 / optimize_every_step
 optim = torch.optim.SGD(
     params,
     lr = lr,
@@ -594,87 +613,85 @@ prev_mse_train = None
 prev_mse_test = None
 
 # %%
+# minibatching
 cells_all = np.arange(fragments.n_cells)
 genes_all = np.arange(fragments.n_genes)
 
 n_cells_step = 1000
 n_genes_step = 100
 
-cells_train = cells_all[:int(len(cells_all) * 4 / 5)]
-genes_train = genes_all[:int(len(genes_all) * 4 / 5)]
+cells_train = cells_all[: int(len(cells_all) * 4 / 5)]
+genes_train = genes_all[: int(len(genes_all) * 4 / 5)]
 
 cells_validation = cells_all[[cell for cell in cells_all if cell not in cells_train]]
 genes_validation = genes_train
 # genes_validation = genes_all[[gene for gene in genes_all if gene not in genes_train]]
 
 # %%
-def cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes):
-    return (cells_oi[:, None] * n_genes + genes_oi).flatten()
-
-
-# %%
-def create_bins(cells, genes, rg = None):
-    if rg is None:
-        rg = np.random.RandomState()
-    cells = rg.permutation(cells)
-    genes = rg.permutation(genes)
-
-    gene_cuts = [*np.arange(0, len(genes), step = n_genes_step)] + [len(genes)]
-    gene_bins = [genes[a:b] for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]
-
-    cell_cuts = [*np.arange(0, len(cells), step = n_cells_step)] + [len(cells)]
-    cell_bins = [cells[a:b] for a, b in zip(cell_cuts[:-1], cell_cuts[1:])]
-
-    cellxgene_bins = [cell_gene_to_cellxgene(cells_oi, genes_oi, fragments.n_genes) for cells_oi, genes_oi in itertools.product(cell_bins, gene_bins)]
-
-    bins = []
-    for cells_oi, genes_oi in itertools.product(cell_bins, gene_bins):
-        bins.append([
-            cells_oi,
-            genes_oi,
-            cell_gene_to_cellxgene(cells_oi, genes_oi, fragments.n_genes),
-            len(cells_oi),
-            len(genes_oi)
-        ])
-    return bins
-
-
-# %%
 rg = np.random.RandomState(2)
-bins_train = create_bins(cells_train, genes_train, rg = rg)
-bins_validation = create_bins(cells_validation, genes_validation, rg = rg)
+bins_train = pfa.loaders.minibatching.create_bins_random(
+    cells_train,
+    genes_train,
+    n_cells_step=n_cells_step,
+    n_genes_step=n_genes_step,
+    n_genes_total=fragments.n_genes,
+    rg=rg,
+)
+bins_validation = pfa.loaders.minibatching.create_bins_ordered(
+    cells_validation,
+    genes_validation,
+    n_cells_step=n_cells_step,
+    n_genes_step=n_genes_step,
+    n_genes_total=fragments.n_genes,
+    rg=rg,
+)
 bins_validation_trace = bins_validation[:2]
 
 # %%
-loader = FragmentMotifLoader(fragments, motifscores, n_cells_step * n_genes_step, window, cutwindow)
+model = model.to(device)
+
+# %%
+loaderpool = pfa.loaders.LoaderPool(
+    peakfreeatac.loaders.fragmentmotif.Motifcounts,
+    (fragments, motifscores, n_cells_step * n_genes_step, window, cutwindow),
+    n_workers = 20
+)
+loaderpool.initialize(bins_train)
+loaderpool_validation = pfa.loaders.LoaderPool(
+    peakfreeatac.loaders.fragmentmotif.Motifcounts,
+    (fragments, motifscores, n_cells_step * n_genes_step, window, cutwindow),
+    n_workers = 2
+)
+loaderpool_validation.initialize(bins_validation_trace)
 
 # %%
 step_ix = 0
-trace_every_step = 10
-optimize_every_step = 1
 trace_validation = []
 
 for epoch in tqdm.tqdm(range(n_epochs)):
     # train
-    for cells_oi, genes_oi, cellxgene_oi, n_cells, n_genes in tqdm.tqdm(bins_train, leave = False):
+    for data_train in tqdm.tqdm(loaderpool, leave = False):
         if (step_ix % trace_every_step) == 0:
             with torch.no_grad():
                 print("tracing")
                 mse_validation = []
                 mse_validation_dummy = []
-                for cells_oi, genes_oi, cellxgene_oi, n_cells, n_genes in bins_validation_trace:
-                    motifcounts, local_cellxgene_ix = loader.load(cellxgene_oi)
-                    motifcounts = motifcounts.to(device)
-                    local_cellxgene_ix = local_cellxgene_ix.to(device)
+                for data_validation in tqdm.tqdm(loaderpool_validation, leave = False):
+                    motifcounts = torch.from_numpy(data_validation.motifcounts).to(torch.float).to(device)
+                    local_cellxgene_ix = torch.from_numpy(data_validation.local_cellxgene_ix).to(device)
 
-                    transcriptome_subset = transcriptome_X_dense[cells_oi, :][:, genes_oi]
+                    transcriptome_subset = transcriptome_X_dense[data_validation.cells_oi, :][:, data_validation.genes_oi].to(device)
 
-                    transcriptome_predicted = model(motifcounts.to(torch.float), local_cellxgene_ix, n_cells, n_genes, genes_oi)
+                    transcriptome_predicted = model(motifcounts, local_cellxgene_ix, data_validation.n_cells, data_validation.n_genes, data_validation.genes_oi)
 
                     mse = loss(transcriptome_predicted, transcriptome_subset)
 
                     mse_validation.append(mse.item())
-                    mse_validation_dummy.append(((transcriptome_subset - transcriptome_subset.mean(0, keepdim = True)) ** 2).mean())
+                    mse_validation_dummy.append(((transcriptome_subset - transcriptome_subset.mean(0, keepdim = True)) ** 2).mean().item())
+                    
+                    loaderpool_validation.submit_next()
+                    
+                loaderpool_validation.reset()
                 mse_validation = np.mean(mse_validation)
                 mse_validation_dummy = np.mean(mse_validation_dummy)
                 
@@ -686,28 +703,30 @@ for epoch in tqdm.tqdm(range(n_epochs)):
                     "mse":mse_validation,
                     "mse_dummy":mse_validation_dummy
                 })
-    
         torch.set_grad_enabled(True)
-        motifcounts, local_cellxgene_ix = loader.load(cellxgene_oi)
-        motifcounts = motifcounts.to(device)
-        local_cellxgene_ix = local_cellxgene_ix.to(device)
+    
+        motifcounts = torch.from_numpy(data_train.motifcounts).to(torch.float).to(device)
+        local_cellxgene_ix = torch.from_numpy(data_train.local_cellxgene_ix).to(device)
         
-        transcriptome_subset = transcriptome_X_dense[cells_oi, :][:, genes_oi]
+        transcriptome_subset = transcriptome_X_dense[data_train.cells_oi, :][:, data_train.genes_oi].to(device)
         
-        transcriptome_predicted = model(motifcounts.to(torch.float), local_cellxgene_ix, n_cells, n_genes, genes_oi)
+        transcriptome_predicted = model(motifcounts, local_cellxgene_ix, data_train.n_cells, data_train.n_genes, data_train.genes_oi)
         
         mse = loss(transcriptome_predicted, transcriptome_subset)
 
         mse.backward()
         
-        # if (step_ix % trace_every_step) == 0:
-        optim.step()
-        optim.zero_grad()
+        if (step_ix % optimize_every_step) == 0:
+            optim.step()
+            optim.zero_grad()
         
         step_ix += 1
+        
+        loaderpool.submit_next()
 
     # reshuffle the order of the bins
-    bins_train = [bins_train[i] for i in np.random.choice(len(bins_train), len(bins_train), replace = False)]
+    loaderpool.reset()
+    # bins_train = [bins_train[i] for i in np.random.choice(len(bins_train), len(bins_train), replace = False)]
 
 # %%
 bins_train = [bins_train[i] for i in np.random.choice(len(bins_train), len(bins_train), replace = False)]
@@ -720,6 +739,7 @@ if isinstance(trace_validation, list):
 fig, ax = plt.subplots()
 plotdata = trace_validation.groupby("step").mean().reset_index()
 ax.plot(plotdata["step"], plotdata["mse"], zorder = 6, color = "orange")
+ax.plot(plotdata["step"], plotdata["mse_dummy"], zorder = 6, color = "red")
 fig.savefig("trace.png")
 
 # %%
@@ -728,10 +748,10 @@ pwms = pickle.load((folder_motifs / "pwms.pkl").open("rb"))
 motifs_oi = pickle.load((folder_data_preproc / "motifs_oi.pkl").open("rb"))
 
 # %%
-pd.Series(model.embedding_to_expression.weight1.detach().cpu().numpy(), index = motifs_oi.index).sort_values()
+pd.Series(model.embedding_to_expression.linear_weight[0].detach().cpu().numpy(), index = motifs_oi.index).sort_values()
 
 # %%
-sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["IRF1", "STAT2", "PCNA", "KLF4", "KLF5", "SPI1", "BCL11A"]))
+sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["IRF1", "STAT2", "PCNA", "KLF4", "KLF5", "SPI1", "BCL11A", "EGR1", "SPIB"]))
 
 # %%
 sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["STAT2"]))

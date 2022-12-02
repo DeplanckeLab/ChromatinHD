@@ -57,7 +57,7 @@ dataset_name = "pbmc10k"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
-promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
+promoter_name, window = "10k10k", np.array([-10000, 10000])
 
 # %%
 transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
