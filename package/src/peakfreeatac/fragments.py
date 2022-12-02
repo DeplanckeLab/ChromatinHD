@@ -10,6 +10,7 @@ import dataclasses
 import functools
 import itertools
 import torch
+import tqdm.auto as tqdm
 
 class Fragments(Flow):
     _coordinates = None
@@ -33,6 +34,17 @@ class Fragments(Flow):
     def mapping(self, value):
         pickle.dump(value, (self.path / "mapping.pkl").open("wb"))
         self._mapping = value
+
+    _cellxgene_indptr = None
+    @property
+    def cellxgene_indptr(self):
+        if self._cellxgene_indptr is None:
+            self._cellxgene_indptr = pickle.load((self.path / "cellxgene_indptr.pkl").open("rb"))
+        return self._cellxgene_indptr
+    @cellxgene_indptr.setter
+    def cellxgene_indptr(self, value):
+        pickle.dump(value, (self.path / "cellxgene_indptr.pkl").open("wb"))
+        self._cellxgene_indptr = value
 
     @property
     def var(self):
@@ -89,6 +101,8 @@ class Split():
     gene_ix:slice
     phase:int
 
+    count_mapper:dict = None
+
     def __init__(self, cell_ix, gene_ix, phase="train"):
         assert isinstance(cell_ix, torch.Tensor)
         assert isinstance(gene_ix, slice)
@@ -104,8 +118,7 @@ class Split():
         assert self.gene_stop <= fragments.n_genes
 
         # select fragments
-        fragments_selected = torch.isin(fragments.mapping[:, 0], self.cell_ix)
-        # fragments_selected = torch.cat([torch.tensor(fragments.cell_fragment_mapping[cell_ix], dtype = int) for cell_ix in self.cell_ix])
+        fragments_selected = torch.where(torch.isin(fragments.mapping[:, 0], self.cell_ix))[0]
         fragments_selected = fragments_selected[(fragments.mapping[fragments_selected, 1] >= self.gene_start) & (fragments.mapping[fragments_selected, 1] < self.gene_stop)]
         self.fragments_selected = fragments_selected
         
@@ -162,22 +175,23 @@ class Split():
         if self._fragment_cellxgene_ix is not None:
             self._fragment_cellxgene_ix = self._fragment_cellxgene_ix.to(device)
 
-        for k, v in self.count_mapper.items():
-            self.count_mapper[k] = v.to(device)
+        if self.count_mapper is not None:
+            for k, v in self.count_mapper.items():
+                self.count_mapper[k] = v.to(device)
         return self
 
 class SplitDouble(Split):
     def __init__(self, cell_ix, gene_ix, phase="train"):
         assert isinstance(cell_ix, torch.Tensor)
         assert isinstance(gene_ix, torch.Tensor)
-        self.cell_ix = cell_ix
-        self.gene_ix = gene_ix
+        self.cell_ix = torch.sort(cell_ix)[0]
+        self.gene_ix = torch.sort(gene_ix)[0]
 
         self.phase = phase
 
     def populate(self, fragments):
         # select fragments
-        fragments_selected = torch.isin(fragments.mapping[:, 0], self.cell_ix) & torch.isin(fragments.mapping[:, 1], self.gene_ix)
+        fragments_selected = torch.where(torch.isin(fragments.mapping[:, 0], self.cell_ix) & torch.isin(fragments.mapping[:, 1], self.gene_ix))[0]
         self.fragments_selected = fragments_selected
         
         # number of cells/genes
@@ -193,14 +207,14 @@ class SplitDouble(Split):
         self.local_gene_ix = local_gene_ix_mapper[fragments.mapping[self.fragments_selected, 1]]
 
         # count mapper
-        count_mapper = {}
-        padded_fragment_cellxgene_ix = torch.cat([torch.tensor([-1]), self.fragment_cellxgene_ix, torch.tensor([99999999999999999])])
-        n = torch.arange(len(self.fragment_cellxgene_ix) + 1)[(padded_fragment_cellxgene_ix.diff() > 0)].diff()
-        n_interleaved = torch.repeat_interleave(n, n)
+        # count_mapper = {}
+        # padded_fragment_cellxgene_ix = torch.cat([torch.tensor([-1]), self.fragment_cellxgene_ix, torch.tensor([99999999999999999])])
+        # n = torch.arange(len(self.fragment_cellxgene_ix) + 1)[(padded_fragment_cellxgene_ix.diff() > 0)].diff()
+        # n_interleaved = torch.repeat_interleave(n, n)
         
-        count_mapper[2] = n_interleaved == 2
+        # count_mapper[2] = n_interleaved == 2
         
-        self.count_mapper = count_mapper
+        # self.count_mapper = count_mapper
 
     @property
     def gene_ixs(self):
@@ -208,6 +222,11 @@ class SplitDouble(Split):
         The gene indices within the whole dataset as a numpy array
         """
         return self.gene_ix.detach().cpu().numpy()
+
+    def to(self, device):
+        self.gene_ix = self.gene_ix.to(device)
+        super().to(device)
+        return self
 
 class Fold():
     _splits = None
@@ -222,6 +241,7 @@ class Fold():
 
         gene_cuts = list(np.arange(n_genes, step = n_gene_step)) + [n_genes]
         gene_bins = [slice(a, b) for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]
+
         cell_cuts_train = [*np.arange(0, len(cells_train), step = n_cell_step)] + [len(cells_train)]
         cell_bins_train = [cells_train[a:b] for a, b in zip(cell_cuts_train[:-1], cell_cuts_train[1:])]
 
@@ -231,10 +251,10 @@ class Fold():
 
         cell_cuts_validation = [*np.arange(0, len(cells_validation), step = n_cell_step)] + [len(cells_validation)]
         cell_bins_validation = [cells_validation[a:b] for a, b in zip(cell_cuts_validation[:-1], cell_cuts_validation[1:])]
+
         bins_validation = list(itertools.product(cell_bins_validation, gene_bins))
         for cells_split, genes_split in bins_validation:
             self._splits.append(Split(cells_split, genes_split, phase = "validation"))
-
 
     def __getitem__(self, k):
         return self._splits[k]
@@ -242,12 +262,15 @@ class Fold():
     def __setitem__(self, k, v):
         self._splits[k] = v
 
+    def __len__(self):
+        return self._splits.__len__()
+
     def to(self, device):
         self._splits = [split.to(device) for split in self._splits]
         return self
 
     def populate(self, fragments):
-        for split in self._splits:
+        for split in tqdm.tqdm(self._splits, leave = False):
             split.populate(fragments)
 
     def plot(self):
@@ -442,5 +465,5 @@ class FoldDouble(Fold):
         return self
 
     def populate(self, fragments):
-        for split in self._splits:
+        for split in tqdm.tqdm(self._splits, leave = False):
             split.populate(fragments)
