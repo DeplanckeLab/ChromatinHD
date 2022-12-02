@@ -25,14 +25,15 @@ def extract_fragments(
     cdef INT64_t out_ix, local_cellxgene_ix, cellxgene_ix, position
     out_ix = 0 # will store where in the output array we are currently
     local_cellxgene_ix = 0 # will store the current fragment counting from 0
-    
-    for local_cellxgene_ix in range(cellxgene_oi.shape[0]):    
-        cellxgene_ix = cellxgene_oi[local_cellxgene_ix]
-        for position in range(cellxgene_indptr[cellxgene_ix], cellxgene_indptr[cellxgene_ix+1]):
-            out_coordinates[out_ix] = coordinates[position]
-            out_genemapping[out_ix] = genemapping[position]
-            out_local_cellxgene_ix[out_ix] = local_cellxgene_ix
 
-            out_ix += 1
+    with nogil:
+        for local_cellxgene_ix in range(cellxgene_oi.shape[0]):    
+            cellxgene_ix = cellxgene_oi[local_cellxgene_ix]
+            for position in range(cellxgene_indptr[cellxgene_ix], cellxgene_indptr[cellxgene_ix+1]):
+                out_coordinates[out_ix] = coordinates[position]
+                out_genemapping[out_ix] = genemapping[position]
+                out_local_cellxgene_ix[out_ix] = local_cellxgene_ix
+
+                out_ix += 1
 
     return out_ix
