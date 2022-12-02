@@ -1,5 +1,5 @@
-import numpy as np
 import torch
+import numpy as np
 import pyximport; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
 import peakfreeatac.loaders.extraction.fragments
 
@@ -20,15 +20,15 @@ class Fragments():
         
         # create buffers for coordinates
         n_fragment_per_cellxgene = 2
-        fragment_buffer_size = cellxgene_batch_size * n_fragment_per_cellxgene
+        self.fragment_buffer_size = cellxgene_batch_size * n_fragment_per_cellxgene
 
-        self.out_coordinates = torch.from_numpy(np.zeros((fragment_buffer_size, 2), dtype = np.int64))#.pin_memory()
-        self.out_genemapping = torch.from_numpy(np.zeros(fragment_buffer_size, dtype = np.int64))#.pin_memory()
-        self.out_local_cellxgene_ix = torch.from_numpy(np.zeros(fragment_buffer_size, dtype = np.int64))#.pin_memory()
+        self.out_coordinates = torch.from_numpy(np.zeros((self.fragment_buffer_size, 2), dtype = np.int64))#.pin_memory()
+        self.out_genemapping = torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype = np.int64))#.pin_memory()
+        self.out_local_cellxgene_ix = torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype = np.int64))#.pin_memory()
         
     def load(self, cellxgene_oi):
         assert len(cellxgene_oi) <= self.cellxgene_batch_size
-        n_fragments = peakfreeatac.loaders.fragments.extract_fragments(
+        n_fragments = peakfreeatac.loaders.extraction.fragments.extract_fragments(
             cellxgene_oi,
             self.cellxgene_indptr,
             self.coordinates,
@@ -37,6 +37,8 @@ class Fragments():
             self.out_genemapping.numpy(),
             self.out_local_cellxgene_ix.numpy()
         )
+        if n_fragments > self.fragment_buffer_size:
+            raise ValueError("n_fragments is too large for the current buffer size")
         self.out_coordinates.resize_((n_fragments, 2))
         self.out_genemapping.resize_((n_fragments))
         self.out_local_cellxgene_ix.resize_((n_fragments))
