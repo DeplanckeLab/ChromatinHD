@@ -11,7 +11,10 @@ import dataclasses
 
 from .fragments import Fragments
 
+@dataclasses.dataclass
 class Result():
+    cells_oi:np.ndarray
+    genes_oi:np.ndarray
     @property
     def n_cells(self):
         return len(self.cells_oi)
@@ -24,8 +27,6 @@ class Result():
 class FullResult(Result):
     motifcounts:np.ndarray
     local_cellxgene_ix:np.ndarray
-    cells_oi:np.ndarray
-    genes_oi:np.ndarray
 
 class Full(Fragments):
     def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow):
@@ -78,14 +79,12 @@ class Full(Fragments):
         self.out_distance.resize_(n_motifs)
         self.out_motifcounts.resize_((n_fragments, self.out_motifcounts.shape[1]))
         
-        return FullResult(self.out_motifcounts, self.out_local_cellxgene_ix, **kwargs)
+        return FullResult(motifcounts = self.out_motifcounts, local_cellxgene_ix = self.out_local_cellxgene_ix, **kwargs)
 
 @dataclasses.dataclass
 class MotifcountsResult(Result):
     motifcounts:np.ndarray
     local_cellxgene_ix:np.ndarray
-    cells_oi:np.ndarray
-    genes_oi:np.ndarray
     n_fragments:int
 
 class Motifcounts(Fragments):
