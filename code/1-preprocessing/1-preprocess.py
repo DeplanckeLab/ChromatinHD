@@ -69,8 +69,6 @@ elif organism == "hs":
 # ! echo mkdir {folder_data_preproc}/bam
 
 # %%
-
-# %%
 # # ! wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
 # # ! wget {main_url}_atac_possorted_bam.bam.bai -O {folder_data_preproc}/bam/atac_possorted_bam.bam.bai
 # ! echo wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
@@ -117,10 +115,18 @@ elif genome == "mm10":
 # !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
 
 # %%
+from operator import xor
+y = lambda bp: 0b11 & xor((ord(bp) >> 2), (ord(bp) >> 1))
+
+# %%
+# >>> from operator import xor
+# >>> y = lambda bp: 0b11 & xor((ord(bp) >> 2), (ord(bp) >> 1))
+
+# %%
 import gzip
 genome = {}
 chromosome = None
-translate_table = {"A":0, "T":1, "G":2, "C":3, "N":4}
+translate_table = {"A":0, "C":1, "G":2, "T":3, "N":4} # alphabetic order
 for i, line in enumerate(gzip.GzipFile(folder_data_preproc / "dna.fa.gz")):
     line = str(line,'utf-8')
     if line.startswith(">"):
@@ -177,6 +183,9 @@ import peakfreeatac.transcriptome
 
 # %%
 transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
+
+# %% [markdown]
+# ### Read and process
 
 # %%
 adata = sc.read_10x_h5(folder_data_preproc / "filtered_feature_bc_matrix.h5")
@@ -534,6 +543,25 @@ fragments.coordinates = coordinates
 fragments.create_cell_fragment_mapping()
 
 # %% [markdown]
+# Create cellxgene index pointers
+
+# %%
+cellxgene = fragments.mapping[:, 0] * fragments.n_genes + fragments.mapping[:, 1]
+n_cellxgene = fragments.n_genes * fragments.n_cells
+
+# %%
+import torch_sparse
+
+# %%
+cellxgene_indptr = torch.ops.torch_sparse.ind2ptr(cellxgene, n_cellxgene)
+
+# %%
+assert fragments.coordinates.shape[0] == cellxgene_indptr[-1]
+
+# %%
+fragments.cellxgene_indptr = cellxgene_indptr
+
+# %% [markdown]
 # #### Create training folds
 
 # %% [markdown]
@@ -559,7 +587,8 @@ pfa.save(folds, open(fragments.path / "folds.pkl", "wb"))
 # Split across genes too
 
 # %%
-folds = pfa.fragments.FoldsDouble(fragments.n_cells, fragments.n_genes, 1000, n_folds = 1, perc_train = 4/5)
+folds = pfa.fragments.FoldsDouble(fragments.n_cells, fragments.n_genes, 200, n_folds = 1, perc_train = 4/5)
+# folds = pfa.fragments.FoldsDouble(10000, 20, 200, n_folds = 1, perc_train = 4/5)
 folds.populate(fragments)
 
 # %%
@@ -569,6 +598,14 @@ None
 # %%
 # save
 pfa.save(folds, open(fragments.path / "folds2.pkl", "wb"))
+
+# %%
+for k, v in folds[0][0].__dict__.items():
+    if torch.is_tensor(v):
+        print(k, v.size())
+
+# %%
+# !ls -lh {fragments.path}/folds2.pkl
 
 # %% [markdown]
 # ### Create windows around genes

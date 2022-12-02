@@ -527,7 +527,7 @@ assert (select_window(np.array([[-100, 200], [-300, -100]]), 201, 202) == np.arr
 assert (select_window(np.array([[-100, 200], [-300, -100]]), -200, 20) == np.array([False, False])).all()
 
 # %%
-window_size = 500
+window_size = 100
 cuts = np.arange(-padding_negative, padding_positive, step = window_size)
 
 windows = []
@@ -606,14 +606,14 @@ mse_dummy_windows = scores_windows["mse_dummy"].unstack().T
 # %%
 fig, ax_mse = plt.subplots()
 patch_train = ax_mse.plot(mse_windows.index, mse_windows["train"], color = "blue", label = "train")
-ax_mse.plot(mse_dummy_windows.index, mse_dummy_windows["train"], color = "blue", alpha = 0.1)
-ax_mse.axhline(scores.loc["train", "mse"], dashes = (2, 2), color = "blue")
+# ax_mse.plot(mse_dummy_windows.index, mse_dummy_windows["train"], color = "blue", alpha = 0.1)
+# ax_mse.axhline(scores.loc["train", "mse"], dashes = (2, 2), color = "blue")
 
 ax_mse2 = ax_mse.twinx()
 
 patch_validation = ax_mse2.plot(mse_windows.index, mse_windows["validation"], color = "red", label = "validation")
-ax_mse2.plot(mse_dummy_windows.index, mse_dummy_windows["validation"], color = "red", alpha = 0.1)
-ax_mse2.axhline(scores.loc["validation", "mse"], color = "red", dashes = (2, 2))
+# ax_mse2.plot(mse_dummy_windows.index, mse_dummy_windows["validation"], color = "red", alpha = 0.1)
+# ax_mse2.axhline(scores.loc["validation", "mse"], color = "red", dashes = (2, 2))
 
 ax_mse.set_ylabel("MSE train", rotation = 0, ha = "right", color = "blue")
 ax_mse2.set_ylabel("MSE validation", rotation = 0, ha = "left", color = "red")
@@ -693,14 +693,14 @@ sns.heatmap(gene_mse_windows_norm.loc["validation"].loc[gene_scores.loc["validat
 gene_effect_windows.loc["validation"].max(1).sort_values(ascending = False).head(8)
 
 # if you want genes with the highest mse diff
-gene_scores.loc["validation"].sort_values("mse_diff", ascending = False).head(8)
+gene_scores.loc["validation"].sort_values("mse_diff", ascending = True).head(8)
 
 # %%
 gene_id = transcriptome.gene_id("HLA-DRA")
 # gene_id = transcriptome.gene_id("PTPRC")
 # gene_id = transcriptome.gene_id("LTB")
-gene_id = transcriptome.gene_id("SNRPA1")
-# gene_id = transcriptome.gene_id("LYN")
+# gene_id = transcriptome.gene_id("SNRPA1")
+gene_id = transcriptome.gene_id("LYZ")
 
 # gene_id = transcriptome.gene_id("Fabp7")
 # gene_id = transcriptome.gene_id("Ccnd2")
