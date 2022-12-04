@@ -9,51 +9,68 @@ class ThreadWithResult(threading.Thread):
         super().__init__(group=group, target=function, name=name, daemon=daemon)
 
 class LoaderPool():
-    def __init__(self, loader_cls, loader_args = (), n_workers = 3):
-        self.q = []
+    tasks = None
+    def __init__(self, loader_cls, loader_kwargs = None, n_workers = 3):
+        self.running = []
+
+        if loader_kwargs is None:
+            loader_kwargs = {}
 
         self.n_workers = n_workers
-        self.loaders = [loader_cls(*loader_args) for i in range(n_workers)]
-        self.current_submit = 0
+        self.loaders = [loader_cls(**loader_kwargs) for i in range(n_workers)]
 
-    def initialize(self, data):
-        self.data = data
-        self.reset()
+    def initialize(self, tasks, *args, **kwargs):
+        assert len(tasks) > 0
+        self.tasks = tasks
+        self.restart(*args, **kwargs)
 
-    def submit(self, kwargs):
+    def submit(self, *args, **kwargs):
         loader = self.loaders[self.current_submit]
-        thread = ThreadWithResult(target = loader.load, kwargs = kwargs)
-        self.q.append(thread)
+        thread = ThreadWithResult(target = loader.load, args = args, kwargs = kwargs)
+        self.running.append(thread)
         thread.start()
         self.current_submit = (self.current_submit + 1) % (self.n_workers)
 
     def pull(self):
-        thread = self.q.pop(0)
+        thread = self.running.pop(0)
         thread.join()
+        self.n_done += 1
         return thread.result
 
     def __len__(self):
-        return self.q.__len__() + self.current_order.__len__()
+        return self.tasks.__len__()
 
     def __iter__(self):
+        self.n_done = 0
         return self
 
     def __next__(self):
-        if len(self.q) == 0:
-            if len(self.current_order) > 0:
-                raise ValueError("Iteration stopped too early, make sure to call submit_next in each iteration")
+        if self.n_done == len(self.tasks):
             raise StopIteration
+        if len(self.running) == 0:
+            if len(self.todo) > 0:
+                raise ValueError("Iteration stopped too early, make sure to call submit_next in each iteration")
         return self.pull()
     
     def submit_next(self):
-        if len(self.current_order) > 0:
-            self.submit(self.current_order.pop(0))
+        if len(self.todo) == 0:
+            self.todo = copy.copy(self.tasks)
 
-    def reset(self):
-        self.current_order = copy.copy(self.data)
+        task = self.todo.pop(0)
+        self.todo.append(task)
+        self.submit(task, *self.args, **self.kwargs)
+
+    def restart(self, *args, **kwargs):
+        self.todo = copy.copy(self.tasks)
+        self.current_submit = 0
+        self.n_done = 0
+        self.running = []
+
+        self.args = args
+        self.kwargs = kwargs
 
         for i in range(self.n_workers):
-            self.submit(self.current_order.pop(0))
+            self.submit_next()
             
     def terminate(self):
         self.loaders = None

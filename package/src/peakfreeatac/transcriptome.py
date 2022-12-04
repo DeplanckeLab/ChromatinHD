@@ -55,6 +55,9 @@ class Transcriptome(Flow):
 
     def create_X(self):
         X_scipy = self.adata.X
+        if isinstance(X_scipy, np.ndarray):
+            import scipy.sparse
+            X_scipy = scipy.sparse.csr_matrix(X_scipy)
         X = sparse.COOMatrix.from_scipy_csr(X_scipy)
         X.populate_mapping()
 

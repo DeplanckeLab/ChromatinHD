@@ -13,8 +13,11 @@ from .fragments import Fragments
 
 @dataclasses.dataclass
 class Result():
-    cells_oi:np.ndarray
-    genes_oi:np.ndarray
+    coordinates:torch.Tensor
+    local_cellxgene_ix:torch.Tensor
+    n_fragments:int
+    cells_oi:int
+    genes_oi:int
     @property
     def n_cells(self):
         return len(self.cells_oi)
@@ -23,10 +26,16 @@ class Result():
     def n_genes(self):
         return len(self.genes_oi)
 
+    def to(self, device):
+        for field_name, field in self.__dataclass_fields__.items():
+            if field.type is torch.Tensor:
+                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
+        return self
+
 @dataclasses.dataclass
 class FullResult(Result):
-    motifcounts:np.ndarray
-    local_cellxgene_ix:np.ndarray
+    motifcounts:torch.Tensor
+    n_motifs:int
 
 class Full(Fragments):
     def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow):
@@ -51,8 +60,8 @@ class Full(Fragments):
         self.out_distance = torch.from_numpy(np.zeros(motif_buffer_size, dtype = int))#.pin_memory()
         self.out_motifcounts = torch.from_numpy(np.ascontiguousarray(np.zeros((self.fragment_buffer_size, n_motifs), dtype = int)))#.pin_memory()
         
-    def load(self, cellxgene_oi, **kwargs):
-        super().load(cellxgene_oi)
+    def load(self, minibatch, **kwargs):
+        super().load(minibatch, **kwargs)
 
         n_fragments = self.out_coordinates.shape[0]
         
@@ -79,17 +88,20 @@ class Full(Fragments):
         self.out_distance.resize_(n_motifs)
         self.out_motifcounts.resize_((n_fragments, self.out_motifcounts.shape[1]))
         
-        return FullResult(motifcounts = self.out_motifcounts, local_cellxgene_ix = self.out_local_cellxgene_ix, **kwargs)
+        return FullResult(
+            motifcounts = self.out_motifcounts,
+            local_cellxgene_ix = self.out_local_cellxgene_ix,
+            n_fragments = n_fragments,
+            **minibatch.items()
+        )
 
 @dataclasses.dataclass
 class MotifcountsResult(Result):
-    motifcounts:np.ndarray
-    local_cellxgene_ix:np.ndarray
-    n_fragments:int
+    motifcounts:torch.Tensor
 
 class Motifcounts(Fragments):
-    def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow):
-        super().__init__(fragments, cellxgene_batch_size, window)
+    def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow, **kwargs):
+        super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
         
         # store auxilliary information
         self.cutwindow = cutwindow
@@ -105,8 +117,8 @@ class Motifcounts(Fragments):
         # self.out_motifcounts = torch.from_numpy(np.ascontiguousarray(np.zeros((self.fragment_buffer_size, n_motifs), dtype = int)))#.pin_memory()
         self.out_motifcounts = np.ascontiguousarray(np.zeros((self.fragment_buffer_size, self.n_motifs), dtype = int))
         
-    def load(self, cellxgene_oi, **kwargs):
-        super().load(cellxgene_oi)
+    def load(self, minibatch, **kwargs):
+        super().load(minibatch, **kwargs)
 
         n_fragments = self.out_coordinates.shape[0]
 
@@ -125,4 +137,10 @@ class Motifcounts(Fragments):
         )
         out_motifcounts.resize((n_fragments, self.n_motifs))
         
-        return MotifcountsResult(motifcounts = out_motifcounts, local_cellxgene_ix = self.out_local_cellxgene_ix.numpy(), n_fragments = n_fragments, **kwargs)
+        return MotifcountsResult(
+            motifcounts = torch.from_numpy(out_motifcounts).to(torch.float),
+            local_cellxgene_ix = self.out_local_cellxgene_ix,
+            coordinates = self.out_coordinates,
+            n_fragments = n_fragments,
+            **minibatch.items()
+        )

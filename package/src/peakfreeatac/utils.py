@@ -42,6 +42,28 @@ def paircor(x, y, dim = 0):
     return cor
 
 
+def paircos(x, y, dim = 0):
+    import torch
+    import pandas as pd
+    import numpy as np
+    if isinstance(x, pd.DataFrame):
+        x_ = x.values
+        y_ = y.values
+        divisor = ((y_**2).sum(dim) * (x_**2).sum(dim))
+        divisor[np.isclose(divisor, 0)] = 1.
+
+        dot = (x_ * y_).sum(dim)
+        cos = dot / divisor
+        cos = pd.Series(cos, x.index if dim == 1 else x.columns)
+    elif torch.is_tensor(x):
+        cos = (x * y).sum(dim) / (torch.sqrt((y**2).sum(dim)) * torch.sqrt((x**2).sum(dim)))
+    else:
+        divisor = (np.sqrt((y**2).sum(dim)) * np.sqrt((x**2).sum(dim)))
+        divisor[divisor == 0] = 1.
+        cos = (x * y).sum(dim) / divisor
+    return cos
+
+
 def fix_class(obj):
     import importlib
 

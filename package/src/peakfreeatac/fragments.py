@@ -95,6 +95,9 @@ class Fragments(Flow):
             cell_fragment_mapping[cur_cell_ix].append(fragment_ix)
         self.cell_fragment_mapping = cell_fragment_mapping
 
+    def estimate_fragment_per_cellxgene(self):
+        return int(self.coordinates.shape[0] / self.n_cells / self.n_genes * 10)
+
 
 class Split():
     cell_ix:torch.Tensor
