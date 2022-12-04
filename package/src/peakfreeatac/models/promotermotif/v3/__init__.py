@@ -52,6 +52,8 @@ class EmbeddingGenePooler(torch.nn.Module):
         self.n_components = n_components
 
         self.nn = torch.nn.Sequential(
+            torch.nn.Linear(n_components, n_components),
+            torch.nn.ReLU(),
             torch.nn.Linear(n_components, 1)
         )
         self.nn[-1].weight.data.zero_()
