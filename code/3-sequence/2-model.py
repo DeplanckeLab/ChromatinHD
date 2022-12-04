@@ -53,6 +53,7 @@ folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
 dataset_name = "pbmc10k"
+# dataset_name = "pbmc10k_clustered"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -67,13 +68,11 @@ transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "
 fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
-motifscores = pickle.load(open(folder_data_preproc / "motifscores.pkl", "rb"))
+motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
+motifscores = pickle.load(open(motifscan_folder / "motifscores.pkl", "rb"))
 
 # %%
 n_fragments = fragments.coordinates.shape[0]
-
-# %%
-import timeit
 
 # %% [markdown]
 # What we want is
@@ -246,7 +245,7 @@ motif_scores["locall_cellxgene_ix"] = motif_scores["local_cell_ix"] * len(genes_
 # %%
 # select the site that scores best on a particular motif
 motifs_oi["ix"] = np.arange(motifs_oi.shape[0])
-motif_ix = motifs_oi.query("gene_label == 'NFKB1'")["ix"][0]
+motif_ix = motifs_oi.query("gene_label == 'FOXQ1'")["ix"][0]
 # motif_ix = 10
 best = motif_scores.query("motif_index == @motif_ix").sort_values("locus_score", ascending = False).iloc[0]
 ingene_mid = int(best["locus_distance"])
@@ -428,14 +427,16 @@ genes_oi = np.random.choice(fragments.n_genes, n_genes)
 
 cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
 
-motifcounts_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+motifcounts_result = loader.load(minibatch)
+
+# %%
+# check subsetting the fragments
+motifcounts_result = loader.load(minibatch, fragments_oi = torch.arange(10000))
 
 # %%
 # %%timeit -n 1
-motifcounts_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
-
-# %%
-(fragments.n_cells * fragments.n_genes) / len(cellxgene_oi)
+motifcounts_result = loader.load(minibatch)
 
 # %% [markdown]
 # ## Loading using multithreading
@@ -450,7 +451,8 @@ if "peakfreeatac.loaders.extraction.motifs" in sys.modules:
 import peakfreeatac.loaders.extraction.motifs
 
 # %%
-n_cells = 2000
+# n_cells = 2000
+n_cells = 3
 n_genes = 100
 
 cutwindow = np.array([-150, 150])
@@ -459,10 +461,10 @@ cutwindow = np.array([-150, 150])
 import peakfreeatac.loaders.fragmentmotif
 
 # %%
-loaderpool = peakfreeatac.loaders.pool.LoaderPool(
+loaders = peakfreeatac.loaders.pool.LoaderPool(
     peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    (fragments, motifscores, n_cells * n_genes, window, cutwindow),
-    n_workers = 20
+    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells * n_genes, "window":window, "cutwindow":cutwindow},
+    n_workers = 2
 )
 
 # %%
@@ -471,18 +473,20 @@ gc.collect()
 
 # %%
 data = []
-for i in range(100):
-    cells_oi = np.random.choice(fragments.n_cells, n_cells, replace = False)
-    genes_oi = np.random.choice(fragments.n_genes, n_genes, replace = False)
+for i in range(2):
+    cells_oi = np.sort(np.random.choice(fragments.n_cells, n_cells, replace = False))
+    genes_oi = np.sort(np.random.choice(fragments.n_genes, n_genes, replace = False))
 
     cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
     
-    data.append(dict(cells_oi = cells_oi, genes_oi = genes_oi, cellxgene_oi=cellxgene_oi))
-loaderpool.initialize(data)
+    data.append(pfa.loaders.minibatching.Minibatch(cells_oi = cells_oi, genes_oi = genes_oi, cellxgene_oi=cellxgene_oi))
+loaders.initialize(data)
 
 # %%
-for i, data in enumerate(tqdm.tqdm(loaderpool)):
-    loaderpool.submit_next()
+for i, data in enumerate(tqdm.tqdm(loaders)):
+    print(i)
+    data
+    # loaders.submit_next()
 
 # %% [markdown]
 # ## Single example
@@ -504,7 +508,7 @@ mean_gene_expression = transcriptome.X.dense().mean(0)
 # ### Create fragment embedder
 
 # %%
-fragment_embedding = torch.from_numpy(data.motifcounts).to(torch.float) # 😅
+fragment_embedding = data.motifcounts
 
 # %%
 fig, ax0 = plt.subplots(1, 1, figsize = (5, 5), sharey = True)
@@ -513,19 +517,58 @@ ax0.set_ylabel("Fragment")
 ax0.set_xlabel("Component")
 
 # %% [markdown]
+# ### Encode fragments
+
+# %%
+from peakfreeatac.models.promotermotif.v3 import FragmentSineEncoder
+
+# %%
+fragment_encoder = FragmentSineEncoder()
+
+# %%
+fragment_encoding = fragment_encoder(data.coordinates)
+
+# %%
+fig, ax0 = plt.subplots(1, 1, figsize = (5, 5), sharey = True)
+sns.heatmap(fragment_encoding.detach().numpy()[:100], ax = ax0)
+ax0.set_ylabel("cellxgene")
+ax0.set_xlabel("component")
+
+# %% [markdown]
+# ### Weight
+
+# %%
+from peakfreeatac.models.promotermotif.v3 import FragmentWeighter
+
+# %%
+fragment_weighter = FragmentWeighter()
+
+# %%
+fragment_weight = fragment_weighter(data.coordinates)
+
+# %%
+plt.scatter(data.coordinates[:, 0], fragment_weight.detach().numpy())
+
+# %% [markdown]
 # ### Pool fragments
 
 # %%
-from peakfreeatac.models.promotermotif.v1 import EmbeddingGenePooler
+from peakfreeatac.models.promotermotif.v3 import EmbeddingGenePooler
 
 # %%
-n_components = motifscores.shape[1]
+n_features = motifscores.shape[1]
 
 # %%
-embedding_gene_pooler = EmbeddingGenePooler(n_components, debug = True)
+embedding_gene_pooler = EmbeddingGenePooler(n_features, debug = True)
 
 # %%
-cell_gene_embedding = embedding_gene_pooler(fragment_embedding, torch.from_numpy(data.local_cellxgene_ix), data.n_cells, data.n_genes)
+cell_gene_embedding = embedding_gene_pooler(
+    fragment_embedding,
+    cellxgene_ix = data.local_cellxgene_ix,
+    weights = fragment_weight,
+    n_cells = data.n_cells,
+    n_genes = data.n_genes
+)
 
 # %%
 fig, ax0 = plt.subplots(1, 1, figsize = (5, 5), sharey = True)
@@ -537,10 +580,10 @@ ax0.set_xlabel("component")
 # ### Create expression predictor
 
 # %%
-from peakfreeatac.models.promotermotif.v1 import EmbeddingToExpression
+from peakfreeatac.models.promotermotif.v3 import EmbeddingToExpression
 
 # %%
-embedding_to_expression = EmbeddingToExpression(n_components = n_components, mean_gene_expression = mean_gene_expression)
+embedding_to_expression = EmbeddingToExpression(n_components = n_features, mean_gene_expression = mean_gene_expression)
 # embedding_to_expression = EmbeddingToExpressionBias(fragments.n_genes, n_components = n_components, mean_gene_expression = mean_gene_expression)
 
 # %%
@@ -550,25 +593,19 @@ expression_predicted = embedding_to_expression(cell_gene_embedding, data.genes_o
 # ### Whole model
 
 # %%
-from peakfreeatac.models.promotermotif.v2 import FragmentEmbeddingToExpression
+from peakfreeatac.models.promotermotif.v3 import FragmentEmbeddingToExpression
 
 # %%
-model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_components)
+model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_features)
 
 # %%
-model(
-    torch.from_numpy(data.motifcounts).to(torch.float),
-    torch.from_numpy(data.local_cellxgene_ix),
-    data.n_cells,
-    data.n_genes,
-    data.genes_oi
-)
+model(data)
 
 # %% [markdown]
 # ## Infer
 
 # %%
-from peakfreeatac.models.promotermotif.v1 import FragmentEmbeddingToExpression
+from peakfreeatac.models.promotermotif.v2 import FragmentEmbeddingToExpression
 import peakfreeatac.loaders.fragmentmotif
 
 # %%
@@ -579,10 +616,10 @@ n_components = motifscores.shape[1]
 cutwindow = np.array([-150, 150])
 
 # %%
-model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_components)
+model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_components, weighting = True)
 
 # %%
-n_epochs = 1
+n_epochs = 30
 device = "cuda"
 
 # %%
@@ -593,43 +630,54 @@ transcriptome_X = transcriptome.X.to(device)
 transcriptome_X_dense = transcriptome_X.dense()
 
 # %%
-params = model.get_parameters()
+params = model.parameters()
 
 # lr = 1.0
-trace_every_step = 10
-optimize_every_step = 1
-lr = 1e-4 / optimize_every_step
-optim = torch.optim.SGD(
+checkpoint_every_step = 30
+optimize_every_step = 10
+lr = 1e-3 / optimize_every_step
+# lr = 1e-4 / optimize_every_step
+optim = torch.optim.Adam(
     params,
-    lr = lr,
-    momentum=0.3
+    lr = lr
 )
 loss = torch.nn.MSELoss(reduction = "mean")
+cos = torch.nn.CosineSimilarity(dim = 0)
+loss = lambda x_1, x_2: -cos(x_1, x_2).mean()
+# def correlation_loss(x, y, dim = 0):
+#     cor = (x * y).sum(dim) / ((y**2).sum(dim) * (x**2).sum(dim))
+#     return -cor.mean()
+# def correlation_loss(x, y, dim = 0):
+#     cor = pfa.utils.paircor(x, y)
+#     return -cor.mean()
+# loss = correlation_loss
+# loss = torch.nn.PoissonNLLLoss(reduction = "mean", full = True)
 
 # %%
-trace = []
-
-prev_mse_train = None
-prev_mse_test = None
-
-# %%
-# minibatching
+# train/test split
 cells_all = np.arange(fragments.n_cells)
 genes_all = np.arange(fragments.n_genes)
 
-n_cells_step = 1000
-n_genes_step = 100
+n_cell_bins = 5
+n_gene_bins = 5
 
-cells_train = cells_all[: int(len(cells_all) * 4 / 5)]
-genes_train = genes_all[: int(len(genes_all) * 4 / 5)]
+chromosome_gene_counts = transcriptome.var.groupby("chr").size().sort_values(ascending = False)
+chromosome_bins = np.cumsum(((np.cumsum(chromosome_gene_counts) % (chromosome_gene_counts.sum() / n_gene_bins + 1)).diff() < 0))
 
-cells_validation = cells_all[[cell for cell in cells_all if cell not in cells_train]]
-genes_validation = genes_train
-# genes_validation = genes_all[[gene for gene in genes_all if gene not in genes_train]]
+cells_train = cells_all[: int(len(cells_all) * (n_cell_bins-1) / n_gene_bins)]
+cells_validation = cells_all[[cell not in cells_train for cell in cells_all]]
+
+chromosomes_train = chromosome_bins.index[chromosome_bins < (n_gene_bins - 1)]
+chromosomes_validation = chromosome_bins.index[chromosome_bins >= (n_gene_bins - 1)]
+genes_train = fragments.var["ix"][transcriptome.var.index[transcriptome.var["chr"].isin(chromosomes_train)]].values
+genes_validation = fragments.var["ix"][transcriptome.var.index[transcriptome.var["chr"].isin(chromosomes_validation)]].values
 
 # %%
-rg = np.random.RandomState(2)
-bins_train = pfa.loaders.minibatching.create_bins_random(
+n_cells_step = 1000
+n_genes_step = 300
+
+rg = np.random.RandomState(0)
+minibatches_train = pfa.loaders.minibatching.create_bins_random(
     cells_train,
     genes_train,
     n_cells_step=n_cells_step,
@@ -637,99 +685,65 @@ bins_train = pfa.loaders.minibatching.create_bins_random(
     n_genes_total=fragments.n_genes,
     rg=rg,
 )
-bins_validation = pfa.loaders.minibatching.create_bins_ordered(
+minibatches_validation = pfa.loaders.minibatching.create_bins_ordered(
+    # cells_train,
     cells_validation,
+    # genes_train,
     genes_validation,
     n_cells_step=n_cells_step,
     n_genes_step=n_genes_step,
     n_genes_total=fragments.n_genes,
     rg=rg,
 )
-bins_validation_trace = bins_validation[:2]
+minibatches_validation_trace = minibatches_validation[:5]
 
 # %%
 model = model.to(device)
 
 # %%
-loaderpool = pfa.loaders.LoaderPool(
+import peakfreeatac.loaders
+
+# %%
+loaders = pfa.loaders.LoaderPool(
     peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    (fragments, motifscores, n_cells_step * n_genes_step, window, cutwindow),
+    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells_step * n_genes_step, "window":window, "cutwindow":cutwindow},
     n_workers = 20
 )
-loaderpool.initialize(bins_train)
-loaderpool_validation = pfa.loaders.LoaderPool(
+loaders.initialize(minibatches_train)
+loaders_validation = pfa.loaders.LoaderPool(
     peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    (fragments, motifscores, n_cells_step * n_genes_step, window, cutwindow),
-    n_workers = 2
+    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells_step * n_genes_step, "window":window, "cutwindow":cutwindow},
+    n_workers = 5
 )
-loaderpool_validation.initialize(bins_validation_trace)
+loaders_validation.initialize(minibatches_validation_trace)
 
 # %%
-step_ix = 0
-trace_validation = []
-
-for epoch in tqdm.tqdm(range(n_epochs)):
-    # train
-    for data_train in tqdm.tqdm(loaderpool, leave = False):
-        if (step_ix % trace_every_step) == 0:
-            with torch.no_grad():
-                print("tracing")
-                mse_validation = []
-                mse_validation_dummy = []
-                for data_validation in tqdm.tqdm(loaderpool_validation, leave = False):
-                    motifcounts = torch.from_numpy(data_validation.motifcounts).to(torch.float).to(device)
-                    local_cellxgene_ix = torch.from_numpy(data_validation.local_cellxgene_ix).to(device)
-
-                    transcriptome_subset = transcriptome_X_dense[data_validation.cells_oi, :][:, data_validation.genes_oi].to(device)
-
-                    transcriptome_predicted = model(motifcounts, local_cellxgene_ix, data_validation.n_cells, data_validation.n_genes, data_validation.genes_oi)
-
-                    mse = loss(transcriptome_predicted, transcriptome_subset)
-
-                    mse_validation.append(mse.item())
-                    mse_validation_dummy.append(((transcriptome_subset - transcriptome_subset.mean(0, keepdim = True)) ** 2).mean().item())
-                    
-                    loaderpool_validation.submit_next()
-                    
-                loaderpool_validation.reset()
-                mse_validation = np.mean(mse_validation)
-                mse_validation_dummy = np.mean(mse_validation_dummy)
-                
-                print(mse_validation - mse_validation_dummy)
-                
-                trace_validation.append({
-                    "epoch":epoch,
-                    "step":step_ix,
-                    "mse":mse_validation,
-                    "mse_dummy":mse_validation_dummy
-                })
-        torch.set_grad_enabled(True)
-    
-        motifcounts = torch.from_numpy(data_train.motifcounts).to(torch.float).to(device)
-        local_cellxgene_ix = torch.from_numpy(data_train.local_cellxgene_ix).to(device)
-        
-        transcriptome_subset = transcriptome_X_dense[data_train.cells_oi, :][:, data_train.genes_oi].to(device)
-        
-        transcriptome_predicted = model(motifcounts, local_cellxgene_ix, data_train.n_cells, data_train.n_genes, data_train.genes_oi)
-        
-        mse = loss(transcriptome_predicted, transcriptome_subset)
-
-        mse.backward()
-        
-        if (step_ix % optimize_every_step) == 0:
-            optim.step()
-            optim.zero_grad()
-        
-        step_ix += 1
-        
-        loaderpool.submit_next()
-
-    # reshuffle the order of the bins
-    loaderpool.reset()
-    # bins_train = [bins_train[i] for i in np.random.choice(len(bins_train), len(bins_train), replace = False)]
+loaders.restart()
+loaders_validation.restart()
 
 # %%
-bins_train = [bins_train[i] for i in np.random.choice(len(bins_train), len(bins_train), replace = False)]
+import peakfreeatac.train
+
+# %%
+trainer = pfa.train.Trainer(
+    model,
+    loaders,
+    loaders_validation,
+    transcriptome_X_dense,
+    loss,
+    optim
+)
+
+# %%
+trainer.train()
+
+# %%
+pd.DataFrame(trainer.trace.validation_steps).groupby("checkpoint").mean()["loss"].plot()
+pd.DataFrame(trainer.trace.train_steps).groupby("checkpoint").mean()["loss"].plot()
+
+# %%
+pd.DataFrame(trace.validation_steps).groupby("checkpoint").mean()["loss"].plot()
+pd.DataFrame(trace.train_steps).groupby("checkpoint").mean()["loss"].plot()
 
 # %%
 if isinstance(trace_validation, list):
@@ -739,8 +753,12 @@ if isinstance(trace_validation, list):
 fig, ax = plt.subplots()
 plotdata = trace_validation.groupby("step").mean().reset_index()
 ax.plot(plotdata["step"], plotdata["mse"], zorder = 6, color = "orange")
-ax.plot(plotdata["step"], plotdata["mse_dummy"], zorder = 6, color = "red")
+# ax.plot(plotdata["step"], plotdata["mse_dummy"], zorder = 6, color = "red")
+# ax.plot(plotdata["step"], plotdata["mean_cor"], zorder = 6, color = "red")
 fig.savefig("trace.png")
+
+# %%
+model = pickle.load(open("../../model.pkl", "rb"))
 
 # %%
 folder_motifs = pfa.get_output() / "data" / "motifs" / "hs" / "hocomoco"
@@ -748,10 +766,13 @@ pwms = pickle.load((folder_motifs / "pwms.pkl").open("rb"))
 motifs_oi = pickle.load((folder_data_preproc / "motifs_oi.pkl").open("rb"))
 
 # %%
-pd.Series(model.embedding_to_expression.linear_weight[0].detach().cpu().numpy(), index = motifs_oi.index).sort_values()
+motif_linear_scores = pd.Series(model.embedding_to_expression.linear_weight[0].detach().cpu().numpy(), index = motifs_oi.index).sort_values(ascending = False)
 
 # %%
-sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["IRF1", "STAT2", "PCNA", "KLF4", "KLF5", "SPI1", "BCL11A", "EGR1", "SPIB"]))
+motif_linear_scores.loc[motif_linear_scores.index.str.startswith("EGR")]
+
+# %%
+sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["DUX4", "IRF1", "STAT2", "PCNA", "KLF4", "KLF5", "SPI1", "BCL11A", "EGR1", "SPIB"]))
 
 # %%
 sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["STAT2"]))
