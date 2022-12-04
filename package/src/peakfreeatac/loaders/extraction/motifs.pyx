@@ -120,11 +120,12 @@ def extract_motifcounts(
                     local_motif_n += 1
 
             # determine the bounds of the genome slice
-            slice_left = coord_second + cutwindow_left - window_left
+            # this is flipped compared to the first coord
+            slice_left = coord_second - cutwindow_right - window_left
             if slice_left < 0:
                 slice_left = 0
             slice_left = slice_left + gene_ix * window_width
-            slice_right = coord_second + cutwindow_right - window_left
+            slice_right = coord_second - cutwindow_left - window_left
             if slice_right >= window_width:
                 slice_right = window_width - 1
             slice_right = slice_right + gene_ix * window_width
