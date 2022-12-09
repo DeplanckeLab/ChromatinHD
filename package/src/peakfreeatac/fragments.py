@@ -21,6 +21,7 @@ class Fragments(Flow):
         return self._coordinates
     @coordinates.setter
     def coordinates(self, value):
+        value = value.to(torch.int64).contiguous()
         pickle.dump(value, (self.path / "coordinates.pkl").open("wb"))
         self._coordinates = value
 
@@ -32,6 +33,7 @@ class Fragments(Flow):
         return self._mapping
     @mapping.setter
     def mapping(self, value):
+        value = value.to(torch.int64).contiguous()
         pickle.dump(value, (self.path / "mapping.pkl").open("wb"))
         self._mapping = value
 
@@ -43,8 +45,16 @@ class Fragments(Flow):
         return self._cellxgene_indptr
     @cellxgene_indptr.setter
     def cellxgene_indptr(self, value):
+        value = value.to(torch.int64).contiguous()
         pickle.dump(value, (self.path / "cellxgene_indptr.pkl").open("wb"))
         self._cellxgene_indptr = value
+
+    _genemapping = None
+    @property
+    def genemapping(self):
+        if self._genemapping is not None:
+            self._genemapping = self.mapping[:, 1].contiguous()
+        return self._genemapping
 
     @property
     def var(self):
@@ -75,28 +85,8 @@ class Fragments(Flow):
             self._n_cells = self.obs.shape[0]
         return self._n_cells
 
-    _cell_fragment_mapping = None
-    @property
-    def cell_fragment_mapping(self):
-        if self._cell_fragment_mapping is None:
-            self._cell_fragment_mapping = pickle.load((self.path / "cell_fragment_mapping.pkl").open("rb"))
-        return self._cell_fragment_mapping
-    @cell_fragment_mapping.setter
-    def cell_fragment_mapping(self, value):
-        pickle.dump(value, (self.path / "cell_fragment_mapping.pkl").open("wb"))
-        self._cell_fragment_mapping = value
-
-    def create_cell_fragment_mapping(self):
-        cell_fragment_mapping = [[] for i in range(self.n_cells)]
-        cur_cell_ix = -1
-        for fragment_ix, cell_ix in enumerate(self.mapping[:, 0]):
-            if cell_ix > cur_cell_ix:
-                cur_cell_ix = cell_ix.item()
-            cell_fragment_mapping[cur_cell_ix].append(fragment_ix)
-        self.cell_fragment_mapping = cell_fragment_mapping
-
     def estimate_fragment_per_cellxgene(self):
-        return int(self.coordinates.shape[0] / self.n_cells / self.n_genes * 10)
+        return int(self.coordinates.shape[0] / self.n_cells / self.n_genes * 2)
 
 
 class Split():

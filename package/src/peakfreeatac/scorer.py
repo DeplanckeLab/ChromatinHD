@@ -19,12 +19,16 @@ class Scorer:
 
     def reset(self):
         self.transcriptome_predicted = {}
+        self.n_fragments = {}
         for model_ix in range(len(self.models)):
             transcriptome_predicted = pd.DataFrame(np.zeros(self.outcome.shape))
             transcriptome_predicted.index.name = "cell_ix"
             transcriptome_predicted.columns.name = "gene_ix"
 
             self.transcriptome_predicted[model_ix] = transcriptome_predicted
+
+            n_fragments = pd.Series(np.zeros(self.outcome.shape[1]))
+            n_fragments.index.name = "gene_ix"
 
     def infer(self, fragments_oi=None):
         for model_ix, (model, fold) in enumerate(zip(self.models, self.folds)):
@@ -36,16 +40,32 @@ class Scorer:
             self.loaders.restart(**loader_kwargs)
             assert self.loaders.n_done == 0
 
+            def cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes):
+                return (cells_oi[:, None] * n_genes + genes_oi).flatten()
+
             # infer and store
             with torch.no_grad():
                 model = model.to(self.device)
+                done = set()
                 for data in tqdm.tqdm(self.loaders):
+                    cellxgene_oi = set(cell_gene_to_cellxgene(data.cells_oi, data.genes_oi, 5000))
+                    intersect = done.intersection(cellxgene_oi)
+                    if len(intersect) > 0:
+                        print(len(intersect))
+                    done.update(cellxgene_oi)
+
                     data = data.to(self.device)
                     transcriptome_predicted = model(data)
+
+                    if (self.transcriptome_predicted[model_ix].iloc[data.cells_oi, data.genes_oi].values != 0).any():
+                        # print(data.cells_oi, data.genes_oi, len(data.genes_oi), len(data.cells_oi))
+                        raise ValueError("Double booked cells and/or genes")
 
                     self.transcriptome_predicted[model_ix].iloc[data.cells_oi, data.genes_oi] = (
                         transcriptome_predicted.detach().cpu().numpy()
                     )
+
+                    # self.n_fragments[model_ix].iloc[data.genes_oi] = 
 
                     self.loaders.submit_next()
 
@@ -68,10 +88,11 @@ class Scorer:
                 cos_gene = pfa.utils.paircos(
                     outcome_phase, transcriptome_predicted.values[cells, :][:, genes]
                 )
-                cos_gene_dummy = pfa.utils.paircos(outcome_phase, outcome_phase_dummy)
 
-                cos_diff = cos_gene - cos_gene_dummy
-                cos_diff[cos_gene == 0] = 0.0
+                def zscore(x, dim = 0):
+                    return (x - x.mean(dim, keepdims = True)) / (x.std(dim, keepdims = True))
+
+                mse = -np.mean((zscore(transcriptome_predicted.values[cells, :][:, genes]) - zscore(outcome_phase))**2, 0)
 
                 scores.append(
                     pd.DataFrame(
@@ -80,8 +101,7 @@ class Scorer:
                             "phase": [phase],
                             "cor": [cor_gene.mean()],
                             "cos": [cos_gene.mean()],
-                            "cos_dummy": [cos_gene_dummy.mean()],
-                            "cos_diff": [cos_diff.mean()],
+                            "mse":[mse.mean()]
                         }
                     )
                 )
@@ -93,12 +113,17 @@ class Scorer:
                             "cor": cor_gene,
                             "cos": cos_gene,
                             "gene": gene_ids[genes].values,
-                            "cos_dummy": cos_gene_dummy,
-                            "cos_diff": cos_diff,
+                            "mse":mse
                         }
                     )
                 )
-        genescores = pd.concat(genescores).set_index(["model", "phase", "gene"]).groupby(["phase", "gene"]).mean()
-        scores = pd.concat(scores).set_index(["model", "phase"]).groupby(["phase"]).mean()
+
+
+        score_cols = ["cor", "cos", "mse"]
+
+        genescores_across = pd.concat(genescores)
+        scores = pd.concat(genescores)
+        genescores = genescores_across.groupby(["phase", "gene"])[score_cols].mean()
+        scores = scores.groupby(["phase"])[score_cols].mean()
 
         return scores, genescores

@@ -11,26 +11,7 @@ import dataclasses
 
 from .fragments import Fragments
 
-@dataclasses.dataclass
-class Result():
-    coordinates:torch.Tensor
-    local_cellxgene_ix:torch.Tensor
-    n_fragments:int
-    cells_oi:int
-    genes_oi:int
-    @property
-    def n_cells(self):
-        return len(self.cells_oi)
-
-    @property
-    def n_genes(self):
-        return len(self.genes_oi)
-
-    def to(self, device):
-        for field_name, field in self.__dataclass_fields__.items():
-            if field.type is torch.Tensor:
-                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
-        return self
+from .fragments import Result
 
 @dataclasses.dataclass
 class FullResult(Result):
@@ -109,20 +90,18 @@ class Motifcounts(Fragments):
         
         # create buffers for motifs
         self.n_motifs = motifscores.shape[1]
+        self.n_features = self.n_motifs
         
-        self.motifscores_indptr = motifscores.indptr.astype(np.int64).copy()
-        self.motifscores_indices = motifscores.indices.astype(np.int64).copy()
-        self.motifscores_data = motifscores.data.astype(np.float64).copy()
-
-        # self.out_motifcounts = torch.from_numpy(np.ascontiguousarray(np.zeros((self.fragment_buffer_size, n_motifs), dtype = int)))#.pin_memory()
-        self.out_motifcounts = np.ascontiguousarray(np.zeros((self.fragment_buffer_size, self.n_motifs), dtype = int))
+        self.motifscores_indptr = motifscores.indptr.astype(np.int64)
+        self.motifscores_indices = motifscores.indices.astype(np.int64)
+        self.motifscores_data = motifscores.data.astype(np.float64)
         
     def load(self, minibatch, **kwargs):
         super().load(minibatch, **kwargs)
 
         n_fragments = self.out_coordinates.shape[0]
 
-        out_motifcounts = np.zeros((self.fragment_buffer_size, self.n_motifs), dtype = np.int64)
+        out_motifcounts = np.zeros((n_fragments, self.n_features), dtype = np.int64)
         
         n_motifs = peakfreeatac.loaders.extraction.motifs.extract_motifcounts(
             self.out_coordinates.numpy(),
@@ -135,12 +114,59 @@ class Motifcounts(Fragments):
             *self.cutwindow,
             out_motifcounts
         )
-        out_motifcounts.resize((n_fragments, self.n_motifs))
+        out_motifcounts.resize((n_fragments, self.n_features))
         
         return MotifcountsResult(
             motifcounts = torch.from_numpy(out_motifcounts).to(torch.float),
             local_cellxgene_ix = self.out_local_cellxgene_ix,
             coordinates = self.out_coordinates,
+            genemapping = self.out_genemapping,
+            n_fragments = n_fragments,
+            **minibatch.items()
+        )
+
+class MotifcountsSplit(Fragments):
+    def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow, **kwargs):
+        super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
+        
+        # store auxilliary information
+        self.cutwindow = cutwindow
+        self.cutwindow_width = cutwindow[1] - cutwindow[0]
+        
+        # create buffers for motifs
+        self.n_motifs = motifscores.shape[1]
+        self.n_features = self.n_motifs * 2
+        
+        self.motifscores_indptr = motifscores.indptr
+        self.motifscores_indices = motifscores.indices
+        self.motifscores_data = motifscores.data
+        
+    def load(self, minibatch, **kwargs):
+        super().load(minibatch, **kwargs)
+
+        n_fragments = self.out_coordinates.shape[0]
+
+        out_motifcounts = np.zeros((n_fragments, self.n_features), dtype = np.int64)
+        
+        n_motifs = peakfreeatac.loaders.extraction.motifs.extract_motifcounts_split(
+            self.out_coordinates.numpy(),
+            self.out_genemapping.numpy(),
+            self.motifscores_indptr,
+            self.motifscores_indices,
+            self.motifscores_data,
+            self.n_motifs,
+            *self.window,
+            self.window_width,
+            *self.cutwindow,
+            out_motifcounts
+        )
+        out_motifcounts.resize((n_fragments, self.n_features))
+        
+        return MotifcountsResult(
+            motifcounts = torch.from_numpy(out_motifcounts).to(torch.float),
+            local_cellxgene_ix = self.out_local_cellxgene_ix,
+            coordinates = self.out_coordinates,
+            genemapping = self.out_genemapping,
             n_fragments = n_fragments,
             **minibatch.items()
         )

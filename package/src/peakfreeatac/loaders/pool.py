@@ -1,23 +1,31 @@
 import copy
 import threading
-import copy
+import numpy as np
+import time
 
 class ThreadWithResult(threading.Thread):
-    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, *, daemon=None):
+    def __init__(self, group=None, target=None, name=None, loader = None, args=(), kwargs={}, *, daemon=None):
+        self.loader = loader
         def function():
             self.result = target(*args, **kwargs)
         super().__init__(group=group, target=function, name=name, daemon=daemon)
 
 class LoaderPool():
     tasks = None
-    def __init__(self, loader_cls, loader_kwargs = None, n_workers = 3):
+    loaders_available = None
+    shuffle_on_iter = False
+    def __init__(self, loader_cls, loader_kwargs = None, n_workers = 3, shuffle_on_iter = False):
         self.running = []
+
+        self.shuffle_on_iter = shuffle_on_iter
 
         if loader_kwargs is None:
             loader_kwargs = {}
 
         self.n_workers = n_workers
         self.loaders = [loader_cls(**loader_kwargs) for i in range(n_workers)]
+        for loader in self.loaders:
+            loader.running = False
 
     def initialize(self, tasks, *args, **kwargs):
         assert len(tasks) > 0
@@ -25,15 +33,21 @@ class LoaderPool():
         self.restart(*args, **kwargs)
 
     def submit(self, *args, **kwargs):
-        loader = self.loaders[self.current_submit]
-        thread = ThreadWithResult(target = loader.load, args = args, kwargs = kwargs)
+        if self.loaders_available is None:
+            raise ValueError("Pool was not initialized")
+        if len(self.loaders_available) == 0:
+            raise ValueError("No loaders available")
+        
+        loader = self.loaders_available.pop(0)
+        loader.running = True
+        thread = ThreadWithResult(target = loader.load, loader = loader, args = args, kwargs = kwargs)
         self.running.append(thread)
         thread.start()
-        self.current_submit = (self.current_submit + 1) % (self.n_workers)
 
     def pull(self):
         thread = self.running.pop(0)
         thread.join()
+        self.loaders_available.append(thread.loader)
         self.n_done += 1
         return thread.result
 
@@ -54,17 +68,28 @@ class LoaderPool():
     
     def submit_next(self):
         if len(self.todo) == 0:
-            self.todo = copy.copy(self.tasks)
+            if self.shuffle_on_iter:
+                self.todo = [self.tasks[i] for i in self.rg.choice(len(self.tasks), len(self.tasks), replace = False)]
+            else:
+                self.todo = copy.copy(self.tasks)
 
         task = self.todo.pop(0)
         self.todo.append(task)
         self.submit(task, *self.args, **self.kwargs)
 
     def restart(self, *args, **kwargs):
-        self.todo = copy.copy(self.tasks)
-        self.current_submit = 0
+        # join all still running threads
+        for thread in self.running:
+            thread.join()
+
+        if self.shuffle_on_iter:
+            self.rg = np.random.RandomState(0)
+
+        self.loaders_available = copy.copy(self.loaders)
+
         self.n_done = 0
         self.running = []
+        self.todo = []
 
         self.args = args
         self.kwargs = kwargs
@@ -73,6 +98,9 @@ class LoaderPool():
             self.submit_next()
             
     def terminate(self):
+        for thread in self.running:
+            thread.join()
+        self.running = []
         self.loaders = None
         
     def __del__(self):

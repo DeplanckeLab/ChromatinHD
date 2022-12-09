@@ -1,6 +1,46 @@
 import tqdm.auto as tqdm
 import torch
 import pandas as pd
+import subprocess
+
+class Colorcodes(object):
+    """
+    Provides ANSI terminal color codes which are gathered via the ``tput``
+    utility. That way, they are portable. If there occurs any error with
+    ``tput``, all codes are initialized as an empty string.
+    The provides fields are listed below.
+    Control:
+    - bold
+    - reset
+    Colors:
+    - blue
+    - green
+    - orange
+    - red
+    :license: MIT
+    """
+    def __init__(self):
+        try:
+            self.bold = subprocess.check_output("tput bold".split()).decode()
+            self.reset = subprocess.check_output("tput sgr0".split()).decode()
+
+            self.blue = subprocess.check_output("tput setaf 4".split()).decode()
+            self.green = subprocess.check_output("tput setaf 2".split()).decode()
+            self.orange = subprocess.check_output("tput setaf 3".split()).decode()
+            self.red = subprocess.check_output("tput setaf 1".split()).decode()
+        except subprocess.CalledProcessError as e:
+            self.bold = ""
+            self.reset = ""
+
+            self.blue = ""
+            self.green = ""
+            self.orange = ""
+            self.red = ""
+
+    def color_sign(self, x, format):
+        return (self.red + format.format(x) + self.reset) if x >= 0 else (self.green + format.format(x) + self.reset)
+
+_c = Colorcodes()
 
 class Trace():
     def __init__(self, n_significant_digits = 3):
@@ -11,6 +51,7 @@ class Trace():
         self.n_last_train_steps = None
         self.n_last_validation_steps = None
         self.current_checkpoint = 0
+        self.last_validation_diff = []
         
     def append(self, loss, epoch, step, phase = "train"):
         if phase == "train":
@@ -21,7 +62,6 @@ class Trace():
             self.n_current_validation_steps += 1
         
     def checkpoint(self):
-        print(f"{'•'} {self.current_checkpoint} {'step':>15} {len(self.train_steps)}")
         if (self.n_last_train_steps is not None) and (self.n_last_train_steps > 0):
             if self.n_current_train_steps == 0:
                 raise ValueError("No training steps were run since last checkpoint")
@@ -32,23 +72,27 @@ class Trace():
             diff_loss = current_train_steps["loss"].mean() - last_train_steps["loss"].mean()
             perc_diff_loss = diff_loss / current_loss
             
-            print(f"{'train':>10} {current_loss:+.2f} Δ{diff_loss:+.3f} {perc_diff_loss:+.2%}")
+            print(f"{'train':>10} {current_loss:+.2f} Δ{_c.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}")
         self.n_last_train_steps = self.n_current_train_steps
         self.n_current_train_steps = 0
             
+        
+        current_validation_steps = pd.DataFrame(self.validation_steps[-(self.n_current_validation_steps):])
+        current_loss = current_validation_steps["loss"].mean()
         if (self.n_last_validation_steps is not None) and (self.n_last_validation_steps > 0):
             if self.n_current_validation_steps == 0:
                 raise ValueError("No validation steps were run since last checkpoint")
             assert len(self.validation_steps) >= (self.n_current_validation_steps + self.n_last_validation_steps)
 
             last_validation_steps = pd.DataFrame(self.validation_steps[-(self.n_current_validation_steps + self.n_last_validation_steps):-(self.n_current_validation_steps)])
-            current_validation_steps = pd.DataFrame(self.validation_steps[-(self.n_current_validation_steps):])
             
-            current_loss = current_validation_steps["loss"].mean()
             diff_loss = current_validation_steps["loss"].mean() - last_validation_steps["loss"].mean()
+            self.last_validation_diff.append(diff_loss)
             perc_diff_loss = diff_loss / current_loss
             
-            print(f"{'validation':>10} {current_loss:+.2f} Δ{diff_loss:+.3f} {perc_diff_loss:+.2%}")
+            print(f"{'validation':>10} {current_loss:+.2f} Δ{_c.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}")
+        else:
+            print(f"{'validation':>10} {current_loss:+.2f}")
         self.n_last_validation_steps = self.n_current_validation_steps
         self.n_current_validation_steps = 0
         
@@ -92,8 +136,10 @@ class Trainer():
     def train(self):
         self.model = self.model.to(self.device)
         self.outcome = self.outcome.to(self.device)
+
+        continue_training = True
         
-        while self.epoch < self.n_epochs:
+        while (self.epoch < self.n_epochs) and (continue_training):
             # train
             for data_train in self.loaders:
                 # checkpoint if necessary
@@ -110,8 +156,12 @@ class Trainer():
                             self.trace.append(loss.item(), self.epoch, self.step_ix, "validation")
 
                             self.loaders_validation.submit_next()
-
+                    print(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
                     self.trace.checkpoint()
+
+                    if (self.epoch > 1) and (self.trace.last_validation_diff[-1] > 0):
+                        continue_training = False
+                        break
                     
                 # actual training
                 torch.set_grad_enabled(True)

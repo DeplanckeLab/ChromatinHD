@@ -45,11 +45,12 @@ class EmbeddingGenePooler(torch.nn.Module):
     """
     Pools fragments across genes and cells
     """
-    def __init__(self, n_components, debug = False):
-        self.debug = debug
+    def __init__(self, n_components, dummy_motifs = False):
         super().__init__()
 
         self.n_components = n_components
+
+        self.dummy_motifs = dummy_motifs
 
         self.nn = torch.nn.Sequential(
             torch.nn.Linear(n_components, n_components),
@@ -59,12 +60,16 @@ class EmbeddingGenePooler(torch.nn.Module):
         self.nn[-1].weight.data.zero_()
     
     def forward(self, embedding, cellxgene_ix, weights, n_cells, n_genes):
-        if self.debug:
-            assert (torch.diff(cellxgene_ix) >= 0).all(), "cellxgene_ix should be sorted"
         if weights is not None:
             embedding = embedding * weights.unsqueeze(-1)
-        embedding = self.nn(embedding)
-        cellxgene_embedding = torch_scatter.segment_sum_coo(embedding, cellxgene_ix, dim_size = n_cells * n_genes)
+
+        if self.dummy_motifs:
+            embedding[:] = 0.
+
+        n_fragments = torch.ones(len(cellxgene_ix), device = embedding.device)
+        
+        cellxgene_embedding = torch_scatter.segment_mean_coo(embedding, cellxgene_ix, dim_size = n_cells * n_genes)
+        cellxgene_embedding = self.nn(cellxgene_embedding)
         cell_gene_embedding = cellxgene_embedding.reshape((n_cells, n_genes, cellxgene_embedding.shape[-1]))
         return cell_gene_embedding
 
@@ -89,23 +94,25 @@ class FragmentEmbeddingToExpression(torch.nn.Module):
     """
     Predicts gene expression from individual fragments
     """
-    weighting = True
+    distance_weighting = True
     def __init__(
         self,
         n_genes,
         mean_gene_expression,
         n_components,
-        weighting = True,
+        distance_weighting = True,
+        dummy_motifs = False,
         **kwargs
     ):
         super().__init__()
 
-        self.weighting = weighting
+        self.distance_weighting = distance_weighting
 
         self.fragment_weighter = FragmentWeighter()
         
         self.embedding_gene_pooler = EmbeddingGenePooler(
-            n_components = n_components
+            n_components = n_components,
+            dummy_motifs = dummy_motifs
         )
         self.embedding_to_expression = EmbeddingToExpression(
             n_genes = n_genes,
@@ -117,7 +124,7 @@ class FragmentEmbeddingToExpression(torch.nn.Module):
         self,
         data
     ):
-        if self.weighting:
+        if self.distance_weighting:
             fragment_weights = self.fragment_weighter(data.coordinates)
         else:
             fragment_weights = None

@@ -2,6 +2,32 @@ import torch
 import numpy as np
 import pyximport; pyximport.install(reload_support=True, language_level=3, setup_args=dict(include_dirs=[np.get_include()]))
 import peakfreeatac.loaders.extraction.fragments
+import dataclasses
+
+@dataclasses.dataclass
+class Result():
+    coordinates:torch.Tensor
+    local_cellxgene_ix:torch.Tensor
+    genemapping:torch.Tensor
+    n_fragments:int
+    cells_oi:int
+    genes_oi:int
+    @property
+    def n_cells(self):
+        return len(self.cells_oi)
+
+    @property
+    def n_genes(self):
+        return len(self.genes_oi)
+
+    def to(self, device):
+        for field_name, field in self.__dataclass_fields__.items():
+            if field.type is torch.Tensor:
+                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
+        return self
+
+class FragmentsResult(Result):
+    pass
 
 class Fragments():
     cellxgene_batch_size:int
@@ -14,9 +40,9 @@ class Fragments():
         self.window_width = window[1] - window[0]
         
         # store fragment data
-        self.cellxgene_indptr = fragments.cellxgene_indptr.numpy().astype(np.int64)
-        self.coordinates = fragments.coordinates.numpy().astype(np.int64)
-        self.genemapping = fragments.mapping[:, 1].numpy().astype(np.int64)
+        self.cellxgene_indptr = fragments.cellxgene_indptr.numpy()
+        self.coordinates = fragments.coordinates.numpy()
+        self.genemapping = fragments.genemapping.numpy()
         
         # create buffers for coordinates
         if n_fragment_per_cellxgene is None:
@@ -65,4 +91,10 @@ class Fragments():
         self.out_genemapping.resize_((n_fragments))
         self.out_local_cellxgene_ix.resize_((n_fragments))
         
-        return n_fragments
+        return FragmentsResult(
+            local_cellxgene_ix = self.out_local_cellxgene_ix,
+            coordinates = self.out_coordinates,
+            n_fragments = n_fragments,
+            genemapping = self.out_genemapping,
+            **minibatch.items()
+        )

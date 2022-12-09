@@ -89,10 +89,9 @@ def extract_motifcounts(
     INT64_t cutwindow_right,
     INT64_t [:,::1] out_motifcounts,
 ):
-    cdef INT64_t fragment_ix, coord_first, coord_second, gene_ix, position, motifscore_ix, slice_left, slice_right, out_ix, local_fragment_ix, local_motif_n
+    cdef INT64_t fragment_ix, coord_first, coord_second, gene_ix, position, motifscore_ix, slice_first_left, slice_first_right, slice_first_mid, slice_second_left, slice_second_mid, slice_second_right, local_fragment_ix
     
     local_fragment_ix = 0 # will store the current fragment counting from 0
-    local_motif_n = 0 # will store how many motifs have been processed
 
     with nogil:
         for fragment_ix in range(coordinates.shape[0]):
@@ -101,48 +100,70 @@ def extract_motifcounts(
             gene_ix = genemapping[fragment_ix]
             
             # determine the bounds of the genome slice
-            slice_left = coord_first + cutwindow_left - window_left
-            if slice_left < 0:
-                slice_left = 0
-            slice_left = slice_left + gene_ix * window_width
-            slice_right = coord_first + cutwindow_right - window_left
-            if slice_right >= window_width:
-                slice_right = window_width - 1
-            slice_right = slice_right + gene_ix * window_width
-            
-            # loop over each position
-            for position in range(slice_left, slice_right):
+            slice_first_left = coord_first + cutwindow_left - window_left
+            if slice_first_left < 0:
+                slice_first_left = 0
+            slice_first_left = slice_first_left + gene_ix * window_width
 
-                # extract for each position its motifs
+            slice_first_mid = coord_first - window_left
+            if slice_first_mid >= window_width:
+                slice_first_mid = window_width - 1
+            if slice_first_mid < 0:
+                slice_first_mid = 0
+            slice_first_mid =  slice_first_mid + gene_ix * window_width
+
+            slice_first_right = coord_first + cutwindow_right - window_left
+            if slice_first_right >= window_width:
+                slice_first_right = window_width - 1
+            slice_first_right = slice_first_right + gene_ix * window_width
+
+            slice_second_left = coord_second - cutwindow_right - window_left
+            if slice_second_left < 0:
+                slice_second_left = 0
+            slice_second_left = slice_second_left + gene_ix * window_width
+
+            slice_second_mid = coord_second - window_left
+            if slice_second_mid >= window_width:
+                slice_second_mid = window_width - 1
+            if slice_second_mid < 0:
+                slice_second_mid = 0
+            slice_second_mid =  slice_second_mid + gene_ix * window_width
+            
+            slice_second_right = coord_second - cutwindow_left - window_left
+            if slice_second_right >= window_width:
+                slice_second_right = window_width - 1
+            slice_second_right = slice_second_right + gene_ix * window_width
+
+            # avoid "within fragment" slices to overlap with "outside fragment" slices
+            if slice_first_right > slice_second_mid:
+                slice_first_right = slice_second_mid
+            if slice_second_left < slice_first_mid:
+                slice_second_left = slice_first_mid
+
+            # avoid the first "within fragment" slice to overlap with the second "within fragment" slice
+            # in that case slice_first_right takes priority
+            if slice_second_left < slice_first_right:
+                slice_second_left = slice_first_right
+                
+            # outside fragments
+            for position in range(slice_first_left, slice_first_mid):
                 for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
                     out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix]] += 1
-                    
-                    local_motif_n += 1
-
-            # determine the bounds of the genome slice
-            # this is flipped compared to the first coord
-            slice_left = coord_second - cutwindow_right - window_left
-            if slice_left < 0:
-                slice_left = 0
-            slice_left = slice_left + gene_ix * window_width
-            slice_right = coord_second - cutwindow_left - window_left
-            if slice_right >= window_width:
-                slice_right = window_width - 1
-            slice_right = slice_right + gene_ix * window_width
-            
-            # loop over each position
-            for position in range(slice_left, slice_right):
-
-                # extract for each position its motifs
+            for position in range(slice_second_mid, slice_second_right):
                 for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
                     out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix]] += 1
-                    
-                    local_motif_n += 1
+            
+            # within fragments
+            for position in range(slice_first_mid, slice_first_right):
+                for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                    out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix]] += 1
+            for position in range(slice_second_left, slice_second_mid):
+                for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                    out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix]] += 1
+
                     
             local_fragment_ix += 1
-
     return
-
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -166,3 +187,102 @@ def extract_dummy(
     local_motif_n = 0 # will store how many motifs have been processed
 
     return None
+
+
+
+@cython.boundscheck(False) # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
+def extract_motifcounts_split(
+    INT64_t [:,::1] coordinates,
+    INT64_t [::1] genemapping,
+    INT64_t [::1] motifscores_indptr,
+    INT64_t [::1] motifscores_indices,
+    FLOAT64_t [::1] motifscores_data,
+    INT64_t n_motifs,
+    INT64_t window_left,
+    INT64_t window_right,
+    INT64_t window_width,
+    INT64_t cutwindow_left,
+    INT64_t cutwindow_right,
+    INT64_t [:,::1] out_motifcounts,
+):
+    cdef INT64_t fragment_ix, coord_first, coord_second, gene_ix, position, motifscore_ix, slice_first_left, slice_first_right, slice_first_mid, slice_second_left, slice_second_mid, slice_second_right, local_fragment_ix
+    
+    local_fragment_ix = 0 # will store the current fragment counting from 0
+
+    with nogil:
+        for fragment_ix in range(coordinates.shape[0]):
+            coord_first = coordinates[fragment_ix, 0]
+            coord_second = coordinates[fragment_ix, 1]
+            gene_ix = genemapping[fragment_ix]
+            
+            # determine the bounds of the genome slice
+            slice_first_left = coord_first + cutwindow_left - window_left
+            if slice_first_left < 0:
+                slice_first_left = 0
+            slice_first_left = slice_first_left + gene_ix * window_width
+
+            slice_first_mid = coord_first - window_left
+            if slice_first_mid >= window_width:
+                slice_first_mid = window_width - 1
+            if slice_first_mid < 0:
+                slice_first_mid = 0
+            slice_first_mid =  slice_first_mid + gene_ix * window_width
+
+            slice_first_right = coord_first + cutwindow_right - window_left
+            if slice_first_right >= window_width:
+                slice_first_right = window_width - 1
+            slice_first_right = slice_first_right + gene_ix * window_width
+
+            slice_second_left = coord_second - cutwindow_right - window_left
+            if slice_second_left < 0:
+                slice_second_left = 0
+            slice_second_left = slice_second_left + gene_ix * window_width
+
+            slice_second_mid = coord_second - window_left
+            if slice_second_mid >= window_width:
+                slice_second_mid = window_width - 1
+            if slice_second_mid < 0:
+                slice_second_mid = 0
+            slice_second_mid =  slice_second_mid + gene_ix * window_width
+            
+            slice_second_right = coord_second - cutwindow_left - window_left
+            if slice_second_right >= window_width:
+                slice_second_right = window_width - 1
+            slice_second_right = slice_second_right + gene_ix * window_width
+
+            # avoid "within fragment" slices to overlap with "outside fragment" slices
+            if slice_first_right > slice_second_mid:
+                slice_first_right = slice_second_mid
+            if slice_second_left < slice_first_mid:
+                slice_second_left = slice_first_mid
+
+            # avoid the first "within fragment" slice to overlap with the second "within fragment" slice
+            # in that case slice_first_right takes priority
+            if slice_second_left < slice_first_right:
+                slice_second_left = slice_first_right
+
+            # print(slice_first_left, slice_first_mid, slice_first_right, slice_second_left, slice_second_mid, slice_second_right)
+
+            # print("----")
+
+                
+            # outside fragments
+            for position in range(slice_first_left, slice_first_mid):
+                for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                    out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix]] += 1
+            for position in range(slice_second_mid, slice_second_right):
+                for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                    out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix]] += 1
+            
+            # within fragments
+            for position in range(slice_first_mid, slice_first_right):
+                for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                    out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix] + n_motifs] += 1
+            for position in range(slice_second_left, slice_second_mid):
+                for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                    out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix] + n_motifs] += 1
+
+                    
+            local_fragment_ix += 1
+    return
