@@ -48,13 +48,17 @@ import peakfreeatac.transcriptome
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
 # %%
 import gzip
+
+# %%
+folder_motifs = pfa.get_output() / "data" / "motifs" / "mm" / "hocomoco"
+folder_motifs.mkdir(parents = True, exist_ok = True)
 
 # %%
 folder_motifs = pfa.get_output() / "data" / "motifs" / "hs" / "hocomoco"
@@ -65,9 +69,11 @@ folder_motifs.mkdir(parents = True, exist_ok = True)
 
 # %%
 # !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_standard_thresholds_HUMAN_mono.txt -O {folder_motifs}/pwm_cutoffs.txt
+# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_pwms_HUMAN_mono.txt -O {folder_motifs}/pwms.txt
 
 # %%
-# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_pwms_HUMAN_mono.txt -O {folder_motifs}/pwms.txt
+# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/MOUSE/mono/HOCOMOCOv11_core_standard_thresholds_MOUSE_mono.txt -O {folder_motifs}/pwm_cutoffs.txt
+# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/MOUSE/mono/HOCOMOCOv11_core_pwms_MOUSE_mono.txt -O {folder_motifs}/pwms.txt
 
 # %%
 pwms = {}
@@ -157,7 +163,11 @@ motifs = pd.read_pickle(folder_motifs / "motifs.pkl")
 motifs_oi = motifs
 
 # %%
+motifs.loc[motifs.index.str.startswith("CEBP")]
+
+# %%
 motif_oi = "ZN250_HUMAN.H11MO.0.C"
+# motif_oi = "CEBPA_MOUSE.H11MO.0.A"
 print(motif_oi)
 fig, ax = plt.subplots()
 pd.DataFrame(pwms[motif_oi].numpy()).plot(ax = ax)
@@ -168,18 +178,20 @@ ax.axhline(0, color = "#333333")
 def scan(onehot, pwm):
     n = onehot.shape[-2]
     k = pwm.shape[-2]
-    x = torch.matmul(onehot, pwm.T)
     positive = torch.zeros(((*onehot.shape[:-2], n - k+1)), device = onehot.device)
     for i in range(k):
-        positive += x[..., i:n-k+i+1, i]
+        # to save memory we do the matrix multiplication once per motif position
+        # this does not cause a significant slowdown
+        x = torch.matmul(onehot, pwm[[i]].T) 
+        positive += x[..., i:n-k+i+1, 0]
     del x
         
     onehot_comp = onehot[..., [3, 2, 1, 0]]
     pwm_rev = pwm.flip(0)
-    x = torch.matmul(onehot_comp, pwm_rev.T)
     negative = torch.zeros(((*onehot.shape[:-2], n - k+1)), device = onehot.device)
     for i in range(k):
-        negative += x[..., i:n-k+i+1, i]
+        x = torch.matmul(onehot_comp, pwm_rev[[i]].T)
+        negative += x[..., i:n-k+i+1, 0]
     del x
         
     # return positive
@@ -315,7 +327,7 @@ ax_scorerev.set_ylabel("Reverse scores", rotation = 0, ha = "right", va = "cente
 # ### Save
 
 # %%
-motifscan_folder = pfa.get_output() / "motifscans" / "pbmc10k" / promoter_name
+motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
 motifscan_folder.mkdir(parents=True, exist_ok=True)
 
 # %%

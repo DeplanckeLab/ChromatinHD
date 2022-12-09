@@ -1,188 +1,148 @@
-import numpy as np
 import pandas as pd
-
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import seaborn as sns
-sns.set_style('ticks')
-
-import pickle
-
-import itertools
-
+import numpy as np
 import torch
-
 import tqdm.auto as tqdm
 
 import peakfreeatac as pfa
 import peakfreeatac.fragments
 import peakfreeatac.transcriptome
+import peakfreeatac.loaders.fragmentmotif
+import peakfreeatac.loaders.minibatching
 
+import pickle
+
+device = "cuda:1"
 
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# transcriptome
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
-promoter_name = "10k10k"
+transcriptome = peakfreeatac.transcriptome.Transcriptome(
+    folder_data_preproc / "transcriptome"
+)
 
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
-fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
+# fragments
+# promoter_name, window = "1k1k", np.array([-1000, 1000])
+promoter_name, window = "10k10k", np.array([-10000, 10000])
+promoters = pd.read_csv(
+    folder_data_preproc / ("promoters_" + promoter_name + ".csv"), index_col=0
+)
+window_width = window[1] - window[0]
+
+fragments = peakfreeatac.fragments.Fragments(
+    folder_data_preproc / "fragments" / promoter_name
+)
+
+# create design to run
+from design import get_design, get_folds_training
+design = get_design(dataset_name, transcriptome, fragments, window = window)
+design = {k:design[k] for k in [
+    "v14"
+]}
+# fold_slice = slice(0, 1)
+fold_slice = slice(0, 5)
+# fold_slice = slice(1, 5)
 
 
-mean_gene_expression = transcriptome.X.dense().mean(0)
+# folds & minibatching
+folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
+folds = get_folds_training(fragments, folds)
 
-print(fragments.path)
-folds = pickle.load(open(fragments.path / "folds.pkl", "rb"))
+# loss
+cos = torch.nn.CosineSimilarity(dim = 0)
+loss = lambda x_1, x_2: -cos(x_1, x_2).mean()
 
-
-# from peakfreeatac.models.promoter.v6 import FragmentsToExpression; model_name = "v6"
-from peakfreeatac.models.promoter.v5 import FragmentsToExpression; model_name = "v5"
-from peakfreeatac.models.promoter.v7 import FragmentsToExpression; model_name = "v7"
-from peakfreeatac.models.promoter.v8 import FragmentsToExpression; model_name = "v8"
-# from peakfreeatac.models.promoter.v11 import FragmentsToExpression; model_name = "v11"
-from peakfreeatac.models.promoter.v12 import FragmentsToExpression; model_name = "v12"
-# from peakfreeatac.models.promoter.v13 import FragmentsToExpression; model_name = "v13"
-# from peakfreeatac.models.promoter.v3 import FragmentsToExpression; model_name = "v3"
+def paircor(x, y, dim = 0, eps = 0.1):
+    divisor = (y.std(dim) * x.std(dim)) + eps
+    cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / divisor
+    return cor
+loss = lambda x, y: -paircor(x, y).mean() * 100
 
 
 class Prediction(pfa.flow.Flow):
     pass
-prediction = Prediction(pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / model_name)
 
+for prediction_name, design_row in design.items():
+    print(prediction_name)
+    prediction = Prediction(pfa.get_output() / "prediction_positional" / dataset_name / promoter_name / prediction_name)
 
-
-models = []
-for i in range(len(folds)):
-    model = FragmentsToExpression(
-        fragments.n_genes,
-        mean_gene_expression
+    # loaders
+    print("collecting...")
+    if "loaders" in globals():
+        loaders.terminate()
+        del loaders
+        import gc
+        gc.collect()
+    if "loaders_validation" in globals():
+        loaders_validation.terminate()
+        del loaders_validation
+        import gc
+        gc.collect()
+    print("collected")
+    loaders = pfa.loaders.LoaderPool(
+        design_row["loader_cls"],
+        design_row["loader_parameters"],
+        n_workers = 10
     )
-    models.append(model)
-    
-    
-n_steps = 200
-trace_epoch_every = 10
-
-# lr = 1.0
-lr = 1e-3
-
-# choose which models to infer
-# model_ixs = [0, 1, 2, 3, 4]
-model_ixs = [0]
-
-transcriptome_X = transcriptome.X.to("cuda")
-transcriptome_X_dense = transcriptome_X.dense()
-
-coordinates = fragments.coordinates.to("cuda")
-mapping = fragments.mapping.to("cuda")
-
-
-for fold, model in zip([folds[i] for i in model_ixs], [models[i] for i in model_ixs]):
-    params = model.get_parameters()
-
-    optim = torch.optim.SGD(
-        params,
-        lr = lr,
-        momentum=0.9
+    print("haha!")
+    loaders_validation = pfa.loaders.LoaderPool(
+        design_row["loader_cls"],
+        design_row["loader_parameters"],
+        n_workers = 5
     )
-    loss = torch.nn.MSELoss(reduction = "mean")
-    
-    splits_training = [split.to("cuda") for split in fold if split.phase == "train"]
-    splits_test = [split.to("cuda") for split in fold if split.phase == "validation"]
-    model = model.to("cuda").train(True)
+    loaders_validation.shuffle_on_iter = False
 
-    trace = []
+    models = []
+    for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)][fold_slice]:
+        # model
+        model = design_row["model_cls"](**design_row["model_parameters"], loader = loaders.loaders[0])
 
-    prev_mse_train = None
-    prev_mse_test = None
-    for epoch in tqdm.tqdm(range(n_steps)):
-        # trace
-        if (epoch % trace_epoch_every) == 0:
-            # mse
-            mse_test = []
-            mse_train = []
-            for split in itertools.chain(splits_training, splits_test):
-                with torch.no_grad():
-                    expression_predicted = model.forward2(
-                        split,
-                        coordinates,
-                        mapping,
-                    )
-                    
-                    transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
-                    mse = loss(expression_predicted, transcriptome_subset)
-                    
-                    if split.phase == "train":
-                        mse_train.append(mse.detach().cpu().item())
-                    else:
-                        mse_test.append(mse.detach().cpu().item())
-            mse_train = np.mean(mse_train)
-            mse_test = np.mean(mse_test)
-            
-            # train mse
-            text = f"{epoch} {mse_train:.6f}"
+        # optimizer
+        params = model.get_parameters()
 
-            if prev_mse_train is not None:
-                text += f" Δ{prev_mse_train-mse_train:.1e}"
+        # optimization
+        optimize_every_step = 1
+        # lr = 1e-2
+        lr = 1e-3
+        optim = torch.optim.Adam(params, lr=lr, weight_decay=lr/10)
+        n_epochs = 20
+        checkpoint_every_step = 100
 
-            prev_mse_train = mse_train
-            
-            # mse test
-            text += f" {mse_test:.6f}"
-            
-            if prev_mse_test is not None:
-                text += f" Δ{prev_mse_test-mse_test:.1e}"
-
-                if prev_mse_test-mse_test < 0:
-                    break
-                
-            prev_mse_test = mse_test
-            
-            print(text)
-            
-            trace.append({
-                "mse_train":mse_train,
-                "mse_test":mse_test,
-                "epoch":epoch
-            })
+        # initialize loaders
+        loaders.initialize(fold["minibatches_train"])
+        loaders_validation.initialize(fold["minibatches_validation_trace"])
 
         # train
-        for split in splits_training:
-            expression_predicted = model.forward2(
-                split,
-                coordinates,
-                mapping,
-            )
+        import peakfreeatac.train
+        outcome = transcriptome.X.dense()
+        trainer = pfa.train.Trainer(
+            model,
+            loaders,
+            loaders_validation,
+            outcome,
+            loss,
+            optim,
+            checkpoint_every_step = checkpoint_every_step,
+            optimize_every_step = optimize_every_step,
+            n_epochs = n_epochs,
+            device = device
+        )
+        trainer.train()
 
-            # transcriptome_subset = transcriptome_X.dense_subset(split.cell_ix)[:, split.gene_ix]
-            transcriptome_subset = transcriptome_X_dense[split.cell_ix, split.gene_ix]
+        model = model.to("cpu")
+        pickle.dump(model, open(prediction.path / ("model_" + str(fold_ix) + ".pkl"), "wb"))
 
-            mse = loss(expression_predicted, transcriptome_subset) * 1000
-
-            mse.backward()
-        
-            optim.step()
-            optim.zero_grad()
-
-        # reshuffle the order of the splits
-        splits_training = [splits_training[i] for i in np.random.choice(len(splits_training), len(splits_training), replace = False)]
-            
-if isinstance(trace, list):
-    trace = pd.DataFrame(list(trace))
-    
-fig, ax = plt.subplots()
-plotdata = trace.groupby("epoch").mean().reset_index()
-ax.plot(plotdata["epoch"], plotdata["mse_train"], zorder = 6, color = "red")
-ax.plot(plotdata["epoch"], plotdata["mse_test"], zorder = 6, color = "orange")
-fig.savefig("trace.png")
-
-
-# move splits back to cpu
-# otherwise if you try to load them back in they might want to immediately go to gpu
-models = [model.to("cpu") for model in models]
-
-pfa.save(models, open(prediction.path / "models.pkl", "wb"))
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        plotdata_validation = pd.DataFrame(trainer.trace.validation_steps).groupby("checkpoint").mean().reset_index()
+        plotdata_train = pd.DataFrame(trainer.trace.train_steps).groupby("checkpoint").mean().reset_index()
+        ax.plot(plotdata_validation["checkpoint"], plotdata_validation["loss"], label = "test")
+        # ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label = "train")
+        ax.legend()
+        fig.savefig(prediction.path / ("trace_" + str(fold_ix) + ".png"))
+        plt.close()

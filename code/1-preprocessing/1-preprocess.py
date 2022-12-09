@@ -45,8 +45,8 @@ import peakfreeatac as pfa
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
-# dataset_name = "pbmc3k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_3k/pbmc_granulocyte_sorted_3k"; genome = "GRCh38.107"; organism = "hs"
+# dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
+dataset_name = "pbmc3k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_3k/pbmc_granulocyte_sorted_3k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
 
@@ -107,7 +107,7 @@ if genome == "GRCh38.107":
 elif genome == "mm10":
     # !wget http://ftp.ensembl.org/pub/release-98/gff3/mus_musculus/Mus_musculus.GRCm38.98.gff3.gz -O {folder_data_preproc}/genes.gff.gz
     # !wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
-    # # !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
+    # !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
 
 # %%
 # !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "gene"' > {folder_data_preproc}/genes.gff
@@ -116,12 +116,8 @@ elif genome == "mm10":
 # ### Genome
 
 # %%
-from operator import xor
-y = lambda bp: 0b11 & xor((ord(bp) >> 2), (ord(bp) >> 1))
-
-# %%
-# >>> from operator import xor
-# >>> y = lambda bp: 0b11 & xor((ord(bp) >> 2), (ord(bp) >> 1))
+# from operator import xor
+# y = lambda bp: 0b11 & xor((ord(bp) >> 2), (ord(bp) >> 1))
 
 # %%
 import gzip
@@ -144,7 +140,8 @@ for i, line in enumerate(gzip.GzipFile(folder_data_preproc / "dna.fa.gz")):
         genome_chromosome += [translate_table[x] for x in line.strip("\n").upper()]
 
 # %%
-# !ln -s {folder_data_preproc}/../pbmc10k/genome.pkl.gz {folder_data_preproc}/
+# to link between datasets with the same genome/organism
+# # !ln -s {folder_data_preproc}/../pbmc10k/genome.pkl.gz {folder_data_preproc}/
 
 pickle.dump(genome, gzip.GzipFile((folder_data_preproc / "genome.pkl.gz"), "wb", compresslevel = 3))
 
@@ -253,7 +250,10 @@ sc.pp.neighbors(adata)
 sc.tl.umap(adata)
 
 # %%
-transcriptome.adata.var["chr"] = genes["chr"]
+adata.var["chr"] = genes["chr"]
+
+# %%
+transcriptome.adata = adata
 
 # %%
 transcriptome.adata = adata
@@ -262,6 +262,9 @@ transcriptome.obs = adata.obs
 
 # %%
 transcriptome.create_X()
+
+# %%
+transcriptome.var
 
 # %%
 fig, ax = plt.subplots()
@@ -397,7 +400,7 @@ transcriptome.obs = adata.obs
 transcriptome.adata = adata
 
 # %% [markdown]
-# ## Create cell type dataset
+# ## Create cell type pseudobulk dataset
 
 # %%
 import peakfreeatac.transcriptome
@@ -576,12 +579,7 @@ fragments.obs = obs
 # Create fragments tensor
 
 # %%
-# we use int32 for smaller memory usage
-# will have to be converted to floats anyway...
-coordinates = torch.tensor(np.array(coordinates_raw, dtype = np.int32))
-
-# %%
-# int64 is needed for torch_scatter
+coordinates = torch.tensor(np.array(coordinates_raw, dtype = np.int64))
 mapping = torch.tensor(np.array(mapping_raw), dtype = torch.int64)
 
 # %% [markdown]
@@ -593,13 +591,13 @@ mapping = mapping[sorted_idx]
 coordinates = coordinates[sorted_idx]
 
 # %% [markdown]
-# Check size and dump
+# Check size
 
 # %%
 np.product(mapping.size()) * 64 / 8 / 1024 / 1024
 
 # %%
-np.product(coordinates.size()) * 32 / 8 / 1024 / 1024
+np.product(coordinates.size()) * 64 / 8 / 1024 / 1024
 
 # %% [markdown]
 # Store
@@ -643,6 +641,8 @@ cell_bins = np.floor((np.arange(len(cells_all))/(len(cells_all)/n_bins)))
 chromosome_gene_counts = transcriptome.var.groupby("chr").size().sort_values(ascending = False)
 chromosome_bins = np.cumsum(((np.cumsum(chromosome_gene_counts) % (chromosome_gene_counts.sum() / n_bins + 1)).diff() < 0))
 
+gene_bins = chromosome_bins[transcriptome.var["chr"]].values
+
 n_folds = 5
 folds = []
 for i in range(n_folds):
@@ -661,86 +661,6 @@ for i in range(n_folds):
         "genes_validation":genes_validation
     })
 pickle.dump(folds, (fragments.path / "folds.pkl").open("wb"))
-
-# %% [markdown] jp-MarkdownHeadingCollapsed=true tags=[]
-# ###### Old
-
-# %% [markdown]
-# Splits up the fragments into "splits" for training, and precalculates several elements that a model can use:
-# - `fragments_cellxgene_idx`, the cellxgene index locally, i.e. for the chosen cells and genes
-# - `fragment_count_mapping`: a dictionary with k:# fragments and v:fragments for which the cellxgene contains k number of fragments
-
-# %%
-folds = pfa.fragments.Folds(fragments.n_cells, fragments.n_genes, 1000, 5000, n_folds = 5)
-folds.populate(fragments)
-
-# %% [markdown]
-# Create mapping between # of fragments per cellxgene
-
-# %%
-# save
-pfa.save(folds, open(fragments.path / "folds.pkl", "wb"))
-
-# %%
-# !ls -lh {fragments.path}
-
-# %% [markdown]
-# Split across genes too
-
-# %%
-folds = pfa.fragments.FoldsDouble(fragments.n_cells, fragments.n_genes, 200, n_folds = 1, perc_train = 4/5)
-# folds = pfa.fragments.FoldsDouble(10000, 20, 200, n_folds = 1, perc_train = 4/5)
-folds.populate(fragments)
-
-# %%
-folds[0].plot()
-None
-
-# %%
-# save
-pfa.save(folds, open(fragments.path / "folds2.pkl", "wb"))
-
-# %%
-for k, v in folds[0][0].__dict__.items():
-    if torch.is_tensor(v):
-        print(k, v.size())
-
-# %%
-# !ls -lh {fragments.path}/folds2.pkl
-
-# %% [markdown]
-# ### Create windows around genes
-
-# %% [markdown]
-# Old code used to create windows around genes and determine which peaks are in that window
-
-# %%
-genes = pd.read_csv(folder_data_preproc / "genes.csv", index_col = 0)
-
-# %%
-genewindows = genes.copy()
-genewindows["start"] = np.maximum(genewindows["start"] - 20000, 0)
-genewindows["end"] = genewindows["end"] + 20000
-
-# %%
-genewindows_bed = pybedtools.BedTool.from_dataframe(genewindows.reset_index()[["chr", "start", "end", "strand", "gene"]])
-
-# %%
-peaks = pybedtools.BedTool(folder_data_preproc/"atac_peaks.bed")
-
-# %%
-intersect = genewindows_bed.intersect(peaks, wo = True)
-intersect = intersect.to_dataframe()
-
-# %%
-intersect["peak_id"] = intersect["strand"] + ":" + intersect["thickStart"].astype(str) + "-" + intersect["thickEnd"].astype(str)
-
-# %%
-gene_peak_links = intersect[["score", "peak_id"]].copy()
-gene_peak_links.columns = ["gene", "peak"]
-
-# %%
-gene_peak_links.to_csv(folder_data_preproc / "gene_peak_links_20k.csv")
 
 # %% [markdown]
 # ## Fragment distribution

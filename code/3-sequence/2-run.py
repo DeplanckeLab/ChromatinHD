@@ -11,6 +11,8 @@ import peakfreeatac.loaders.minibatching
 
 import pickle
 
+device = "cuda:0"
+
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
@@ -40,112 +42,135 @@ fragments = peakfreeatac.fragments.Fragments(
 motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
 motifscores = pickle.load(open(motifscan_folder / "motifscores.pkl", "rb"))
 
-# model
-parameters = {}
-# from peakfreeatac.models.promotermotif.v1 import FragmentEmbeddingToExpression; model_name = "v1"
-# from peakfreeatac.models.promotermotif.v2 import FragmentEmbeddingToExpression; model_name = "v2"
-from peakfreeatac.models.promotermotif.v3 import FragmentEmbeddingToExpression; model_name = "v3"
-# from peakfreeatac.models.promotermotif.v3 import FragmentEmbeddingToExpression; model_name = "v3_noweighting"; parameters = {"weight":False}
+# TEMP FIX
+fragments.coordinates = fragments.coordinates.to(torch.int64).contiguous()
+fragments.mapping = fragments.mapping.to(torch.int64).contiguous()
+fragments.genemapping = fragments.mapping[:, 1].to(torch.int64).contiguous()
 
-class Prediction(pfa.flow.Flow):
-    pass
-prediction = Prediction(pfa.get_output() / "prediction_sequence" / dataset_name / promoter_name / model_name)
+motifscores.indptr = np.ascontiguousarray(motifscores.indptr.astype(np.int64))
+motifscores.indices = np.ascontiguousarray(motifscores.indices.astype(np.int64))
+motifscores.data = np.ascontiguousarray(motifscores.data.astype(np.float64))
 
-mean_gene_expression = transcriptome.X.dense().mean(0)
-n_components = motifscores.shape[1]
-cutwindow = np.array([-150, 150])
+# create design to run
+from design import get_design, get_folds_training
+design = get_design(dataset_name, transcriptome, motifscores, fragments, window = window)
+design = {k:design[k] for k in [
+    # "v4",
+    # "v4_dummy",
+    # "v4_1k-1k",
+    # "v4_10-10",
+    # "v4_150-0",
+    # "v4_0-150",
+    # "v4_nn",
+    # "v4_nn_dummy1",
+    # "v4_nn_1k-1k",
+    # "v4_split",
+    # "v4_nn_split",
+    # "v4_lw_split",
+    # "v4_nn_lw_split",
+    # "v4_nn_lw_split_mean",
+    "v4_nn2_lw_split",
+]}
+# fold_slice = slice(0, 1)
+fold_slice = slice(0, 5)
+# fold_slice = slice(1, 5)
 
-model = FragmentEmbeddingToExpression(
-    fragments.n_genes, mean_gene_expression, n_components, **parameters
-)
 
-transcriptome_X_dense = transcriptome.X.dense()
-
-# optimizer
-params = model.get_parameters()
-
-# optimization
-optimize_every_step = 10
-lr = 1e-2 / optimize_every_step
-optim = torch.optim.Adam(params, lr=lr)
+# folds & minibatching
+folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
+folds = get_folds_training(fragments, folds)
 
 # loss
 cos = torch.nn.CosineSimilarity(dim = 0)
 loss = lambda x_1, x_2: -cos(x_1, x_2).mean()
 
-# trace
-trace = []
+def paircor(x, y, dim = 0, eps = 0.1):
+    divisor = (y.std(dim) * x.std(dim)) + eps
+    cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / divisor
+    return cor
+loss = lambda x, y: -paircor(x, y).mean() * 100
 
-prev_mse_train = None
-prev_mse_test = None
 
-# load folds
-folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
+class Prediction(pfa.flow.Flow):
+    pass
 
-# loaders
-n_cells_step = 1000
-n_genes_step = 300
-loaders = pfa.loaders.LoaderPool(
-    peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells_step * n_genes_step, "window":window, "cutwindow":cutwindow},
-    n_workers = 20
-)
-loaders_validation = pfa.loaders.LoaderPool(
-    peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells_step * n_genes_step, "window":window, "cutwindow":cutwindow},
-    n_workers = 5
-)
+for prediction_name, design_row in design.items():
+    print(prediction_name)
+    prediction = Prediction(pfa.get_output() / "prediction_sequence" / dataset_name / promoter_name / prediction_name)
 
-models = []
-for fold in folds:
-    rg = np.random.RandomState(0)
-    minibatches_train = pfa.loaders.minibatching.create_bins_random(
-        fold["cells_train"],
-        fold["genes_train"],
-        n_cells_step=n_cells_step,
-        n_genes_step=n_genes_step,
-        n_genes_total=fragments.n_genes,
-        rg=rg,
+    # loaders
+    print("collecting...")
+    if "loaders" in globals():
+        loaders.terminate()
+        del loaders
+        import gc
+        gc.collect()
+    if "loaders_validation" in globals():
+        loaders_validation.terminate()
+        del loaders_validation
+        import gc
+        gc.collect()
+    print("collected")
+    loaders = pfa.loaders.LoaderPool(
+        design_row["loader_cls"],
+        design_row["loader_parameters"],
+        n_workers = 20
     )
-    minibatches_validation = pfa.loaders.minibatching.create_bins_ordered(
-        fold["cells_validation"],
-        fold["genes_validation"],
-        n_cells_step=n_cells_step,
-        n_genes_step=n_genes_step,
-        n_genes_total=fragments.n_genes,
-        rg=rg,
+    print("haha!")
+    loaders_validation = pfa.loaders.LoaderPool(
+        design_row["loader_cls"],
+        design_row["loader_parameters"],
+        n_workers = 5
     )
-    minibatches_validation_trace = minibatches_validation[:5]
+    loaders_validation.shuffle_on_iter = False
 
-    loaders.initialize(minibatches_train)
-    loaders_validation.initialize(minibatches_validation_trace)
+    models = []
+    for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)][fold_slice]:
+        # model
+        model = design_row["model_cls"](**design_row["model_parameters"], loader = loaders.loaders[0])
 
-    # train
-    import peakfreeatac.train
-    trainer = pfa.train.Trainer(
-        model,
-        loaders,
-        loaders_validation,
-        transcriptome_X_dense,
-        loss,
-        optim,
-        checkpoint_every_step = 30,
-        optimize_every_step = optimize_every_step,
-        n_epochs = 5,
-        device = "cuda"
-    )
-    trainer.train()
+        # optimizer
+        params = model.get_parameters()
 
-    model = model.to("cpu")
-    models.append(model)
+        # optimization
+        optimize_every_step = 1
+        # lr = 1e-2
+        lr = 1e-3
+        # lr = 5e-3
+        optim = torch.optim.Adam(params, lr=lr, weight_decay=lr/10)
+        n_epochs = 50
+        checkpoint_every_step = 30
 
-# postprocessing
-pickle.dump(models, open(prediction.path / "models.pkl", "wb"))
+        # initialize loaders
+        loaders.initialize(fold["minibatches_train"])
+        loaders_validation.initialize(fold["minibatches_validation_trace"])
 
-import matplotlib.pyplot as plt
-fig, ax = plt.subplots()
-plotdata_validation = pd.DataFrame(trainer.trace.validation_steps).groupby("checkpoint").mean().reset_index()
-plotdata_train = pd.DataFrame(trainer.trace.train_steps).groupby("checkpoint").mean().reset_index()
-ax.plot(plotdata_validation["checkpoint"], plotdata_validation["loss"])
-ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"])
-fig.savefig(prediction.path / "trace.png")
+        # train
+        import peakfreeatac.train
+        outcome = transcriptome.X.dense()
+        trainer = pfa.train.Trainer(
+            model,
+            loaders,
+            loaders_validation,
+            outcome,
+            loss,
+            optim,
+            checkpoint_every_step = checkpoint_every_step,
+            optimize_every_step = optimize_every_step,
+            n_epochs = n_epochs,
+            device = device
+        )
+        trainer.train()
+
+        model = model.to("cpu")
+        pickle.dump(model, open(prediction.path / ("model_" + str(fold_ix) + ".pkl"), "wb"))
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        plotdata_validation = pd.DataFrame(trainer.trace.validation_steps).groupby("checkpoint").mean().reset_index()
+        plotdata_train = pd.DataFrame(trainer.trace.train_steps).groupby("checkpoint").mean().reset_index()
+        ax.plot(plotdata_validation["checkpoint"], plotdata_validation["loss"], label = "test")
+        # ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label = "train")
+        ax.legend()
+        fig.savefig(prediction.path / ("trace_" + str(fold_ix) + ".png"))
+        plt.close()

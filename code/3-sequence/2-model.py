@@ -74,6 +74,14 @@ motifscores = pickle.load(open(motifscan_folder / "motifscores.pkl", "rb"))
 # %%
 n_fragments = fragments.coordinates.shape[0]
 
+# %%
+folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
+fold = folds[0]
+
+# %%
+from design import get_folds_inference
+folds = get_folds_inference(fragments, folds)
+
 # %% [markdown]
 # What we want is
 # - Know which motifs are close to a cut sites. Either precalculate or extract on-the-fly as fast as possible
@@ -362,7 +370,7 @@ coordinates = fragments.coordinates.numpy().astype(np.int64)
 genemapping = fragments.mapping[:, 1].numpy().astype(np.int64)
 
 # %%
-n_fragments = peakfreeatac.loaders.extraction.fragments.extract_fragments(
+data = peakfreeatac.loaders.extraction.fragments.extract_fragments(
     cellxgene_oi,
     cellxgene_indptr,
     coordinates,
@@ -389,11 +397,36 @@ import peakfreeatac.loaders.fragments
 import peakfreeatac.loaders.fragmentmotif
 
 # %% [markdown]
+# ### Fragments
+
+# %%
+n_cells = 300
+n_genes = 1000
+cutwindow = np.array([-150, 150])
+loader = peakfreeatac.loaders.fragments.Fragments(fragments, n_cells * n_genes, window)
+
+# %%
+cells_oi = np.arange(0, n_cells)
+genes_oi = np.arange(0, n_genes)
+
+cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
+
+minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+data = loader.load(minibatch)
+
+# %%
+# %%timeit -n 1
+data = loader.load(minibatch)
+
+# %%
+(fragments.n_cells * fragments.n_genes) / len(cellxgene_oi)
+
+# %% [markdown]
 # ### Full
 
 # %%
-n_cells = 1000
-n_genes = 100
+n_cells = 100
+n_genes = 10
 cutwindow = np.array([-150, 150])
 loader = peakfreeatac.loaders.fragmentmotif.Full(fragments, motifscores, n_cells * n_genes, window, cutwindow)
 
@@ -403,7 +436,8 @@ genes_oi = np.arange(0, n_genes)
 
 cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
 
-full_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+data = loader.load(minibatch)
 
 # %%
 # %%timeit -n 1
@@ -416,27 +450,48 @@ full_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi
 # ### Motifcounts
 
 # %%
-n_cells = 1000
-n_genes = 100
-cutwindow = np.array([-150, 150])
-loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+fragments.coordinates = fragments.coordinates.to(torch.int64).contiguous()
+fragments.mapping = fragments.mapping.to(torch.int64).contiguous()
+fragments.genemapping = fragments.mapping[:, 1].to(torch.int64).contiguous()
+
+motifscores.indptr = np.ascontiguousarray(motifscores.indptr.astype(np.int64))
+motifscores.indices = np.ascontiguousarray(motifscores.indices.astype(np.int64))
+motifscores.data = np.ascontiguousarray(motifscores.data.astype(np.float64))
 
 # %%
-cells_oi = np.random.choice(fragments.n_cells, n_cells)
-genes_oi = np.random.choice(fragments.n_genes, n_genes)
+n_cells = 300
+n_genes = 1000
+cutwindow = np.array([-150, 150])
+# loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+loader = peakfreeatac.loaders.fragmentmotif.MotifcountsSplit(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+
+# %%
+rg = np.random.RandomState(1)
+cells_oi = rg.choice(fragments.n_cells, n_cells)
+genes_oi = rg.choice(fragments.n_genes, n_genes)
 
 cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
 
 minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
-motifcounts_result = loader.load(minibatch)
+data = loader.load(minibatch)
+
+# %%
+np.corrcoef(data.motifcounts[:, 50], data.motifcounts[:, 50+400])
+
+# %%
+data.motifcounts.shape[0] / loader.fragment_buffer_size
 
 # %%
 # check subsetting the fragments
-motifcounts_result = loader.load(minibatch, fragments_oi = torch.arange(10000))
+data = loader.load(minibatch, fragments_oi = torch.arange(10000))
 
 # %%
 # %%timeit -n 1
-motifcounts_result = loader.load(minibatch)
+data = loader.load(minibatch)
+
+# %%
+gene_oi = genes_oi[0]
+cell_oi = cells_oi[0]
 
 # %% [markdown]
 # ## Loading using multithreading
@@ -604,175 +659,242 @@ model(data)
 # %% [markdown]
 # ## Infer
 
-# %%
-from peakfreeatac.models.promotermotif.v2 import FragmentEmbeddingToExpression
-import peakfreeatac.loaders.fragmentmotif
-
-# %%
-mean_gene_expression = transcriptome.X.dense().mean(0)
-
-# %%
-n_components = motifscores.shape[1]
-cutwindow = np.array([-150, 150])
-
-# %%
-model = FragmentEmbeddingToExpression(fragments.n_genes, mean_gene_expression, n_components, weighting = True)
-
-# %%
-n_epochs = 30
-device = "cuda"
-
-# %%
-import itertools
-
-# %%
-transcriptome_X = transcriptome.X.to(device)
-transcriptome_X_dense = transcriptome_X.dense()
-
-# %%
-params = model.parameters()
-
-# lr = 1.0
-checkpoint_every_step = 30
-optimize_every_step = 10
-lr = 1e-3 / optimize_every_step
-# lr = 1e-4 / optimize_every_step
-optim = torch.optim.Adam(
-    params,
-    lr = lr
-)
-loss = torch.nn.MSELoss(reduction = "mean")
-cos = torch.nn.CosineSimilarity(dim = 0)
-loss = lambda x_1, x_2: -cos(x_1, x_2).mean()
-# def correlation_loss(x, y, dim = 0):
-#     cor = (x * y).sum(dim) / ((y**2).sum(dim) * (x**2).sum(dim))
-#     return -cor.mean()
-# def correlation_loss(x, y, dim = 0):
-#     cor = pfa.utils.paircor(x, y)
-#     return -cor.mean()
-# loss = correlation_loss
-# loss = torch.nn.PoissonNLLLoss(reduction = "mean", full = True)
-
-# %%
-# train/test split
-cells_all = np.arange(fragments.n_cells)
-genes_all = np.arange(fragments.n_genes)
-
-n_cell_bins = 5
-n_gene_bins = 5
-
-chromosome_gene_counts = transcriptome.var.groupby("chr").size().sort_values(ascending = False)
-chromosome_bins = np.cumsum(((np.cumsum(chromosome_gene_counts) % (chromosome_gene_counts.sum() / n_gene_bins + 1)).diff() < 0))
-
-cells_train = cells_all[: int(len(cells_all) * (n_cell_bins-1) / n_gene_bins)]
-cells_validation = cells_all[[cell not in cells_train for cell in cells_all]]
-
-chromosomes_train = chromosome_bins.index[chromosome_bins < (n_gene_bins - 1)]
-chromosomes_validation = chromosome_bins.index[chromosome_bins >= (n_gene_bins - 1)]
-genes_train = fragments.var["ix"][transcriptome.var.index[transcriptome.var["chr"].isin(chromosomes_train)]].values
-genes_validation = fragments.var["ix"][transcriptome.var.index[transcriptome.var["chr"].isin(chromosomes_validation)]].values
-
-# %%
-n_cells_step = 1000
-n_genes_step = 300
-
-rg = np.random.RandomState(0)
-minibatches_train = pfa.loaders.minibatching.create_bins_random(
-    cells_train,
-    genes_train,
-    n_cells_step=n_cells_step,
-    n_genes_step=n_genes_step,
-    n_genes_total=fragments.n_genes,
-    rg=rg,
-)
-minibatches_validation = pfa.loaders.minibatching.create_bins_ordered(
-    # cells_train,
-    cells_validation,
-    # genes_train,
-    genes_validation,
-    n_cells_step=n_cells_step,
-    n_genes_step=n_genes_step,
-    n_genes_total=fragments.n_genes,
-    rg=rg,
-)
-minibatches_validation_trace = minibatches_validation[:5]
-
-# %%
-model = model.to(device)
+# %% [markdown]
+# ### Loaders
 
 # %%
 import peakfreeatac.loaders
+import peakfreeatac.loaders.fragments
+import peakfreeatac.loaders.fragmentmotif
 
 # %%
+from design import get_design, get_folds_training
+
+# %%
+design = get_design(dataset_name, transcriptome, motifscores, fragments, window)
+
+# %%
+# prediction_name = "v4_10-10"
+# prediction_name = "v4_1-1"
+# prediction_name = "v4_1k-1k"
+# prediction_name = "v4"
+prediction_name = "v4_baseline"
+design_row = design[prediction_name]
+
+# %%
+# loaders
+print("collecting...")
+if "loaders" in globals():
+    loaders.terminate()
+    del loaders
+    import gc
+    gc.collect()
+if "loaders_validation" in globals():
+    loaders_validation.terminate()
+    del loaders_validation
+    import gc
+    gc.collect()
+print("collected")
 loaders = pfa.loaders.LoaderPool(
-    peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells_step * n_genes_step, "window":window, "cutwindow":cutwindow},
+    design_row["loader_cls"],
+    design_row["loader_parameters"],
+    shuffle_on_iter = True,
     n_workers = 20
 )
-loaders.initialize(minibatches_train)
+print("haha!")
 loaders_validation = pfa.loaders.LoaderPool(
-    peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells_step * n_genes_step, "window":window, "cutwindow":cutwindow},
+    design_row["loader_cls"],
+    design_row["loader_parameters"],
+    shuffle_on_iter = False,
     n_workers = 5
 )
-loaders_validation.initialize(minibatches_validation_trace)
 
 # %%
-loaders.restart()
-loaders_validation.restart()
+# folds & minibatching
+folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
+folds = get_folds_training(fragments, folds)
+
 
 # %%
+# loss
+# cos = torch.nn.CosineSimilarity(dim = 0)
+# loss = lambda x_1, x_2: -cos(x_1, x_2).mean()
+
+def paircor(x, y, dim = 0, eps = 0.1):
+    divisor = (y.std(dim) * x.std(dim)) + eps
+    cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / divisor
+    return cor
+loss = lambda x, y: -paircor(x, y).mean() * 100
+
+# mse_loss = torch.nn.MSELoss()
+# loss = lambda x, y: mse_loss(x, y) * 100
+
+# def zscore(x, dim = 0):
+#     return (x - x.mean(dim, keepdim = True)) / (x.std(dim, keepdim = True) + 1e-6)
+# mse_loss = torch.nn.MSELoss()
+# loss = lambda x, y: mse_loss(zscore(x), zscore(y)) * 10.
+
+# %%
+class Prediction(pfa.flow.Flow):
+    pass
+
+print(prediction_name)
+prediction = Prediction(pfa.get_output() / "prediction_sequence" / dataset_name / promoter_name / prediction_name)
+
+# %%
+fold_ix = 0
+fold = folds[0]
+
+# %%
+# initialize loaders
+loaders.initialize(fold["minibatches_train"])
+loaders_validation.initialize(fold["minibatches_validation_trace"])
+
+# %%
+# data = loaders.pull()
+# data.motifcounts.sum()
+
+# motifs["total"] = np.array((motifscores > 0).sum(0))[0]
+# motifs["n"] = np.array((data.motifcounts > 0).sum(0))
+# motifs["score"] = np.log(motifs["n"] / motifs["total"])
+# motifs["score"] .sort_values().plot(kind = "hist")
+
+# %%
+n_epochs = 150
+checkpoint_every_step = 100
+
+# n_epochs = 10
+# checkpoint_every_step = 30
+
+# %%
+# model
+model = design_row["model_cls"](**design_row["model_parameters"])
+
+# %%
+## optimizer
+params = model.get_parameters()
+
+# optimization
+optimize_every_step = 1
+lr = 1e-2# / optimize_every_step
+optim = torch.optim.Adam(params, lr=lr)
+
+# train
 import peakfreeatac.train
-
-# %%
+outcome = transcriptome.X.dense()
 trainer = pfa.train.Trainer(
     model,
     loaders,
     loaders_validation,
-    transcriptome_X_dense,
+    outcome,
     loss,
-    optim
+    optim,
+    checkpoint_every_step = checkpoint_every_step,
+    optimize_every_step = optimize_every_step,
+    n_epochs = n_epochs,
+    device = "cuda"
 )
-
-# %%
 trainer.train()
 
 # %%
-pd.DataFrame(trainer.trace.validation_steps).groupby("checkpoint").mean()["loss"].plot()
-pd.DataFrame(trainer.trace.train_steps).groupby("checkpoint").mean()["loss"].plot()
+pd.DataFrame(trainer.trace.validation_steps).groupby("checkpoint").mean()["loss"].plot(label = "validation")
 
 # %%
-pd.DataFrame(trace.validation_steps).groupby("checkpoint").mean()["loss"].plot()
-pd.DataFrame(trace.train_steps).groupby("checkpoint").mean()["loss"].plot()
+pd.DataFrame(trainer.trace.train_steps).groupby("checkpoint").mean()["loss"].plot(label = "train")
 
 # %%
-if isinstance(trace_validation, list):
-    trace_validation = pd.DataFrame(list(trace_validation))
+# model = model.to("cpu")
+pickle.dump(model, open("../../" + dataset_name + "_" + "baseline_model.pkl", "wb"))
 
 # %%
-fig, ax = plt.subplots()
-plotdata = trace_validation.groupby("step").mean().reset_index()
-ax.plot(plotdata["step"], plotdata["mse"], zorder = 6, color = "orange")
-# ax.plot(plotdata["step"], plotdata["mse_dummy"], zorder = 6, color = "red")
-# ax.plot(plotdata["step"], plotdata["mean_cor"], zorder = 6, color = "red")
-fig.savefig("trace.png")
+model = model.to("cpu")
+pickle.dump(model, open(prediction.path / ("model_" + str(fold_ix) + ".pkl"), "wb"))
+
+# %% [markdown]
+# -----
 
 # %%
-model = pickle.load(open("../../model.pkl", "rb"))
+model = model.to("cpu")
+pickle.open(open(prediction.path / ("model_" + str(fold_ix) + ".pkl"), "rb"))
 
 # %%
 folder_motifs = pfa.get_output() / "data" / "motifs" / "hs" / "hocomoco"
 pwms = pickle.load((folder_motifs / "pwms.pkl").open("rb"))
-motifs_oi = pickle.load((folder_data_preproc / "motifs_oi.pkl").open("rb"))
+motifs = pickle.load((folder_data_preproc / "motifs_oi.pkl").open("rb"))
 
 # %%
-motif_linear_scores = pd.Series(model.embedding_to_expression.linear_weight[0].detach().cpu().numpy(), index = motifs_oi.index).sort_values(ascending = False)
+motif_linear_scores = pd.Series(
+    model.embedding_gene_pooler.nn1[0].weight.detach().cpu().numpy()[0],
+    # model.embedding_gene_pooler.motif_bias.detach().cpu().numpy(),
+    index = motifs.index
+).sort_values(ascending = False)
+# motif_linear_scores = pd.Series(model.embedding_gene_pooler.linear_weight[0].detach().cpu().numpy(), index = motifs_oi.index).sort_values(ascending = False)
 
 # %%
-motif_linear_scores.loc[motif_linear_scores.index.str.startswith("EGR")]
+motif_linear_scores.plot(kind = "hist")
 
 # %%
-sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["DUX4", "IRF1", "STAT2", "PCNA", "KLF4", "KLF5", "SPI1", "BCL11A", "EGR1", "SPIB"]))
+motifs["n"] = pd.Series(data.motifcounts.sum(0).numpy(), motifs.index)
+motifs["n"] = np.array((motifscores > 0).sum(0))[0]
+
+# %%
+motif_linear_scores["E2F3_HUMAN.H11MO.0.A"]
+
+# %%
+motif_linear_scores.head(10)
+
+# %%
+motif_linear_scores.tail(10)
+
+# %%
+motif_linear_scores.loc[motif_linear_scores.index.str.startswith("CEBP")]
+
+# %%
+motif_oi = motifs.query("gene_label == 'CEBPA'").index[0]
+sns.heatmap(pwms[motif_oi].numpy())
+
+# %%
+sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["ZNF329", "E2F5", "DBP", "BACH1", "FOXO4"]))
+
+# %%
+motifs_oi = motifs.loc[motifs["gene_label"].isin(transcriptome.var["symbol"])]
+
+# %%
+plotdata = pd.DataFrame({
+    "is_variable":motifs["gene_label"].isin(transcriptome.var["symbol"]),
+    "linear_score":motif_linear_scores
+})
+plotdata["dispersions_norm"] = pd.Series(
+    transcriptome.var["dispersions_norm"][transcriptome.gene_id(motifs_oi["gene_label"]).values].values,
+    index = motifs_oi.index
+)
+
+# %%
+plotdata.groupby("is_variable").std()
+
+# %%
+sns.scatterplot(plotdata.dropna(), y = "linear_score", x = "dispersions_norm")
+
+# %%
+sns.stripplot(plotdata, y = "linear_score", x = "is_variable")
+
+# %%
+exp = pd.DataFrame(
+    transcriptome.adata[:, transcriptome.gene_id(motifs_oi["gene_label"].values).values].X.todense(),
+    index = transcriptome.adata.obs.index,
+    columns = motifs_oi.index
+)
+
+# %%
+
+# %%
+sc.get.obs_df(transcriptome.adata, transcriptome.gene_id(motifs_oi["gene_label"].values).values)
+
+# %%
+transcriptome.var
+
+# %%
+sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["PAX5", "BACH1"]))
 
 # %%
 sc.pl.umap(transcriptome.adata, color = transcriptome.gene_id(["STAT2"]))
