@@ -10,6 +10,11 @@ ctypedef np.int64_t INT64_t
 FLOAT64 = np.float64
 ctypedef np.float64_t FLOAT64_t
 
+# cdef means here that this function is a plain C function (so faster).
+# To get all the benefits, we type the arguments and the return value.
+cdef INT64_t clip(INT64_t a, INT64_t min_value, INT64_t max_value) nogil:
+    return min(max(a, min_value), max_value)
+
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 def extract_all(
@@ -100,39 +105,13 @@ def extract_motifcounts(
             gene_ix = genemapping[fragment_ix]
             
             # determine the bounds of the genome slice
-            slice_first_left = coord_first + cutwindow_left - window_left
-            if slice_first_left < 0:
-                slice_first_left = 0
-            slice_first_left = slice_first_left + gene_ix * window_width
+            slice_first_left = clip(coord_first + cutwindow_left - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_first_mid = clip(coord_first - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_first_right = clip(coord_first + cutwindow_right - window_left, 0, window_width - 1) + gene_ix * window_width
 
-            slice_first_mid = coord_first - window_left
-            if slice_first_mid >= window_width:
-                slice_first_mid = window_width - 1
-            if slice_first_mid < 0:
-                slice_first_mid = 0
-            slice_first_mid =  slice_first_mid + gene_ix * window_width
-
-            slice_first_right = coord_first + cutwindow_right - window_left
-            if slice_first_right >= window_width:
-                slice_first_right = window_width - 1
-            slice_first_right = slice_first_right + gene_ix * window_width
-
-            slice_second_left = coord_second - cutwindow_right - window_left
-            if slice_second_left < 0:
-                slice_second_left = 0
-            slice_second_left = slice_second_left + gene_ix * window_width
-
-            slice_second_mid = coord_second - window_left
-            if slice_second_mid >= window_width:
-                slice_second_mid = window_width - 1
-            if slice_second_mid < 0:
-                slice_second_mid = 0
-            slice_second_mid =  slice_second_mid + gene_ix * window_width
-            
-            slice_second_right = coord_second - cutwindow_left - window_left
-            if slice_second_right >= window_width:
-                slice_second_right = window_width - 1
-            slice_second_right = slice_second_right + gene_ix * window_width
+            slice_second_left = clip(coord_second - cutwindow_right - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_second_mid = clip(coord_second - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_second_right = clip(coord_second - cutwindow_left - window_left, 0, window_width - 1) + gene_ix * window_width
 
             # avoid "within fragment" slices to overlap with "outside fragment" slices
             if slice_first_right > slice_second_mid:
@@ -206,7 +185,8 @@ def extract_motifcounts_split(
     INT64_t cutwindow_right,
     INT64_t [:,::1] out_motifcounts,
 ):
-    cdef INT64_t fragment_ix, coord_first, coord_second, gene_ix, position, motifscore_ix, slice_first_left, slice_first_right, slice_first_mid, slice_second_left, slice_second_mid, slice_second_right, local_fragment_ix
+    cdef INT64_t coord_first, coord_second, gene_ix, slice_first_left, slice_first_right, slice_first_mid, slice_second_left, slice_second_mid, slice_second_right
+    cdef int fragment_ix, position, local_fragment_ix, motifscore_ix
     
     local_fragment_ix = 0 # will store the current fragment counting from 0
 
@@ -216,40 +196,13 @@ def extract_motifcounts_split(
             coord_second = coordinates[fragment_ix, 1]
             gene_ix = genemapping[fragment_ix]
             
-            # determine the bounds of the genome slice
-            slice_first_left = coord_first + cutwindow_left - window_left
-            if slice_first_left < 0:
-                slice_first_left = 0
-            slice_first_left = slice_first_left + gene_ix * window_width
-
-            slice_first_mid = coord_first - window_left
-            if slice_first_mid >= window_width:
-                slice_first_mid = window_width - 1
-            if slice_first_mid < 0:
-                slice_first_mid = 0
-            slice_first_mid =  slice_first_mid + gene_ix * window_width
-
-            slice_first_right = coord_first + cutwindow_right - window_left
-            if slice_first_right >= window_width:
-                slice_first_right = window_width - 1
-            slice_first_right = slice_first_right + gene_ix * window_width
-
-            slice_second_left = coord_second - cutwindow_right - window_left
-            if slice_second_left < 0:
-                slice_second_left = 0
-            slice_second_left = slice_second_left + gene_ix * window_width
-
-            slice_second_mid = coord_second - window_left
-            if slice_second_mid >= window_width:
-                slice_second_mid = window_width - 1
-            if slice_second_mid < 0:
-                slice_second_mid = 0
-            slice_second_mid =  slice_second_mid + gene_ix * window_width
-            
-            slice_second_right = coord_second - cutwindow_left - window_left
-            if slice_second_right >= window_width:
-                slice_second_right = window_width - 1
-            slice_second_right = slice_second_right + gene_ix * window_width
+            # determine the bounds of the genome slice, 0, window_width - 1) + gene_ix * window_width
+            slice_first_left = clip(coord_first + cutwindow_left - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_first_mid = clip(coord_first - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_first_right = clip(coord_first + cutwindow_right - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_second_left = clip(coord_second - cutwindow_right - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_second_mid = clip(coord_second - window_left, 0, window_width - 1) + gene_ix * window_width
+            slice_second_right = clip(coord_second - cutwindow_left - window_left, 0, window_width - 1) + gene_ix * window_width
 
             # avoid "within fragment" slices to overlap with "outside fragment" slices
             if slice_first_right > slice_second_mid:
@@ -283,6 +236,83 @@ def extract_motifcounts_split(
                 for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
                     out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix] + n_motifs] += 1
 
+                    
+            local_fragment_ix += 1
+    return
+
+
+
+
+
+@cython.boundscheck(False) # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
+def extract_motifcounts_multiple(
+    INT64_t [:,::1] coordinates,
+    INT64_t [::1] genemapping,
+    INT64_t [::1] motifscores_indptr,
+    INT64_t [::1] motifscores_indices,
+    FLOAT64_t [::1] motifscores_data,
+    INT64_t n_motifs,
+    INT64_t window_left,
+    INT64_t window_right,
+    INT64_t window_width,
+    INT64_t [::1] cutwindows,
+    INT64_t [:,::1] out_motifcounts,
+):
+    cdef INT64_t coord_first, coord_second, gene_ix, slice_left, slice_right, n_cutwindows
+    cdef int local_fragment_ix, fragment_ix, cutwindow_ix, motifscore_ix, position
+    
+    local_fragment_ix = 0 # will store the current fragment counting from 0
+    n_cutwindows = cutwindows.shape[0]
+
+    with nogil:
+    # if True:
+        for fragment_ix in range(coordinates.shape[0]):
+            coord_first = coordinates[fragment_ix, 0]
+            coord_second = coordinates[fragment_ix, 1]
+            gene_ix = genemapping[fragment_ix]
+
+            # left of first cut
+            slice_left = coord_first + cutwindows[0] - window_left
+            if slice_left < 0:
+                slice_left = 0
+            if slice_left > window_width:
+                slice_left = window_width -1
+            slice_left = slice_left + gene_ix * window_width
+            for cutwindow_ix in range(n_cutwindows - 1):
+                slice_right = coord_first + cutwindows[cutwindow_ix + 1] - window_left
+                if slice_right < 0:
+                    slice_right = 0
+                if slice_right > window_width:
+                    slice_right = window_width -1
+                slice_right = slice_right + gene_ix * window_width
+
+                for position in range(slice_left, slice_right):
+                    for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                        out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix] + n_motifs * cutwindow_ix] += 1
+
+                slice_left = slice_right
+
+            # right of second cut
+            slice_right = coord_second - cutwindows[0] - window_left
+            if slice_right < 0:
+                slice_right = 0
+            if slice_right > window_width:
+                slice_right = window_width -1
+            slice_right = slice_right + gene_ix * window_width
+            for cutwindow_ix in range(n_cutwindows - 1):
+                slice_left = coord_second - cutwindows[cutwindow_ix + 1] - window_left
+                if slice_left < 0:
+                    slice_left = 0
+                if slice_left > window_width:
+                    slice_left = window_width -1
+                slice_left = slice_left + gene_ix * window_width
+
+                for position in range(slice_left, slice_right):
+                    for motifscore_ix in range(motifscores_indptr[position], motifscores_indptr[position+1]):               
+                        out_motifcounts[local_fragment_ix, motifscores_indices[motifscore_ix] + n_motifs * cutwindow_ix] += 1
+
+                slice_right = slice_left
                     
             local_fragment_ix += 1
     return
