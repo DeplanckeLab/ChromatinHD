@@ -44,8 +44,7 @@ import tqdm.auto as tqdm
 
 # %%
 import peakfreeatac as pfa
-import peakfreeatac.fragments
-import peakfreeatac.transcriptome
+import peakfreeatac.data
 
 # %%
 folder_root = pfa.get_output()
@@ -64,15 +63,18 @@ promoters = pd.read_csv(folder_data_preproc / ("promoters_" + promoter_name + ".
 window_width = window[1] - window[0]
 
 # %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
-fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
+transcriptome = pfa.data.Transcriptome(folder_data_preproc / "transcriptome")
+fragments = pfa.data.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
-motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
-motifscores = pickle.load(open(motifscan_folder / "motifscores.pkl", "rb"))
+motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name / "cutoff_001"
+motifscan = pfa.data.Motifscan(motifscan_folder)
 
 # %%
 n_fragments = fragments.coordinates.shape[0]
+
+# %%
+# !ls -lh {motifscan.path}
 
 # %%
 folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
@@ -120,10 +122,10 @@ n_gigs
 # This means we will have to calculate everything on-the-fly
 
 # %% [markdown]
-# Can we store the motifscores on GPU? Assume we have 400 motifs to score, we have to store both motif_ix and value
+# Can we store the motifscan on GPU? Assume we have 400 motifs to score, we have to store both motif_ix and value
 
 # %%
-n_data_per_motif = len(motifscores.data) / motifscores.shape[1]
+n_data_per_motif = len(motifscan.data) / motifscan.shape[1]
 n_data_per_motif
 
 # %%
@@ -143,7 +145,7 @@ n_gigs
 # Could we store the scores of the whole genome (on GPU)?
 
 # %%
-n_motifs_per_base = len(motifscores.data) / motifscores.shape[1] / motifscores.shape[0]
+n_motifs_per_base = len(motifscan.data) / motifscan.shape[1] / motifscan.shape[0]
 n_motifs_per_base
 
 # %%
@@ -197,12 +199,12 @@ mapping = np.ascontiguousarray(fragments.mapping[fragments_oi].to(torch.int64).n
 genemapping = np.ascontiguousarray(fragments.mapping[fragments_oi, 1].to(torch.int64).numpy())
 
 # %%
-n_motifs = motifscores.shape[1]
+n_motifs = motifscan.shape[1]
 
 # %%
-motifscores_indptr = motifscores.indptr.astype(int)
-motifscores_indices = motifscores.indices.astype(int)
-motifscores_data = motifscores.data.astype(np.float64)
+motifscan_indptr = motifscan.indptr.astype(int)
+motifscan_indices = motifscan.indices.astype(int)
+motifscan_data = motifscan.data.astype(np.float64)
 
 buffer_size = coordinates.shape[0] * 1000
 
@@ -216,9 +218,9 @@ out_motifcounts = torch.from_numpy(np.ascontiguousarray(np.zeros((n_fragments, n
 out_n = pfa.loaders.extraction.motifs.extract_all(
     coordinates,
     genemapping,
-    motifscores_indptr,
-    motifscores_indices,
-    motifscores_data,
+    motifscan_indptr,
+    motifscan_indices,
+    motifscan_data,
     *window,
     window_width,
     *cutwindow,
@@ -428,7 +430,7 @@ data = loader.load(minibatch)
 n_cells = 100
 n_genes = 10
 cutwindow = np.array([-150, 150])
-loader = peakfreeatac.loaders.fragmentmotif.Full(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+loader = peakfreeatac.loaders.fragmentmotif.Full(fragments, motifscan, n_cells * n_genes, window, cutwindow)
 
 # %%
 cells_oi = np.arange(0, n_cells)
@@ -450,20 +452,11 @@ full_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi
 # ### Motifcounts
 
 # %%
-fragments.coordinates = fragments.coordinates.to(torch.int64).contiguous()
-fragments.mapping = fragments.mapping.to(torch.int64).contiguous()
-fragments.genemapping = fragments.mapping[:, 1].to(torch.int64).contiguous()
-
-motifscores.indptr = np.ascontiguousarray(motifscores.indptr.astype(np.int64))
-motifscores.indices = np.ascontiguousarray(motifscores.indices.astype(np.int64))
-motifscores.data = np.ascontiguousarray(motifscores.data.astype(np.float64))
-
-# %%
 n_cells = 300
 n_genes = 1000
 cutwindow = np.array([-150, 150])
-# loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscores, n_cells * n_genes, window, cutwindow)
-loader = peakfreeatac.loaders.fragmentmotif.MotifcountsSplit(fragments, motifscores, n_cells * n_genes, window, cutwindow)
+loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscan, n_cells * n_genes, window, cutwindow)
+# loader = peakfreeatac.loaders.fragmentmotif.MotifcountsSplit(fragments, motifscan, n_cells * n_genes, window, cutwindow)
 
 # %%
 rg = np.random.RandomState(1)
@@ -476,12 +469,6 @@ minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene
 data = loader.load(minibatch)
 
 # %%
-np.corrcoef(data.motifcounts[:, 50], data.motifcounts[:, 50+400])
-
-# %%
-data.motifcounts.shape[0] / loader.fragment_buffer_size
-
-# %%
 # check subsetting the fragments
 data = loader.load(minibatch, fragments_oi = torch.arange(10000))
 
@@ -492,6 +479,50 @@ data = loader.load(minibatch)
 # %%
 gene_oi = genes_oi[0]
 cell_oi = cells_oi[0]
+
+# %% [markdown]
+# ### Motifcounts multiple
+
+# %%
+rg = np.random.RandomState(1)
+cells_oi = rg.choice(fragments.n_cells, n_cells)
+genes_oi = rg.choice(fragments.n_genes, n_genes)
+
+cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
+
+minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+
+# %%
+n_cells = 300
+n_genes = 1000
+cutwindows = np.array([-150, 0])
+loader = peakfreeatac.loaders.fragmentmotif.MotifcountsMultiple(fragments, motifscan, n_cells * n_genes, window, cutwindows)
+
+# %%
+data = loader.load(minibatch)
+
+# %%
+data.motifcounts.sum()
+
+# %%
+# %%timeit -n 1 -r 3
+data = loader.load(minibatch)
+
+# %%
+n_cells = 300
+n_genes = 1000
+cutwindows = np.array([-150, 0])
+loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscan, n_cells * n_genes, window, cutwindows)
+
+# %%
+data = loader.load(minibatch)
+
+# %%
+data.motifcounts.sum()
+
+# %%
+# %%timeit -n 1 -r 3
+data = loader.load(minibatch)
 
 # %% [markdown]
 # ## Loading using multithreading
@@ -518,7 +549,7 @@ import peakfreeatac.loaders.fragmentmotif
 # %%
 loaders = peakfreeatac.loaders.pool.LoaderPool(
     peakfreeatac.loaders.fragmentmotif.Motifcounts,
-    {"fragments":fragments, "motifscores":motifscores, "cellxgene_batch_size":n_cells * n_genes, "window":window, "cutwindow":cutwindow},
+    {"fragments":fragments, "motifscan":motifscan, "cellxgene_batch_size":n_cells * n_genes, "window":window, "cutwindow":cutwindow},
     n_workers = 2
 )
 
@@ -611,7 +642,7 @@ plt.scatter(data.coordinates[:, 0], fragment_weight.detach().numpy())
 from peakfreeatac.models.promotermotif.v3 import EmbeddingGenePooler
 
 # %%
-n_features = motifscores.shape[1]
+n_features = motifscan.shape[1]
 
 # %%
 embedding_gene_pooler = EmbeddingGenePooler(n_features, debug = True)
@@ -671,7 +702,7 @@ import peakfreeatac.loaders.fragmentmotif
 from design import get_design, get_folds_training
 
 # %%
-design = get_design(dataset_name, transcriptome, motifscores, fragments, window)
+design = get_design(dataset_name, transcriptome, motifscan, fragments, window)
 
 # %%
 # prediction_name = "v4_10-10"
@@ -754,7 +785,7 @@ loaders_validation.initialize(fold["minibatches_validation_trace"])
 # data = loaders.pull()
 # data.motifcounts.sum()
 
-# motifs["total"] = np.array((motifscores > 0).sum(0))[0]
+# motifs["total"] = np.array((motifscan > 0).sum(0))[0]
 # motifs["n"] = np.array((data.motifcounts > 0).sum(0))
 # motifs["score"] = np.log(motifs["n"] / motifs["total"])
 # motifs["score"] .sort_values().plot(kind = "hist")
@@ -835,7 +866,7 @@ motif_linear_scores.plot(kind = "hist")
 
 # %%
 motifs["n"] = pd.Series(data.motifcounts.sum(0).numpy(), motifs.index)
-motifs["n"] = np.array((motifscores > 0).sum(0))[0]
+motifs["n"] = np.array((motifscan > 0).sum(0))[0]
 
 # %%
 motif_linear_scores["E2F3_HUMAN.H11MO.0.A"]

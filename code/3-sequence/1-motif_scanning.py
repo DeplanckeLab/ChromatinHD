@@ -41,8 +41,6 @@ device = "cuda:0"
 
 # %%
 import peakfreeatac as pfa
-import peakfreeatac.fragments
-import peakfreeatac.transcriptome
 
 # %%
 folder_root = pfa.get_output()
@@ -197,14 +195,11 @@ def scan(onehot, pwm):
     # return positive
     return torch.maximum(positive, negative)
 
-onehot = torch.tensor(np.eye(4, dtype = np.float32)[np.array([0, 1, 2, 3, 3, 2, 1, 0])])
+onehot = torch.tensor(np.eye(4, dtype = np.float32)[np.array([0, 1, 2, 3, 3, 2, 1, 0])])[None, ...]
 pwm = torch.tensor([[1, 0., 0., 0.], [0., 1, 0., 0.]])
 motifscore = scan(onehot, pwm)
-assert len(motifscore) == 8 - 2 + 1
-# assert (motifscore == torch.tensor([2., 0., 2., 1., 0., 1., 0.])).all()
-
-# %%
-motifscore_cutoff = np.log(100)
+assert motifscore.shape[1] == 8 - 2 + 1
+assert (motifscore == torch.tensor([[2., 0., 2., 1., 0., 1., 0.]])).all()
 
 # %%
 # memory consumption when put on cuda
@@ -215,6 +210,7 @@ str(np.prod(onehot_promoters.shape)*32/8/1024/1024/1024) + " GiB"
 
 # %%
 cutoff_col = "cutoff_0001"
+# cutoff_col = "cutoff_001"
 
 # %% tags=[]
 position_ixs = []
@@ -327,26 +323,81 @@ ax_scorerev.set_ylabel("Reverse scores", rotation = 0, ha = "right", va = "cente
 # ### Save
 
 # %%
-motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
-motifscan_folder.mkdir(parents=True, exist_ok=True)
+motifscan = pfa.data.Motifscan(pfa.get_output() / "motifscans" / dataset_name / promoter_name / cutoff_col)
+motifscan = pfa.data.Motifscan(pfa.get_output() / "motifscans" / dataset_name / promoter_name)
 
 # %%
-# motifscan_folder2 = pfa.get_output() / "motifscans" / "pbmc10k_clustered" / promoter_name
-# if motifscan_folder2.exists():
-#     if motifscan_folder2.is_symlink():
-#         motifscan_folder2.unlink()
-#     else:
-#         motifscan_folder2.rmdir()
-# motifscan_folder2.symlink_to(motifscan_folder)
+motifscan.indices = motifscores.indices
+motifscan.indptr = motifscores.indptr
+motifscan.data = motifscores.data
+motifscan.shape = motifscores.shape
 
 # %%
-pickle.dump(motifs_oi, open(motifscan_folder / "motifs.pkl", "wb"))
+motifscan
 
 # %%
-pickle.dump(motifscores, open(motifscan_folder / "motifscores.pkl", "wb"))
+# motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
+# motifscan_folder.mkdir(parents=True, exist_ok=True)
 
 # %%
-# !ls -lh {motifscan_folder}/motifscores.pkl
+pickle.dump(motifs_oi, open(motifscan.path / "motifs.pkl", "wb"))
+
 
 # %%
-# !ln -s 
+# !ls -lh {motifscan.path}
+
+# %% [markdown]
+# ## Motif scanning with convolutions
+
+# %%
+def scan(onehot, pwm):
+    if pwm.ndim == 2:
+        pwm = pwm.T.unsqueeze(0)
+    else:
+        pwm = pwm.transpose(-1, -2)
+        
+    pad = math.floor(pwm.shape[2] / 2)
+        
+    forward = torch.nn.functional.conv1d(onehot.transpose(-1, -2), pwm, padding = pad)[..., :onehot.shape[1]]
+    reverse = torch.nn.functional.conv1d(onehot.transpose(-1, -2)[:, [3, 2, 1, 0]].flip(-1), pwm, padding = pad).flip(-1)[..., :onehot.shape[1]]
+    # return positive
+    return torch.maximum(forward, reverse)
+
+# single motif
+onehot = torch.tensor(np.eye(4, dtype = np.float32)[np.array([0, 1, 2, 3, 3, 2, 1, 0])])[None, ...]
+pwm = torch.tensor([[1, 0., 0., 0.], [0., 1, 0., 0.]])
+motifscore = scan(onehot, pwm)
+assert motifscore.shape[2] == 8
+assert (motifscore == torch.tensor([[0., 2., 0., 2., 1., 0., 1., 0.]])).all()
+
+# multiple motifs
+onehot = torch.tensor(np.eye(4, dtype = np.float32)[np.array([0, 1, 2, 3, 3, 2, 1, 0])])[None, ...]
+pwm = torch.tensor([[[1, 0., 0., 0.], [0., 1, 0., 0.]], [[0., 1., 0., 0.], [0., 1, 0., 0.]], [[0., 0., 1., 0.], [0., 1, 0., 0.]]])
+motifscore = scan(onehot, pwm)
+assert motifscore.shape[2] == 8
+assert motifscore.shape[0] == 1
+assert motifscore.shape[1] == 3
+assert (motifscore[0][0] == torch.tensor([0., 2., 0., 2., 1., 0., 1., 0.])).all()
+
+# %%
+k = max([pwm.shape[0] for pwm in pwms.values()])
+pwms_tensor = [torch.cat([torch.zeros(math.ceil((k - pwm.shape[0])/2), 4), pwm, torch.zeros(math.floor((k - pwm.shape[0])/2), 4)]) for pwm in pwms.values()]
+pwms_tensor = torch.stack(pwms_tensor).transpose(0, 1)
+
+# %%
+pwms_oi = slice(0, 10)
+
+# %%
+import gc
+gc.collect()
+torch.cuda.empty_cache()
+
+# %%
+device = "cpu"
+score = scan(onehot_promoters.to(device), pwms_tensor[:, pwms_oi].transpose(0, 1).to(device))
+where = torch.where(scores > torch.tensor(motifs[cutoff_col].iloc[pwms_oi].values[None, :, None]))
+
+# %%
+where[0
+
+# %%

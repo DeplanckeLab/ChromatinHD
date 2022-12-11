@@ -4,8 +4,7 @@ import torch
 import tqdm.auto as tqdm
 
 import peakfreeatac as pfa
-import peakfreeatac.fragments
-import peakfreeatac.transcriptome
+import peakfreeatac.data
 import peakfreeatac.loaders.fragmentmotif
 import peakfreeatac.loaders.minibatching
 
@@ -17,12 +16,12 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # transcriptome
-# dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+dataset_name = "lymphoma"
+# dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
-transcriptome = peakfreeatac.transcriptome.Transcriptome(
+transcriptome = peakfreeatac.data.Transcriptome(
     folder_data_preproc / "transcriptome"
 )
 
@@ -34,42 +33,40 @@ promoters = pd.read_csv(
 )
 window_width = window[1] - window[0]
 
-fragments = peakfreeatac.fragments.Fragments(
+fragments = peakfreeatac.data.Fragments(
     folder_data_preproc / "fragments" / promoter_name
 )
 
 # motifscan
 motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name
-motifscores = pickle.load(open(motifscan_folder / "motifscores.pkl", "rb"))
-
-# TEMP FIX
-fragments.coordinates = fragments.coordinates.to(torch.int64).contiguous()
-fragments.mapping = fragments.mapping.to(torch.int64).contiguous()
-fragments.genemapping = fragments.mapping[:, 1].to(torch.int64).contiguous()
-
-motifscores.indptr = np.ascontiguousarray(motifscores.indptr.astype(np.int64))
-motifscores.indices = np.ascontiguousarray(motifscores.indices.astype(np.int64))
-motifscores.data = np.ascontiguousarray(motifscores.data.astype(np.float64))
+# motifscan_folder = pfa.get_output() / "motifscans" / dataset_name / promoter_name / "cutoff_001"
+motifscan = pfa.data.Motifscan(motifscan_folder)
 
 # create design to run
 from design import get_design, get_folds_training
-design = get_design(dataset_name, transcriptome, motifscores, fragments, window = window)
+design = get_design(dataset_name, transcriptome, motifscan, fragments, window = window)
 design = {k:design[k] for k in [
     # "v4",
     # "v4_dummy",
     # "v4_1k-1k",
     # "v4_10-10",
-    # "v4_150-0",
-    # "v4_0-150",
+    "v4_150-0",
+    "v4_0-150",
     # "v4_nn",
     # "v4_nn_dummy1",
     # "v4_nn_1k-1k",
     # "v4_split",
     # "v4_nn_split",
     # "v4_lw_split",
+    # "v4_nn_lw",
     # "v4_nn_lw_split",
     # "v4_nn_lw_split_mean",
-    "v4_nn2_lw_split",
+    # "v4_150-0_nn",
+    # "v4_150-100-50-0_nn",
+    # "v4_150-100-50-0",
+    # "v4_1k-150-0_nn",
+    # "v4_cutoff001"
+    # "v4_nn_cutoff001"
 ]}
 # fold_slice = slice(0, 1)
 fold_slice = slice(0, 5)

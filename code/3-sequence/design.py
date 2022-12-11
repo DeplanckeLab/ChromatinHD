@@ -10,7 +10,7 @@ import numpy as np
 n_cells_step = 300
 n_genes_step = 1000
 
-def get_design(dataset_name, transcriptome, motifscores, fragments, window):
+def get_design(dataset_name, transcriptome, motifscan, fragments, window):
     transcriptome_X_dense = transcriptome.X.dense()
     general_model_parameters = {
         "mean_gene_expression":transcriptome_X_dense.mean(0),
@@ -19,10 +19,9 @@ def get_design(dataset_name, transcriptome, motifscores, fragments, window):
 
     general_loader_parameters = {
         "fragments":fragments,
-        "motifscores":motifscores,
+        "motifscan":motifscan,
         "cellxgene_batch_size":n_cells_step * n_genes_step,
-        "window":window,
-        "cutwindow":np.array([-150, 150])
+        "window":window
     }
 
     design = {}
@@ -48,6 +47,7 @@ def get_design(dataset_name, transcriptome, motifscores, fragments, window):
             "loader_cls":peakfreeatac.loaders.fragmentmotif.Motifcounts,
             "loader_parameters": {**general_loader_parameters, "cutwindow":np.array([-150, 150])}
         }
+        design["v4_cutoff001"] = design["v4"]
         design["v4_1k-1k"] = {
             "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
             "model_parameters": {**general_model_parameters, "baseline":baseline_model},
@@ -90,6 +90,7 @@ def get_design(dataset_name, transcriptome, motifscores, fragments, window):
             "loader_cls":peakfreeatac.loaders.fragmentmotif.Motifcounts,
             "loader_parameters": {**general_loader_parameters, "cutwindow":np.array([-150, 150])}
         }
+        design["v4_nn_cutoff001"] = design["v4_nn"]
         design["v4_split"] = {
             "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
             "model_parameters": {**general_model_parameters, "baseline":baseline_model},
@@ -117,6 +118,13 @@ def get_design(dataset_name, transcriptome, motifscores, fragments, window):
             "loader_parameters": {**general_loader_parameters, "cutwindow":np.array([-150, 150])}
         }
 
+        design["v4_nn_lw"] = {
+            "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
+            "model_parameters": {**general_model_parameters, "baseline":baseline_model, "weight_lengths":"feature", "n_layers":1},
+            "loader_cls":peakfreeatac.loaders.fragmentmotif.MotifcountsSplit,
+            "loader_parameters": {**general_loader_parameters, "cutwindow":np.array([-150, 150])}
+        }
+
         design["v4_nn_lw_split"] = {
             "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
             "model_parameters": {**general_model_parameters, "baseline":baseline_model, "weight_lengths":"feature", "n_layers":1},
@@ -136,6 +144,34 @@ def get_design(dataset_name, transcriptome, motifscores, fragments, window):
             "model_parameters": {**general_model_parameters, "baseline":baseline_model, "weight_lengths":"feature", "n_layers":2},
             "loader_cls":peakfreeatac.loaders.fragmentmotif.MotifcountsSplit,
             "loader_parameters": {**general_loader_parameters, "cutwindow":np.array([-150, 150])}
+        }
+
+        design["v4_150-100-50-0"] = {
+            "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
+            "model_parameters": {**general_model_parameters, "baseline":baseline_model},
+            "loader_cls":peakfreeatac.loaders.fragmentmotif.MotifcountsMultiple,
+            "loader_parameters": {**general_loader_parameters, "cutwindows":np.array([-150, -100, -50, 0])}
+        }
+
+        design["v4_150-0_nn"] = {
+            "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
+            "model_parameters": {**general_model_parameters, "baseline":baseline_model, "n_layers":1},
+            "loader_cls":peakfreeatac.loaders.fragmentmotif.Motifcounts,
+            "loader_parameters": {**general_loader_parameters, "cutwindow":np.array([-150, 0])}
+        }
+
+        design["v4_150-100-50-0_nn"] = {
+            "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
+            "model_parameters": {**general_model_parameters, "baseline":baseline_model, "n_layers":1},
+            "loader_cls":peakfreeatac.loaders.fragmentmotif.MotifcountsMultiple,
+            "loader_parameters": {**general_loader_parameters, "cutwindows":np.array([-150, -100, -50, 0])}
+        }
+
+        design["v4_1k-150-0_nn"] = {
+            "model_cls":peakfreeatac.models.promotermotif.v4.actual.Model,
+            "model_parameters": {**general_model_parameters, "baseline":baseline_model, "n_layers":1},
+            "loader_cls":peakfreeatac.loaders.fragmentmotif.MotifcountsMultiple,
+            "loader_parameters": {**general_loader_parameters, "cutwindows":np.array([-1000, -150, 0])}
         }
     return design
 
