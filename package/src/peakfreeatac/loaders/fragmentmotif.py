@@ -19,7 +19,7 @@ class FullResult(Result):
     n_motifs:int
 
 class Full(Fragments):
-    def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow):
+    def __init__(self, fragments, motifscan, cellxgene_batch_size, window, cutwindow):
         super().__init__(fragments, cellxgene_batch_size, window)
         
         # store auxilliary information
@@ -27,13 +27,13 @@ class Full(Fragments):
         self.cutwindow_width = cutwindow[1] - cutwindow[0]
         
         # create buffers for motifs
-        n_motifs = motifscores.shape[1]
+        n_motifs = motifscan.shape[1]
         n_motifs_per_fragment = 1000 # 400 motifs
         motif_buffer_size = self.fragment_buffer_size * n_motifs_per_fragment
         
-        self.motifscores_indptr = motifscores.indptr.astype(np.int64)
-        self.motifscores_indices = motifscores.indices.astype(np.int64)
-        self.motifscores_data = motifscores.data.astype(np.float64)
+        self.motifscan_indptr = motifscan.indptr.astype(np.int64)
+        self.motifscan_indices = motifscan.indices.astype(np.int64)
+        self.motifscan_data = motifscan.data.astype(np.float64)
 
         self.out_fragment_indptr = torch.from_numpy(np.zeros(motif_buffer_size, dtype = int))#.pin_memory()
         self.out_motif_ix = torch.from_numpy(np.zeros(motif_buffer_size, dtype = int))#.pin_memory()
@@ -51,9 +51,9 @@ class Full(Fragments):
         n_motifs = peakfreeatac.loaders.extraction.motifs.extract_all(
             self.out_coordinates.numpy(),
             self.out_genemapping.numpy(),
-            self.motifscores_indptr,
-            self.motifscores_indices,
-            self.motifscores_data,
+            self.motifscan_indptr,
+            self.motifscan_indices,
+            self.motifscan_data,
             *self.window,
             self.window_width,
             *self.cutwindow,
@@ -81,7 +81,7 @@ class MotifcountsResult(Result):
     motifcounts:torch.Tensor
 
 class Motifcounts(Fragments):
-    def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow, **kwargs):
+    def __init__(self, fragments, motifscan, cellxgene_batch_size, window, cutwindow, **kwargs):
         super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
         
         # store auxilliary information
@@ -89,12 +89,12 @@ class Motifcounts(Fragments):
         self.cutwindow_width = cutwindow[1] - cutwindow[0]
         
         # create buffers for motifs
-        self.n_motifs = motifscores.shape[1]
+        self.n_motifs = motifscan.shape[1]
         self.n_features = self.n_motifs
         
-        self.motifscores_indptr = motifscores.indptr.astype(np.int64)
-        self.motifscores_indices = motifscores.indices.astype(np.int64)
-        self.motifscores_data = motifscores.data.astype(np.float64)
+        self.motifscan_indptr = motifscan.indptr.astype(np.int64)
+        self.motifscan_indices = motifscan.indices.astype(np.int64)
+        self.motifscan_data = motifscan.data.astype(np.float64)
         
     def load(self, minibatch, **kwargs):
         super().load(minibatch, **kwargs)
@@ -106,9 +106,9 @@ class Motifcounts(Fragments):
         n_motifs = peakfreeatac.loaders.extraction.motifs.extract_motifcounts(
             self.out_coordinates.numpy(),
             self.out_genemapping.numpy(),
-            self.motifscores_indptr,
-            self.motifscores_indices,
-            self.motifscores_data,
+            self.motifscan_indptr,
+            self.motifscan_indices,
+            self.motifscan_data,
             *self.window,
             self.window_width,
             *self.cutwindow,
@@ -126,7 +126,7 @@ class Motifcounts(Fragments):
         )
 
 class MotifcountsSplit(Fragments):
-    def __init__(self, fragments, motifscores, cellxgene_batch_size, window, cutwindow, **kwargs):
+    def __init__(self, fragments, motifscan, cellxgene_batch_size, window, cutwindow, **kwargs):
         super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
         
         # store auxilliary information
@@ -134,12 +134,12 @@ class MotifcountsSplit(Fragments):
         self.cutwindow_width = cutwindow[1] - cutwindow[0]
         
         # create buffers for motifs
-        self.n_motifs = motifscores.shape[1]
+        self.n_motifs = motifscan.shape[1]
         self.n_features = self.n_motifs * 2
         
-        self.motifscores_indptr = motifscores.indptr
-        self.motifscores_indices = motifscores.indices
-        self.motifscores_data = motifscores.data
+        self.motifscan_indptr = motifscan.indptr
+        self.motifscan_indices = motifscan.indices
+        self.motifscan_data = motifscan.data
         
     def load(self, minibatch, **kwargs):
         super().load(minibatch, **kwargs)
@@ -151,13 +151,59 @@ class MotifcountsSplit(Fragments):
         n_motifs = peakfreeatac.loaders.extraction.motifs.extract_motifcounts_split(
             self.out_coordinates.numpy(),
             self.out_genemapping.numpy(),
-            self.motifscores_indptr,
-            self.motifscores_indices,
-            self.motifscores_data,
+            self.motifscan_indptr,
+            self.motifscan_indices,
+            self.motifscan_data,
             self.n_motifs,
             *self.window,
             self.window_width,
             *self.cutwindow,
+            out_motifcounts
+        )
+        out_motifcounts.resize((n_fragments, self.n_features))
+        
+        return MotifcountsResult(
+            motifcounts = torch.from_numpy(out_motifcounts).to(torch.float),
+            local_cellxgene_ix = self.out_local_cellxgene_ix,
+            coordinates = self.out_coordinates,
+            genemapping = self.out_genemapping,
+            n_fragments = n_fragments,
+            **minibatch.items()
+        )
+
+
+class MotifcountsMultiple(Fragments):
+    def __init__(self, fragments, motifscan, cellxgene_batch_size, window, cutwindows, **kwargs):
+        super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
+        
+        # store auxilliary information
+        self.cutwindows = cutwindows
+        
+        # create buffers for motifs
+        self.n_motifs = motifscan.shape[1]
+        self.n_features = self.n_motifs * (cutwindows.shape[0] - 1)
+        
+        self.motifscan_indptr = motifscan.indptr
+        self.motifscan_indices = motifscan.indices
+        self.motifscan_data = motifscan.data
+        
+    def load(self, minibatch, **kwargs):
+        super().load(minibatch, **kwargs)
+
+        n_fragments = self.out_coordinates.shape[0]
+
+        out_motifcounts = np.zeros((n_fragments, self.n_features), dtype = np.int64)
+        
+        n_motifs = peakfreeatac.loaders.extraction.motifs.extract_motifcounts_multiple(
+            self.out_coordinates.numpy(),
+            self.out_genemapping.numpy(),
+            self.motifscan_indptr,
+            self.motifscan_indices,
+            self.motifscan_data,
+            self.n_motifs,
+            *self.window,
+            self.window_width,
+            self.cutwindows,
             out_motifcounts
         )
         out_motifcounts.resize((n_fragments, self.n_features))

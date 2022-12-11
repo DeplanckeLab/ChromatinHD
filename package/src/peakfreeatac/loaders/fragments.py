@@ -10,8 +10,8 @@ class Result():
     local_cellxgene_ix:torch.Tensor
     genemapping:torch.Tensor
     n_fragments:int
-    cells_oi:int
-    genes_oi:int
+    cells_oi:np.ndarray
+    genes_oi:np.ndarray
     @property
     def n_cells(self):
         return len(self.cells_oi)
@@ -46,7 +46,8 @@ class Fragments():
         
         # create buffers for coordinates
         if n_fragment_per_cellxgene is None:
-            fragment_buffer_size = fragments.estimate_fragment_per_cellxgene() * cellxgene_batch_size
+            n_fragment_per_cellxgene = fragments.estimate_fragment_per_cellxgene()
+        fragment_buffer_size = n_fragment_per_cellxgene * cellxgene_batch_size
         self.fragment_buffer_size = fragment_buffer_size
         
         self.out_coordinates = torch.from_numpy(np.zeros((self.fragment_buffer_size, 2), dtype = np.int64))#.pin_memory()
@@ -68,7 +69,7 @@ class Fragments():
             # filtering has to be done on indices
             cellxgene_indptr = torch.ops.torch_sparse.ind2ptr(
                 torch.ops.torch_sparse.ptr2ind(torch.from_numpy(cellxgene_indptr), cellxgene_indptr[-1]
-                )[fragments_oi], 
+                )[fragments_oi],
                 len(cellxgene_indptr)
             ).numpy()
 
