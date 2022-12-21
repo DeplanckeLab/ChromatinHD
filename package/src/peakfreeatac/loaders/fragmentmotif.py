@@ -216,3 +216,53 @@ class MotifcountsMultiple(Fragments):
             n_fragments = n_fragments,
             **minibatch.items()
         )
+
+
+class MotifcountsRelative(Fragments):
+    def __init__(self, fragments, motifscan, cellxgene_batch_size, window, cutwindow, promoter_width, **kwargs):
+        super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
+        
+        # store auxilliary information
+        self.cutwindow = cutwindow
+        self.cutwindow_width = cutwindow[1] - cutwindow[0]
+        
+        # create buffers for motifs
+        self.n_motifs = motifscan.shape[1]
+        self.n_features = self.n_motifs * 2
+
+        self.promoter_width = promoter_width
+        
+        self.motifscan_indptr = motifscan.indptr.astype(np.int64)
+        self.motifscan_indices = motifscan.indices.astype(np.int64)
+        self.motifscan_data = motifscan.data.astype(np.float64)
+        
+    def load(self, minibatch, **kwargs):
+        super().load(minibatch, **kwargs)
+
+        n_fragments = self.out_coordinates.shape[0]
+
+        out_motifcounts = np.zeros((n_fragments, self.n_features), dtype = np.int64)
+        
+        n_motifs = peakfreeatac.loaders.extraction.motifs.extract_motifcounts_relative(
+            self.out_coordinates.numpy(),
+            self.out_genemapping.numpy(),
+            self.motifscan_indptr,
+            self.motifscan_indices,
+            self.motifscan_data,
+            self.n_motifs,
+            *self.window,
+            self.window_width,
+            *self.cutwindow,
+            self.promoter_width,
+            out_motifcounts
+        )
+        out_motifcounts.resize((n_fragments, self.n_features))
+        
+        return MotifcountsResult(
+            motifcounts = torch.from_numpy(out_motifcounts).to(torch.float),
+            local_cellxgene_ix = self.out_local_cellxgene_ix,
+            coordinates = self.out_coordinates,
+            genemapping = self.out_genemapping,
+            n_fragments = n_fragments,
+            **minibatch.items()
+        )

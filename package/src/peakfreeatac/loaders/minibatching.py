@@ -15,6 +15,13 @@ class Minibatch():
             "genes_oi":self.genes_oi
         }
 
+    def filter_genes(self, genes):
+        genes_oi = genes[self.genes_oi],
+        
+        return Minibatch(
+
+        )
+
 
 def cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes):
     return (cells_oi[:, None] * n_genes + genes_oi).flatten()
