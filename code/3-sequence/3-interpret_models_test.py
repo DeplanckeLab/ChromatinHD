@@ -18,9 +18,8 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # transcriptome
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
-# dataset_name = "e18brain"
+dataset_name_train = "pbmc10k"; dataset_name = "pbmc3k-pbmc10k"
+# dataset_name_train = "pbmc10k"; dataset_name = "lymphoma-pbmc10k"
 folder_data_preproc = folder_data / dataset_name
 
 transcriptome = peakfreeatac.data.Transcriptome(
@@ -40,18 +39,18 @@ fragments = peakfreeatac.data.Fragments(
 )
 
 # motifscan
-motifscan = pfa.data.Motifscan(pfa.get_output() / "motifscans" / dataset_name / promoter_name)
+motifscan = pfa.data.Motifscan(pfa.get_output() / "motifscans" / dataset_name_train / promoter_name)
 # motifscan = pfa.data.Motifscan(pfa.get_output() / "motifscans" / dataset_name / promoter_name / "cutoff_001")
 
 # create design to run
-from design import get_design, get_folds_inference
+from design import get_design, get_folds_test
 
 class Prediction(pfa.flow.Flow):
     pass
 
 # folds & minibatching
 folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
-folds = get_folds_inference(fragments, folds)
+folds = get_folds_test(fragments, folds)
 
 # design
 design = get_design(dataset_name, transcriptome, motifscan, fragments, window = window)
@@ -60,8 +59,8 @@ design = {k:design[k] for k in [
     # "v4_dummy",
     # "v4_1k-1k",
     # "v4_10-10",
-    "v4_150-0",
-    "v4_0-150",
+    # "v4_150-0",
+    # "v4_0-150",
     # "v4_nn",
     # "v4_nn_dummy1",
     # "v4_nn_1k-1k",
@@ -69,7 +68,7 @@ design = {k:design[k] for k in [
     # "v4_nn_split",
     # "v4_lw_split",
     # "v4_nn_lw",
-    # "v4_nn_lw_split",
+    "v4_nn_lw_split",
     # "v4_nn_lw_split_mean",
     # "v4_nn2_lw_split",
     # "v4_150-0_nn",
@@ -90,6 +89,7 @@ loss = lambda x, y: -paircor(x, y).mean() * 100
 
 for prediction_name, design_row in design.items():
     print(prediction_name)
+    prediction_train = Prediction(pfa.get_output() / "prediction_sequence" / dataset_name_train / promoter_name / prediction_name)
     prediction = Prediction(pfa.get_output() / "prediction_sequence" / dataset_name / promoter_name / prediction_name)
 
     # loaders
@@ -107,7 +107,7 @@ for prediction_name, design_row in design.items():
     )
 
     # load all models
-    models = [pickle.load(open(prediction.path / ("model_" + str(fold_ix) + ".pkl"), "rb")) for fold_ix, fold in enumerate(folds[fold_slice])]
+    models = [pickle.load(open(prediction_train.path / ("model_" + str(fold_ix) + ".pkl"), "rb")) for fold_ix, fold in enumerate(folds[fold_slice])]
 
     # score
     outcome = transcriptome.X.dense()

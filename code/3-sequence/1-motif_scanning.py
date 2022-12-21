@@ -46,8 +46,8 @@ import peakfreeatac as pfa
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
-dataset_name = "lymphoma"
-# dataset_name = "pbmc10k"
+# dataset_name = "lymphoma"
+dataset_name = "pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -164,8 +164,13 @@ motifs_oi = motifs
 motifs.loc[motifs.index.str.startswith("CEBP")]
 
 # %%
-motif_oi = "ZN250_HUMAN.H11MO.0.C"
-# motif_oi = "CEBPA_MOUSE.H11MO.0.A"
+nucleotides = pd.DataFrame({"nucleotide":np.arange(4), "label":["A", "C", "G", "T"]})
+nucleotides["color"] = sns.color_palette(n_colors = 4)
+
+# %%
+# motif_oi = "ZN250_HUMAN.H11MO.0.C"
+# motif_oi = "ZN250_HUMAN.H11MO.0.C"
+motif_oi = "SALL4_HUMAN.H11MO.0.B"
 print(motif_oi)
 fig, ax = plt.subplots()
 pd.DataFrame(pwms[motif_oi].numpy()).plot(ax = ax)

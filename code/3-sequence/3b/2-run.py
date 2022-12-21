@@ -47,13 +47,13 @@ motifscan = pfa.data.Motifscan(motifscan_folder)
 # create design to run
 from design import get_design, get_folds_training
 design = get_design(dataset_name, transcriptome, motifscan, fragments, window = window)
-# design = {k:design[k] for k in [
+design = {k:design[k] for k in [
     # "v4",
     # "v4_dummy",
-    # "v4_1k-1k",
-    # "v4_10-10",
-    # "v4_150-0",
-    # "v4_0-150",
+    "v4_1k-1k",
+    "v4_10-10",
+    "v4_150-0",
+    "v4_0-150",
     # "v4_nn",
     # "v4_nn_dummy1",
     # "v4_nn_1k-1k",
@@ -69,12 +69,8 @@ design = get_design(dataset_name, transcriptome, motifscan, fragments, window = 
     # "v4_150-100-50-0",
     # "v4_1k-150-0_nn",
     # "v4_cutoff001"
-    # "v4_nn_cutoff001",
-    # "v4_prom",
-    # "v4_prom_nn"
-# ]}
-design = design["titr"]
-design = {k:design[k] for k in list(design.keys())[30:]}
+    # "v4_nn_cutoff001"
+]}
 # fold_slice = slice(0, 1)
 fold_slice = slice(0, 5)
 # fold_slice = slice(1, 5)
@@ -85,14 +81,8 @@ folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
 folds = get_folds_training(fragments, folds)
 
 # loss
-cos = torch.nn.CosineSimilarity(dim = 0)
-loss = lambda x_1, x_2: -cos(x_1, x_2).mean()
-
-def paircor(x, y, dim = 0, eps = 0.1):
-    divisor = (y.std(dim) * x.std(dim)) + eps
-    cor = ((x - x.mean(dim, keepdims = True)) * (y - y.mean(dim, keepdims = True))).mean(dim) / divisor
-    return cor
-loss = lambda x, y: -paircor(x, y).mean() * 100
+loss = torch.nn.MSELoss()
+loss = pfa.loss.MSENormLoss()
 
 
 class Prediction(pfa.flow.Flow):
@@ -100,7 +90,7 @@ class Prediction(pfa.flow.Flow):
 
 for prediction_name, design_row in design.items():
     print(prediction_name)
-    prediction = Prediction(pfa.get_output() / "prediction_sequence" / dataset_name / promoter_name / prediction_name)
+    prediction = Prediction(pfa.get_output() / "prediction_sequence_v5" / dataset_name / promoter_name / prediction_name)
 
     # loaders
     print("collecting...")

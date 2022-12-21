@@ -51,9 +51,9 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "lymphoma"
-dataset_name = "pbmc10k"
+# dataset_name = "pbmc10k"
 # dataset_name = "pbmc10k_clustered"
-# dataset_name = "lymphoma+pbmc10k"
+dataset_name = "lymphoma+pbmc10k"
 # dataset_name = "e18brain"
 folder_data_preproc = folder_data / dataset_name
 
@@ -81,6 +81,12 @@ fold = folds[0]
 # %%
 from design import get_folds_inference
 folds = get_folds_inference(fragments, folds)
+
+# %%
+transcriptome.adata[folds[0]["cells_validation"]].X.sum()
+
+# %%
+transcriptome.adata[folds[0]["cells_validation"]].X.sum()
 
 # %% [markdown]
 # What we want is
@@ -452,7 +458,7 @@ full_result = loader.load(cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi
 # %%
 n_cells = 300
 n_genes = 1000
-cutwindow = np.array([-150, 150.])
+cutwindow = np.array([-150, 150])
 loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscan, n_cells * n_genes, window, cutwindow)
 # loader = peakfreeatac.loaders.fragmentmotif.MotifcountsSplit(fragments, motifscan, n_cells * n_genes, window, cutwindow)
 
@@ -517,52 +523,6 @@ data = loader.load(minibatch)
 
 # %%
 data.motifcounts.sum()
-
-# %%
-# %%timeit -n 1 -r 3
-data = loader.load(minibatch)
-
-# %% [markdown]
-# ### Motifcounts relative
-
-# %%
-n_cells = 30
-n_genes = 100
-cutwindow = np.array([-150, 0])
-
-# %%
-rg = np.random.RandomState(1)
-cells_oi = rg.choice(fragments.n_cells, n_cells)
-genes_oi = rg.choice(fragments.n_genes, n_genes)
-
-cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
-
-minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
-
-# %%
-loader = peakfreeatac.loaders.fragmentmotif.MotifcountsRelative(fragments, motifscan, n_cells * n_genes, window, cutwindow, promoter_width = 500)
-
-# %%
-data = loader.load(minibatch)
-
-# %%
-data.motifcounts[:, :400].sum() / data.motifcounts.sum()
-
-# %%
-# %%timeit -n 1 -r 3
-data = loader.load(minibatch)
-
-# %%
-loader = peakfreeatac.loaders.fragmentmotif.Motifcounts(fragments, motifscan, n_cells * n_genes, window, cutwindow)
-
-# %%
-data = loader.load(minibatch)
-
-# %%
-data.motifcounts.sum()
-
-# %%
-data.motifcounts.shape
 
 # %%
 # %%timeit -n 1 -r 3
