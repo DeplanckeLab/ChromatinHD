@@ -38,18 +38,18 @@ import tqdm.auto as tqdm
 # %%
 import peakfreeatac as pfa
 import peakfreeatac.peakcounts
-import peakfreeatac.transcriptome
+import peakfreeatac.data
 
 # %%
 # dataset_name = "lymphoma"
 # dataset_name = "pbmc10k"
 dataset_name = "e18brain"
 
-# peaks_name = "cellranger"
+peaks_name = "cellranger"
 # peaks_name = "genrich"
-peaks_name = "macs2"
+# peaks_name = "macs2"
 # peaks_name = "stack"
-# peaks_name = "rolling_1000"; window_size = 1000
+# peaks_name = "rolling_500"; window_size = 500
 
 # %%
 folder_data_preproc = pfa.get_output() / "data" / dataset_name
@@ -57,11 +57,13 @@ folder_root = pfa.get_output()
 
 # %%
 promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
+# promoter_name, (padding_negative, padding_positive) = "20kpromoter", (10000, 0)
+
 promoters = pd.read_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"), index_col = 0)
 
 # %%
-transcriptome = pfa.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
-fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
+transcriptome = pfa.data.Transcriptome(folder_data_preproc / "transcriptome")
+fragments = peakfreeatac.data.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)
@@ -121,7 +123,7 @@ sc.pp.highly_variable_genes(adata)
 adata.var["highly_variable"].sum()
 
 # %%
-sc.pp.pca(adata, use_highly_variable=True)
+sc.pp.pca(adata, use_highly_variable=False)
 sc.pp.neighbors(adata, use_rep = "X_pca")
 
 # %%
@@ -134,56 +136,64 @@ sc.pl.umap(adata)
 # ## Predict (temporarily here 👷)
 
 # %%
-peaks = peakcounts.peaks
-
-# %%
 import peakfreeatac.prediction
 
 # %%
-# method_suffix = ""; prediction_class = peakfreeatac.prediction.PeaksGene
-# method_suffix = "_linear"; prediction_class = peakfreeatac.prediction.PeaksGeneLinear
-method_suffix = "_polynomial"; prediction_class = peakfreeatac.prediction.PeaksGenePolynomial
+peaks_names = [
+    # "cellranger",
+    # "macs2",
+    "rolling_500"
+]
+design_peaks = pd.DataFrame({"peaks":peaks_names})
+methods = [
+    ["_xgboost", peakfreeatac.prediction.PeaksGene],
+    # ["_linear", peakfreeatac.prediction.PeaksGeneLinear],
+    # ["_polynomial", peakfreeatac.prediction.PeaksGenePolynomial],
+    # ["_lasso", peakfreeatac.prediction.PeaksGeneLasso]
+]
+design_methods = pd.DataFrame(methods, columns = ["method_suffix", "method_class"])
+dataset_names = [
+    "pbmc10k",
+    "lymphoma",
+    "e18brain",
+]
+design_datasets = pd.DataFrame({"dataset":dataset_names})
 
 # %%
-prediction = prediction_class(
-    pfa.get_output() / "prediction_promoter" / dataset_name / promoter_name / (peaks_name + method_suffix),
-    transcriptome,
-    peakcounts
-)
+design = pfa.utils.crossing(design_peaks, design_methods, design_datasets)
 
 # %%
-import pybedtools
-
-# %% [markdown]
-# Link peaks and genes (promoters)
-
-# %%
-gene_peak_links = peaks.reset_index()
-gene_peak_links["gene"] = pd.Categorical(gene_peak_links["gene"], categories = transcriptome.adata.var.index)
-
-# %% [markdown]
-# Split train/validation
-
-# %%
-folds = pickle.load((fragments.path / "folds.pkl").open("rb"))[:1]
-
-# %%
-prediction.score(gene_peak_links, folds)
-
-# %%
-prediction.scores["mse_diff"] = prediction.scores["mse"] - prediction.scores["mse_dummy"]
-
-# %%
-# prediction.scores["label"] = transcriptome.symbol(prediction.scores["gene"]).values
-
-# %%
-prediction.scores = prediction.scores
-
-# %%
-# !ls {prediction.path}
-prediction.path
+for _, design_row in design.iterrows():
+    dataset_name = design_row["dataset"]
+    peaks_name = design_row["peaks"]
+    transcriptome = pfa.data.Transcriptome(pfa.get_output() / "data" / dataset_name / "transcriptome")
+    peakcounts = pfa.peakcounts.FullPeak(folder = pfa.get_output() / "peakcounts" / dataset_name / peaks_name)
+    
+    peaks = peakcounts.peaks
+    
+    gene_peak_links = peaks.reset_index()
+    gene_peak_links["gene"] = pd.Categorical(gene_peak_links["gene"], categories = transcriptome.adata.var.index)
+    
+    fragments = peakfreeatac.data.Fragments(pfa.get_output() / "data" / dataset_name / "fragments" / promoter_name)
+    folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
+    
+    method_class = design_row["method_class"]
+    method_suffix = design_row["method_suffix"]
+    prediction = method_class(
+        pfa.get_output() / "prediction_positional" / dataset_name / promoter_name / (peaks_name + method_suffix),
+        transcriptome,
+        peakcounts
+    )
+    
+    prediction.score(gene_peak_links, folds)
+    
+    prediction.scores = prediction.scores
+    # prediction.models = prediction.models
 
 # %%
-gene_scores["mse_diff"].unstack().T.sort_values("validation").plot()
+prediction.scores
+
+# %%
+prediction.scores["cor"].unstack().T.sort_values("validation").plot()
 
 # %%

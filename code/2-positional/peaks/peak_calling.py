@@ -117,14 +117,15 @@ peaks_folder
 # !echo 'ls {folder_data_preproc}'
 
 # %%
-# !echo 'cd {peaks_folder} && macs2 callpeak -t atac_possorted_bam.bam -f BAMPE'
+# !echo 'cd {peaks_folder} && macs2 callpeak -t {folder_data_preproc}/bam/atac_possorted_bam.bam -f BAMPE'
 
 # %%
 # !echo 'ls {folder_data_preproc}/bam'
 
 # %%
-# !echo 'cp {folder_data_preproc}/bam/macs/NA_peaks.narrowPeak {peaks_folder}/peaks.bed'
+# !echo 'cp {peaks_folder}/NA_peaks.narrowPeak {peaks_folder}/peaks.bed'
 
 # %%
 # from updeplasrv7
+# !echo 'mkdir -p {peaks_folder}'
 # !echo 'rsync wsaelens@updeplasrv6.epfl.ch:{peaks_folder}/peaks.bed {peaks_folder}/peaks.bed -v'
