@@ -22,7 +22,7 @@ def split(n, seed=1, train_ratio=0.8):
     return train_ix, validation_ix
 
 def cal_mse(y, predicted):
-    mse = np.sqrt(((predicted - y) ** 2).mean())
+    mse = ((predicted - y) ** 2).mean()
     return mse
 
 class PeaksGene(Flow):
@@ -37,7 +37,7 @@ class PeaksGene(Flow):
         self.peaks = peaks
 
     def _create_regressor(self):
-        regressor = xgb.XGBRegressor(n_estimators = 100)
+        regressor = xgb.XGBRegressor()
         return regressor
             
     def _preprocess_features(self, X):
@@ -66,7 +66,7 @@ class PeaksGene(Flow):
         scores = []
 
         for fold_ix, fold in enumerate(folds):
-            train_ix, validation_ix = fold.cells_train.numpy(), fold.cells_validation.numpy()
+            train_ix, validation_ix = fold["cells_train"], fold["cells_validation"]
 
             # train_ix = obs["ix"][cells_train]
             # validation_ix = obs["ix"][cells_validation]
@@ -110,19 +110,27 @@ class PeaksGene(Flow):
                     })
                 )
 
-        scores = pd.concat(scores, ignore_index= True).set_index(["phase", "gene"])
+        scores = pd.concat(scores, ignore_index= True).groupby(["phase", "gene"]).mean()
 
         self.scores = scores
+
+    def get_scoring_folder(self):
+        scores_folder = self.path / "scoring" / "overall"
+        scores_folder.mkdir(exist_ok = True, parents = True)
+        return scores_folder
 
     _scores = None
     @property
     def scores(self):
         if self._scores is None:
-            self._scores = pd.read_table(self.path / "scores.tsv", index_col = [0, 1])
+            scores_folder = self.get_scoring_folder()
+            self._scores = pd.read_pickle(scores_folder / "genescores.pkl")
         return self._scores
     @scores.setter
     def scores(self, value):
-        value.to_csv(self.path / "scores.tsv", sep = "\t")
+        scores_folder = self.get_scoring_folder()
+        value.to_pickle(scores_folder / "genescores.pkl")
+        value.groupby("gene").mean().to_pickle(scores_folder / "scores.pkl")
         self._scores = value
 
 
@@ -147,6 +155,17 @@ class PeaksGenePolynomial(PeaksGeneLinear):
         import sklearn.preprocessing
         poly = sklearn.preprocessing.PolynomialFeatures(interaction_only=True,include_bias = False)
         return poly.fit_transform(X)
+
+
+class PeaksGeneLasso(PeaksGene):
+    default_name = "geneprediction_lasso"
+
+    def _create_regressor(self):
+            import sklearn.linear_model
+            regressor = sklearn.linear_model.Lasso()
+            return regressor
+
+
 
 class OriginalPeakPrediction():
     default_name = "originalpeakprediction"
