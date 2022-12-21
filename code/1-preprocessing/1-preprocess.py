@@ -46,7 +46,8 @@ folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
-dataset_name = "pbmc3k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_3k/pbmc_granulocyte_sorted_3k"; genome = "GRCh38.107"; organism = "hs"
+dataset_name = "pbmc10k_gran"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k"; genome = "GRCh38.107"; organism = "hs"
+# dataset_name = "pbmc3k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_3k/pbmc_granulocyte_sorted_3k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
 
@@ -66,8 +67,8 @@ elif organism == "hs":
 # https://support.10xgenomics.com/single-cell-atac/software/pipelines/latest/algorithms/overview
 
 # %%
-# ! echo mkdir {folder_data_preproc}
-# ! echo mkdir {folder_data_preproc}/bam
+# ! echo mkdir -p {folder_data_preproc}
+# ! echo mkdir =p {folder_data_preproc}/bam
 
 # %%
 # # ! wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
@@ -176,10 +177,10 @@ genes.query("symbol == 'PCNA'")
 # ## Create transcriptome
 
 # %%
-import peakfreeatac.transcriptome
+import peakfreeatac.data
 
 # %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
+transcriptome = peakfreeatac.data.Transcriptome(folder_data_preproc / "transcriptome")
 
 # %% [markdown]
 # ### Read and process
@@ -223,10 +224,17 @@ adata = adata[~adata.obs["doublet"].astype(bool)]
 print(adata.obs.shape[0])
 
 # %%
-sc.pp.normalize_per_cell(adata)
+size_factor = np.median(np.array(adata.X.sum(1)))
+adata.uns["size_factor"] = size_factor
+
+# %%
+sc.pp.normalize_total(adata, size_factor)
 
 # %%
 sc.pp.log1p(adata)
+
+# %%
+adata.X[:100].sum()
 
 # %%
 sc.pp.pca(adata)
@@ -254,9 +262,6 @@ adata.var["chr"] = genes["chr"]
 
 # %%
 transcriptome.adata = adata
-
-# %%
-transcriptome.adata = adata
 transcriptome.var = adata.var
 transcriptome.obs = adata.obs
 
@@ -280,9 +285,6 @@ ax.set_xscale("log")
 
 # %%
 genes_oi = adata.var.sort_values("dispersions_norm", ascending = False).index[:10]
-sc.pl.umap(adata, color=genes_oi, title = transcriptome.symbol(genes_oi))
-
-# %%
 # genes_oi = transcriptome.gene_id(["LEF1"])
 sc.pl.umap(adata, color=genes_oi, title = transcriptome.symbol(genes_oi))
 
@@ -478,6 +480,7 @@ fragments_tabix = tabix.open(str(folder_data_preproc / "atac_fragments.tsv.gz"))
 # %%
 promoter_name, (padding_negative, padding_positive) = "4k2k", (2000, 4000)
 promoter_name, (padding_negative, padding_positive) = "10k10k", (10000, 10000)
+# promoter_name, (padding_negative, padding_positive) = "20kpromoter", (10000, 0)
 # promoter_name, (padding_negative, padding_positive) = "1k1k", (1000, 1000)
 
 # %%
@@ -516,12 +519,12 @@ promoters.to_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"))
 promoters = pd.read_csv(folder_data_preproc / ("promoters_" + promoter_name + ".csv"), index_col = 0)
 
 # %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
+transcriptome = peakfreeatac.data.Transcriptome(folder_data_preproc / "transcriptome")
 
 # %%
 import pathlib
-import peakfreeatac.fragments
-fragments = pfa.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
+import peakfreeatac.data
+fragments = pfa.data.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 var = pd.DataFrame(index = promoters.index)
@@ -610,20 +613,7 @@ fragments.coordinates = coordinates
 # Create cellxgene index pointers
 
 # %%
-cellxgene = fragments.mapping[:, 0] * fragments.n_genes + fragments.mapping[:, 1]
-n_cellxgene = fragments.n_genes * fragments.n_cells
-
-# %%
-import torch_sparse
-
-# %%
-cellxgene_indptr = torch.ops.torch_sparse.ind2ptr(cellxgene, n_cellxgene)
-
-# %%
-assert fragments.coordinates.shape[0] == cellxgene_indptr[-1]
-
-# %%
-fragments.cellxgene_indptr = cellxgene_indptr
+fragments.create_cellxgene_indptr()
 
 # %% [markdown]
 # #### Create training folds
@@ -692,6 +682,66 @@ np.isnan(sizes).sum()
 fig, ax = plt.subplots()
 ax.hist(sizes, range = (0, 1000), bins = 100)
 ax.set_xlim(0, 1000)
+
+# %% [markdown]
+# ## Fragment distributions across datasets
+
+# %%
+import gzip
+
+# %%
+dataset_names = ["pbmc10k_gran", "pbmc10k", "pbmc3k", "lymphoma", "e18brain"]
+
+# %%
+sizes = {}
+for dataset_name in dataset_names:
+    sizes_dataset = []
+    with gzip.GzipFile(folder_data / dataset_name / "atac_fragments.tsv.gz", "r") as fragment_file:
+        i = 0
+        for line in fragment_file:
+            line = line.decode("utf-8")
+            if line.startswith("#"):
+                continue
+            split = line.split("\t")
+            sizes_dataset.append(int(split[2]) - int(split[1]))
+            i += 1
+            if i > 1000000:
+                break
+    sizes[dataset_name] = sizes_dataset
+
+# %%
+bins = np.linspace(0, 1000, 100+1)
+
+# %%
+bincounts = {dataset_name:np.histogram(x, bins, density = True)[0] for dataset_name, x in sizes.items()}
+
+
+# %%
+def ecdf(a):
+    x = np.sort(a)
+    y = np.arange(len(x))/float(len(x))
+    return y
+
+
+# %%
+fig, ax = plt.subplots()
+for dataset_name, bincounts_dataset in bincounts.items():
+    x = np.sort(sizes[dataset_name])
+    x_ecdf = ecdf(x)
+    ax.plot(x, x_ecdf, label = dataset_name)
+    ax.set_xscale("log")
+ax.legend()
+ax.set_xlabel("fragment length")
+ax.set_ylabel("ECDF", rotation = 0, ha = "right", va = "center")
+
+# %%
+fig, ax = plt.subplots()
+for dataset_name in sizes.keys():
+    ax.hist(sizes[dataset_name], range = (0, 1000), bins = 100, histtype = "step", label = dataset_name)
+    ax.set_xlim(0, 1000)
+plt.legend()
+ax.set_xlabel("fragment length")
+ax.set_ylabel("# fragments", rotation = 0, ha = "right", va = "center")
 
 # %%
 
