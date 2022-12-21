@@ -15,32 +15,7 @@ import torch
 import torch_scatter
 import math
 
-def self_attention(x):
-    dotproduct = torch.matmul(x, x.transpose(-1, -2))
-    weights = torch.nn.functional.softmax(dotproduct, -1)
-    y = torch.matmul(weights, x)
-    return y
-
-
-class FixableParameter(torch.nn.Parameter):
-    _data = None
-    _already_fixed = None
-    _prev = None
-    def fix(self, fix):
-        if (self._data is None) and (self._already_fixed is None):
-            self._data = self.data.clone()
-            self._already_fixed = fix
-        else:
-            novel = fix & ~self._already_fixed
-            self._data[novel] = self._prev[novel].clone()
-            # self._data[novel] = self.data[novel].clone()
-            self._already_fixed = fix | self._already_fixed
-            self.data[self._already_fixed] = self._data[self._already_fixed].clone()
-
-    def replace(self):
-        self._prev = self.data.clone()
-        if (self._data is not None) and (self._already_fixed is not None):
-            self.data[self._already_fixed] = self._data[self._already_fixed].clone()
+from peakfreeatac.embedding import EmbeddingTensor
 
 class SineEncoding(torch.nn.Module):
     def __init__(self, n_frequencies):
@@ -62,47 +37,6 @@ class SineEncoding(torch.nn.Module):
         embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
         return embedding
 
-
-# class SineEncoding2(torch.nn.Module):
-#     def __init__(self, n_frequencies):
-#         super().__init__()
-
-#         self.register_buffer(
-#             "frequencies",
-#             torch.tensor([[] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
-#         )
-#         self.register_buffer(
-#             "shifts",
-#             torch.tensor([[0, torch.pi/2] for _ in range(1, n_frequencies + 1)]).flatten(-2)
-#         )
-
-#         self.n_embedding_dimensions = n_frequencies * 2 * 2
-
-#     def forward(self, coordinates):
-#         embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
-#         return embedding
-
-
-# class GammaEncoding(torch.nn.Module):
-#     def __init__(self, n_frequencies, range = (10000, 10000)):
-#         super().__init__()
-
-#         self.register_buffer(
-#             "frequencies",
-#             torch.tensor([[1 / 1000**(2 * i/n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
-#         )
-#         self.register_buffer(
-#             "shifts",
-#             torch.tensor([[0, torch.pi/2] for _ in range(1, n_frequencies + 1)]).flatten(-2)
-#         )
-
-#         self.n_embedding_dimensions = n_frequencies * 2 * 2
-
-#     def forward(self, coordinates):
-#         embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
-#         return embedding
-
-
 class FragmentEmbedder(torch.nn.Module):
     dropout_rate = 0.
     def __init__(self, n_genes, n_frequencies = 10, n_embedding_dimensions = 5, nonlinear = True, dropout_rate = 0., **kwargs):
@@ -117,16 +51,16 @@ class FragmentEmbedder(torch.nn.Module):
         self.sine_encoding = SineEncoding(n_frequencies = n_frequencies)
 
         # default initialization same as a torch.nn.Linear
-        self.bias1 = FixableParameter(torch.empty((n_genes, self.n_embedding_dimensions), requires_grad = True))
-        self.bias1.data.zero_()
+        self.bias1 = EmbeddingTensor(n_genes, (self.n_embedding_dimensions, ), sparse = True)
+        self.bias1.weight.data.zero_()
 
-        self.weight1 = FixableParameter(torch.empty((n_genes, self.sine_encoding.n_embedding_dimensions, self.n_embedding_dimensions), requires_grad = True))
-        stdv = 1. / math.sqrt(self.weight1.size(-1))# / 100
-        self.weight1.data.uniform_(-stdv, stdv)
+        self.weight1 = EmbeddingTensor(n_genes, (self.sine_encoding.n_embedding_dimensions, self.n_embedding_dimensions), sparse = True)
+        stdv = 1. / math.sqrt(self.weight1.weight.size(-1))# / 100
+        self.weight1.weight.data.uniform_(-stdv, stdv)
     
     def forward(self, coordinates, gene_ix):
         embedding = self.sine_encoding(coordinates)
-        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1[gene_ix]) + self.bias1[gene_ix]
+        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(gene_ix)) + self.bias1(gene_ix)
         # embedding = (embedding[..., None] * self.weight1[gene_ix]).sum(-2)
 
         # non-linear
@@ -142,9 +76,11 @@ class FragmentEmbedder(torch.nn.Module):
 
         return embedding
 
-    def fix_parameters(self, genes):
-        self.bias1.fix(genes)
-        self.weight1.fix(genes)
+    def parameters_dense(self):
+        return []
+
+    def parameters_sparse(self):
+        return [self.bias1.weight, self.weight1.weight]
 
 class FragmentEmbedderCounter(torch.nn.Sequential):
     """
@@ -186,28 +122,26 @@ class EmbeddingToExpression(torch.nn.Module):
         super().__init__()
         
         # set bias to empirical mean
-        self.bias1 = FixableParameter(mean_gene_expression.clone().detach().to("cpu"), requires_grad = False)
+        self.bias1 = EmbeddingTensor(n_genes, (1, ), sparse = True)
+        self.bias1.weight.requires_grad = False
+        self.bias1.weight.data = mean_gene_expression.clone().detach().to("cpu")
 
-        self.weight1 = FixableParameter(torch.ones((n_genes, n_embedding_dimensions), requires_grad = True))
+        self.weight1 = EmbeddingTensor(n_genes, (n_embedding_dimensions, ), sparse = True)
         if initialization == "ones":
-            self.weight1.data[:] = 1.
+            self.weight1.weight.data[:] = 1.
         elif initialization == "default":
-            self.weight1.data[:, :5] = 1.
-            self.weight1.data[:, 5:] = 0.
+            self.weight1.weight.data[:, :5] = 1.
+            self.weight1.weight.data[:, 5:] = 0.
             # stdv = 1. / math.sqrt(self.weight1.size(-1))
             # self.weight1.data.uniform_(-stdv, stdv)
         elif initialization == "smaller":
-            stdv = 1. / math.sqrt(self.weight1.size(-1)) / 100
-            self.weight1.data.uniform_(-stdv, stdv)
+            stdv = 1. / math.sqrt(self.weight1.weight.size(-1)) / 100
+            self.weight1.weight.data.uniform_(-stdv, stdv)
         # stdv = 1. / math.sqrt(self.weight1.size(-1)) / 100
         # self.weight1.data.uniform_(-stdv, stdv)
         
     def forward(self, cell_gene_embedding, gene_ix):
-        return (cell_gene_embedding * self.weight1[gene_ix]).sum(-1) + self.bias1[gene_ix]
-
-    def fix_parameters(self, genes):
-        self.bias1.fix(genes)
-        self.weight1.fix(genes)
+        return (cell_gene_embedding * self.weight1(gene_ix)).sum(-1) + self.bias1(gene_ix)
     
 class Model(torch.nn.Module):
     def __init__(
@@ -257,7 +191,3 @@ class Model(torch.nn.Module):
     def get_parameters(self):
         return self.parameters()
         # return self.embedding_gene_pooler.parameters()
-
-    def fix_parameters(self, genes):
-        self.fragment_embedder.fix_parameters(genes)
-        self.embedding_to_expression.fix_parameters(genes)

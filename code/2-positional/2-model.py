@@ -44,8 +44,6 @@ import tqdm.auto as tqdm
 
 # %%
 import peakfreeatac as pfa
-import peakfreeatac.fragments
-import peakfreeatac.transcriptome
 
 # %%
 folder_root = pfa.get_output()
@@ -64,8 +62,8 @@ promoters = pd.read_csv(folder_data_preproc / ("promoters_" + promoter_name + ".
 window_width = window[1] - window[0]
 
 # %%
-transcriptome = peakfreeatac.transcriptome.Transcriptome(folder_data_preproc / "transcriptome")
-fragments = peakfreeatac.fragments.Fragments(folder_data_preproc / "fragments" / promoter_name)
+transcriptome = pfa.data.Transcriptome(folder_data_preproc / "transcriptome")
+fragments = pfa.data.Fragments(folder_data_preproc / "fragments" / promoter_name)
 
 # %%
 folds = pickle.load((fragments.path / "folds.pkl").open("rb"))
@@ -120,6 +118,37 @@ data = loader.load(minibatch)
 (fragments.n_cells * fragments.n_genes) / len(cellxgene_oi)
 
 # %% [markdown]
+# ### Fragments n (2)
+
+# %%
+fragments_oi = fragments.coordinates[:, 0] > 0
+
+# %%
+n_cells = 1000
+n_genes = 100
+cutwindow = np.array([-150, 150])
+loader = peakfreeatac.loaders.fragments.FragmentsCounting(fragments, n_cells * n_genes, window)
+
+# %%
+cells_oi = np.arange(0, n_cells)
+genes_oi = np.arange(0, n_genes)
+
+cellxgene_oi = (cells_oi[:, None] * fragments.n_genes + genes_oi).flatten()
+
+minibatch = peakfreeatac.loaders.minibatching.Minibatch(cellxgene_oi = cellxgene_oi, cells_oi = cells_oi, genes_oi = genes_oi)
+data = loader.load(minibatch)
+
+# %%
+# %%timeit -n 1
+data = loader.load(minibatch)
+
+# %%
+(fragments.n_cells * fragments.n_genes) / len(cellxgene_oi)
+
+# %%
+data.local_cellxgene_ix[data.n[0]]
+
+# %% [markdown]
 # ## Loading using multithreading
 
 # %%
@@ -165,6 +194,146 @@ for i, data in enumerate(tqdm.tqdm(loaders)):
     print(i)
     data
     # loaders.submit_next()
+
+# %% [markdown]
+# ## Positional encoding
+
+# %%
+import peakfreeatac.models.positional.v14
+
+# %%
+n_frequencies = 20
+encoder = peakfreeatac.models.positional.v14.SineEncoding(n_frequencies)
+
+# %%
+x = torch.arange(-10000, 10000)
+coordinates = torch.stack([x, x + 500], 1)
+encoding = encoder(coordinates)
+
+# %%
+1/(10000**(2 * 0/ 50))
+
+# %%
+fig, ax = plt.subplots(figsize = (1, 3), facecolor='w')
+sns.heatmap(coordinates.numpy(), cbar_kws = {"label":"position"})
+ax.collections[0].colorbar.set_label("position", rotation = 0)
+ax.set_ylabel("fragment", rotation = 0, ha = "right")
+ax.set_yticks([])
+ax.set_xticklabels(["left", "right"])
+fig.savefig("hi.png", bbox_inches = "tight", transparent=True, dpi = 300)
+
+# %%
+fig, ax = plt.subplots(figsize = (4, 3))
+sns.heatmap(encoding.numpy())
+ax.collections[0].colorbar.set_label("embedding\nvalue", rotation = 0, ha = "left", va = "center")
+ax.set_ylabel("fragment", rotation = 0, ha = "right")
+ax.set_yticks([])
+ax.set_xlabel("components")
+ax.set_xticks([])
+fig.savefig("hi.png", bbox_inches = "tight", transparent=True, dpi = 300)
+
+# %%
+i = 0
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 10
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 20
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 50
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+
+# %% [markdown]
+# ## Fragment counts
+
+# %%
+counts = pd.Series(torch.diff(fragments.cellxgene_indptr).numpy())
+pd.Series(counts).plot(kind = "hist", range = (0, 10), bins = 10)
+
+# %% [markdown]
+# ## Fragment embedder
+
+# %%
+import peakfreeatac.models.positional.v14
+
+# %%
+embedder = peakfreeatac.models.positional.v14.FragmentEmbedder(fragments.n_genes)
+
+# %%
+# %%timeit
+embedder.forward(data.coordinates, data.genemapping)
+
+# %%
+# # %%timeit
+# embedder.forward(data.coordinates, data.genemapping)
+
+# %%
+# embedder.forward(data.coordinates, data.genemapping, data.n)[data.n]
+
+# %%
+embedder.forward(data.coordinates, data.genemapping, data.n)[data.n]
+
+# %%
+1/(10000**(2 * 0/ 50))
+
+# %%
+sns.heatmap(encoding.numpy())
+
+# %%
+i = 0
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 10
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 20
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 50
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+
+# %% [markdown]
+# ## Model
+
+# %%
+import peakfreeatac.models.positional.v14
+
+# %%
+mean_gene_expression = transcriptome.X.dense().mean(0)
+
+# %%
+model = peakfreeatac.models.positional.v14.Model(loader, fragments.n_genes, mean_gene_expression, n_frequencies = 50, nonlinear = "sigmoid", reduce = "sum")
+model = pickle.load((pfa.get_output() / ".." / "output/prediction_positional/pbmc10k/10k10k/v14_50freq_sum_sigmoid_initdefault/model_0.pkl").open("rb"))
+
+# %%
+effect = model.forward(data)
+effect = (effect - mean_gene_expression[data.genes_oi])
+
+# %%
+# %%timeit
+embedder.forward(data.coordinates, data.genemapping)
+
+# %%
+# # %%timeit
+# embedder.forward(data.coordinates, data.genemapping)
+
+# %%
+# embedder.forward(data.coordinates, data.genemapping, data.n)[data.n]
+
+# %%
+embedder.forward(data.coordinates, data.genemapping, data.n)[data.n]
+
+# %%
+1/(10000**(2 * 0/ 50))
+
+# %%
+sns.heatmap(encoding.numpy())
+
+# %%
+i = 0
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 10
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 20
+plt.plot(coordinates[:100, 0], encoding[:100, i])
+i = 50
+plt.plot(coordinates[:100, 0], encoding[:100, i])
 
 # %% [markdown]
 # ## Single example
@@ -293,10 +462,10 @@ loaders_validation.initialize(fold["minibatches_validation_trace"])
 
 # %%
 n_epochs = 150
-checkpoint_every_step = 100
+checkpoint_every_epoch = 100
 
 # n_epochs = 10
-# checkpoint_every_step = 30
+# checkpoint_every_epoch = 30
 
 # %%
 # model
@@ -321,7 +490,7 @@ trainer = pfa.train.Trainer(
     outcome,
     loss,
     optim,
-    checkpoint_every_step = checkpoint_every_step,
+    checkpoint_every_epoch = checkpoint_every_epoch,
     optimize_every_step = optimize_every_step,
     n_epochs = n_epochs,
     device = "cuda"
