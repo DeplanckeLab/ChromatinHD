@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../../data/peak_free_atac/software/peak_free_atac/lib/python3.9/site-packages/pycistarget"
+		},
+		{
+			"path": "../chromatinhd_manuscript"
+		}
+	],
+	"settings": {
+		"python.formatting.provider": "black",
+		"python.formatting.blackPath": "/home/wsaelens/miniconda3/bin/black",
+		"editor.formatOnSave": true,
+		"files.exclude": {
+			"software/": true
+		}
+	}
+}
