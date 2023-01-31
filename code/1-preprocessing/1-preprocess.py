@@ -31,25 +31,30 @@ sns.set_style('ticks')
 
 import torch
 
-
 import pickle
 
 import scanpy as sc
 
 import tqdm.auto as tqdm
+import io
 
 # %%
 import peakfreeatac as pfa
+
+# %%
+# https://cf.10xgenomics.com/samples/cell-arc/2.0.1/Multiome_RNA_ATAC_Mouse_Brain_Alzheimers_AppNote/Multiome_RNA_ATAC_Mouse_Brain_Alzheimers_AppNote_filtered_feature_bc_matrix.h5
 
 # %%
 folder_root = pfa.get_output()
 folder_data = folder_root / "data"
 
 # dataset_name = "pbmc10k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_10k/pbmc_granulocyte_sorted_10k"; genome = "GRCh38.107"; organism = "hs"
-dataset_name = "pbmc10k_gran"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k"; genome = "GRCh38.107"; organism = "hs"
+# dataset_name = "pbmc10k_gran"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_unsorted_10k/pbmc_unsorted_10k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "pbmc3k"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/pbmc_granulocyte_sorted_3k/pbmc_granulocyte_sorted_3k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "lymphoma"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/lymph_node_lymphoma_14k/lymph_node_lymphoma_14k"; genome = "GRCh38.107"; organism = "hs"
 # dataset_name = "e18brain"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/e18_mouse_brain_fresh_5k/e18_mouse_brain_fresh_5k";  genome = "mm10"; organism = "mm"
+# dataset_name = "alzheimer"; main_url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.1/Multiome_RNA_ATAC_Mouse_Brain_Alzheimers_AppNote/Multiome_RNA_ATAC_Mouse_Brain_Alzheimers_AppNote";  genome = "mm10"; organism = "mm"
+dataset_name = "brain"; main_url = "https://s3-us-west-2.amazonaws.com/10x.files/samples/cell-arc/2.0.0/human_brain_3k/human_brain_3k"; genome = "GRCh38.107"; organism = "hs"
 
 folder_data_preproc = folder_data / dataset_name
 folder_data_preproc.mkdir(exist_ok = True, parents = True)
@@ -68,13 +73,14 @@ elif organism == "hs":
 
 # %%
 # ! echo mkdir -p {folder_data_preproc}
-# ! echo mkdir =p {folder_data_preproc}/bam
+# ! echo mkdir -p {folder_data_preproc}/bam
 
 # %%
 # # ! wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
 # # ! wget {main_url}_atac_possorted_bam.bam.bai -O {folder_data_preproc}/bam/atac_possorted_bam.bam.bai
 # ! echo wget {main_url}_atac_possorted_bam.bam -O {folder_data_preproc}/bam/atac_possorted_bam.bam
 # ! echo wget {main_url}_atac_possorted_bam.bam.bai -O {folder_data_preproc}/bam/atac_possorted_bam.bam.bai
+# ! echo wget {main_url}_atac_fragments.tsv.gz -O {folder_data_preproc}/bam/atac_fragments.tsv.gz
 
 # %%
 # ! wget {main_url}_filtered_feature_bc_matrix.h5 -O {folder_data_preproc}/filtered_feature_bc_matrix.h5
@@ -95,26 +101,54 @@ elif organism == "hs":
 # !wget {main_url}_atac_peak_annotation.tsv -O {folder_data_preproc}/peak_annot.tsv
 
 # %%
-# !wget {main_url}_atac_cut_sites.bigwig -O {folder_data_preproc}/atac_cut_sites.bigwig
+# # !wget {main_url}_atac_cut_sites.bigwig -O {folder_data_preproc}/atac_cut_sites.bigwig
 
 # %%
-# # !wget http://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.primary_assembly.fa.gz -O {folder_data_preproc}/dna.fa.gz
+# !wget http://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.primary_assembly.fa.gz -O {folder_data_preproc}/dna.fa.gz
 
 # %%
-if genome == "GRCh38.107":
+# !ls -lh {folder_data_preproc}/
+
+# %%
+# !ls -lh {folder_data_preproc}/../pbmc10k
+
+# %%
+if genome == "GRCh38.107":  
     # !wget http://ftp.ensembl.org/pub/release-107/gff3/homo_sapiens/Homo_sapiens.GRCh38.107.gff3.gz -O {folder_data_preproc}/genes.gff.gz
     # !wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
+    
+    # to reuse from lymphoma
+    # !ln -s {folder_data_preproc}/../lymphoma/dna.fa.gz {folder_data_preproc}/dna.fa.gz
+    # !ln -s {folder_data_preproc}/../lymphoma/genome.pkl.gz {folder_data_preproc}/genome.pkl.gz
+    
     # # !wget http://ftp.ensembl.org/pub/release-107/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
 elif genome == "mm10":
-    # !wget http://ftp.ensembl.org/pub/release-98/gff3/mus_musculus/Mus_musculus.GRCm38.98.gff3.gz -O {folder_data_preproc}/genes.gff.gz
-    # !wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
-    # !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
+    # # !wget http://ftp.ensembl.org/pub/release-98/gff3/mus_musculus/Mus_musculus.GRCm38.98.gff3.gz -O {folder_data_preproc}/genes.gff.gz
+    # # !wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes -O  {folder_data_preproc}/chromosome.sizes
+    
+    # to reuse from e18brain
+    # # !ln -s {folder_data_preproc}/../e18brain/dna.fa.gz {folder_data_preproc}/dna.fa.gz
+    # # !ln -s {folder_data_preproc}/../e18brain/genome.pkl.gz {folder_data_preproc}/genome.pkl.gz
+    
+    # # !wget http://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna_sm.toplevel.fa.gz -O {folder_data_preproc}/dna.fa.gz
 
 # %%
 # !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "gene"' > {folder_data_preproc}/genes.gff
 
 # %% [markdown]
 # ### Genome
+
+# %%
+if (organism == "hs") and (dataset_name != "pbmc10k"):
+    # !rm {folder_data_preproc}/fasta.fa
+    # !rm {folder_data_preproc}/genome.pkl.gz
+    # !ln -s {folder_data_preproc}/../pbmc10k/fasta.fa {folder_data_preproc}/
+    # !ln -s {folder_data_preproc}/../pbmc10k/genome.pkl.gz {folder_data_preproc}/
+elif (organism == "mm") and (dataset_name != "e18brain"):
+    # !rm {folder_data_preproc}/fasta.fa
+    # !rm {folder_data_preproc}/genome.pkl.gz
+    # !ln -s {folder_data_preproc}/../e18brain/fasta.fa {folder_data_preproc}/
+    # !ln -s {folder_data_preproc}/../e18brain/genome.pkl.gz {folder_data_preproc}/
 
 # %%
 # from operator import xor
@@ -150,31 +184,90 @@ pickle.dump(genome, gzip.GzipFile((folder_data_preproc / "genome.pkl.gz"), "wb",
 # !ls -lh {folder_data_preproc}
 
 # %% [markdown]
-# ## Create genes
+# ### Genes
 
 # %%
-gff = pd.read_table(folder_data_preproc / "genes.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
-genes = gff.copy()
-genes["chr"] = "chr" + genes["chr"]
-genes["symbol"] = genes["info"].str.split(";").str[1].str[5:]
-genes["gene"] = genes["info"].str.split(";").str[0].str[8:]
-genes = genes.set_index("gene", drop = False)
+biomart_dataset_name = "mmusculus_gene_ensembl" if organism == "mm" else "hsapiens_gene_ensembl"
+
+# %%
+if genome == "GRCh38.107":
+    query = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE Query>
+    <Query  virtualSchemaName = "default" formatter = "TSV" header = "1" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
+
+        <Dataset name = "{biomart_dataset_name}" interface = "default" >
+            <Filter name = "transcript_is_canonical" excluded = "0"/>
+            <Filter name = "transcript_biotype" value = "protein_coding"/>
+            <Attribute name = "ensembl_gene_id" />
+            <Attribute name = "transcript_start" />
+            <Attribute name = "transcript_end" />
+            <Attribute name = "end_position" />
+            <Attribute name = "start_position" />
+            <Attribute name = "ensembl_transcript_id" />
+            <Attribute name = "chromosome_name" />
+            <Attribute name = "strand" />
+            <Attribute name = "external_gene_name" />
+        </Dataset>
+    </Query>"""
+    url = "http://www.ensembl.org/biomart/martservice?query=" + query.replace("\t", "").replace("\n", "")
+    from io import StringIO
+    import requests
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Custom user agent'})
+    r = session.get(url)
+    result = pd.read_table(StringIO(r.content.decode("utf-8")))
+else:
+    query = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE Query>
+    <Query  virtualSchemaName = "default" formatter = "TSV" header = "1" uniqueRows = "0" count = "" datasetConfigVersion = "0.6" >
+
+        <Dataset name = "{biomart_dataset_name}" interface = "default" >
+            <Filter name = "transcript_biotype" value = "protein_coding"/>
+            <Attribute name = "ensembl_gene_id" />
+            <Attribute name = "transcript_start" />
+            <Attribute name = "transcript_end" />
+            <Attribute name = "end_position" />
+            <Attribute name = "start_position" />
+            <Attribute name = "ensembl_transcript_id" />
+            <Attribute name = "chromosome_name" />
+            <Attribute name = "strand" />
+            <Attribute name = "external_gene_name" />
+        </Dataset>
+    </Query>"""
+    url = "https://nov2020.archive.ensembl.org:443/biomart/martservice?query=" + query.replace("\t", "").replace("\n", "")
+    from io import StringIO
+    import requests
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Custom user agent'})
+    r = session.get(url)
+    result = pd.read_table(StringIO(r.content.decode("utf-8")))
+
+# %%
+genes = result.rename(columns = {
+    "Gene stable ID":"gene",
+    "Transcript start (bp)":"start",
+    "Transcript end (bp)":"end",
+    "Chromosome/scaffold name":"chr",
+    "Gene name":"symbol",
+    "Strand":"strand"
+})
+genes["chr"] = "chr" + genes["chr"].astype(str)
+genes = genes.groupby("gene").first()
+
+# %%
+genes = genes.loc[genes["chr"].isin(chromosomes)]
+
+# %%
+assert genes.groupby(level = 0).size().mean() == 1, "For each gene, there should only be one transcript"
 
 # %%
 genes.to_csv(folder_data_preproc / "genes.csv")
 
-# %%
-import pybedtools
-
-# %%
-genes.query("symbol == 'PCNA'")
-
-# %%
-# print(pd.read_table(folder_data_preproc / "peak_annot.tsv").query("gene == 'Neurod1'"))
-# print(genes.query("symbol == 'Neurod1'"))
-
 # %% [markdown]
 # ## Create transcriptome
+
+# %%
+genes = pd.read_csv(folder_data_preproc / "genes.csv", index_col = 0)
 
 # %%
 import peakfreeatac.data
@@ -194,7 +287,7 @@ adata.var = adata.var.reset_index()
 adata.var.index = adata.var["gene_ids"]
 adata.var.index.name = "gene"
 
-all_gene_ids = sorted(list(set(genes.loc[genes["chr"].isin(chromosomes)]["gene"]) & set(adata.var.index)))
+all_gene_ids = sorted(list(set(genes.loc[genes["chr"].isin(chromosomes)].index) & set(adata.var.index)))
 
 adata = adata[:, all_gene_ids]
 
@@ -234,9 +327,6 @@ sc.pp.normalize_total(adata, size_factor)
 sc.pp.log1p(adata)
 
 # %%
-adata.X[:100].sum()
-
-# %%
 sc.pp.pca(adata)
 
 # %%
@@ -248,7 +338,13 @@ adata.var["n_cells"] = np.array((adata.X > 0).sum(0))[0]
 # %%
 # adata = adata[:, adata.var["dispersions_norm"].sort_values(ascending = False)[:5000].index]
 print(adata.var.shape[0])
-adata = adata[:, adata.var.query("n_cells > 100")["dispersions_norm"].sort_values(ascending = False)[:5000].index]
+
+genes_oi = adata.var.query("n_cells > 100")["dispersions_norm"].sort_values(ascending = False)[:5000].index.tolist()
+
+if dataset_name == "pbmc10k":
+    genes_oi = genes_oi[:-1] + ["ENSG00000115977"]
+
+adata = adata[:, genes_oi]
 print(adata.var.shape[0])
 
 all_gene_ids = adata.var.index
@@ -261,15 +357,25 @@ sc.tl.umap(adata)
 adata.var["chr"] = genes["chr"]
 
 # %%
+sc.tl.leiden(adata, resolution = 1)
+
+# %%
+sc.pl.umap(adata, color = "leiden")
+
+# %%
+if dataset_name == "pbmc10k":
+    adata = adata[~adata.obs["leiden"].isin(["16", "21", "20", "23"])]
+
+# %%
+sc.pl.umap(adata, color = "leiden")
+
+# %%
 transcriptome.adata = adata
 transcriptome.var = adata.var
 transcriptome.obs = adata.obs
 
 # %%
 transcriptome.create_X()
-
-# %%
-transcriptome.var
 
 # %%
 fig, ax = plt.subplots()
@@ -285,11 +391,76 @@ ax.set_xscale("log")
 
 # %%
 genes_oi = adata.var.sort_values("dispersions_norm", ascending = False).index[:10]
-# genes_oi = transcriptome.gene_id(["LEF1"])
+# genes_oi = transcriptome.gene_id(["Nrg1", "Nrg3", "Cdk1"])
 sc.pl.umap(adata, color=genes_oi, title = transcriptome.symbol(genes_oi))
 
 # %%
-adata.var.query("dispersions_norm > 0.5").index.to_series().to_json((transcriptome.path / "variable_genes.json").open("w"))
+sc.pl.umap(adata, color="leiden", legend_loc="on data")
+
+# %% [markdown]
+# ### Interpret E18 brain
+
+# %%
+sc.tl.rank_genes_groups(adata, 'leiden', method='t-test')
+# sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, gene_symbols = "symbol")
+
+# %%
+cluster_annotation = pd.read_table(io.StringIO("""leiden  celltype
+14  Cycling
+17,5  Whatever
+"""), sep = "  ", engine = "python").set_index("celltype")
+cluster_annotation = cluster_annotation["leiden"].str.split(",").explode().to_frame().reset_index().set_index("leiden")["celltype"]
+cluster_annotation = cluster_annotation.reindex(adata.obs["leiden"].unique())
+
+adata.obs["celltype"] = cluster_annotation.loc[adata.obs["leiden"]].values
+
+# %%
+# genes_oi = adata.var.sort_values("dispersions_norm", ascending = False).index[:10]
+
+# genes_oi = transcriptome.gene_id(["Pax6", "Nhlh2", "Gad2", "Slc32a1", "Dlx5", "Ebf1"])
+
+# genes_oi = transcriptome.gene_id(["Eomes", "Pax6", "Slc17a6", "Slc17a7", "Satb2", "Tbr1"])
+
+genes_oi = transcriptome.gene_id(["Tnc", "Egfr"])
+sc.pl.umap(adata, color=genes_oi, title = transcriptome.symbol(genes_oi))
+
+# %%
+sc.pl.rank_genes_groups_matrixplot(adata, ["5"], gene_symbols = "symbol")
+
+# %% [markdown]
+# ### Interpret Lymphoma
+
+# %%
+sc.tl.rank_genes_groups(adata, 'leiden', method='t-test')
+# sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, gene_symbols = "symbol")
+
+# %%
+sc.pl.rank_genes_groups_matrixplot(adata, ["22"], gene_symbols = "symbol")
+
+# %%
+cluster_annotation = pd.read_table(io.StringIO("""leiden  celltype
+0  T cycling
+7,5,19,14,2  Lymphoma
+17,23  Lymphoma cycling
+21  B
+11  NK
+27,29  cDCs
+1,9  Monocytes
+26  Stromal
+30  Plasma
+28  pDCs
+22,18,4,3,20,6,12,8,10,25,13,15,16,24  T
+"""), sep = "  ", engine = "python").set_index("celltype")
+cluster_annotation = cluster_annotation["leiden"].str.split(",").explode().to_frame().reset_index().set_index("leiden")["celltype"]
+
+adata.obs["celltype"] = cluster_annotation.loc[adata.obs["leiden"]].values
+
+# %%
+sc.pl.umap(adata, color="celltype", legend_loc="on data")
+
+# %%
+transcriptome.obs = adata.obs
+transcriptome.adata = adata
 
 # %% [markdown]
 # ### Interpret PBMC10K
@@ -303,19 +474,48 @@ import io
 
 # %%
 marker_annotation = pd.read_table(io.StringIO("""ix	symbols	celltype
-0	IL7R, CD3D	CD4 T cells
+0	IL7R, CD3D	CD4 naive T
+0	IL7R, CD3D, ITGB1	CD4 memory T
 1	CD14, LYZ	CD14+ Monocytes
-2	MS4A1	B cells
-3	CD8A, CD3D	CD8 T cells
-4	GNLY, NKG7	NK cells
-4	GNLY, NKG7, CD3D, CCL5	 NKT cells
+2	MS4A1, IL4R, CD79A	naive B
+2	MS4A1, CD79A, TNFRSF13B	memory B
+3	CD8A, CD3D	CD8 naive T
+4	GNLY, NKG7, GZMA, GZMB, NCAM1	NK
+4	GNLY, NKG7, CD3D, CCL5, GZMA, CD8A	CD8 activated T
+4	SLC4A10	MAIT
 5	FCGR3A, MS4A7	FCGR3A+ Monocytes
-5	IGLC2, CD27	Plasma cells
+5	CD27, JCHAIN	Plasma
 6	TCF4	pDCs
 6	FCER1A, CST3	cDCs
 """)).set_index("celltype")
 marker_annotation["symbols"] = marker_annotation["symbols"].str.split(", ")
 # marker_annotation = marker_annotation.explode("symbols")
+
+# %%
+marker_annotation = pd.read_table(io.StringIO("""ix	symbols	celltype
+0	IL7R, CD3D	CD4 naive T
+0	IL7R, CD3D, ITGB1	CD4 memory T
+1	CD14, LYZ	CD14+ Monocytes
+2	MS4A1, IL4R, CD79A	naive B
+2	MS4A1, CD79A, TNFRSF13B	memory B
+3	CD8A, CD3D	CD8 naive T
+4	GNLY, NKG7, GZMA, GZMB, NCAM1	NK
+4	GNLY, NKG7, CD3D, CCL5, GZMA, CD8A	CD8 activated T
+4	SLC4A10	MAIT
+5	FCGR3A, MS4A7	FCGR3A+ Monocytes
+5	CD27, JCHAIN	Plasma
+6	TCF4	pDCs
+6	CST3	cDCs
+""")).set_index("celltype")
+marker_annotation["symbols"] = marker_annotation["symbols"].str.split(", ")
+# marker_annotation = marker_annotation.explode("symbols")
+
+# %%
+sc.pl.umap(
+    adata,
+    color = transcriptome.gene_id(marker_annotation.query("celltype == 'pDCs'")["symbols"].explode())
+)
+
 
 # %%
 #Define cluster score for all markers
@@ -381,7 +581,7 @@ cluster_celltypes = evaluate_partition(adata, marker_annotation["symbols"].to_di
 # %%
 adata.obs["celltype"] = cluster_celltypes[adata.obs["leiden"]].values
 adata.obs["celltype"] = adata.obs["celltype"].astype(str)
-adata.obs.loc[adata.obs["leiden"] == "4", "celltype"] = "NKT"
+# adata.obs.loc[adata.obs["leiden"] == "4", "celltype"] = "NKT"
 
 # %%
 transcriptome.adata.obs["log_n_counts"] = np.log(transcriptome.adata.obs["n_counts"])
@@ -493,8 +693,8 @@ all_gene_ids = transcriptome.var.index
 promoters = pd.DataFrame(index = all_gene_ids)
 
 # %%
-promoters["tss"] = [genes_row["start"] if genes_row["strand"] == "+" else genes_row["end"] for _, genes_row in genes.loc[promoters.index].iterrows()]
-promoters["strand"] = (genes["strand"] + "1").astype(int)
+promoters["tss"] = [genes_row["start"] if genes_row["strand"] == +1 else genes_row["end"] for _, genes_row in genes.loc[promoters.index].iterrows()]
+promoters["strand"] = genes["strand"]
 promoters["positive_strand"] = (promoters["strand"] == 1).astype(int)
 promoters["negative_strand"] = (promoters["strand"] == -1).astype(int)
 promoters["chr"] = genes.loc[promoters.index, "chr"]
@@ -600,6 +800,9 @@ coordinates = coordinates[sorted_idx]
 np.product(mapping.size()) * 64 / 8 / 1024 / 1024
 
 # %%
+np.product(mapping.size()) * 64 / 8 / 1024 / 1024
+
+# %%
 np.product(coordinates.size()) * 64 / 8 / 1024 / 1024
 
 # %% [markdown]
@@ -683,6 +886,25 @@ fig, ax = plt.subplots()
 ax.hist(sizes, range = (0, 1000), bins = 100)
 ax.set_xlim(0, 1000)
 
+# %%
+import scipy
+
+# %%
+gamma_params = scipy.stats.gamma.fit(sizes)
+
+# %%
+dist = scipy.stats.gamma(*gamma_params)
+
+# %%
+xs = np.linspace(0, 1000)
+ys = dist.pdf(xs)
+
+# %%
+fig, ax = plt.subplots()
+ax.plot(xs, ys)
+ax.hist(sizes, range = (0, 1000), bins = 100, density = True)
+ax.set_xlim(0, 1000)
+
 # %% [markdown]
 # ## Fragment distributions across datasets
 
@@ -745,4 +967,67 @@ ax.set_ylabel("# fragments", rotation = 0, ha = "right", va = "center")
 
 # %%
 
+# %% [markdown]
+# ## Create latent space
+
 # %%
+import peakfreeatac.data
+
+# %%
+transcriptome = peakfreeatac.data.Transcriptome(folder_data_preproc / "transcriptome")
+
+# %%
+sc.pp.neighbors(transcriptome.adata)
+
+# %%
+resolution = 0.1
+
+# %%
+sc.tl.leiden(transcriptome.adata, resolution = resolution)
+
+# %%
+latent = pd.get_dummies(transcriptome.adata.obs["leiden"])
+latent.columns = pd.Series("leiden_" + latent.columns.astype(str))
+
+# %%
+latent_folder = folder_data_preproc / "latent"
+latent_folder.mkdir(exist_ok = True)
+
+# %%
+latent_name = "leiden_" + str(resolution)
+
+# %%
+latent.to_pickle(latent_folder / (latent_name + ".pkl"))
+
+# %% [markdown]
+# ## Store transcripts and exons
+
+# %%
+# !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "exon"' > {folder_data_preproc}/exons.gff
+# !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | awk '$3 == "protein_coding"' > {folder_data_preproc}/transcript.gff
+
+# %%
+transcripts = pd.read_table(folder_data_preproc / "transcript.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
+
+# %%
+transcripts
+
+# %%
+# !zcat {folder_data_preproc}/genes.gff.gz
+
+# %%
+# !zcat {folder_data_preproc}/genes.gff.gz | grep -vE "^#" | head -n 100
+
+# %%
+transcripts
+
+# %%
+# !head {folder_data_preproc}/transcript.gff
+
+# %%
+gff = pd.read_table(folder_data_preproc / "genes.gff", sep = "\t", names = ["chr", "type", "__", "start", "end", "dot", "strand", "dot2", "info"])
+genes = gff.copy()
+genes["chr"] = "chr" + genes["chr"]
+genes["symbol"] = genes["info"].str.split(";").str[1].str[5:]
+genes["gene"] = genes["info"].str.split(";").str[0].str[8:]
+genes = genes.set_index("gene", drop = False)
