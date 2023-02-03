@@ -151,7 +151,6 @@ class Decoding(torch.nn.Module):
         cut_local_gene_ix,
         cut_local_cell_ix,
         n_cells,
-        n_genes,
         lib=None,
     ):
         # decode
@@ -168,17 +167,18 @@ class Decoding(torch.nn.Module):
         else:
             cut_lib = torch.log(lib)
 
+        cut_positions = (cut_coordinates + cut_local_gene_ix) / self.n_genes
+
         likelihood_mixture = self.track["likelihood_mixture"] = (
             self.mixture.log_prob(
-                cut_coordinates,
+                cut_positions,
                 cut_local_reflatentxgene_ix,
                 cut_local_gene_ix,
+                cut_reflatent_idx,
                 mixture_delta,
             )
             + cut_lib
         )
-        # print(likelihood_mixture[cut_local_gene_ix == 0].mean())
-        # print(likelihood_mixture[cut_local_gene_ix == 1].mean())
 
         # scale likelihoods
         scale = 1.0
@@ -218,7 +218,6 @@ class Decoding(torch.nn.Module):
             cells_oi=data.cells_oi_torch,
             cut_local_cellxgene_ix=data.cut_local_cellxgene_ix,
             n_cells=data.n_cells,
-            n_genes=data.n_genes,
             cut_local_gene_ix=data.cut_local_gene_ix,
             local_cellxgene_ix=data.local_cellxgene_ix,
             cut_local_cell_ix=data.cut_local_cell_ix,
@@ -291,9 +290,12 @@ class Decoding(torch.nn.Module):
         if not torch.is_tensor(latent):
             if latent is None:
                 latent = 0.0
-            latent = torch.ones((1, self.n_latent), device=device) * latent
+            latent = (
+                torch.ones((len(coordinates), self.n_latent), device=device) * latent
+            )
 
         cut_reflatent_idx = torch.where(latent)[1]
+        assert cut_reflatent_idx.shape == coordinates.shape
 
         cells_oi = torch.ones((1,), dtype=torch.long)
 
@@ -315,7 +317,6 @@ class Decoding(torch.nn.Module):
             cut_coordinates=coordinates.to(device),
             cut_reflatent_idx=cut_reflatent_idx.to(device),
             n_cells=1,
-            n_genes=1,
             genes_oi_torch=genes_oi.to(device),
             cells_oi_torch=cells_oi.to(device),
         )

@@ -119,8 +119,9 @@ def quadratic_spline(
     if inverse:
         c_ = c - inputs
         alpha = torch.clamp((-b + torch.sqrt(b.pow(2) - 4 * a * c_)) / (2 * a), 0, 1)
-        # avoids alpha = -inf due to perfectly horizontal curve (i.e. a = 0)
-        alpha[alpha.isnan()] = 0.0
+
+        # special case for a == 0
+        alpha[a == 0] = (-c_ / b)[a == 0]
 
         outputs = alpha * input_bin_widths + input_bin_locations
         logabsdet = -torch.log(

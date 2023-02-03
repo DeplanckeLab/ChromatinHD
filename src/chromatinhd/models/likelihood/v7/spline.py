@@ -212,6 +212,8 @@ class QuadraticSplineStack(torch.nn.Module):
 
 class DifferentialQuadraticSplineStack(torch.nn.Module):
     def __init__(self, x, nbins, local_gene_ix, n_genes):
+        self.nbins = nbins
+
         super().__init__()
         unnormalized_heights = []
         unnormalized_widths = []
@@ -268,50 +270,34 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
     def transform_progressive(
         self,
-        cut_coordinates,
+        cut_positions,
         cut_local_reflatentxgene_ix,
         cut_local_gene_ix,
         cut_local_reflatent_ix,
         mixture_delta_reflatentxgene,
         inverse=False,
     ):
-        assert cut_coordinates.shape == cut_local_reflatentxgene_ix.shape
-        assert cut_coordinates.shape == cut_local_gene_ix.shape
+        assert cut_positions.shape == cut_local_reflatentxgene_ix.shape
+        assert cut_positions.shape == cut_local_gene_ix.shape
 
         n_genes = mixture_delta_reflatentxgene.shape[1]
         n_reflatent = mixture_delta_reflatentxgene.shape[0]
 
-        logabsdet = None
-        cut_coordinates = (cut_coordinates + cut_local_gene_ix) / n_genes
-        output = cut_coordinates
-        logabsdets = []
-        outputs = []
-
         genespacing = (
             torch.ones(
                 (n_reflatent, n_genes),
-                dtype=cut_coordinates.dtype,
-                device=cut_coordinates.device,
+                dtype=cut_positions.dtype,
+                device=cut_positions.device,
             )
             / n_genes
         )
-        logabsdet = torch.zeros_like(cut_coordinates) - math.log(n_genes)
 
-        logabsdets.append(logabsdet)
-        outputs.append(output)
-
-        unnormalized_widths = self.unnormalized_widths
-        unnormalized_heights = self.unnormalized_heights
+        # calculate heights and weights
+        transformation_data = []
         for unnormalized_heights, unnormalized_widths, delta_heights in zip(
-            self._split_parameters(
-                unnormalized_heights, self.splits_heights, inverse=inverse
-            ),
-            self._split_parameters(
-                unnormalized_widths, self.splits_widths, inverse=inverse
-            ),
-            self._split_parameters(
-                mixture_delta_reflatentxgene, self.split_deltas, inverse=inverse
-            ),
+            self._split_parameters(self.unnormalized_heights, self.splits_heights),
+            self._split_parameters(self.unnormalized_widths, self.splits_widths),
+            self._split_parameters(mixture_delta_reflatentxgene, self.split_deltas),
         ):
             # calculate flattened widths per reflatent
             gene_bin_positions = (
@@ -339,6 +325,24 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 dim=-1,
             )
 
+            transformation_data.append((widths, heights, bin_left_cdf, bin_locations))
+
+        output = cut_positions
+        logabsdets = []
+        outputs = []
+
+        logabsdet = torch.zeros_like(cut_positions)
+
+        logabsdets.append(logabsdet)
+        outputs.append(output)
+
+        step = 1
+        if inverse:
+            step = -1
+
+        for (widths, heights, bin_left_cdf, bin_locations) in transformation_data[
+            ::step
+        ]:
             # select the widths, heights, left_cdf and bin_locations for each fragment
             # use index_select here as it is much faster in backwards than regular indexing
             cut_widths = torch.index_select(widths, 0, cut_local_reflatent_ix)
@@ -368,21 +372,24 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
     def transform_forward(
         self,
-        cut_coordinates,
+        cut_positions,
         cut_local_reflatentxgene_ix,
         cut_local_gene_ix,
+        cut_local_reflatent_ix,
         mixture_delta_reflatentxgene,
         inverse=False,
     ):
+        logabsdets, outputs = self.transform_progressive(
+            cut_positions,
+            cut_local_reflatentxgene_ix,
+            cut_local_gene_ix,
+            cut_local_reflatent_ix,
+            mixture_delta_reflatentxgene,
+            inverse=inverse,
+        )
         return (
-            None,
-            self.transform_progressive(
-                cut_coordinates,
-                cut_local_reflatentxgene_ix,
-                cut_local_gene_ix,
-                mixture_delta_reflatentxgene,
-                inverse=inverse,
-            )[-1],
+            outputs[-1],
+            logabsdets[-1],
         )
 
     def transform_inverse(self, y, local_gene_ix):
