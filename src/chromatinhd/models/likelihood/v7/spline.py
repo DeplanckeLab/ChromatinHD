@@ -371,7 +371,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                     )
                     - 1
                 )
-                bin_idx = torch.clamp(bin_idx, 0)
+                bin_idx = torch.clamp(bin_idx, 0, widths.shape[-1] - 1)
 
                 # following way runs but does not work correctly
                 # I guess it has to do with that we cannot know beforehand which gene a sample belongs to

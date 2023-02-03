@@ -7,7 +7,9 @@ DEFAULT_MIN_BIN_WIDTH = 1e-4
 DEFAULT_MIN_BIN_HEIGHT = 1e-5
 
 
-def calculate_logarea(heights, widths, dim=-1):
+def calculate_logarea(heights, widths, dim=-1, eps=1e-8):
+    # the eps is here for widths=0
+    # it should be very small because otherwise area < 1
     return torch.logsumexp(
         (
             torch.logaddexp(
@@ -16,7 +18,7 @@ def calculate_logarea(heights, widths, dim=-1):
             )
             - math.log(2)
         )
-        + torch.log(widths + 1e-5),
+        + torch.log(widths + eps),
         dim=dim,
         keepdim=True,
     )
@@ -46,8 +48,8 @@ def calculate_heights(
     )
     heights = unnorm_heights_exp / unnormalized_area
 
-    min_bin_height = 1e-5
-    heights = min_bin_height + (1 - min_bin_height) * heights
+    # min_bin_height = 1e-5
+    # heights = min_bin_height + (1 - min_bin_height) * heights
 
     return heights
 
