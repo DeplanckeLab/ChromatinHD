@@ -48,7 +48,8 @@ def calculate_heights(
 ):
     unnorm_heights_exp = torch.exp(unnormalized_heights)
 
-    min_bin_height = 1e-3
+    # min_bin_height = 1e-3 # before
+    min_bin_height = 1e-8
 
     if local:
         # per feature normalization
@@ -63,17 +64,19 @@ def calculate_heights(
         # global normalization
         unnormalized_area = torch.sum(
             ((unnorm_heights_exp[..., :-1] + unnorm_heights_exp[..., 1:]) / 2) * widths,
+            tuple(range(1, unnorm_heights_exp.ndim)),
+            keepdim=True,
         )
-        heights = unnorm_heights_exp * unnorm_heights_exp.shape[-2] / unnormalized_area
+        heights = unnorm_heights_exp / unnormalized_area
+        # heights = unnorm_heights_exp * unnorm_heights_exp.shape[-2] / unnormalized_area
         heights = min_bin_height + (1 - min_bin_height) * heights
 
     # to check
-    # normalized_area = torch.sum(
-    #     ((heights[..., :-1] + heights[..., 1:]) / 2) * widths,
-    #     dim=-1,
-    #     keepdim=True,
-    # )
-    # print(normalized_area.sum())
+    normalized_area = torch.sum(
+        ((heights[..., :-1] + heights[..., 1:]) / 2) * widths,
+        dim=-1,
+        keepdim=True,
+    )
 
     return heights
 
@@ -96,36 +99,18 @@ def calculate_bin_locations(widths):
 
 def quadratic_spline(
     inputs,
-    unnormalized_widths=None,
-    unnormalized_heights=None,
     widths=None,
     heights=None,
     bin_left_cdf=None,
     bin_locations=None,
     inverse=False,
 ):
-
-    # calculate widths
-    if widths is None:
-        widths = calculate_widths(unnormalized_widths)
-
     num_bins = widths.shape[-1]
     if widths.ndim == inputs.ndim:
         widths = widths.expand(inputs.shape[0], -1)
 
-    # calculate heights
-    if heights is None:
-        heights = calculate_heights(unnormalized_heights, widths)
-
     if heights.ndim == inputs.ndim:
         heights = heights.expand(inputs.shape[0], -1)
-
-    # calculate bin indices
-    if bin_left_cdf is None:
-        bin_left_cdf = calculate_bin_left_cdf(heights, widths)
-
-    if bin_locations is None:
-        bin_locations = calculate_bin_locations(widths)
 
     if inverse:
         bin_idx = torch.searchsorted(bin_left_cdf, inputs.unsqueeze(-1)).squeeze(-1) - 1

@@ -65,6 +65,12 @@ class Fragments(Flow):
         import torch_sparse
 
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
+
+        if not (cellxgene.diff() >= 0).all():
+            raise ValueError(
+                "Fragments should be ordered by cell then gene (ascending)"
+            )
+
         n_cellxgene = self.n_genes * self.n_cells
         cellxgene_indptr = torch.ops.torch_sparse.ind2ptr(cellxgene, n_cellxgene)
         assert self.coordinates.shape[0] == cellxgene_indptr[-1]

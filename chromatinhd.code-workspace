@@ -4,9 +4,6 @@
 			"path": "."
 		},
 		{
-			"path": "../../../../data/peak_free_atac/software/peak_free_atac/lib/python3.9/site-packages/pycistarget"
-		},
-		{
 			"path": "../chromatinhd_manuscript"
 		}
 	],

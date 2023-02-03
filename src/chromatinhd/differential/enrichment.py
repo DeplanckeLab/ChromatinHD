@@ -201,7 +201,7 @@ def enrich_windows(
     n_genes,
     window,
     gene_ids=None,
-    n_background = 10,
+    n_background=10,
 ):
     motif_counts = count_motifs(
         position_slices[:, 0],
@@ -212,6 +212,20 @@ def enrich_windows(
     )
     n_positions = (position_slices[:, 1] - position_slices[:, 0]).sum()
     # motif_counts_slicewise = count_motifs_slicewise(position_slices[:, 0], position_slices[:, 1], gene_ixs_slices, motifscan.indices, motifscan.indptr, motifscan.n_motifs)
+    motif_counts_genewise = count_motifs_genewise(
+        position_slices[:, 0],
+        position_slices[:, 1],
+        gene_ixs_slices,
+        motifscan,
+        n_genes,
+        window,
+    )
+    n_positions_gene = np.bincount(
+        gene_ixs_slices,
+        weights=position_slices[:, 1] - position_slices[:, 0],
+        minlength=n_genes,
+    )
+    motif_percs_genewise = motif_counts_genewise / (n_positions_gene[:, None] + 1e-5)
 
     background_position_slices, background_gene_ixs_slices = select_background(
         position_slices,
@@ -221,7 +235,7 @@ def enrich_windows(
         n_genes=n_genes,
         window=window,
         n_random=n_background * 10,
-        n_select_random=n_background
+        n_select_random=n_background,
     )
     background_motif_counts = count_motifs(
         background_position_slices[:, 0],
@@ -278,6 +292,7 @@ def enrich_windows(
             "perc": motif_counts / n_positions,
             "pval": p_values,
             "contingency": [cont for cont in contingencies],
+            "perc_gene": [x for x in motif_percs_genewise.T],
         }
     ).set_index("motif")
     motifscores["logodds"] = np.log(odds_conditional)
@@ -295,7 +310,7 @@ def detect_windows(motifscan, position_slices, gene_ixs_slices, gene_ids, window
         gene_ixs_slices,
         motifscan,
         len(gene_ids),
-        window
+        window,
     )
     gene_counts = (
         pd.DataFrame(

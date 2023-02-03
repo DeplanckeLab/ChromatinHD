@@ -1,4 +1,4 @@
-from .utils import get_git_root, get_output, save
+from .utils import get_git_root, get_output, save, Unpickler, load
 from . import plotting
 from . import sparse
 from . import utils
@@ -15,3 +15,5 @@ from . import optim
 from . import scoring
 from . import splines
 from . import differential
+from . import grid
+from . import slicetypes

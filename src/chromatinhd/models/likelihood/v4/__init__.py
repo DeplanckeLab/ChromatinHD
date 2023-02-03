@@ -4,7 +4,7 @@ import math
 import tqdm.auto as tqdm
 import torch_scatter
 
-from peakfreeatac.embedding import EmbeddingTensor
+from chromatinhd.embedding import EmbeddingTensor
 from . import spline
 
 
@@ -181,9 +181,9 @@ class Decoding(torch.nn.Module):
 
         if mixture_delta_p_scale_free:
             self.mixture_delta_p_scale = torch.nn.Parameter(
-                torch.log(
-                    torch.tensor(math.log(mixture_delta_p_scale), requires_grad=True)
-                )
+                # torch.log(
+                torch.tensor(math.log(mixture_delta_p_scale), requires_grad=True)
+                # )
             )
         else:
             self.register_buffer(
@@ -480,7 +480,7 @@ class Decoding(torch.nn.Module):
         n_genes = self.rho_bias.shape[0]
 
         import pandas as pd
-        from peakfreeatac.utils import crossing
+        from chromatinhd.utils import crossing
 
         self = self.to(device).eval()
 
@@ -602,7 +602,7 @@ class Decoding(torch.nn.Module):
         n_genes = self.rho_bias.shape[0]
 
         import pandas as pd
-        from peakfreeatac.utils import crossing
+        from chromatinhd.utils import crossing
 
         self = self.to(device).eval()
 
@@ -739,7 +739,7 @@ class Decoding(torch.nn.Module):
         n_genes = self.rho_bias.shape[0]
 
         import pandas as pd
-        from peakfreeatac.utils import crossing
+        from chromatinhd.utils import crossing
 
         self = self.to(device).eval()
 

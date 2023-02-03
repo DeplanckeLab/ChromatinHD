@@ -1,11 +1,11 @@
-import peakfreeatac.grid
+import chromatinhd.grid
 import matplotlib as mpl
 import seaborn as sns
 import numpy as np
 import pandas as pd
 
 
-class Genes(peakfreeatac.grid.Ax):
+class Genes(chromatinhd.grid.Ax):
     def __init__(
         self,
         plotdata_genes,
@@ -101,7 +101,7 @@ class Genes(peakfreeatac.grid.Ax):
                 ax.add_patch(rect)
 
 
-class Differential(peakfreeatac.grid.Wrap):
+class Differential(chromatinhd.grid.Wrap):
     def __init__(
         self,
         plotdata_genome,
@@ -120,7 +120,7 @@ class Differential(peakfreeatac.grid.Wrap):
         super().__init__(ncol=1, **kwargs)
 
         for cluster_ix in cluster_info["dimension"]:
-            ax_genome = peakfreeatac.grid.Ax((width, panel_height))
+            ax_genome = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax_genome)
 
             # genome
@@ -196,7 +196,7 @@ class Differential(peakfreeatac.grid.Wrap):
             self.set_title("ATAC-seq insertion")
 
 
-class DifferentialExpression(peakfreeatac.grid.Wrap):
+class DifferentialExpression(chromatinhd.grid.Wrap):
     def __init__(
         self,
         plotdata_expression,
@@ -216,7 +216,7 @@ class DifferentialExpression(peakfreeatac.grid.Wrap):
             )
 
         for cluster_ix in cluster_info["dimension"]:
-            ax = peakfreeatac.grid.Ax((width, panel_height))
+            ax = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax)
             ax = ax.ax
 
@@ -249,14 +249,14 @@ class DifferentialExpression(peakfreeatac.grid.Wrap):
         self.set_title("RNA-seq")
 
 
-class MotifsLegend(peakfreeatac.grid.Wrap):
+class MotifsLegend(chromatinhd.grid.Wrap):
     def __init__(self, motifs_oi, cluster_info, width, panel_height, **kwargs):
         super().__init__(ncol=1, **kwargs)
 
         motifs_shown = set()
 
         for cluster in cluster_info.index:
-            ax = peakfreeatac.grid.Ax((width, panel_height))
+            ax = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax)
             ax = ax.ax
 
@@ -340,7 +340,7 @@ class MotifsHighlighting:
             # adjustText.adjust_text(texts, ax=ax, autoalign="x", va="top", ha="center")
 
 
-class Peaks(peakfreeatac.grid.Ax):
+class Peaks(chromatinhd.grid.Ax):
     def __init__(self, peaks, peak_methods, window, width):
         super().__init__((width, len(peak_methods) / 5))
 
@@ -388,7 +388,7 @@ class Peaks(peakfreeatac.grid.Ax):
         ax.tick_params(axis="y", which="minor", length=10)
 
 
-class Conservation(peakfreeatac.grid.Ax):
+class Conservation(chromatinhd.grid.Ax):
     def __init__(self, plotdata_conservation, window, width):
         super().__init__((width, 0.3))
 
@@ -406,7 +406,7 @@ class Conservation(peakfreeatac.grid.Ax):
         ax.set_ylabel("Conservation", rotation=0, ha="right", va="center")
 
 
-class GC(peakfreeatac.grid.Ax):
+class GC(chromatinhd.grid.Ax):
     def __init__(self, plotdata_gc, window, width):
         super().__init__((width, 0.3))
 

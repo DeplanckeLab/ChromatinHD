@@ -234,12 +234,12 @@ def plot_type(ax, type):
         ax.set_yticks([])
 
 
-import peakfreeatac.plotting
+import chromatinhd.plotting
 
 
 def label_axis(ax, axis):
     for l in axis.get_ticklabels():
-        ax_tick = peakfreeatac.plotting.replace_patch(
+        ax_tick = chromatinhd.plotting.replace_patch(
             ax,
             l,
             points=20,
