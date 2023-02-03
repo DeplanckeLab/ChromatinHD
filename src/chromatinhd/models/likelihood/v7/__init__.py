@@ -94,9 +94,9 @@ class Decoding(torch.nn.Module):
         from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
         transform = DifferentialQuadraticSplineStack(
-            fragments.cut_coordinates,
+            # fragments.cut_coordinates,
             nbins=nbins,
-            local_gene_ix=fragments.cut_local_gene_ix.cpu(),
+            # local_gene_ix=fragments.cut_local_gene_ix.cpu(),
             n_genes=fragments.n_genes,
         )
         self.mixture = TransformedDistribution(transform)
@@ -177,8 +177,9 @@ class Decoding(torch.nn.Module):
                 cut_reflatent_idx,
                 mixture_delta,
             )
-            + cut_lib
+            # + cut_lib
         )
+        # print(cut_lib)
 
         # scale likelihoods
         scale = 1.0
@@ -285,7 +286,7 @@ class Decoding(torch.nn.Module):
 
         return likelihood
 
-    def evaluate_pseudo(self, coordinates, latent=None, gene_oi=None, gene_ix=None):
+    def evaluate_pseudo(self, coordinates, latent=None, gene_oi=None):
         device = coordinates.device
         if not torch.is_tensor(latent):
             if latent is None:
@@ -320,7 +321,8 @@ class Decoding(torch.nn.Module):
             genes_oi_torch=genes_oi.to(device),
             cells_oi_torch=cells_oi.to(device),
         )
-        self.forward_likelihood_mixture(data)
+        with torch.no_grad():
+            self.forward_likelihood_mixture(data)
 
         # rho_delta = self.track["rho_delta"].flatten()[data.cut_local_cellxgene_ix]
         rho_delta = torch.tensor(0.0)

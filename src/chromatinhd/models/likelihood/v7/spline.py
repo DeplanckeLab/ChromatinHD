@@ -211,7 +211,7 @@ class QuadraticSplineStack(torch.nn.Module):
 
 
 class DifferentialQuadraticSplineStack(torch.nn.Module):
-    def __init__(self, x, nbins, local_gene_ix, n_genes):
+    def __init__(self, nbins, n_genes, local_gene_ix=None, x=None):
         self.nbins = nbins
 
         super().__init__()
@@ -294,10 +294,11 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
         # calculate heights and weights
         transformation_data = []
-        for unnormalized_heights, unnormalized_widths, delta_heights in zip(
+        for unnormalized_heights, unnormalized_widths, delta_heights, num_bins in zip(
             self._split_parameters(self.unnormalized_heights, self.splits_heights),
             self._split_parameters(self.unnormalized_widths, self.splits_widths),
             self._split_parameters(mixture_delta_reflatentxgene, self.split_deltas),
+            self.nbins,
         ):
             # calculate flattened widths per reflatent
             gene_bin_positions = (
@@ -325,7 +326,9 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 dim=-1,
             )
 
-            transformation_data.append((widths, heights, bin_left_cdf, bin_locations))
+            transformation_data.append(
+                (widths, heights, bin_left_cdf, bin_locations, num_bins)
+            )
 
         output = cut_positions
         logabsdets = []
@@ -340,11 +343,18 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         if inverse:
             step = -1
 
-        for (widths, heights, bin_left_cdf, bin_locations) in transformation_data[
-            ::step
-        ]:
+        for (
+            widths,
+            heights,
+            bin_left_cdf,
+            bin_locations,
+            num_bins,
+        ) in transformation_data[::step]:
+
             # select the widths, heights, left_cdf and bin_locations for each fragment
             # use index_select here as it is much faster in backwards than regular indexing
+            print(widths.shape)
+            print(cut_local_reflatent_ix.shape)
             cut_widths = torch.index_select(widths, 0, cut_local_reflatent_ix)
             cut_heights = torch.index_select(heights, 0, cut_local_reflatent_ix)
             cut_bin_left_cdf = torch.index_select(
@@ -354,12 +364,74 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 bin_locations, 0, cut_local_reflatent_ix
             )
 
+            if inverse:
+                # alternative way that does a full search on all data
+                # makes mistakes at the boundaries of two genes
+                bin_idx = (
+                    torch.searchsorted(cut_bin_left_cdf, output.unsqueeze(-1)).squeeze(
+                        -1
+                    )
+                    - 1
+                )
+                bin_idx = torch.clamp(bin_idx, 0)
+
+                # following way runs but does not work correctly
+                # I guess it has to do with that we cannot know beforehand which gene a sample belongs to
+                #! this makes the inverse quite slow, especially with many genes!
+                # bin_left_cdf_genewise = bin_left_cdf.reshape(
+                #     (n_reflatent * n_genes, num_bins)
+                # )
+                # cut_left_cdf_genewise = torch.index_select(
+                #     bin_left_cdf_genewise, 0, cut_local_reflatentxgene_ix
+                # )
+                # bin_idx = cut_local_gene_ix * num_bins + torch.clamp(
+                #     torch.searchsorted(
+                #         cut_left_cdf_genewise, output.unsqueeze(-1)
+                #     ).squeeze(-1)
+                #     - 1,
+                #     0,
+                #     num_bins - 1,
+                # )
+                # bin_idx = torch.clamp(bin_idx, 0, widths.shape[-1] - 1)
+
+                # import matplotlib.pyplot as plt
+
+                # plt.scatter(bin_idx2, bin_idx)
+
+            else:
+                # actual way
+                bin_locations_genewise = bin_locations.reshape(
+                    (n_reflatent * n_genes, num_bins)
+                )
+                cut_bin_locatons_genewise = torch.index_select(
+                    bin_locations_genewise, 0, cut_local_reflatentxgene_ix
+                )
+                bin_idx = cut_local_gene_ix * num_bins + torch.clamp(
+                    torch.searchsorted(
+                        cut_bin_locatons_genewise, output.unsqueeze(-1)
+                    ).squeeze(-1)
+                    - 1,
+                    0,
+                    num_bins - 2,
+                )
+
+                # alternative way that does a full search on all data
+                # makes mistakes at the boundaries of two genes
+                # bin_idx2 = (
+                #     torch.searchsorted(cut_bin_locations, output.unsqueeze(-1)).squeeze(
+                #         -1
+                #     )
+                #     - 1
+                # )
+                # bin_idx2 = torch.clamp(bin_idx2, 0, widths.shape[-1] - 1)
+
             output, logabsdet_ = quadratic.quadratic_spline(
                 output,
                 widths=cut_widths,
                 heights=cut_heights,
                 bin_left_cdf=cut_bin_left_cdf,
                 bin_locations=cut_bin_locations,
+                bin_idx=bin_idx,
                 inverse=inverse,
             )
 
@@ -401,5 +473,5 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
     def parameters_dense(self):
         return [
             self.unnormalized_heights,
-            self.unnormalized_widths,
+            # self.unnormalized_widths,
         ]
