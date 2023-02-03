@@ -353,8 +353,6 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
             # select the widths, heights, left_cdf and bin_locations for each fragment
             # use index_select here as it is much faster in backwards than regular indexing
-            print(widths.shape)
-            print(cut_local_reflatent_ix.shape)
             cut_widths = torch.index_select(widths, 0, cut_local_reflatent_ix)
             cut_heights = torch.index_select(heights, 0, cut_local_reflatent_ix)
             cut_bin_left_cdf = torch.index_select(
