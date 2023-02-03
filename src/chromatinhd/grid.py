@@ -156,15 +156,17 @@ class Grid(Element):
 
     def __init__(
         self,
-        nrow,
-        ncol,
+        nrow=1,
+        ncol=1,
         padding_width=0.5,
         padding_height=None,
         margin_height=0.5,
         margin_width=0.5,
     ):
         self.padding_width = padding_width
-        self.padding_height = padding_height or padding_width
+        self.padding_height = (
+            padding_height if padding_height is not None else padding_width
+        )
         self.margin_width = margin_width
         self.margin_height = margin_height
         self.elements = [[None for _ in range(ncol)] for _ in range(nrow)]
@@ -235,17 +237,17 @@ class Grid(Element):
         row = index[0]
         col = index[1]
 
-        if row >= self.nrow:
+        if row >= (self.nrow):
             # add new row(s)
             for i in range(self.nrow, row + 1):
                 self.elements.append([None for _ in range(self.ncol)])
             self.nrow = row + 1
 
-        if col >= self.ncol:
+        if col >= (self.ncol):
             # add new col(s)
             for i in range(self.ncol, col + 1):
-                for row in self.elements:
-                    row.append(None)
+                for row_ in self.elements:
+                    row_.append(None)
             self.ncol = col + 1
 
         self.elements[row][col] = v
