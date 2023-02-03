@@ -72,57 +72,41 @@ def calculate_bin_locations(widths):
 
 def quadratic_spline(
     inputs,
-    widths,
-    heights,
-    bin_left_cdf,
-    bin_locations,
+    input_bin_widths,
+    input_left_heights,
+    input_right_heights,
+    input_bin_left_cdf,
     input_bin_locations,
     bin_idx=None,
     inverse=False,
 ):
-    num_bins = widths.shape[-1]
-    if widths.ndim == inputs.ndim:
-        widths = widths.expand(inputs.shape[0], -1)
+    # num_bins = widths.shape[-1]
+    # if widths.ndim == inputs.ndim:
+    #     widths = widths.expand(inputs.shape[0], -1)
 
-    if heights.ndim == inputs.ndim:
-        heights = heights.expand(inputs.shape[0], -1)
-
-    # get bin_idx if it was not provided
-    if bin_idx is None:
-        if inverse:
-            bin_idx = (
-                torch.searchsorted(bin_left_cdf, inputs.unsqueeze(-1)).squeeze(-1) - 1
-            )
-        else:
-            bin_idx = (
-                torch.searchsorted(bin_locations, inputs.unsqueeze(-1)).squeeze(-1) - 1
-            )
-
-        bin_idx = torch.clamp(bin_idx, 0, num_bins - 1)
-
-    if bin_idx.ndim < inputs.ndim:
-        bin_idx = bin_idx.unsqueeze(-1)
+    # if bin_idx.ndim < inputs.ndim:
+    #     bin_idx = bin_idx.unsqueeze(-1)
 
     # get bin locations/widths/heights/cdf for input values
     # input_bin_locations = bin_locations.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
-    input_bin_widths = widths.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
+    # input_bin_widths = widths.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
 
     if (input_bin_widths == 0).any():
         raise ValueError("Some widths are zero!")
 
-    if bin_left_cdf.ndim > bin_idx.ndim:
-        input_left_cdf = bin_left_cdf.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
-        input_left_heights = heights.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
-        input_right_heights = heights.gather(-1, bin_idx.unsqueeze(-1) + 1).squeeze(-1)
-    else:
-        input_left_cdf = bin_left_cdf.gather(-1, bin_idx)
-        input_left_heights = heights.gather(-1, bin_idx)
-        input_right_heights = heights.gather(-1, bin_idx + 1)
+    # if heights.ndim > bin_idx.ndim:
+    #     # input_bin_left_cdf = bin_left_cdf.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
+    #     input_left_heights = heights.gather(-1, bin_idx.unsqueeze(-1)).squeeze(-1)
+    #     input_right_heights = heights.gather(-1, bin_idx.unsqueeze(-1) + 1).squeeze(-1)
+    # else:
+    #     # input_bin_left_cdf = bin_left_cdf.gather(-1, bin_idx)
+    #     input_left_heights = heights.gather(-1, bin_idx)
+    #     input_right_heights = heights.gather(-1, bin_idx + 1)
 
     # calculate coefficients of quadratic function
     a = 0.5 * (input_right_heights - input_left_heights) * input_bin_widths
     b = input_left_heights * input_bin_widths
-    c = input_left_cdf
+    c = input_bin_left_cdf
 
     # perform transform
     if inverse:

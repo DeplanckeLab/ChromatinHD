@@ -4,6 +4,30 @@ from chromatinhd.embedding import EmbeddingTensor
 import numpy as np
 
 
+class TransformedDistribution(torch.nn.Module):
+    def __init__(self, transform):
+        super().__init__()
+        self.transform = transform
+
+    def log_prob(self, x, *args, **kwargs):
+        log_prob = torch.zeros_like(x)
+        x_ = x
+        x_, logabsdet = self.transform.transform_forward(x_, *args, **kwargs)
+        log_prob = log_prob + logabsdet
+        return log_prob
+
+    def sample(self, sample_shape=torch.Size(), *args, device=None, **kwargs):
+        y = torch.rand(sample_shape, device=device)
+        y, _ = self.transform.transform_inverse(y, *args, **kwargs)
+        return y
+
+    def parameters_sparse(self):
+        return self.transform.parameters_sparse()
+
+    def parameters_dense(self):
+        return self.transform.parameters_dense()
+
+
 class DifferentialQuadraticSplineStack(torch.nn.Module):
     def __init__(self, nbins, n_genes, local_gene_ix=None, x=None):
         self.nbins = nbins
@@ -144,18 +168,6 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             bin_locations,
             num_bins,
         ) in transformation_data[::step]:
-
-            # select the widths, heights, left_cdf and bin_locations for each fragment
-            # use index_select here as it is much faster in backwards than regular indexing
-            # cut_widths = torch.index_select(widths, 0, cut_local_reflatent_ix)
-            # cut_heights = torch.index_select(heights, 0, cut_local_reflatent_ix)
-            # cut_bin_left_cdf = torch.index_select(
-            #     bin_left_cdf, 0, cut_local_reflatent_ix
-            # )
-            # cut_bin_locations = torch.index_select(
-            #     bin_locations, 0, cut_local_reflatent_ix
-            # )
-
             # calculate bin_idx
             if inverse:
                 raise NotImplementedError(
@@ -177,14 +189,6 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 cut_bin_locatons_genewise = torch.index_select(
                     bin_locations_genewise, 0, cut_local_reflatentxgene_ix
                 )
-                # local_bin_idx = torch.clamp(
-                #     torch.searchsorted(
-                #         cut_bin_locatons_genewise, output.unsqueeze(-1)
-                #     ).squeeze(-1)
-                #     - 1,
-                #     0,
-                #     num_bins - 2,
-                # )
                 bin_idx = cut_local_gene_ix * num_bins + torch.clamp(
                     torch.searchsorted(
                         cut_bin_locatons_genewise, output.unsqueeze(-1)
@@ -196,26 +200,36 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
             # select the widths, heights, left_cdf and bin_locations for each fragment
             # use index_select here as it is much faster in backwards than regular indexing
-            cut_widths = torch.index_select(widths, 0, cut_local_reflatent_ix)
-            cut_heights = torch.index_select(heights, 0, cut_local_reflatent_ix)
-            cut_bin_left_cdf = torch.index_select(
-                bin_left_cdf, 0, cut_local_reflatent_ix
+            cut_local_reflatentxgenexbin_ix = (
+                bin_idx + cut_local_reflatent_ix * num_bins * n_genes
+            )
+            cut_local_reflatentxgenexbin2_ix = bin_idx + cut_local_reflatent_ix * (
+                num_bins * n_genes - 1
             )
 
-            cut_bin_locations = torch.index_select(
-                bin_locations, 0, cut_local_reflatent_ix
+            input_bin_locations = bin_locations.flatten().index_select(
+                0, cut_local_reflatentxgenexbin_ix
             )
-            input_bin_locations = cut_bin_locations.gather(
-                -1, bin_idx.unsqueeze(-1)
-            ).squeeze(-1)
+            input_bin_left_cdf = bin_left_cdf.flatten().index_select(
+                0, cut_local_reflatentxgenexbin_ix
+            )
+            input_left_heights = heights.flatten().index_select(
+                0, cut_local_reflatentxgenexbin_ix
+            )
+            input_right_heights = heights.flatten().index_select(
+                0, cut_local_reflatentxgenexbin_ix + 1
+            )
+            input_bin_widths = widths.flatten().index_select(
+                0, cut_local_reflatentxgenexbin2_ix
+            )
 
             output, logabsdet_ = quadratic.quadratic_spline(
                 output,
-                widths=cut_widths,
-                heights=cut_heights,
-                bin_left_cdf=cut_bin_left_cdf,
-                bin_locations=cut_bin_locations,
+                input_bin_widths=input_bin_widths,
+                input_left_heights=input_left_heights,
+                input_right_heights=input_right_heights,
                 input_bin_locations=input_bin_locations,
+                input_bin_left_cdf=input_bin_left_cdf,
                 bin_idx=bin_idx,
                 inverse=inverse,
             )

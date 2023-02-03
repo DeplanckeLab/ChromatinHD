@@ -46,9 +46,12 @@ class Decoder(torch.nn.Module):
                 requires_grad=True,
             )
         )
+
         stdv = 1.0 / math.sqrt(self.logit_weight.size(1))
-        # self.logit_weight.weight.data.uniform_(-stdv, stdv)
-        self.logit_weight.data.zero_()
+        if n_layers > 1:
+            self.logit_weight.weight.data.uniform_(-stdv, stdv)
+        else:
+            self.logit_weight.data.zero_()
 
     def forward(self, latent):
         logit_weight = self.logit_weight
@@ -205,7 +208,8 @@ class Decoding(torch.nn.Module):
         # ELBO
         elbo = -likelihood - mixture_delta_kl.sum()
 
-        return elbo  # / self.n_total_cells
+        # return elbo / self.n_total_cells
+        return elbo / n_cells
 
     def forward(self, data):
         if not hasattr(data, "cut_reflatent_idx"):
