@@ -386,6 +386,7 @@ class Peaks(chromatinhd.grid.Ax):
         ax.set_ylabel("Peaks", rotation=0, ha="right", va="center")
         ax.tick_params(axis="y", which="major", length=0)
         ax.tick_params(axis="y", which="minor", length=10)
+        ax.set_xticks([])
 
 
 class Conservation(chromatinhd.grid.Ax):
@@ -404,6 +405,7 @@ class Conservation(chromatinhd.grid.Ax):
 
         ax.set_ylim(0, 1)
         ax.set_ylabel("Conservation", rotation=0, ha="right", va="center")
+        ax.set_xticks([])
 
 
 class GC(chromatinhd.grid.Ax):
@@ -422,3 +424,4 @@ class GC(chromatinhd.grid.Ax):
 
         ax.set_ylim(0, 1)
         ax.set_ylabel("%GC", rotation=0, ha="right", va="center")
+        ax.set_xticks([])

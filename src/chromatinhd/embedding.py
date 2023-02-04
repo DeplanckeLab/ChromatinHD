@@ -33,3 +33,11 @@ class EmbeddingTensor(torch.nn.Embedding):
 
     def get_full_weight(self):
         return self.weight.view((self.weight.shape[0], *self.embedding_dims))
+
+    @property
+    def data(self):
+        return self.get_full_weight().data
+
+    @data.setter
+    def set_data(self, value):
+        self.weight.data = value
