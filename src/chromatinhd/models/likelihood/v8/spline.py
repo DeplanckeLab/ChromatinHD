@@ -1,7 +1,138 @@
 import torch
+import tqdm.auto as tqdm
+import math
 from . import quadratic
 from chromatinhd.embedding import EmbeddingTensor
 import numpy as np
+
+
+class TransformedDistribution(torch.nn.Module):
+    def __init__(self, transform):
+        super().__init__()
+        self.transform = transform
+
+    def log_prob(self, x, *args, **kwargs):
+        log_prob = torch.zeros_like(x)
+        x_ = x
+        x_, logabsdet = self.transform.transform_forward(x_, *args, **kwargs)
+        log_prob = log_prob + logabsdet
+        return log_prob
+
+    def sample(self, sample_shape=torch.Size(), *args, device=None, **kwargs):
+        y = torch.rand(sample_shape, device=device)
+        y, _ = self.transform.transform_inverse(y, *args, **kwargs)
+        return y
+
+    def parameters_sparse(self):
+        return self.transform.parameters_sparse()
+
+    def parameters_dense(self):
+        return self.transform.parameters_dense()
+
+
+class QuadraticSplineTransform(torch.nn.Module):
+    bijective = True
+    domain = torch.distributions.constraints.real
+    codomain = torch.distributions.constraints.real
+
+    def __init__(self, unnormalized_widths, unnormalized_heights):
+        super().__init__()
+        self.unnormalized_widths = torch.nn.Parameter(unnormalized_widths)
+        self.unnormalized_heights = torch.nn.Parameter(unnormalized_heights)
+
+    def transform_forward(self, x, local_gene_ix, inverse=False):
+        widths = quadratic.calculate_widths(self.unnormalized_widths)
+        heights = quadratic.calculate_heights(self.unnormalized_heights, widths)
+        bin_left_cdf = quadratic.calculate_bin_left_cdf(heights, widths)
+        bin_locations = quadratic.calculate_bin_locations(widths)
+
+        outputs, logabsdet = quadratic.quadratic_spline2(
+            x,
+            widths=widths[local_gene_ix],
+            heights=heights[local_gene_ix],
+            bin_left_cdf=bin_left_cdf[local_gene_ix],
+            bin_locations=bin_locations[local_gene_ix],
+        )
+        return outputs, logabsdet
+
+    def transform_inverse(self, y, local_gene_ix):
+        return self.transform_inverse(y, local_gene_ix, inverse=True)
+
+
+def initialize_from_previous(x, n, local_gene_ix, n_genes, transforms, device="cuda"):
+    q2_orig = torch.linspace(0, 1, n, dtype=torch.float64).expand(n_genes, -1)
+    # q2_orig = prioritize(x, n).expand(n_genes, -1)
+    q2 = q2_orig
+
+    # calculate bin widths
+    for transform in transforms:
+        q2 = (
+            transform.transform_forward(
+                q2.flatten(),
+                local_gene_ix=torch.repeat_interleave(
+                    torch.ones(n_genes, dtype=int) * n
+                ),
+            )[0]
+            .detach()
+            .reshape(q2.shape)
+        )
+        # transforms may lead to equivalent consecutive bins
+        # which leads to NaN log(width)
+        # therefore add some eps to these bins
+        if (q2.diff() <= 0).any():
+            eps = 1e-6
+            q2 = torch.nn.functional.pad(torch.cumsum((q2.diff() + eps), 1), (1, 0))
+            q2 = q2 / q2.diff().sum(1, keepdim=True)
+            assert (q2.diff() > 0).all()
+
+    unnormalized_widths = torch.log(q2.diff())
+
+    # calculate the bincount in chunks
+    # runs on a device
+    chunk_width = int(1e6)
+    bincount = torch.zeros((n_genes, n - 1), dtype=int)
+
+    transforms = [transform.to(device) for transform in transforms]
+
+    q2 = q2.to(device)
+
+    for x2, local_gene_ix2 in tqdm.tqdm(
+        zip(x.split(chunk_width, 0), local_gene_ix.split(chunk_width, 0)),
+        total=math.ceil(x.shape[0] / chunk_width),
+    ):
+        x2 = x2.to(device)
+        local_gene_ix2 = local_gene_ix2.to(device)
+        for transform in transforms:
+            x2 = transform.transform_forward(x2, local_gene_ix2)[0].detach()
+
+        digitized = torch.clamp(
+            torch.searchsorted(
+                q2[local_gene_ix2], x2.unsqueeze(-1), right=True
+            ).squeeze(-1),
+            0,
+            n - 1,
+        )
+        bincount += (
+            torch.bincount((digitized + local_gene_ix2 * n), minlength=n * n_genes)
+            .reshape((n_genes, n))[:, 1:]
+            .cpu()
+        )
+
+    q2 = q2.to("cpu")
+    transforms = [transform.to("cpu") for transform in transforms]
+
+    # calculate the initial bin height (=pdf) by taking the average bincount around each knot
+    aroundcounts = torch.nn.functional.pad(
+        bincount / q2.diff(), (1, 0)
+    ) + torch.nn.functional.pad(bincount / q2.diff(), (0, 1))
+    unnormalized_heights = torch.log(
+        aroundcounts + 1
+    )  # small pseudocount for those bins without a single count
+
+    if unnormalized_heights.isnan().any():
+        raise ValueError("NaNs in initialized pdf")
+
+    return unnormalized_heights, unnormalized_widths
 
 
 class TransformedDistribution(torch.nn.Module):
@@ -63,11 +194,15 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             split_deltas.append(n_heights)
 
         self.unnormalized_heights = torch.nn.Parameter(
-            torch.zeros(n_genes, sum(splits_heights), requires_grad=True)
+            torch.zeros(
+                n_genes, sum(splits_heights), requires_grad=True, dtype=torch.float64
+            )
         )
 
         self.unnormalized_widths = torch.nn.Parameter(
-            torch.zeros(n_genes, sum(splits_widths), requires_grad=True)
+            torch.zeros(
+                n_genes, sum(splits_widths), requires_grad=True, dtype=torch.float64
+            )
         )
 
         if x is not None:
@@ -203,10 +338,6 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             cut_local_reflatentxgenexbin_ix = (
                 bin_idx + cut_local_reflatent_ix * num_bins * n_genes
             )
-            cut_local_reflatentxgenexbin2_ix = bin_idx + cut_local_reflatent_ix * (
-                num_bins * n_genes - 1
-            )
-
             input_bin_locations = bin_locations.flatten().index_select(
                 0, cut_local_reflatentxgenexbin_ix
             )
@@ -218,6 +349,10 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             )
             input_right_heights = heights.flatten().index_select(
                 0, cut_local_reflatentxgenexbin_ix + 1
+            )
+
+            cut_local_reflatentxgenexbin2_ix = bin_idx + cut_local_reflatent_ix * (
+                num_bins * n_genes - 1
             )
             input_bin_widths = widths.flatten().index_select(
                 0, cut_local_reflatentxgenexbin2_ix
