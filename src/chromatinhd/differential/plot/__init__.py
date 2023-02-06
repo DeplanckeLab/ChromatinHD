@@ -113,7 +113,7 @@ class Differential(chromatinhd.grid.Wrap):
         plotdata_empirical=None,
         show_atac_diff=True,
         cmap_atac_diff=mpl.cm.RdBu_r,
-        norm_atac_diff=mpl.colors.Normalize(np.log(0.5), np.log(2.0), clip=True),
+        norm_atac_diff=mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True),
         title=True,
         **kwargs,
     ):

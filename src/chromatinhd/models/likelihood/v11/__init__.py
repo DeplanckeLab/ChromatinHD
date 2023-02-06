@@ -209,6 +209,8 @@ class Decoding(torch.nn.Module):
 
         self.mixture_delta_p_scale_dist = mixture_delta_p_scale_dist
 
+        self.rho_balance = torch.nn.Parameter(torch.zeros((self.n_total_genes,)))
+
     def forward_(
         self,
         local_cellxgene_ix,
@@ -231,15 +233,11 @@ class Decoding(torch.nn.Module):
         rho = torch.nn.functional.softmax(torch.log(self.rho_bias) + rho_delta, -1)
         rho_cuts = rho.flatten()[cut_localcellxgene_ix]
 
+        # print(torch.exp(rho_delta))
+
         # rho delta kl
         rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
         rho_delta_kl = rho_delta_p.log_prob(self.decoder.rho_weight(genes_oi))
-
-        # fragmentcounts_p = torch.distributions.Poisson(expression)
-        # fragmentcounts = torch.reshape(
-        #     torch.bincount(local_cellxgene_ix, minlength=n_cells * n_genes),
-        #     (n_cells, n_genes),
-        # )
 
         # fragment counts
         mixture_delta_cellxgene = mixture_delta.view(
@@ -248,11 +246,13 @@ class Decoding(torch.nn.Module):
         mixture_delta = mixture_delta_cellxgene[cut_local_cellxgene_ix]
 
         likelihood_mixture = self.mixture.log_prob(
-            cut_coordinates, genes_oi, cut_local_gene_ix, mixture_delta
+            cut_coordinates,
+            genes_oi,
+            cut_local_gene_ix,
+            mixture_delta,
+            rho_delta.flatten().index_select(0, cut_localcellxgene_ix),
+            self.rho_balance[cut_local_gene_ix],
         )
-
-        # print(likelihood_mixture.shape)
-        # print(rho_cuts.shape)
 
         # overall likelihood
         likelihood = self.track["likelihood"] = (

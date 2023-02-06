@@ -4,6 +4,7 @@ import pickle
 
 from chromatinhd.flow import Flow
 from chromatinhd import sparse
+from chromatinhd.utils import Unpickler
 
 
 class Transcriptome(Flow):
@@ -83,7 +84,7 @@ class Transcriptome(Flow):
     @property
     def X(self):
         if self._X is None:
-            self._X = pickle.load((self.path / "X.pkl").open("rb"))
+            self._X = Unpickler((self.path / "X.pkl").open("rb")).load()
         return self._X
 
     @X.setter

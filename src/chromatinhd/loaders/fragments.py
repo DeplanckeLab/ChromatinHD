@@ -61,6 +61,10 @@ class Result:
         self.cut_local_cellxgene_ix = self.local_cellxgene_ix.expand(2, -1).T.flatten()[
             keep_cuts
         ]
+        self.cut_localcellxgene_ix = (
+            self.cut_local_cell_ix * self.n_genes
+            + self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
+        )
 
     _cut_coordinates = None
 

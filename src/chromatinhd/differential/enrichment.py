@@ -197,12 +197,22 @@ def enrich_windows(
     motifscan,
     position_slices,
     gene_ixs_slices,
-    onehot_promoters,
     n_genes,
     window,
+    onehot_promoters=None,
     gene_ids=None,
+    oi_slices=None,
+    background_slices=None,
     n_background=10,
 ):
+    background_position_slices = None
+    if background_slices is not None:
+        background_position_slices = position_slices[background_slices]
+        background_gene_ixs_slices = gene_ixs_slices[background_slices]
+    if oi_slices is not None:
+        position_slices = position_slices[oi_slices]
+        gene_ixs_slices = gene_ixs_slices[oi_slices]
+
     motif_counts = count_motifs(
         position_slices[:, 0],
         position_slices[:, 1],
@@ -227,16 +237,18 @@ def enrich_windows(
     )
     motif_percs_genewise = motif_counts_genewise / (n_positions_gene[:, None] + 1e-5)
 
-    background_position_slices, background_gene_ixs_slices = select_background(
-        position_slices,
-        gene_ixs_slices,
-        onehot_promoters,
-        seed=1,
-        n_genes=n_genes,
-        window=window,
-        n_random=n_background * 10,
-        n_select_random=n_background,
-    )
+    if background_position_slices is None:
+        background_position_slices, background_gene_ixs_slices = select_background(
+            position_slices,
+            gene_ixs_slices,
+            onehot_promoters,
+            seed=1,
+            n_genes=n_genes,
+            window=window,
+            n_random=n_background * 10,
+            n_select_random=n_background,
+        )
+
     background_motif_counts = count_motifs(
         background_position_slices[:, 0],
         background_position_slices[:, 1],
@@ -266,11 +278,11 @@ def enrich_windows(
         .astype(np.uint)
     )
 
-    odds_conditional = []
-    for cont in contingencies:
-        odds_conditional.append(
-            scipy.stats.contingency.odds_ratio(cont + 1, kind="conditional").statistic
-        )  # pseudocount = 1
+    # odds_conditional = []
+    # for cont in contingencies:
+    #     odds_conditional.append(
+    #         scipy.stats.contingency.odds_ratio(cont + 1, kind="conditional").statistic
+    #     )  # pseudocount = 1
 
     p_values = fisher.pvalue_npy(
         contingencies[:, 0, 0],
@@ -286,7 +298,7 @@ def enrich_windows(
         {
             "odds": ((motif_counts + 1) / (n_positions + 1))
             / ((background_motif_counts + 1) / (background_n_positions + 1)),
-            "odds_conditional": odds_conditional,
+            # "odds_conditional": odds_conditional,
             "motif": motifscan.motifs.index,
             "in": motif_counts / n_motifs,
             "perc": motif_counts / n_positions,
@@ -295,7 +307,8 @@ def enrich_windows(
             "perc_gene": [x for x in motif_percs_genewise.T],
         }
     ).set_index("motif")
-    motifscores["logodds"] = np.log(odds_conditional)
+    # motifscores["logodds"] = np.log(odds_conditional)
+    motifscores["logodds"] = np.log(motifscores["odds"])
     motifscores["qval"] = statsmodels.stats.multitest.fdrcorrection(
         motifscores["pval"]
     )[-1]

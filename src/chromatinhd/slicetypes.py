@@ -78,7 +78,8 @@ def plot_canyon(ax):
         plotdata_oi.query("~positive")["x"],
         plotdata_mean.query("~positive")["y"],
         plotdata_oi.query("~positive")["y"],
-        fc=color,
+        # fc=color,
+        fc="#333",
         alpha=0.2,
         lw=1,
     )
@@ -90,6 +91,18 @@ def plot_canyon(ax):
         alpha=0.5,
         lw=1,
     )
+    # plotdata_mean_max = plotdata_mean.loc[plotdata_mean["y"].idxmax()]
+    # plotdata_oi_min = plotdata_oi.loc[plotdata_oi["x"] == plotdata_mean_max["x"]].iloc[
+    #     0
+    # ]
+    # ax.arrow(
+    #     plotdata_mean_max["x"],
+    #     plotdata_mean_max["y"],
+    #     0,
+    #     plotdata_oi_min["y"] - plotdata_mean_max["y"],
+    #     color="black",
+    #     lw=0.5,
+    # )
     ax.plot(plotdata_oi["x"], plotdata_oi["y"], color=color, lw=1)
 
 

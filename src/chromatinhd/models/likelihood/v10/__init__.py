@@ -75,62 +75,15 @@ class Decoder(torch.nn.Module):
         return [self.logit_weight.weight]
 
 
-class BaselineDecoder(torch.nn.Module):
-    def __init__(
-        self, n_latent, n_genes, n_output_components, n_layers=1, n_hidden_dimensions=32
-    ):
-        super().__init__()
-
-        layers = []
-        for i in range(n_layers):
-            layers.append(
-                torch.nn.Linear(
-                    n_hidden_dimensions if i > 0 else n_latent, n_hidden_dimensions
-                )
-            )
-            layers.append(torch.nn.BatchNorm1d(n_hidden_dimensions))
-            layers.append(torch.nn.ReLU())
-            layers.append(torch.nn.Dropout(0.2))
-        self.nn = torch.nn.Sequential(*layers)
-
-        self.n_hidden_dimensions = n_hidden_dimensions
-        self.n_output_components = n_output_components
-
-        self.rho_weight = EmbeddingTensor(
-            n_genes, (n_hidden_dimensions if n_layers > 0 else n_latent,), sparse=True
-        )
-        stdv = 1.0 / math.sqrt(self.rho_weight.weight.size(1)) / 100
-        self.rho_weight.weight.data.uniform_(-stdv, stdv)
-
-    def forward(self, latent, genes_oi):
-        rho_weight = self.rho_weight(genes_oi)
-        nn_output = self.nn(latent)
-
-        # nn_output is broadcasted across genes and across components
-        logit = torch.zeros(
-            (latent.shape[0], len(genes_oi), self.n_output_components),
-            device=latent.device,
-        )
-
-        rho = torch.matmul(nn_output, rho_weight.T).squeeze(-1)
-        return logit, rho
-
-    def parameters_dense(self):
-        return [*self.nn.parameters()]
-
-    def parameters_sparse(self):
-        return [self.rho_weight.weight]
-
-
 class Decoding(torch.nn.Module):
     # mixture_delta_p_scale = 1.0
     def __init__(
         self,
         fragments,
-        latent,
+        reflatent,
+        reflatent_idx,
         nbins=(128,),
         decoder_n_layers=0,
-        baseline=False,
         mixture_delta_p_scale_free=False,
         scale_likelihood=False,
         rho_delta_p_scale_free=False,
@@ -141,7 +94,7 @@ class Decoding(torch.nn.Module):
 
         self.n_total_genes = fragments.n_genes
 
-        n_latent_dimensions = latent.shape[1]
+        n_latent_dimensions = reflatent.shape[1]
 
         from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
@@ -154,20 +107,12 @@ class Decoding(torch.nn.Module):
         self.mixture = TransformedDistribution(transform)
         n_delta_mixture_components = sum(transform.split_deltas)
 
-        if not baseline:
-            self.decoder = Decoder(
-                n_latent_dimensions,
-                fragments.n_genes,
-                n_delta_mixture_components,
-                n_layers=decoder_n_layers,
-            )
-        else:
-            self.decoder = BaselineDecoder(
-                n_latent_dimensions,
-                fragments.n_genes,
-                n_delta_mixture_components,
-                n_layers=decoder_n_layers,
-            )
+        self.decoder = Decoder(
+            n_latent_dimensions,
+            fragments.n_genes,
+            n_delta_mixture_components,
+            n_layers=decoder_n_layers,
+        )
 
         libsize = torch.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells)
         rho_bias = (
@@ -181,7 +126,8 @@ class Decoding(torch.nn.Module):
         self.register_buffer("libsize", libsize)
         self.register_buffer("rho_bias", rho_bias)
 
-        self.register_buffer("latent", latent)
+        self.register_buffer("reflatent", reflatent)
+        self.register_buffer("reflatent_idx", reflatent_idx)
 
         self.track = {}
 
@@ -213,7 +159,7 @@ class Decoding(torch.nn.Module):
         self,
         local_cellxgene_ix,
         cut_coordinates,
-        latent,
+        cut_reflatent_idx,
         genes_oi,
         cells_oi,
         cut_local_cellxgene_ix,
@@ -225,38 +171,32 @@ class Decoding(torch.nn.Module):
         n_genes = self.n_total_genes
 
         # decode
-        mixture_delta, rho_delta = self.decoder(latent.to(torch.float), genes_oi)
+        mixture_delta, rho_delta = self.decoder(self.reflatent, genes_oi)
+
+        cut_reflatent_idx = cut_reflatent_idx.to(cut_coordinates.device)
+        cut_local_reflatentxgene_ix = cut_reflatent_idx * n_genes + cut_local_gene_ix
 
         # rho
         rho = torch.nn.functional.softmax(torch.log(self.rho_bias) + rho_delta, -1)
-        rho_cuts = rho.flatten()[cut_localcellxgene_ix]
+        rho_fragments = rho.flatten()[cut_localcellxgene_ix]
 
         # rho delta kl
         rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
         rho_delta_kl = rho_delta_p.log_prob(self.decoder.rho_weight(genes_oi))
 
-        # fragmentcounts_p = torch.distributions.Poisson(expression)
-        # fragmentcounts = torch.reshape(
-        #     torch.bincount(local_cellxgene_ix, minlength=n_cells * n_genes),
-        #     (n_cells, n_genes),
-        # )
-
         # fragment counts
-        mixture_delta_cellxgene = mixture_delta.view(
-            np.prod(mixture_delta.shape[:2]), mixture_delta.shape[-1]
-        )
-        mixture_delta = mixture_delta_cellxgene[cut_local_cellxgene_ix]
-
         likelihood_mixture = self.mixture.log_prob(
-            cut_coordinates, genes_oi, cut_local_gene_ix, mixture_delta
+            cut_coordinates,
+            genes_oi,
+            cut_local_reflatentxgene_ix,
+            cut_local_gene_ix,
+            cut_reflatent_idx,
+            delta=mixture_delta,
         )
-
-        # print(likelihood_mixture.shape)
-        # print(rho_cuts.shape)
 
         # overall likelihood
         likelihood = self.track["likelihood"] = (
-            likelihood_mixture + torch.log(rho_cuts) + math.log(self.n_total_genes)
+            likelihood_mixture + torch.log(rho_fragments) + math.log(n_genes)
         )
         # likelihood_scale = self.n_total_cells / n_cells
         likelihood_scale = 1.0
@@ -277,11 +217,14 @@ class Decoding(torch.nn.Module):
         return elbo  # / self.n_total_cells
 
     def forward(self, data):
-        if not hasattr(data, "latent"):
-            data.latent = self.latent[data.cells_oi]
+        if not hasattr(data, "cut_reflatent_idx"):
+            data.cut_coordinates
+            data.cut_reflatent_idx = self.reflatent_idx[
+                data.cells_oi_torch[data.cut_local_cell_ix]
+            ]
         return self.forward_(
             cut_coordinates=data.cut_coordinates,
-            latent=data.latent,
+            cut_reflatent_idx=data.cut_reflatent_idx,
             cells_oi=data.cells_oi_torch,
             genes_oi=data.genes_oi_torch,
             cut_local_cellxgene_ix=data.cut_local_cellxgene_ix,
@@ -345,6 +288,9 @@ class Decoding(torch.nn.Module):
 
         cells_oi = torch.ones((1,), dtype=torch.long)
 
+        cut_reflatent_idx = torch.where(latent)[1]
+        assert cut_reflatent_idx.shape == coordinates.shape
+
         local_cellxgene_ix = torch.tensor([], dtype=torch.long)
         if gene_ix is None:
             if gene_oi is None:
@@ -374,7 +320,7 @@ class Decoding(torch.nn.Module):
             cut_local_cellxgene_ix = (
                 cut_local_cell_ix * len(genes_oi) + cut_local_gene_ix
             )
-            cut_localcellxgene_ix = cut_local_cell_ix * self.n_total_genes + gene_ix
+            cut_localcellxgene_ix = genes_oi
 
         data = FullDict(
             local_cellxgene_ix=local_cellxgene_ix.to(device),
@@ -382,6 +328,7 @@ class Decoding(torch.nn.Module):
             cut_local_cellxgene_ix=cut_local_cellxgene_ix.to(device),
             cut_localcellxgene_ix=cut_localcellxgene_ix.to(device),
             cut_coordinates=coordinates.to(device),
+            cut_reflatent_idx=cut_reflatent_idx,
             n_cells=1,
             n_genes=1,
             genes_oi_torch=genes_oi.to(device),
@@ -394,14 +341,7 @@ class Decoding(torch.nn.Module):
         prob = self.track["likelihood"].detach().cpu()
         return prob.detach().cpu()
 
-    def rank(
-        self,
-        window: np.ndarray,
-        n_latent: int,
-        device: torch.DeviceObjType = "cuda",
-        how: str = "probs_diff_masked",
-        prob_cutoff: float = None,
-    ) -> np.ndarray:
+    def rank(self, window, n_latent, device="cuda", how="probs_diff_masked"):
         n_genes = self.rho_bias.shape[0]
 
         import pandas as pd
@@ -416,11 +356,12 @@ class Decoding(torch.nn.Module):
             {"coord": np.arange(window[0], window[1] + 1, step=25)}
         )
         design = crossing(design_gene, design_latent, design_coord)
-        batch_size = 100000
-        design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
+        design["batch"] = np.floor(np.arange(design.shape[0]) / 10000).astype(int)
 
         # infer
         probs = []
+        rho_deltas = []
+        rhos = []
         for _, design_subset in tqdm.tqdm(design.groupby("batch")):
             pseudocoordinates = torch.from_numpy(design_subset["coord"].values).to(
                 device
@@ -434,26 +375,41 @@ class Decoding(torch.nn.Module):
             ).to(torch.float)
             gene_ix = torch.from_numpy(design_subset["gene_ix"].values).to(device)
 
-            prob = self.evaluate_pseudo(
+            likelihood_mixture, rho_delta, rho = self.evaluate_pseudo(
                 pseudocoordinates.to(device),
                 latent=pseudolatent.to(device),
                 gene_ix=gene_ix,
             )
+            prob_mixture = likelihood_mixture.detach().cpu().numpy()
+            rho_delta = rho_delta.detach().cpu().numpy()
+            rho = rho.detach().cpu().numpy()
 
-            probs.append(prob)
+            probs.append(prob_mixture)
+            rho_deltas.append(rho_delta)
+            rhos.append(rho)
         probs = np.hstack(probs)
+        rho_deltas = np.hstack(rho_deltas)
+        rhos = np.hstack(rhos)
 
         probs = probs.reshape(
             (design_gene.shape[0], design_latent.shape[0], design_coord.shape[0])
         )
+        rho_deltas = rho_deltas.reshape(
+            (design_gene.shape[0], design_latent.shape[0], design_coord.shape[0])
+        )
+        rhos = rhos.reshape(
+            (design_gene.shape[0], design_latent.shape[0], design_coord.shape[0])
+        )
 
         # calculate the score we're gonna use: how much does the likelihood of a cut in a window change compared to the "mean"?
-        probs_diff = probs - probs.mean(-2, keepdims=True)
+        probs_diff = (
+            probs - probs.mean(-2, keepdims=True) + rho_deltas
+        )  # - rho_deltas.mean(-2, keepdims = True)
 
         # apply a mask to regions with very low likelihood of a cut
-        if prob_cutoff is None:
-            prob_cutoff = np.log(1.0)
-        mask = probs >= prob_cutoff
+        rho_cutoff = np.log(1.0)
+        print(rhos[0])
+        mask = rhos >= rho_cutoff
 
         probs_diff_masked = probs_diff.copy()
         probs_diff_masked[~mask] = -np.inf
@@ -484,19 +440,28 @@ class Decoding(torch.nn.Module):
         probs_diff_interpolated = interpolate(
             desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs_diff)
         ).numpy()
-        probs_interpolated = interpolate(
-            desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs)
+        rhos_interpolated = interpolate(
+            desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(rhos)
         ).numpy()
 
         if how == "probs_diff_masked":
             # again apply a mask
+            rho_cutoff = np.log(1.0)
             probs_diff_interpolated_masked = probs_diff_interpolated.copy()
-            mask_interpolated = probs_interpolated >= prob_cutoff
+            mask_interpolated = rhos_interpolated >= rho_cutoff
             probs_diff_interpolated_masked[~mask_interpolated] = -np.inf
 
             return probs_diff_interpolated_masked
-        else:
-            raise NotImplementedError()
+        elif how == "probs_diff":
+            return probs_diff_interpolated
+        elif how == "probs":
+            return interpolate(
+                desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs)
+            ).numpy()
+        elif how == "mixtures":
+            return interpolate(
+                desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs)
+            ).numpy()
 
 
 class FullDict(dict):

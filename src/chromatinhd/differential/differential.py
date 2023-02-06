@@ -27,6 +27,7 @@ class DifferentialSlices:
                 + self.window[0],
             }
         )
+        slicescores.index = np.arange(len(slicescores))
         return slicescores
 
     def get_slicelocations(self, promoters):
@@ -124,18 +125,15 @@ class DifferentialSlices:
     @property
     def position_chosen(self):
         position_chosen = np.zeros(
-            self.n_clusters * self.n_genes * (self.window[1] - self.window[0]),
+            (self.n_genes, self.n_clusters, (self.window[1] - self.window[0])),
+            # self.n_clusters * self.n_genes * (self.window[1] - self.window[0]),
             dtype=bool,
         )
         for start, end, gene_ix, cluster_ix in zip(
             self.positions[:, 0], self.positions[:, 1], self.gene_ixs, self.cluster_ixs
         ):
-            position_chosen[
-                (start + (self.window[1] - self.window[0]) * gene_ix * cluster_ix) : (
-                    end + (self.window[1] - self.window[0]) * gene_ix * cluster_ix
-                )
-            ] = True
-        return position_chosen
+            position_chosen[gene_ix, cluster_ix, start:end] = True
+        return position_chosen.flatten()
 
     @property
     def position_indices(self):
@@ -202,7 +200,7 @@ class DifferentialSlices:
         n_genes = basepair_ranking.shape[0]
         n_clusters = basepair_ranking.shape[1]
 
-        basepairs_oi = basepair_ranking >= cutoff
+        basepairs_oi = basepair_ranking > cutoff
 
         gene_ixs, cluster_ixs, positions = np.where(basepairs_oi)
 
@@ -217,7 +215,9 @@ class DifferentialSlices:
         prominences = []
         n_subpeaks = []
         balances = []
+        balances_raw = []
         dominances = []
+        shadows = []
         for gene_ix, cluster_ix in itertools.product(
             range(self.n_genes), range(self.n_clusters)
         ):
@@ -234,6 +234,7 @@ class DifferentialSlices:
                 height_threshold = 0.25
                 distance_threshold = 80
                 x_ = x[slice[0] : (slice[1] + 1)]
+                y_ = np.exp(probs_mean_gene[slice[0] : (slice[1] + 1)])
                 subpeaks, subpeaks_info = scipy.signal.find_peaks(
                     x_, height=x_.max() * height_threshold, distance=distance_threshold
                 )
@@ -248,7 +249,7 @@ class DifferentialSlices:
                 ]
                 neighborhoud_right = [
                     slice[1],
-                    np.clip(slice[0] + distance, *(self.window - self.window[0])),
+                    np.clip(slice[1] + distance, *(self.window - self.window[0])),
                 ]
 
                 x_neighborhoud = np.exp(
@@ -277,14 +278,24 @@ class DifferentialSlices:
                 )
 
                 # determine local "dominance"
-                y_ = np.exp(probs_mean_gene[slice[0] : (slice[1] + 1)])
-                dominances.append((y_.max() / max(y_.max(), y_neighborhoud.max())))
+                # if slice[0] == 7966:
+                #     import matplotlib.pyplot as plt
+
+                #     plt.plot(x_)
+                #     plt.plot(x_neighborhoud)
+
+                #     raise ValueError()
+                dominances.append((x_.max() / max(x_.max(), x_neighborhoud.max())))
 
                 # determine local "balancing"
                 balances.append(
                     np.clip(y_neighborhoud - x_neighborhoud, 0, np.inf).sum()
                     / (x_ - y_).sum()
                 )
+                balances_raw.append((x_neighborhoud / y_neighborhoud).min())
+
+                # determine local shadow
+                shadows.append(x_.mean() / x_.max())
 
             peaks = np.array(peaks, dtype=int)
 
@@ -297,12 +308,37 @@ class DifferentialSlices:
             prominences.append(relative_prominence)
 
         prominences = np.hstack(prominences)
+        shadows = np.hstack(shadows)
 
         return pd.DataFrame(
             {
                 "prominence": prominences,
                 "n_subpeaks": n_subpeaks,
+                "balances_raw": balances_raw,
                 "balance": balances,
                 "dominance": dominances,
+                "shadow": shadows,
+            }
+        )
+
+    def get_slicedifferential(self, probs):
+        probs_diff = probs - probs.mean(1, keepdims=True)
+        import itertools
+
+        slice_differential = []
+        for start, end, gene_ix, cluster_ix in zip(
+            self.positions[:, 0], self.positions[:, 1], self.gene_ixs, self.cluster_ixs
+        ):
+            probs_diff_oi = probs_diff[
+                gene_ix,
+                cluster_ix,
+                (start):(end),
+            ]
+            slice_differential.append((probs_diff_oi > np.log(2)).mean())
+        slice_differential = np.hstack(slice_differential)
+
+        return pd.DataFrame(
+            {
+                "differential_positions": slice_differential,
             }
         )
