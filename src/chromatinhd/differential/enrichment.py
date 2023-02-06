@@ -213,6 +213,8 @@ def enrich_windows(
         position_slices = position_slices[oi_slices]
         gene_ixs_slices = gene_ixs_slices[oi_slices]
 
+    print(background_position_slices.shape, position_slices.shape)
+
     motif_counts = count_motifs(
         position_slices[:, 0],
         position_slices[:, 1],
