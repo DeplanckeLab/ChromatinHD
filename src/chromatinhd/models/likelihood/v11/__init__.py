@@ -233,8 +233,6 @@ class Decoding(torch.nn.Module):
         rho = torch.nn.functional.softmax(torch.log(self.rho_bias) + rho_delta, -1)
         rho_cuts = rho.flatten()[cut_localcellxgene_ix]
 
-        # print(torch.exp(rho_delta))
-
         # rho delta kl
         rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
         rho_delta_kl = rho_delta_p.log_prob(self.decoder.rho_weight(genes_oi))
