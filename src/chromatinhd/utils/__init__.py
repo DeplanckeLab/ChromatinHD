@@ -3,11 +3,12 @@ import pathlib
 import pickle
 import pandas as pd
 
+from .torch import interpolate_1d
+
 
 def get_git_root(cwd=None):
     """
     Gets the first parent root with a a .git folder
-
     """
     if cwd is None:
         cwd = os.getcwd()

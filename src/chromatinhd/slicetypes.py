@@ -5,24 +5,18 @@ import numpy as np
 
 types_info = pd.DataFrame(
     [
-        ["peak", "Peak"],
-        ["flank", "Flank"],
-        ["ridge", "Ridge"],
-        ["chain", "Chain"],
-        ["canyon", "Canyon"],
-        ["hill", "Hill"],
+        ["peak", "Peak", "#e41a1c"],
+        ["chain", "Chain", "#f7857e"],
+        ["volcano", "Volcano", "#85144b"],
+        ["hill", "Hill", "#39CCCC"],
+        ["flank", "Flank", "#377eb8"],
+        ["ridge", "Ridge", "#4daf4a"],
+        ["canyon", "Canyon", "#ff7f00"],
     ],
-    columns=["type", "label"],
+    columns=["type", "label", "color"],
 ).set_index("type")
-types_info["color"] = [
-    "#e41a1c",
-    "#377eb8",
-    "#4daf4a",
-    "#984ea3",
-    "#ff7f00",
-    "#a65628",
-    "#f781bf",
-][: len(types_info)]
+
+background_fc = "#FFF"
 
 
 def plot_peak(ax):
@@ -46,6 +40,12 @@ def plot_peak(ax):
         fc=color,
         alpha=0.5,
         lw=1,
+    )
+    ax.fill_between(
+        plotdata_mean["x"],
+        plotdata_mean["y"],
+        fc=background_fc,
+        lw=0,
     )
 
 
@@ -91,6 +91,9 @@ def plot_canyon(ax):
         alpha=0.5,
         lw=1,
     )
+    ax.fill_between(
+        plotdata_mean["x"], plotdata_mean["y"], fc=background_fc, lw=0, zorder=-1
+    )
     # plotdata_mean_max = plotdata_mean.loc[plotdata_mean["y"].idxmax()]
     # plotdata_oi_min = plotdata_oi.loc[plotdata_oi["x"] == plotdata_mean_max["x"]].iloc[
     #     0
@@ -135,6 +138,12 @@ def plot_flank(ax):
         alpha=0.5,
         lw=1,
     )
+    ax.fill_between(
+        plotdata_mean["x"],
+        plotdata_mean["y"],
+        fc=background_fc,
+        lw=0,
+    )
 
 
 def plot_ridge(ax):
@@ -171,6 +180,12 @@ def plot_ridge(ax):
         alpha=0.5,
         lw=1,
     )
+    ax.fill_between(
+        plotdata_mean["x"],
+        plotdata_mean["y"],
+        fc=background_fc,
+        lw=0,
+    )
 
 
 def plot_chain(ax):
@@ -198,6 +213,12 @@ def plot_chain(ax):
         fc=color,
         alpha=0.5,
         lw=1,
+    )
+    ax.fill_between(
+        plotdata_mean["x"],
+        plotdata_mean["y"],
+        fc=background_fc,
+        lw=0,
     )
 
 
@@ -230,6 +251,42 @@ def plot_hill(ax):
         lw=1,
     )
     ax.plot(plotdata_oi["x"], plotdata_oi["y"], color=color, lw=1)
+    ax.fill_between(
+        plotdata_mean["x"],
+        plotdata_mean["y"],
+        fc=background_fc,
+        lw=0,
+    )
+
+
+def plot_volcano(ax):
+    color = types_info.loc["volcano", "color"]
+    plotdata_mean = pd.DataFrame({"x": np.linspace(0, 1, 100)})
+    plotdata_mean["y"] = scipy.stats.norm(0.5, 0.15).pdf(plotdata_mean.x) * 0.1
+    plotdata_oi = pd.DataFrame({"x": plotdata_mean["x"]})
+    plotdata_oi["y"] = plotdata_mean["y"] * 10.0
+
+    # rescale in 0-1
+    scale = plotdata_oi["y"].max()
+    plotdata_oi["y"] = plotdata_oi["y"] / scale
+    plotdata_mean["y"] = plotdata_mean["y"] / scale
+
+    ax.plot(plotdata_mean["x"], plotdata_mean["y"], color="#333", dashes=(1, 1), lw=1)
+    ax.plot(plotdata_oi["x"], plotdata_oi["y"], color=color, lw=1)
+    ax.fill_between(
+        plotdata_oi["x"],
+        plotdata_mean["y"],
+        plotdata_oi["y"],
+        fc=color,
+        alpha=0.5,
+        lw=1,
+    )
+    ax.fill_between(
+        plotdata_mean["x"],
+        plotdata_mean["y"],
+        fc=background_fc,
+        lw=0,
+    )
 
 
 def plot_type(ax, type):
@@ -240,6 +297,7 @@ def plot_type(ax, type):
         "chain": plot_chain,
         "ridge": plot_ridge,
         "hill": plot_hill,
+        "volcano": plot_volcano,
     }
     if type in type_funcs:
         type_funcs[type](ax)
