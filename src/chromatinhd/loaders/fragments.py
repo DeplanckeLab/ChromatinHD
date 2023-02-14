@@ -96,7 +96,12 @@ class Fragments:
     out_genemapping: torch.Tensor
     out_local_cellxgene_ix: torch.Tensor
 
-    def __init__(self, fragments, cellxgene_batch_size, n_fragment_per_cellxgene=None):
+    def __init__(
+        self,
+        fragments: chromatinhd.data.Fragments,
+        cellxgene_batch_size: int,
+        n_fragment_per_cellxgene: int = None,
+    ):
         self.cellxgene_batch_size = cellxgene_batch_size
 
         # store auxilliary information
@@ -137,7 +142,10 @@ class Fragments:
         genemapping = self.genemapping
         cellxgene_indptr = self.cellxgene_indptr
 
-        assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size
+        assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size, (
+            len(minibatch.cellxgene_oi),
+            self.cellxgene_batch_size,
+        )
         n_fragments = chromatinhd.loaders.extraction.fragments.extract_fragments(
             minibatch.cellxgene_oi,
             cellxgene_indptr,
@@ -186,13 +194,13 @@ class FragmentsCounting:
         self,
         fragments,
         cellxgene_batch_size,
-        window,
         n_fragment_per_cellxgene=None,
         n=(2,),
     ):
         self.cellxgene_batch_size = cellxgene_batch_size
 
         # store auxilliary information
+        window = fragments.window
         self.window = window
         self.window_width = window[1] - window[0]
 
@@ -282,5 +290,6 @@ class FragmentsCounting:
             n_fragments=n_fragments,
             genemapping=self.out_genemapping,
             n=self.out_n,
+            window=self.window,
             **minibatch.items(),
         )
