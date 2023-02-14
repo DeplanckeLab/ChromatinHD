@@ -1,4 +1,4 @@
-<img src="docs/static/logo.png" alt="ChromatinHD">
+<img width=300 src="docs/static/logo.png" alt="ChromatinHD">
 
 
 ## Development
