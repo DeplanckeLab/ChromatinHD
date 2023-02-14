@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/static/logo.png" alt="ChromatinHD">
-</p>
+<img src="docs/static/logo.png" alt="ChromatinHD">
 
 
 ## Development
