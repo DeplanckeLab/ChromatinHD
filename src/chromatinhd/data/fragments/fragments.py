@@ -62,8 +62,6 @@ class Fragments(Flow):
         self._cellxgene_indptr = value
 
     def create_cellxgene_indptr(self):
-        import torch_sparse
-
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
 
         if not (cellxgene.diff() >= 0).all():
@@ -72,7 +70,9 @@ class Fragments(Flow):
             )
 
         n_cellxgene = self.n_genes * self.n_cells
-        cellxgene_indptr = torch.ops.torch_sparse.ind2ptr(cellxgene, n_cellxgene)
+        cellxgene_indptr = torch.nn.functional.pad(
+            torch.cumsum(torch.bincount(cellxgene, minlength=n_cellxgene), 0), (1, 0)
+        )
         assert self.coordinates.shape[0] == cellxgene_indptr[-1]
         if not (cellxgene_indptr.diff() >= 0).all():
             raise ValueError(
