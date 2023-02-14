@@ -23,6 +23,10 @@ def get_output():
     return get_git_root() / "output"
 
 
+def get_code():
+    return get_git_root() / "code"
+
+
 def name_window(window_info):
     return (
         window_info["chrom" if "chrom" in window_info.index else "chr"]
@@ -116,7 +120,7 @@ def save(obj, fh, pickler=None, **kwargs):
 
 
 def crossing(*dfs):
-    dfs = [df if isinstance(df, pd.DataFrame) else df.to_frame() for df in dfs]
+    dfs = [df.copy() if isinstance(df, pd.DataFrame) else df.to_frame() for df in dfs]
     for df in dfs:
         df["___key"] = 0
     if len(dfs) == 0:

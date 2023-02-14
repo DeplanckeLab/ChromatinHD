@@ -71,7 +71,11 @@ class Ax(Element):
         fig.add_axes(ax)
 
 
-class Title(Ax):
+class Panel(Ax):
+    pass
+
+
+class Title(Panel):
     def __init__(self, label, dim=None):
         if dim is None:
             dim = (1, TITLE_HEIGHT)

@@ -10,7 +10,11 @@ class EmbeddingTensor(torch.nn.Embedding):
     def __init__(self, num_embeddings, embedding_dims, *args, **kwargs):
         if not isinstance(embedding_dims, tuple):
             embedding_dims = tuple(embedding_dims)
-        embedding_dim = np.prod(embedding_dims)
+        if len(embedding_dims) == 0:
+            embedding_dim = 1
+            embedding_dims = tuple([1])
+        else:
+            embedding_dim = np.prod(embedding_dims)
         super().__init__(num_embeddings, embedding_dim, *args, **kwargs)
         self.embedding_dims = embedding_dims
 
@@ -39,5 +43,10 @@ class EmbeddingTensor(torch.nn.Embedding):
         return self.get_full_weight().data
 
     @data.setter
-    def set_data(self, value):
+    def data(self, value):
+        assert value.shape == self.weight.shape
         self.weight.data = value
+
+    @property
+    def shape(self):
+        return (self.weight.shape[0], *self.embedding_dims)
