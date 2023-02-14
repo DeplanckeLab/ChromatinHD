@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="460" height="300" src="docs/static/logo.png" alt="ChromatinHD">
+  <img src="docs/static/logo.png" alt="ChromatinHD">
 </p>
 
 
