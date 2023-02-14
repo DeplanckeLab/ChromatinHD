@@ -1,30 +1,14 @@
 import numpy as np
 import pandas as pd
 
-import scanpy as sc
-
 import xgboost as xgb
 
 import tqdm.auto as tqdm
 
-import dataclasses
-import pathlib
 import typing
+import scipy.sparse
 
 from chromatinhd.flow import Flow
-
-
-def split(n, seed=1, train_ratio=0.8):
-    generator = np.random.RandomState(seed)
-    train_ix = generator.random(n) < train_ratio
-    validation_ix = ~train_ix
-
-    return train_ix, validation_ix
-
-
-def cal_mse(y, predicted):
-    mse = ((predicted - y) ** 2).mean()
-    return mse
 
 
 def scoreit(
@@ -162,7 +146,10 @@ class PeaksGene(Flow):
         self.scores = scores
 
     def score(self, peak_gene_links, folds):
-        X_transcriptome = self.transcriptome.adata.X.tocsc()
+        if scipy.sparse.issparse(self.transcriptome.adata.X):
+            X_transcriptome = self.transcriptome.adata.X.tocsc()
+        else:
+            X_transcriptome = scipy.sparse.csc_matrix(self.transcriptome.adata.X)
         X_peaks = self.peaks.counts.tocsc()
 
         var_transcriptome = self.transcriptome.var
