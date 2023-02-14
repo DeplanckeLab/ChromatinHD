@@ -6,6 +6,7 @@ import torch_scatter
 
 from chromatinhd.embedding import EmbeddingTensor
 from . import spline
+from chromatinhd.models import HybridModel
 
 
 class Decoder(torch.nn.Module):
@@ -122,7 +123,7 @@ class BaselineDecoder(torch.nn.Module):
         return [self.rho_weight.weight]
 
 
-class Decoding(torch.nn.Module):
+class Decoding(torch.nn.Module, HybridModel):
     # mixture_delta_p_scale = 1.0
     def __init__(
         self,
@@ -291,43 +292,6 @@ class Decoding(torch.nn.Module):
             local_cellxgene_ix=data.local_cellxgene_ix,
             cut_localcellxgene_ix=data.cut_localcellxgene_ix,
         )
-
-    def parameters_dense(self, autoextend=True):
-        parameters = [
-            parameter
-            for module in self._modules.values()
-            for parameter in (
-                module.parameters_dense()
-                if hasattr(module, "parameters_dense")
-                else module.parameters()
-            )
-        ]
-
-        # extend with any left over parameters that were not specified in parameters_dense or parameters_sparse
-        def contains(x, y):
-            return any([x is y_ for y_ in y])
-
-        if autoextend:
-            parameters.extend(
-                [
-                    p
-                    for p in self.parameters()
-                    if (not contains(p, self.parameters_sparse()))
-                    and (not contains(p, parameters))
-                ]
-            )
-        return parameters
-
-    def parameters_sparse(self):
-        return [
-            parameter
-            for module in self._modules.values()
-            for parameter in (
-                module.parameters_sparse()
-                if hasattr(module, "parameters_sparse")
-                else []
-            )
-        ]
 
     def _get_likelihood_mixture_cell_gene(
         self, likelihood_mixture, cut_local_cellxgene_ix, n_cells, n_genes
