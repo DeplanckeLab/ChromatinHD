@@ -169,18 +169,75 @@ class DifferentialSlices:
         return cls(position_slices, gene_ixs, cluster_ixs, window, n_genes, n_clusters)
 
     @classmethod
-    def from_peakscores(cls, peakscores, window, n_genes):
-        peakscores["significant"] = (peakscores["logfoldchanges"] > 1.0) & (
-            peakscores["pvals_adj"] < 0.05
+    def from_peakscores(
+        cls,
+        peakscores,
+        window,
+        n_genes,
+        logfoldchanges_cutoff=1.0,
+        pvals_adj_cutoff=0.05,
+    ):
+        # get significant
+        peakscores["significant"] = (
+            peakscores["logfoldchanges"] > logfoldchanges_cutoff
+        ) & (peakscores["pvals_adj"] < pvals_adj_cutoff)
+
+        # join peaks that overlap or are adjacent in any way
+        # we create an adjacency matrix with the number of shared nucleotides as weight
+        # we then check for connected components and merge significant peaks
+
+        import scipy.sparse.csgraph
+
+        peakscores_significant_joined = []
+        for (cluster, gene_ix), peakscores_oi in peakscores.query(
+            "significant"
+        ).groupby(["cluster", "gene_ix"]):
+            # only check for overlaps if there are more than 2 signficant peaks
+            if len(peakscores_oi) > 1:
+                # calculate peak-wise membership within the gene window
+                membership = np.zeros((len(peakscores_oi), window[1] - window[0]))
+                for i, start, end in zip(
+                    np.arange(len(peakscores_oi)),
+                    peakscores_oi.relative_start,
+                    peakscores_oi.relative_end,
+                ):
+                    membership[i, (start - window[0]) : ((end - window[0]) + 1)] = 1
+
+                # calculate adjacency
+                adjacency = np.matmul(membership, membership.T)
+
+                # get connected components
+                connected_components = scipy.sparse.csgraph.connected_components(
+                    adjacency, directed=False
+                )
+
+                # merge
+                peakscores_oi["component"] = connected_components[1]
+                peakscores_oi_joined = peakscores_oi.groupby("component").agg(
+                    {"relative_start": min, "relative_end": max}
+                )
+                peakscores_oi_joined = peakscores_oi_joined.assign(
+                    cluster=cluster, gene_ix=gene_ix
+                )
+            else:
+                peakscores_oi_joined = peakscores_oi.reset_index()[
+                    ["gene_ix", "cluster", "relative_start", "relative_end"]
+                ].copy()
+            peakscores_significant_joined.append(peakscores_oi_joined)
+
+        peakscores_significant = pd.concat(
+            peakscores_significant_joined, ignore_index=True
+        )
+        peakscores_significant["cluster"] = pd.Categorical(
+            peakscores_significant["cluster"],
+            categories=peakscores["cluster"].cat.categories,
         )
 
-        significant = peakscores["significant"]
-        positions = peakscores.loc[
-            significant, ["relative_start", "relative_end"]
-        ].values
+        # get positions
+        positions = peakscores_significant[["relative_start", "relative_end"]].values
         positions = positions - window[0]
-        gene_ixs = peakscores.loc[significant, "gene_ix"].values
-        cluster_ixs = peakscores.loc[significant, "cluster"].cat.codes
+        gene_ixs = peakscores_significant["gene_ix"].values
+        cluster_ixs = peakscores_significant["cluster"].cat.codes
 
         return cls(
             positions,
@@ -218,6 +275,7 @@ class DifferentialSlices:
         balances_raw = []
         dominances = []
         shadows = []
+        differentialdominances = []
         for gene_ix, cluster_ix in itertools.product(
             range(self.n_genes), range(self.n_clusters)
         ):
@@ -287,6 +345,11 @@ class DifferentialSlices:
                 #     raise ValueError()
                 dominances.append((x_.max() / max(x_.max(), x_neighborhoud.max())))
 
+                differentialdominances.append(
+                    (x_ / y_).max()
+                    / max((x_ / y_).max(), (x_neighborhoud / y_neighborhoud).max())
+                )
+
                 # determine local "balancing"
                 balances.append(
                     np.clip(y_neighborhoud - x_neighborhoud, 0, np.inf).sum()
@@ -317,6 +380,7 @@ class DifferentialSlices:
                 "balances_raw": balances_raw,
                 "balance": balances,
                 "dominance": dominances,
+                "differentialdominance": differentialdominances,
                 "shadow": shadows,
             }
         )

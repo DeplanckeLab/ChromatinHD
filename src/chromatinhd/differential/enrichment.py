@@ -49,7 +49,10 @@ def count_motifs(relative_starts, relative_end, gene_ixs, motifscan, window):
         motif_indices.append(
             motifscan.indices[motifscan.indptr[start_ix] : motifscan.indptr[end_ix]]
         )
-    motif_indices = np.hstack(motif_indices)
+    if len(motif_indices) > 0:
+        motif_indices = np.hstack(motif_indices)
+    else:
+        motif_indices = np.array([], dtype=np.int64)
     motif_counts = np.bincount(motif_indices, minlength=motifscan.n_motifs)
 
     return motif_counts
@@ -68,7 +71,10 @@ def count_motifs_genewise(
             motifscan.indices[motifscan.indptr[start_ix] : motifscan.indptr[end_ix]]
             + gene_ix * motifscan.n_motifs
         )
-    motif_indices = np.hstack(motif_indices)
+    if len(motif_indices) > 0:
+        motif_indices = np.hstack(motif_indices)
+    else:
+        motif_indices = np.array([], dtype=np.int64)
     motif_counts = np.bincount(
         motif_indices, minlength=motifscan.n_motifs * n_genes
     ).reshape((n_genes, motifscan.n_motifs))
@@ -88,7 +94,10 @@ def count_motifs_slicewise(relative_starts, relative_end, gene_ixs, motifscan, w
             motifscan.indices[motifscan.indptr[start_ix] : motifscan.indptr[end_ix]]
             + slice_ix * motifscan.n_motifs
         )
-    motif_indices = np.hstack(motif_indices)
+    if len(motif_indices) > 0:
+        motif_indices = np.hstack(motif_indices)
+    else:
+        motif_indices = np.array([], dtype=np.int64)
     motif_counts = np.bincount(
         motif_indices, minlength=motifscan.n_motifs * n_slices
     ).reshape((n_slices, motifscan.n_motifs))
@@ -103,17 +112,23 @@ def select_background(
     window,
     n_genes,
     n_random=100,
-    n_select_random=10,
+    n_background=10,
     seed=None,
 ):
-    # window_oi_gc = count_gc(position_slices[:, 0], position_slices[:, 1], gene_ixs_slices, onehot_promoters)
-    window_oi_gc = count_dinuc(
+    window_oi_gc = count_gc(
         position_slices[:, 0],
         position_slices[:, 1],
         gene_ixs_slices,
         onehot_promoters,
         window,
     )
+    # window_oi_gc = count_dinuc(
+    #     position_slices[:, 0],
+    #     position_slices[:, 1],
+    #     gene_ixs_slices,
+    #     onehot_promoters,
+    #     window,
+    # )
 
     if seed is not None:
         rg = np.random.RandomState(seed)
@@ -123,10 +138,12 @@ def select_background(
     # random position
     position_slices_repeated = position_slices.repeat(n_random, 0)
     random_position_slices = np.zeros_like(position_slices_repeated)
+
     random_position_slices[:, 0] = rg.randint(
         np.ones(position_slices_repeated.shape[0]) * window[0],
         np.ones(position_slices_repeated.shape[0]) * window[1]
-        - (position_slices_repeated[:, 1] - position_slices_repeated[:, 0]),
+        - (position_slices_repeated[:, 1] - position_slices_repeated[:, 0])
+        + 1,
     )
     random_position_slices[:, 1] = random_position_slices[:, 0] + (
         position_slices_repeated[:, 1] - position_slices_repeated[:, 0]
@@ -137,14 +154,20 @@ def select_background(
     random_gene_ixs_slices = rg.randint(n_genes, size=random_position_slices.shape[0])
     # random_gene_ixs_slices = gene_ixs_slices.repeat(n_random, 0)
 
-    # window_random_gc = count_gc(random_position_slices[:, 0], random_position_slices[:, 1], random_gene_ixs_slices, onehot_promoters)
-    window_random_gc = count_dinuc(
+    window_random_gc = count_gc(
         random_position_slices[:, 0],
         random_position_slices[:, 1],
         random_gene_ixs_slices,
         onehot_promoters,
         window,
     )
+    # window_random_gc = count_dinuc(
+    #     random_position_slices[:, 0],
+    #     random_position_slices[:, 1],
+    #     random_gene_ixs_slices,
+    #     onehot_promoters,
+    #     window,
+    # )
 
     random_difference = np.sqrt(
         (
@@ -158,18 +181,20 @@ def select_background(
         ).mean(-1)
     )
 
+    assert n_random >= n_background
+
     chosen_background = np.argsort(random_difference, axis=1)[
-        :, :n_select_random
+        :, :n_background
     ].flatten()
     chosen_background_idx = (
-        np.repeat(np.arange(position_slices.shape[0]), n_select_random) * n_random
+        np.repeat(np.arange(position_slices.shape[0]), n_background) * n_random
         + chosen_background
     )
 
     # control
     # fig, ax = plt.subplots()
     # ax.scatter(window_oi_gc[:, 0], window_random_gc[::n_random, 0])
-    # ax.scatter(window_oi_gc[:, 0], window_random_gc[chosen_background_idx][::n_select_random, 0])
+    # ax.scatter(window_oi_gc[:, 0], window_random_gc[chosen_background_idx][::n_background, 0])
     #
 
     background_position_slices = random_position_slices[chosen_background_idx]
@@ -177,13 +202,13 @@ def select_background(
 
     # control
     # gc_back = count_gc(background_position_slices[:, 0], background_position_slices[:, 1], background_gene_ixs_slices, onehot_promoters)
-    # ax.scatter(window_oi_gc[:, 13], gc_back[::n_select_random, 0])
+    # ax.scatter(window_oi_gc[:, 13], gc_back[::n_background, 0])
     #
 
     # control 2
     # window_oi_dinuc = count_dinuc(position_slices[:, 0], position_slices[:, 1], gene_ixs_slices, onehot_promoters)
     # dinuc_back = count_dinuc(background_position_slices[:, 0], background_position_slices[:, 1], background_gene_ixs_slices, onehot_promoters)
-    # ax.scatter(window_oi_dinuc[:, 13], dinuc_back[::n_select_random][:, 13])
+    # ax.scatter(window_oi_dinuc[:, 13], dinuc_back[::n_background][:, 13])
 
     return background_position_slices, background_gene_ixs_slices
 
@@ -200,7 +225,6 @@ def enrich_windows(
     n_genes,
     window,
     onehot_promoters=None,
-    gene_ids=None,
     oi_slices=None,
     background_slices=None,
     n_background=10,
@@ -212,8 +236,6 @@ def enrich_windows(
     if oi_slices is not None:
         position_slices = position_slices[oi_slices]
         gene_ixs_slices = gene_ixs_slices[oi_slices]
-
-    print(background_position_slices.shape, position_slices.shape)
 
     motif_counts = count_motifs(
         position_slices[:, 0],
@@ -240,6 +262,9 @@ def enrich_windows(
     motif_percs_genewise = motif_counts_genewise / (n_positions_gene[:, None] + 1e-5)
 
     if background_position_slices is None:
+        assert (
+            onehot_promoters is not None
+        ), "Sequences are required for selecting a background"
         background_position_slices, background_gene_ixs_slices = select_background(
             position_slices,
             gene_ixs_slices,
@@ -248,7 +273,7 @@ def enrich_windows(
             n_genes=n_genes,
             window=window,
             n_random=n_background * 10,
-            n_select_random=n_background,
+            n_background=n_background,
         )
 
     background_motif_counts = count_motifs(
@@ -261,7 +286,6 @@ def enrich_windows(
     background_n_positions = (
         background_position_slices[:, 1] - background_position_slices[:, 0]
     ).sum()
-    # motif_counts_slicewise2 = count_motifs_slicewise(background_position_slices[:, 0], background_position_slices[:, 1], background_gene_ixs_slices, motifscan.indices, motifscan.indptr, motifscan.n_motifs)
 
     # create contingencies to calculate conditional odds
     contingencies = (
@@ -353,4 +377,56 @@ def detect_windows(motifscan, position_slices, gene_ixs_slices, gene_ids, window
         motifscores.index.get_level_values("gene")
     ].values
 
+    return motifscores
+
+
+def enrich_cluster_vs_clusters(motifscan, window, regions, clustering_id, n_genes):
+    motifscores = []
+    for cluster_id in regions[clustering_id].cat.categories:
+        oi_slices = regions[clustering_id] == cluster_id
+        background_slices = ~oi_slices
+        motifscores_group = enrich_windows(
+            motifscan,
+            regions[["start", "end"]].values,
+            regions["gene_ix"].values,
+            oi_slices=oi_slices,
+            background_slices=background_slices,
+            n_genes=n_genes,
+            window=window,
+        )
+        motifscores_group[clustering_id] = cluster_id
+
+        motifscores.append(motifscores_group)
+    motifscores = pd.concat(motifscores).reset_index()
+    motifscores = motifscores.reset_index().set_index([clustering_id, "motif"])
+    return motifscores
+
+
+def enrich_cluster_vs_background(
+    motifscan,
+    window,
+    regions,
+    clustering_id,
+    n_genes,
+    onehot_promoters,
+):
+    motifscores = []
+    for cluster_id in regions[clustering_id].cat.categories:
+        print(cluster_id)
+        oi_slices = regions[clustering_id] == cluster_id
+        motifscores_group = enrich_windows(
+            motifscan,
+            regions[["start", "end"]].values,
+            regions["gene_ix"].values,
+            oi_slices=oi_slices,
+            n_genes=n_genes,
+            window=window,
+            onehot_promoters=onehot_promoters,
+            # n_background=1,
+        )
+        motifscores_group[clustering_id] = cluster_id
+
+        motifscores.append(motifscores_group)
+    motifscores = pd.concat(motifscores).reset_index()
+    motifscores = motifscores.reset_index().set_index([clustering_id, "motif"])
     return motifscores

@@ -341,16 +341,18 @@ class MotifsHighlighting:
 
 
 class Peaks(chromatinhd.grid.Ax):
-    def __init__(self, peaks, peak_methods, window, width):
-        super().__init__((width, len(peak_methods) / 5))
+    def __init__(
+        self, peaks, peak_methods, window, width, label_methods=True, panel_height=1
+    ):
+        super().__init__((width, panel_height * len(peak_methods) / 5))
 
         ax = self.ax
         ax.set_xlim(*window)
         for peakname, peaks_method in peaks.groupby("method"):
+            y = peak_methods.loc[peakname, "ix"]
             if ("cluster" not in peaks_method.columns) or pd.isnull(
                 peaks_method["cluster"]
             ).all():
-                y = peak_methods.loc[peakname, "ix"]
                 for _, peak in peaks_method.iterrows():
                     rect = mpl.patches.Rectangle(
                         (peak["start"], y),
@@ -363,7 +365,6 @@ class Peaks(chromatinhd.grid.Ax):
                     ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
                     ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
             else:
-                y = peak_methods.loc[peakname, "ix"]
                 n_clusters = len(peaks_method["cluster"].unique())
                 h = 1 / n_clusters
                 for _, peak in peaks_method.iterrows():
@@ -375,15 +376,22 @@ class Peaks(chromatinhd.grid.Ax):
                         lw=0,
                     )
                     ax.add_patch(rect)
-            y = peak_methods.loc[peakname, "ix"]
             if y > 0:
                 ax.axhline(y, color="#DDD", zorder=10, lw=1)
 
         ax.set_ylim(peak_methods["ix"].max() + 1, 0)
-        ax.set_yticks(peak_methods["ix"] + 0.5)
-        ax.set_yticks(peak_methods["ix"].tolist() + [len(peak_methods)], minor=True)
-        ax.set_yticklabels(peak_methods.index)
-        ax.set_ylabel("Peaks", rotation=0, ha="right", va="center")
+        if label_methods:
+            ax.set_yticks(peak_methods["ix"] + 0.5)
+            ax.set_yticks(peak_methods["ix"].tolist() + [len(peak_methods)], minor=True)
+            ax.set_yticklabels(
+                peak_methods["label"],
+                fontsize=10 if panel_height >= 1 else 7,
+                va="center",
+            )
+            ax.set_ylabel("Peak caller")
+        else:
+            ax.set_yticks([])
+            ax.set_ylabel("")
         ax.tick_params(axis="y", which="major", length=0)
         ax.tick_params(axis="y", which="minor", length=10)
         ax.set_xticks([])
@@ -425,3 +433,169 @@ class GC(chromatinhd.grid.Ax):
         ax.set_ylim(0, 1)
         ax.set_ylabel("%GC", rotation=0, ha="right", va="center")
         ax.set_xticks([])
+
+
+def find_runs(x):
+    return np.where((np.diff(np.concatenate([[False], x, [False]])) != 0))[0].reshape(
+        (-1, 2)
+    )
+
+
+class CommonUnique:
+    def __init__(
+        self,
+        ax,
+        peak_position_chosen_oi,
+        region_position_chosen_oi,
+        expanded_slice_oi,
+        window,
+        method_info,
+        hatch_color="#FFF4",
+    ):
+        # add region and peak unique spans
+        trans = mpl.transforms.blended_transform_factory(
+            y_transform=ax.transAxes, x_transform=ax.transData
+        )
+        for start, end in find_runs(
+            peak_position_chosen_oi & ~region_position_chosen_oi
+        ):
+            start = start + expanded_slice_oi["start"] + window[0]
+            end = end + expanded_slice_oi["start"] + window[0]
+            ax.axvspan(
+                start,
+                end,
+                fc=method_info.loc["peak", "color"] + "44",
+                lw=1,
+                hatch=r"\\\\\\",
+                ec=hatch_color,
+            )
+            rect = mpl.patches.Rectangle(
+                (start, 1),
+                end - start,
+                0.2,
+                transform=trans,
+                fc=method_info.loc["peak", "color"],
+                clip_on=False,
+            )
+            ax.add_patch(rect)
+            # ax.plot([start, end], [1.1, 1.1], transform = trans, color = method_info.loc["peak", "color"], lw = 8, solid_capstyle = "butt", zorder = -1, clip_on = False)
+            # ax.plot([start, end], [0, 0], transform = trans, color = method_info.loc["peak", "color"], lw = 10, solid_capstyle = "butt", zorder = -1)
+        for start, end in find_runs(
+            peak_position_chosen_oi & region_position_chosen_oi
+        ):
+            start = start + expanded_slice_oi["start"] + window[0]
+            end = end + expanded_slice_oi["start"] + window[0]
+            ax.axvspan(
+                start,
+                end,
+                fc=method_info.loc["common", "color"] + "44",
+                lw=1,
+                hatch=r"\\\\\\/////",
+                ec=hatch_color,
+            )
+            rect = mpl.patches.Rectangle(
+                (start, 1),
+                end - start,
+                0.2,
+                transform=trans,
+                fc=method_info.loc["common", "color"],
+                clip_on=False,
+            )
+            ax.add_patch(rect)
+            # ax.plot([start, end], [1.1, 1.1], transform = trans, color = method_info.loc["common", "color"], lw = 8, solid_capstyle = "butt", zorder = -1, clip_on = False)
+            # ax.plot([start, end], [0, 0], transform = trans, color = method_info.loc["common", "color"], lw = 10, solid_capstyle = "butt", zorder = -1)
+        for start, end in find_runs(
+            ~peak_position_chosen_oi & region_position_chosen_oi
+        ):
+            start = start + expanded_slice_oi["start"] + window[0]
+            end = end + expanded_slice_oi["start"] + window[0]
+            ax.axvspan(
+                start,
+                end,
+                fc=method_info.loc["region", "color"] + "44",
+                lw=1,
+                hatch="/////",
+                ec=hatch_color,
+            )
+
+            rect = mpl.patches.Rectangle(
+                (start, 1),
+                end - start,
+                0.2,
+                transform=trans,
+                fc=method_info.loc["region", "color"],
+                clip_on=False,
+            )
+            ax.add_patch(rect)
+            # ax.plot([start, end], [1.1, 1.1], transform = trans, color = method_info.loc["region", "color"], lw = 8, solid_capstyle = "butt", zorder = -1, clip_on = False)
+            # ax.plot([start, end], [0, 0], transform = trans, color = method_info.loc["region", "color"], lw = 10, solid_capstyle = "butt", zorder = -1)
+
+
+class LabelSlice:
+    def __init__(self, ax, gene_label, cluster_label, slice_oi, window):
+        start = slice_oi["start"] + window[0]
+        end = slice_oi["end"] + window[0]
+
+        text = ax.annotate(
+            f"$\\it{{{gene_label}}}$ $\\bf{{{cluster_label}}}$",
+            (0, 1),
+            (2, 2),
+            va="bottom",
+            ha="left",
+            xycoords="axes fraction",
+            textcoords="offset points",
+            fontsize=6,
+            color="#999",
+            zorder=200,
+        )
+        text.set_path_effects(
+            [
+                mpl.patheffects.Stroke(foreground="#FFFFFFFF", linewidth=2),
+                mpl.patheffects.Normal(),
+            ]
+        )
+
+        trans = mpl.transforms.blended_transform_factory(
+            y_transform=ax.transAxes, x_transform=ax.transData
+        )
+        text = ax.annotate(
+            f"{start:+}",
+            (start, 1),
+            (-2, -2),
+            va="top",
+            ha="right",
+            xycoords=trans,
+            textcoords="offset points",
+            fontsize=6,
+            color="#999",
+            zorder=200,
+        )
+        text.set_path_effects(
+            [
+                mpl.patheffects.Stroke(foreground="white", linewidth=2),
+                mpl.patheffects.Normal(),
+            ]
+        )
+        text = ax.annotate(
+            f"{end:+}",
+            (end, 1),
+            (2, -2),
+            va="top",
+            ha="left",
+            xycoords=trans,
+            textcoords="offset points",
+            fontsize=6,
+            color="#999",
+            zorder=200,
+        )
+        text.set_path_effects(
+            [
+                mpl.patheffects.Stroke(foreground="white", linewidth=2),
+                mpl.patheffects.Normal(),
+            ]
+        )
+
+
+class LegendResolution:
+    def __init__(self, ax, resolution):
+        pass
