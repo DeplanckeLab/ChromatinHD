@@ -71,16 +71,21 @@ class PeaksGene(Flow):
         X_testtranscriptome = self.testtranscriptome.adata.X.tocsc()
         X_testpeaks = self.testpeakcounts.counts.tocsc()
 
+        assert X_trainpeaks.shape[1] == X_testpeaks.shape[1]
+
         var_transcriptome = self.traintranscriptome.var
         var_transcriptome["ix"] = np.arange(var_transcriptome.shape[0])
 
-        var_peaks = self.trainpeakcounts.var
-        var_peaks["ix"] = np.arange(var_peaks.shape[0])
+        trainvar_peaks = self.trainpeakcounts.var
+        trainvar_peaks["ix"] = np.arange(trainvar_peaks.shape[0])
 
-        def extract_data(gene_oi, peaks_oi):
-            x = np.array(X_trainpeaks[:, peaks_oi["ix"]].todense())
+        testvar_peaks = self.testpeakcounts.var
+        testvar_peaks["ix"] = np.arange(testvar_peaks.shape[0])
+
+        def extract_data(gene_oi, trainpeaks_oi, testpeaks_oi):
+            x = np.array(X_trainpeaks[:, trainpeaks_oi["ix"]].todense())
             y = np.array(X_traintranscriptome[:, gene_oi["ix"]].todense())[:, 0]
-            x_test = np.array(X_testpeaks[:, peaks_oi["ix"]].todense())
+            x_test = np.array(X_testpeaks[:, testpeaks_oi["ix"]].todense())
             y_test = np.array(X_testtranscriptome[:, gene_oi["ix"]].todense())[:, 0]
             return x, y, x_test, y_test
 
@@ -92,15 +97,20 @@ class PeaksGene(Flow):
             train_ix = fold["cells_train"]
 
             for gene, peak_gene_links_oi in tqdm.tqdm(peak_gene_links.groupby("gene")):
-                peaks_oi = var_peaks.loc[peak_gene_links_oi["peak"]]
+                trainpeaks_oi = trainvar_peaks.loc[peak_gene_links_oi["peak"]]
+                testpeaks_oi = testvar_peaks.loc[peak_gene_links_oi["peak"]]
                 gene_oi = var_transcriptome.loc[gene]
 
-                x, y, x_test, y_test = extract_data(gene_oi, peaks_oi)
+                x, y, x_test, y_test = extract_data(
+                    gene_oi, trainpeaks_oi, testpeaks_oi
+                )
 
                 regressor = self._create_regressor()
 
                 x = self._preprocess_features(x)
                 x[np.isnan(x)] = 0.0
+                x_test = self._preprocess_features(x_test)
+                x_test[np.isnan(x_test)] = 0.0
 
                 result = scoreit(regressor, x, y, train_ix, x_test, y_test)
                 score = pd.DataFrame(

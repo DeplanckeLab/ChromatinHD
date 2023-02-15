@@ -10,3 +10,9 @@ def interpolate_1d(x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor) -> torch
     slope = a.index_select(a.ndim - 1, indices)
     intercept = b.index_select(a.ndim - 1, indices)
     return x * slope + intercept
+
+
+def indices_to_indptr(x, n):
+    return torch.nn.functional.pad(
+        torch.cumsum(torch.bincount(x, minlength=n), 0), (1, 0)
+    )
