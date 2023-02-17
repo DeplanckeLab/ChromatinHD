@@ -118,8 +118,16 @@ class Differential(chromatinhd.grid.Wrap):
         **kwargs,
     ):
         super().__init__(ncol=1, **kwargs)
+        self.show_atac_diff = show_atac_diff
+        self.cmap_atac_diff = cmap_atac_diff
+        self.norm_atac_diff = norm_atac_diff
+        self.window = window
+        self.cluster_info = cluster_info
 
-        for cluster_ix in cluster_info["dimension"]:
+        if title is not False:
+            self.set_title("ATAC-seq insertion")
+
+        for cluster_ix in self.cluster_info["dimension"]:
             ax_genome = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax_genome)
 
@@ -141,12 +149,21 @@ class Differential(chromatinhd.grid.Wrap):
                     color="#333",
                 )
 
-            if show_atac_diff:
+            ax.set_yticks([])
+            ax.set_xticks([])
+        self.draw(plotdata_genome, plotdata_genome_mean)
+
+    def draw(self, plotdata_genome, plotdata_genome_mean):
+        self.artists = []
+
+        for ax, cluster_ix in zip(self.elements, self.cluster_info["dimension"]):
+            ax = ax.ax
+            if self.show_atac_diff:
                 # posterior distribution of atac-seq cuts
                 plotdata_genome_cluster = plotdata_genome.xs(
                     cluster_ix, level="cluster"
                 )
-                ax.plot(
+                (background,) = ax.plot(
                     plotdata_genome_mean.index,
                     np.exp(plotdata_genome_mean["prob"]),
                     color="black",
@@ -154,7 +171,7 @@ class Differential(chromatinhd.grid.Wrap):
                     zorder=1,
                     linestyle="dashed",
                 )
-                ax.plot(
+                (differential,) = ax.plot(
                     plotdata_genome_cluster.index,
                     np.exp(plotdata_genome_cluster["prob"]),
                     color="black",
@@ -173,9 +190,10 @@ class Differential(chromatinhd.grid.Wrap):
                 verts = np.vstack([p.vertices for p in polygon.get_paths()])
                 c = plotdata_genome_cluster["prob_diff"].values
                 c[c == np.inf] = 0.0
+                c[c == -np.inf] = -10.0
                 gradient = ax.imshow(
                     c.reshape(1, -1),
-                    cmap=cmap_atac_diff,
+                    cmap=self.cmap_atac_diff,
                     aspect="auto",
                     extent=[
                         verts[:, 0].min(),
@@ -184,16 +202,15 @@ class Differential(chromatinhd.grid.Wrap):
                         verts[:, 1].max(),
                     ],
                     zorder=25,
-                    norm=norm_atac_diff,
+                    norm=self.norm_atac_diff,
                 )
                 gradient.set_clip_path(polygon.get_paths()[0], transform=ax.transData)
                 polygon.set_alpha(0)
 
-                ax.set_yticks([])
-                ax.set_xticks([])
+                self.artists.extend([gradient, polygon, background, differential])
 
-        if title is not False:
-            self.set_title("ATAC-seq insertion")
+    def get_artists(self):
+        return self.artists
 
 
 class DifferentialExpression(chromatinhd.grid.Wrap):

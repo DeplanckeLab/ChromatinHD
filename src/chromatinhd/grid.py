@@ -142,6 +142,14 @@ class Wrap(Element):
         self.dim = (width, height)
 
     def set_title(self, label):
+        if self.title is not None:
+            try:
+                self.title.ax.remove()
+            except KeyError:
+                pass
+            except AttributeError:
+                pass
+
         self.title = Title(label)
 
     def position(self, fig, pos=(0, 0)):
@@ -153,6 +161,61 @@ class Wrap(Element):
 
     def __getitem__(self, key):
         return list(self.elements)[key]
+
+
+class WrapAutobreak(Wrap):
+    title = None
+
+    def __init__(
+        self,
+        max_width,
+        max_n_row=-1,
+        padding_width=0.5,
+        padding_height=None,
+        margin_height=0.5,
+        margin_width=0.5,
+    ):
+        self.max_width = max_width
+        self.max_n_row = max_n_row
+        super().__init__(
+            ncol=1,
+            padding_width=padding_width,
+            padding_height=padding_height,
+            margin_height=margin_height,
+            margin_width=margin_width,
+        )
+
+    def align(self):
+        width = 0
+        height = 0
+        self.nrow = 1
+        x = 0
+        y = 0
+        next_y = 0
+
+        if self.title is not None:
+            y += self.title.height
+        for i, el in enumerate(self.elements):
+            el.align()
+
+            el.pos = (x, y)
+
+            next_y = max(next_y, y + el.height + self.padding_height)
+            height = max(height, next_y)
+
+            width = max(width, x + el.width)
+
+            x += el.width + self.padding_width
+
+            if x > self.max_width:
+                self.nrow += 1
+                x = 0
+                y = next_y
+
+        if self.title is not None:
+            self.title.dim = (width, self.title.dim[1])
+
+        self.dim = (width, height)
 
 
 class Grid(Element):
