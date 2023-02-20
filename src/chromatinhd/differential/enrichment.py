@@ -439,6 +439,7 @@ def enrich_windows_genewise(
         {
             "odds": odds_conditional,
             "n": background_motif_counts.flatten(),
+            "n_found": motif_counts.flatten(),
             "in": (motif_counts / (background_motif_counts + 1e-5)).flatten(),
             "perc": (motif_counts / (n_positions + 1e-5)).flatten(),
             "pval": p_values.flatten(),
@@ -532,7 +533,6 @@ def enrich_cluster_vs_background(
     for cluster_id in regions[clustering_id].cat.categories:
         print(cluster_id)
         oi_slices = regions[clustering_id] == cluster_id
-        print(cluster_id, oi_slices.sum())
         if oi_slices.sum() > 0:
             motifscores_group = enrich_windows(
                 motifscan,
@@ -552,10 +552,12 @@ def enrich_cluster_vs_background(
     return motifscores
 
 
+import tqdm.auto as tqdm
+
+
 def enrich_cluster_vs_all(motifscan, window, regions, clustering_id, n_genes, gene_ids):
     motifscores = []
-    for cluster_id in regions[clustering_id].cat.categories:
-        print(cluster_id)
+    for cluster_id in tqdm.tqdm(regions[clustering_id].cat.categories):
         oi_slices = regions[clustering_id] == cluster_id
         motifscores_group = enrich_windows_genewise(
             motifscan,
