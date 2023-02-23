@@ -42,6 +42,7 @@ setuptools.setup(
         "seaborn",
         "pybedtools",
         "Cython",
+        "fisher",
     ],
     extras_require={
         "full": [],
