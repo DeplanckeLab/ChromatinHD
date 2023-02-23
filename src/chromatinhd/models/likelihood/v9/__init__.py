@@ -54,7 +54,7 @@ class Decoder(torch.nn.Module):
 
     def forward(self, latent, genes_oi):
         # genes oi is only used to get the logits
-        # given that we later pool across all genes
+        # we calculate the rho for all genes because we pool using softmax later
         logit_weight = self.logit_weight(genes_oi)
         rho_weight = self.rho_weight.get_full_weight()
         nn_output = self.nn(latent)
@@ -223,8 +223,6 @@ class Decoding(torch.nn.Module, HybridModel):
         n_cells,
         n_genes,
     ):
-        n_genes = self.n_total_genes
-
         # decode
         mixture_delta, rho_delta = self.decoder(latent.to(torch.float), genes_oi)
 
@@ -236,12 +234,6 @@ class Decoding(torch.nn.Module, HybridModel):
         rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
         rho_delta_kl = rho_delta_p.log_prob(self.decoder.rho_weight(genes_oi))
 
-        # fragmentcounts_p = torch.distributions.Poisson(expression)
-        # fragmentcounts = torch.reshape(
-        #     torch.bincount(local_cellxgene_ix, minlength=n_cells * n_genes),
-        #     (n_cells, n_genes),
-        # )
-
         # fragment counts
         mixture_delta_cellxgene = mixture_delta.view(
             np.prod(mixture_delta.shape[:2]), mixture_delta.shape[-1]
@@ -252,14 +244,10 @@ class Decoding(torch.nn.Module, HybridModel):
             cut_coordinates, genes_oi, cut_local_gene_ix, mixture_delta
         )
 
-        # print(likelihood_mixture.shape)
-        # print(rho_cuts.shape)
-
         # overall likelihood
         likelihood = self.track["likelihood"] = (
             likelihood_mixture + torch.log(rho_cuts) + math.log(self.n_total_genes)
         )
-        # likelihood_scale = self.n_total_cells / n_cells
         likelihood_scale = 1.0
 
         # mixture kl
@@ -275,7 +263,7 @@ class Decoding(torch.nn.Module, HybridModel):
             - rho_delta_kl.sum()
         )
 
-        return elbo  # / self.n_total_cells
+        return elbo
 
     def forward(self, data):
         if not hasattr(data, "latent"):

@@ -21,6 +21,7 @@ class Result:
     cells_oi: np.ndarray
     genes_oi: np.ndarray
     window: np.ndarray
+    n_total_genes: int
 
     @property
     def n_cells(self):
@@ -62,7 +63,7 @@ class Result:
             keep_cuts
         ]
         self.cut_localcellxgene_ix = (
-            self.cut_local_cell_ix * self.n_genes
+            self.cut_local_cell_ix * self.n_total_genes
             + self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
         )
 
@@ -87,6 +88,10 @@ class FragmentsResult(Result):
     pass
 
 
+def cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes):
+    return (cells_oi[:, None] * n_genes + genes_oi).flatten()
+
+
 class Fragments:
     cellxgene_batch_size: int
 
@@ -95,6 +100,8 @@ class Fragments:
     out_coordinates: torch.Tensor
     out_genemapping: torch.Tensor
     out_local_cellxgene_ix: torch.Tensor
+
+    n_genes: int
 
     def __init__(
         self,
@@ -120,6 +127,8 @@ class Fragments:
         fragment_buffer_size = n_fragment_per_cellxgene * cellxgene_batch_size
         self.fragment_buffer_size = fragment_buffer_size
 
+        self.n_genes = fragments.n_genes
+
     def preload(self):
         self.out_coordinates = torch.from_numpy(
             np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
@@ -141,6 +150,10 @@ class Fragments:
         coordinates = self.coordinates
         genemapping = self.genemapping
         cellxgene_indptr = self.cellxgene_indptr
+
+        minibatch.cellxgene_oi = cell_gene_to_cellxgene(
+            minibatch.cells_oi, minibatch.genes_oi, self.n_genes
+        )
 
         assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size, (
             len(minibatch.cellxgene_oi),
@@ -170,6 +183,7 @@ class Fragments:
             n_fragments=n_fragments,
             genemapping=self.out_genemapping,
             window=self.window,
+            n_total_genes=self.n_genes,
             **minibatch.items(),
         )
 

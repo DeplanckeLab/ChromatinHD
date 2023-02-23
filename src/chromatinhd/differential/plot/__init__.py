@@ -115,6 +115,7 @@ class Differential(chromatinhd.grid.Wrap):
         cmap_atac_diff=mpl.cm.RdBu_r,
         norm_atac_diff=mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True),
         title=True,
+        ymax=20,
         **kwargs,
     ):
         super().__init__(ncol=1, **kwargs)
@@ -133,7 +134,7 @@ class Differential(chromatinhd.grid.Wrap):
 
             # genome
             ax = ax_genome.ax
-            ax.set_ylim(0, 20)
+            ax.set_ylim(0, ymax)
             ax.set_xlim(*window)
             ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1)
 
@@ -616,3 +617,90 @@ class LabelSlice:
 class LegendResolution:
     def __init__(self, ax, resolution):
         pass
+
+
+import io
+
+chromstate_info = pd.read_table(
+    io.StringIO(
+        """ix	mnemomic	description	color_name	color_code
+1	TssA	Active TSS	Red	255,0,0
+2	TssAFlnk	Flanking Active TSS	Orange Red	255,69,0
+3	TxFlnk	Transcr. at gene 5' and 3'	LimeGreen	50,205,50
+4	Tx	Strong transcription	Green	0,128,0
+5	TxWk	Weak transcription	DarkGreen	0,100,0
+6	EnhG	Genic enhancers	GreenYellow	194,225,5
+7	Enh	Enhancers	Yellow	255,255,0
+8	ZNF/Rpts	ZNF genes & repeats	Medium Aquamarine	102,205,170
+9	Het	Heterochromatin	PaleTurquoise	138,145,208
+10	TssBiv	Bivalent/Poised TSS	IndianRed	205,92,92
+11	BivFlnk	Flanking Bivalent TSS/Enh	DarkSalmon	233,150,122
+12	EnhBiv	Bivalent Enhancer	DarkKhaki	189,183,107
+13	ReprPC	Repressed PolyComb	Silver	128,128,128
+14	ReprPCWk	Weak Repressed PolyComb	Gainsboro	192,192,192
+15	Quies	Quiescent/Low	White	255,255,255
+"""
+    )
+).set_index("mnemomic")
+chromstate_info["color"] = [
+    np.array(c.split(","), dtype=float) / 255 for c in chromstate_info["color_code"]
+]
+
+
+class Annot(chromatinhd.grid.Ax):
+    def __init__(self, plotdata, window, width, cluster_info):
+        super().__init__((width, len(cluster_info) * 0.15))
+
+        ax = self.ax
+        ax.set_xlim(*window)
+
+        cluster_info["ix"] = np.arange(len(cluster_info))
+
+        for cluster in cluster_info.index:
+            plotdata_cluster = plotdata.query("cluster == @cluster")
+            y = cluster_info.loc[cluster, "ix"]
+            for _, annot in plotdata_cluster.iterrows():
+                color = chromstate_info.loc[annot["name"], "color"]
+                patch = mpl.patches.Rectangle(
+                    (annot["start"], y), annot["end"] - annot["start"], 1, fc=color
+                )
+                ax.add_patch(patch)
+
+        ax.set_ylim(0, len(cluster_info))
+        ax.set_yticks(cluster_info["ix"] + 0.5)
+        ax.set_yticklabels(cluster_info.index)
+        ax.invert_yaxis()
+
+        # ax.plot(
+        #     plotdata["position"],
+        #     plotdata["gc"],
+        #     color="#333",
+        #     lw=1,
+        # )
+
+        # ax.set_ylim(0, 1)
+        # ax.set_ylabel("%GC", rotation=0, ha="right", va="center")
+        # ax.set_xticks([])
+
+
+class AnnotLegend(chromatinhd.grid.Ax):
+    def __init__(self, ax_annot, width=3):
+        super().__init__((width, ax_annot.dim[1]))
+
+        ax = self.ax
+
+        chromstate_info["ix"] = np.arange(len(chromstate_info))
+
+        ax.set_ylim(0, self.dim[1])
+
+        for chromstate, chromstate_info_ in chromstate_info.iterrows():
+            ax.text(
+                0,
+                chromstate_info_["ix"] * 0.1,
+                fontsize=8,
+                s=chromstate_info_["description"],
+                color=chromstate_info_["color"],
+                va="top",
+            )
+        ax.invert_yaxis()
+        ax.axis("off")
