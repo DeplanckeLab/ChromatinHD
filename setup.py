@@ -42,6 +42,7 @@ setuptools.setup(
         "seaborn",
         "pybedtools",
         "Cython",
+        "fisher",
     ],
     extras_require={
         "full": [],
@@ -54,7 +55,7 @@ setuptools.setup(
             "jupytext",
             "pytest",
             "statsmodels",
-            "faiss-cpu",
+            # "faiss-cpu",
         ],
     },
 )
