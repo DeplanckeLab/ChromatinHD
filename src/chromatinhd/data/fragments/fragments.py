@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow
+from chromatinhd.flow import Flow, StoredTorchInt32, Stored
 
 import torch
 import math
@@ -64,6 +64,122 @@ class Fragments(Flow):
     def create_cellxgene_indptr(self):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
 
+        if not (cellxgene.diff() >= 0).all():
+            raise ValueError(
+                "Fragments should be ordered by cell then gene (ascending)"
+            )
+
+        n_cellxgene = self.n_genes * self.n_cells
+        cellxgene_indptr = torch.nn.functional.pad(
+            torch.cumsum(torch.bincount(cellxgene, minlength=n_cellxgene), 0), (1, 0)
+        )
+        assert self.coordinates.shape[0] == cellxgene_indptr[-1]
+        if not (cellxgene_indptr.diff() >= 0).all():
+            raise ValueError(
+                "Fragments should be ordered by cell then gene (ascending)"
+            )
+        self.cellxgene_indptr = cellxgene_indptr
+
+    _genemapping = None
+
+    @property
+    def genemapping(self):
+        if self._genemapping is None:
+            self._genemapping = self.mapping[:, 1].contiguous()
+        return self._genemapping
+
+    _cellmapping = None
+
+    @property
+    def cellmapping(self):
+        if self._cellmapping is None:
+            self._cellmapping = self.mapping[:, 0].contiguous()
+        return self._cellmapping
+
+    _var = None
+
+    @property
+    def var(self):
+        if self._var is None:
+            self._var = pd.read_table(self.path / "var.tsv", index_col=0)
+        return self._var
+
+    @var.setter
+    def var(self, value):
+        value.index.name = "gene"
+        value.to_csv(self.path / "var.tsv", sep="\t")
+        self._var = value
+
+    _obs = None
+
+    @property
+    def obs(self):
+        if self._obs is None:
+            self._obs = pd.read_table(self.path / "obs.tsv", index_col=0)
+        return self._obs
+
+    @obs.setter
+    def obs(self, value):
+        value.index.name = "gene"
+        value.to_csv(self.path / "obs.tsv", sep="\t")
+        self._obs = value
+
+    _n_genes = None
+
+    @property
+    def n_genes(self):
+        if self._n_genes is None:
+            self._n_genes = self.var.shape[0]
+        return self._n_genes
+
+    _n_cells = None
+
+    @property
+    def n_cells(self):
+        if self._n_cells is None:
+            self._n_cells = self.obs.shape[0]
+        return self._n_cells
+
+    @property
+    def local_cellxgene_ix(self):
+        return self.cellmapping * self.n_genes + self.genemapping
+
+    def estimate_fragment_per_cellxgene(self):
+        return math.ceil(self.coordinates.shape[0] / self.n_cells / self.n_genes * 2)
+
+    def create_cut_data(self):
+        cut_coordinates = self.coordinates.flatten()
+        cut_coordinates = (cut_coordinates - self.window[0]) / (
+            self.window[1] - self.window[0]
+        )
+        keep_cuts = (cut_coordinates >= 0) & (cut_coordinates <= 1)
+        cut_coordinates = cut_coordinates[keep_cuts]
+
+        self.cut_coordinates = cut_coordinates
+
+        self.cut_local_gene_ix = self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
+        self.cut_local_cell_ix = self.cellmapping.expand(2, -1).T.flatten()[keep_cuts]
+
+    @property
+    def genes_oi_torch(self):
+        return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+
+    @property
+    def cells_oi_torch(self):
+        return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+
+
+class ChunkedFragments(Flow):
+    chunk_size = Stored("chunk_size")
+    chunkcoords = StoredTorchInt32("chunkcoords")
+    chunkcoords_indptr = StoredTorchInt32("chunkcoords_indptr")
+    clusters = StoredTorchInt32("clusters")
+    relcoords = StoredTorchInt32("relcoords")
+
+    clusters = Stored("clusters")
+    chromosomes = Stored("chromosomes")
+
+    def create_chunkcoords_indptr(self):
         if not (cellxgene.diff() >= 0).all():
             raise ValueError(
                 "Fragments should be ordered by cell then gene (ascending)"
