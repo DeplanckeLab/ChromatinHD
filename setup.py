@@ -57,5 +57,6 @@ setuptools.setup(
             "statsmodels",
             "faiss-cpu",
         ],
+        "eqtl": ["cyvcf2", "xarray"],
     },
 )
