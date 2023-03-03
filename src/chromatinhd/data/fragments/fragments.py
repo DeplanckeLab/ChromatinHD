@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow, StoredTorchInt32, Stored
+from chromatinhd.flow import Flow, StoredTorchInt32, Stored, StoredTorchInt64
 
 import torch
 import math
@@ -171,7 +171,7 @@ class Fragments(Flow):
 
 class ChunkedFragments(Flow):
     chunk_size = Stored("chunk_size")
-    chunkcoords = StoredTorchInt32("chunkcoords")
+    chunkcoords = StoredTorchInt64("chunkcoords")
     chunkcoords_indptr = StoredTorchInt32("chunkcoords_indptr")
     clusters = StoredTorchInt32("clusters")
     relcoords = StoredTorchInt32("relcoords")
