@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from chromatinhd.embedding import EmbeddingTensor
 
@@ -13,7 +14,8 @@ class LogfoldPredictor(torch.nn.Module):
         self.variantxgene_cluster_effect.data[:] = 0.0
 
     def forward(self, variantxgene_ixs):
-        fc_log = self.variantxgene_cluster_effect[variantxgene_ixs]
+        # fc_log [cluster, variantxgene]
+        fc_log = self.variantxgene_cluster_effect[variantxgene_ixs].transpose(1, 0)
         self.elbo = torch.distributions.Normal(0.0, 0.1).log_prob(fc_log)
         return fc_log
 
@@ -55,8 +57,19 @@ class ExpressionPredictor(torch.nn.Module):
         baseline_log.requires_grad = True
         self.baseline_log = torch.nn.Parameter(baseline_log)
 
-    def forward(self, fc_log, variantxgene_to_gene, genotypes, expression_obs):
+    def forward(
+        self,
+        fc_log,
+        genotypes,
+        expression_obs,
+        variantxgene_to_gene,
+        local_variant_to_local_variantxgene_selector,
+        variantxgene_to_local_gene,
+    ):
         self.track = {}
+
+        # genotype [donor, variant] -> [donor, variantxgene]
+        genotypes = genotypes[:, local_variant_to_local_variantxgene_selector]
 
         # genotype [donor, variantxgene] -> [donor, (cluster), variantxgene]
         # fc_log [cluster, variantxgene] -> [(donor), cluster, variantxgene]
@@ -80,6 +93,9 @@ class ExpressionPredictor(torch.nn.Module):
 
         expression_dist = NegativeBinomial2(expressed, dispersion)
 
+        # expression_obs [donor, cluster, gene] -> [donor, cluster, variantxgene]
+        expression_obs = expression_obs[:, :, variantxgene_to_local_gene]
+
         # expression_obs [donor, cluster, variantxgene]
         expression_likelihood = expression_dist.log_prob(expression_obs)
 
@@ -89,7 +105,7 @@ class ExpressionPredictor(torch.nn.Module):
 
         self.elbo = elbo
 
-        return
+        return expressed
 
     def get_elbo(self):
         return self.elbo
@@ -97,9 +113,31 @@ class ExpressionPredictor(torch.nn.Module):
 
 class Model(torch.nn.Module):
     def __init__(self, n_genes, n_clusters, n_variantxgenes, n_donors, lib, baseline):
+        super().__init__()
         self.fc_log_predictor = LogfoldPredictor(n_clusters, n_variantxgenes)
         self.expression_predictor = ExpressionPredictor(
             n_genes, n_clusters, n_donors, lib, baseline
+        )
+
+    @classmethod
+    def create(cls, transcriptome, genotype, gene_variants_mapping):
+        """
+        Creates the model using the data, i.e. transcriptome, genotype and gene_variants_mapping
+        """
+        n_variantxgenes = sum(len(variants) for variants in gene_variants_mapping)
+
+        lib = transcriptome.X.sum(-1).astype(np.float32)
+        lib_torch = torch.from_numpy(lib)
+
+        baseline = (transcriptome.X / np.expand_dims(lib + 1e-8, -1)).mean(0)
+        baseline_torch = torch.from_numpy(baseline)
+        return cls(
+            n_genes=len(transcriptome.var),
+            n_clusters=len(transcriptome.clusters_info),
+            n_variantxgenes=n_variantxgenes,
+            n_donors=len(transcriptome.donors_info),
+            lib=lib_torch,
+            baseline=baseline_torch,
         )
 
     def forward(self, data):
@@ -108,9 +146,11 @@ class Model(torch.nn.Module):
         )
         expression = self.expression_predictor(
             fc_log,
-            data.variantxgene_to_gene,
             data.genotypes,
             data.expression,
+            data.variantxgene_to_gene,
+            data.local_variant_to_local_variantxgene_selector,
+            data.variantxgene_to_local_gene,
         )
 
         elbo = -self.expression_predictor.get_elbo() - self.fc_log_predictor.get_elbo()

@@ -4,20 +4,20 @@ import torch
 
 
 @dataclasses.dataclass
+class Minibatch:
+    genes_oi: np.ndarray
+
+
+@dataclasses.dataclass
 class Data:
-    relative_coordinates: torch.Tensor
-    local_cluster_ixs: torch.Tensor
-    local_clusterxvariant_indptr: torch.Tensor
-    cluster_cut_lib: torch.Tensor
-    local_variant_to_local_variantxgene_reshaper: torch.Tensor
     variantxgene_to_gene: torch.Tensor
-    variantxgene_to_local_gene: torch.Tensor
     variantxgene_ixs: torch.Tensor
+    local_variant_to_local_variantxgene_selector: torch.Tensor
+    variantxgene_to_local_gene: torch.Tensor
 
     expression: torch.Tensor
     genotypes: torch.Tensor
 
-    window_size: np.ndarray
     variants_oi: np.ndarray
     genes_oi: np.ndarray
     clusters_oi: np.ndarray
@@ -42,10 +42,11 @@ class Data:
 class Loader:
     def __init__(self, transcriptome, genotype, gene_variants_mapping):
         # map genes to variantxgene
-        gene_variantxgene_ix_mapping = []
+        self.gene_variants_mapping = gene_variants_mapping
+        self.gene_variantxgene_ix_mapping = []
         i = 0
         for variants in gene_variants_mapping:
-            gene_variantxgene_ix_mapping.append(np.arange(i, i + len(variants)))
+            self.gene_variantxgene_ix_mapping.append(np.arange(i, i + len(variants)))
             i += len(variants)
         self.n_variantxgenes = i
 
@@ -54,8 +55,9 @@ class Loader:
         )
 
         self.expression = transcriptome.X
+        self.genotypes = genotype.genotypes
 
-    def load(self, minibatch):
+    def load(self, minibatch: Minibatch):
         # this will map a variant_ix to a local_variant_ix
         # initially all -1, given that the variant is not (yet) in the variants_oi
         self.variant_ix_to_local_variant_ix[:] = -1
@@ -100,3 +102,23 @@ class Loader:
         variantxgene_to_gene = np.array(variantxgene_to_gene)
         variantxgene_to_local_gene = np.array(variantxgene_to_local_gene)
         variantxgene_ixs = np.array(variantxgene_ixs)
+
+        # expression
+        expression = self.expression[:, :, minibatch.genes_oi]
+
+        # genotypes
+        genotypes = self.genotypes[:, variants_oi]
+
+        return Data(
+            variantxgene_to_gene=torch.from_numpy(variantxgene_to_gene),
+            variantxgene_ixs=torch.from_numpy(variantxgene_ixs),
+            expression=torch.from_numpy(expression),
+            genotypes=torch.from_numpy(genotypes),
+            variants_oi=torch.from_numpy(variants_oi),
+            genes_oi=torch.from_numpy(minibatch.genes_oi),
+            local_variant_to_local_variantxgene_selector=torch.from_numpy(
+                local_variant_to_local_variantxgene_selector
+            ),
+            variantxgene_to_local_gene=torch.from_numpy(variantxgene_to_local_gene),
+            clusters_oi=None,
+        )
