@@ -111,41 +111,45 @@ class Trace:
         self.n_last_train_steps = self.n_current_train_steps
         self.n_current_train_steps = 0
 
-        current_validation_steps = pd.DataFrame(
-            self.validation_steps[-(self.n_current_validation_steps) :]
-        )
-        current_loss = current_validation_steps["loss"].mean()
-        if (self.n_last_validation_steps is not None) and (
-            self.n_last_validation_steps > 0
-        ):
-            if self.n_current_validation_steps == 0:
-                raise ValueError("No validation steps were run since last checkpoint")
-            assert len(self.validation_steps) >= (
-                self.n_current_validation_steps + self.n_last_validation_steps
+        if len(self.validation_steps) > 0:
+            current_validation_steps = pd.DataFrame(
+                self.validation_steps[-(self.n_current_validation_steps) :]
             )
+            current_loss = current_validation_steps["loss"].mean()
+            if (self.n_last_validation_steps is not None) and (
+                self.n_last_validation_steps > 0
+            ):
+                if self.n_current_validation_steps == 0:
+                    raise ValueError(
+                        "No validation steps were run since last checkpoint"
+                    )
+                assert len(self.validation_steps) >= (
+                    self.n_current_validation_steps + self.n_last_validation_steps
+                )
 
-            last_validation_steps = pd.DataFrame(
-                self.validation_steps[
-                    -(
-                        self.n_current_validation_steps + self.n_last_validation_steps
-                    ) : -(self.n_current_validation_steps)
-                ]
-            )
+                last_validation_steps = pd.DataFrame(
+                    self.validation_steps[
+                        -(
+                            self.n_current_validation_steps
+                            + self.n_last_validation_steps
+                        ) : -(self.n_current_validation_steps)
+                    ]
+                )
 
-            diff_loss = (
-                current_validation_steps["loss"].mean()
-                - last_validation_steps["loss"].mean()
-            )
-            self.last_validation_diff.append(diff_loss)
-            perc_diff_loss = diff_loss / current_loss
+                diff_loss = (
+                    current_validation_steps["loss"].mean()
+                    - last_validation_steps["loss"].mean()
+                )
+                self.last_validation_diff.append(diff_loss)
+                perc_diff_loss = diff_loss / current_loss
 
-            print(
-                f"{'validation':>10} {current_loss:+.2f} Δ{_c.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}"
-            )
-        else:
-            print(f"{'validation':>10} {current_loss:+.2f}")
-        self.n_last_validation_steps = self.n_current_validation_steps
-        self.n_current_validation_steps = 0
+                print(
+                    f"{'validation':>10} {current_loss:+.2f} Δ{_c.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}"
+                )
+            else:
+                print(f"{'validation':>10} {current_loss:+.2f}")
+            self.n_last_validation_steps = self.n_current_validation_steps
+            self.n_current_validation_steps = 0
 
         self.current_checkpoint += 1
 
