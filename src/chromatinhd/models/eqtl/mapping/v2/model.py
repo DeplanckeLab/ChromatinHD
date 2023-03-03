@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 from chromatinhd.embedding import EmbeddingTensor
+from chromatinhd.models import HybridModel
 
 
 class LogfoldPredictor(torch.nn.Module):
@@ -9,18 +10,21 @@ class LogfoldPredictor(torch.nn.Module):
         super().__init__()
 
         self.variantxgene_cluster_effect = EmbeddingTensor(
-            n_variantxgenes, (n_clusters,)
+            n_variantxgenes, (n_clusters,), sparse=True
         )
         self.variantxgene_cluster_effect.data[:] = 0.0
 
     def forward(self, variantxgene_ixs):
         # fc_log [cluster, variantxgene]
         fc_log = self.variantxgene_cluster_effect[variantxgene_ixs].transpose(1, 0)
-        self.elbo = torch.distributions.Normal(0.0, 0.1).log_prob(fc_log)
+        self.elbo = -torch.distributions.Normal(0.0, 0.1).log_prob(fc_log)
         return fc_log
 
     def get_elbo(self):
         return self.elbo
+
+    def parameters_sparse(self):
+        return [self.variantxgene_cluster_effect.weight]
 
 
 class NegativeBinomial2(torch.distributions.NegativeBinomial):
@@ -99,7 +103,7 @@ class ExpressionPredictor(torch.nn.Module):
         # expression_obs [donor, cluster, variantxgene]
         expression_likelihood = expression_dist.log_prob(expression_obs)
 
-        elbo = -expression_likelihood.sum()
+        elbo = -expression_likelihood
 
         self.track.update(locals())
 
@@ -111,16 +115,20 @@ class ExpressionPredictor(torch.nn.Module):
         return self.elbo
 
 
-class Model(torch.nn.Module):
-    def __init__(self, n_genes, n_clusters, n_variantxgenes, n_donors, lib, baseline):
+class Model(torch.nn.Module, HybridModel):
+    def __init__(
+        self, n_genes, n_clusters, n_variantxgenes, n_donors, lib, baseline, dummy=False
+    ):
         super().__init__()
+        self.n_variantxgenes = n_variantxgenes
         self.fc_log_predictor = LogfoldPredictor(n_clusters, n_variantxgenes)
         self.expression_predictor = ExpressionPredictor(
             n_genes, n_clusters, n_donors, lib, baseline
         )
+        self.dummy = dummy
 
     @classmethod
-    def create(cls, transcriptome, genotype, gene_variants_mapping):
+    def create(cls, transcriptome, genotype, gene_variants_mapping, **kwargs):
         """
         Creates the model using the data, i.e. transcriptome, genotype and gene_variants_mapping
         """
@@ -138,12 +146,15 @@ class Model(torch.nn.Module):
             n_donors=len(transcriptome.donors_info),
             lib=lib_torch,
             baseline=baseline_torch,
+            **kwargs
         )
 
     def forward(self, data):
         fc_log = self.fc_log_predictor(
             data.variantxgene_ixs,
         )
+        if self.dummy:
+            fc_log[:] = 0.0
         expression = self.expression_predictor(
             fc_log,
             data.genotypes,
@@ -153,6 +164,12 @@ class Model(torch.nn.Module):
             data.variantxgene_to_local_gene,
         )
 
-        elbo = -self.expression_predictor.get_elbo() - self.fc_log_predictor.get_elbo()
+        elbo = (
+            self.expression_predictor.get_elbo().sum()
+            + self.fc_log_predictor.get_elbo().sum()
+        )
 
         return elbo
+
+    def get_full_elbo(self):
+        return self.expression_predictor.get_elbo()

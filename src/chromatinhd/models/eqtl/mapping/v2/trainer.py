@@ -47,31 +47,8 @@ class Trainer:
 
             # checkpoint if necessary
             if (self.epoch % self.checkpoint_every_epoch) == 0:
-                for hook in self.hooks_checkpoint:
-                    hook.start()
-
-                with torch.no_grad():
-                    for data_validation in self.loaders_validation:
-                        data_validation = data_validation.to(self.device)
-
-                        loss = self.model(data_validation).sum()
-
-                        self.trace.append(
-                            loss.item(), self.epoch, self.step_ix, "validation"
-                        )
-
-                        for hook in self.hooks_checkpoint:
-                            hook.run_individual(self.model, data_validation)
-
-                        self.loaders_validation.submit_next()
                 print(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
                 self.trace.checkpoint()
-
-                for hook in self.hooks_checkpoint:
-                    hook.finish()
-
-                for hook in self.hooks_checkpoint2:
-                    hook.run(self.model)
 
             # train
             for data_train in self.loaders:
