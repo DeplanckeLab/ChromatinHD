@@ -143,7 +143,14 @@ class DifferentialSlices:
 
     @classmethod
     def from_positions(
-        cls, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters
+        cls,
+        positions,
+        gene_ixs,
+        cluster_ixs,
+        window,
+        n_genes,
+        n_clusters,
+        resolution=1,
     ):
         groups = np.hstack(
             [
@@ -161,9 +168,12 @@ class DifferentialSlices:
         )
         cuts = np.where(np.hstack([True, (np.diff(groups) != 0), True]))[0]
 
-        position_slices = np.vstack(
-            (positions[cuts[:-1]], positions[cuts[1:] - 1] + 1)
-        ).T
+        print(positions)
+
+        position_slices = (
+            np.vstack((positions[cuts[:-1]], positions[cuts[1:] - 1] + 1)).T
+            * resolution
+        )
         gene_ixs = gene_ixs[cuts[:-1]]
         cluster_ixs = cluster_ixs[cuts[:-1]]
         return cls(position_slices, gene_ixs, cluster_ixs, window, n_genes, n_clusters)
@@ -249,7 +259,7 @@ class DifferentialSlices:
         )
 
     @classmethod
-    def from_basepair_ranking(cls, basepair_ranking, window, cutoff):
+    def from_basepair_ranking(cls, basepair_ranking, window, cutoff, resolution=None):
         """
         :param: cutoff
 
@@ -262,7 +272,13 @@ class DifferentialSlices:
         gene_ixs, cluster_ixs, positions = np.where(basepairs_oi)
 
         return cls.from_positions(
-            positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters
+            positions,
+            gene_ixs,
+            cluster_ixs,
+            window,
+            n_genes,
+            n_clusters,
+            resolution=resolution,
         )
 
     def get_slicetopologies(self, probs):

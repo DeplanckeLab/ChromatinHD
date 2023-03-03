@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow
+from chromatinhd.flow import Flow, StoredTorchInt32, Stored
 
 import torch
 import math
@@ -167,3 +167,15 @@ class Fragments(Flow):
     @property
     def cells_oi_torch(self):
         return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+
+
+class ChunkedFragments(Flow):
+    chunk_size = Stored("chunk_size")
+    chunkcoords = StoredTorchInt32("chunkcoords")
+    chunkcoords_indptr = StoredTorchInt32("chunkcoords_indptr")
+    clusters = StoredTorchInt32("clusters")
+    relcoords = StoredTorchInt32("relcoords")
+
+    clusters = Stored("clusters")
+    clusters_info = Stored("clusters_info")
+    chromosomes = Stored("chromosomes")

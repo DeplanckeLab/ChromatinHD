@@ -50,3 +50,6 @@ class EmbeddingTensor(torch.nn.Embedding):
     @property
     def shape(self):
         return (self.weight.shape[0], *self.embedding_dims)
+
+    def __getitem__(self, k):
+        return self.forward(k)

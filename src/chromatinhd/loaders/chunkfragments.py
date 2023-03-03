@@ -88,11 +88,8 @@ class FragmentsResult(Result):
     pass
 
 
-def cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes):
-    return (cells_oi[:, None] * n_genes + genes_oi).flatten()
 
-
-class Fragments:
+class ChunkFragments:
     cellxgene_batch_size: int
 
     preloaded = False
@@ -106,6 +103,7 @@ class Fragments:
     def __init__(
         self,
         fragments: chromatinhd.data.Fragments,
+        clusters_oi = None,
         cellxgene_batch_size: int,
         n_fragment_per_cellxgene: int = None,
     ):
