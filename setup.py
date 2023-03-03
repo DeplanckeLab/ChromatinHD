@@ -55,7 +55,7 @@ setuptools.setup(
             "jupytext",
             "pytest",
             "statsmodels",
-            "faiss-cpu",
+            # "faiss-cpu",
         ],
         "eqtl": ["cyvcf2", "xarray"],
     },
