@@ -23,7 +23,7 @@ class Decoder(torch.nn.Module):
         # the sparse gradient way
         self.delta_height_slope = EmbeddingTensor(
             n_genes,
-            (1, n_delta_height),
+            (n_delta_height,),
             sparse=True,
         )
 
@@ -45,7 +45,7 @@ class Decoder(torch.nn.Module):
         delta_height_slope = self.delta_height_slope(genes_oi)
         delta_overall_slope = self.delta_overall_slope.get_full_weight()
 
-        #! you may have to do some broadcasting here
+        #! you will have to do some broadcasting here
         # what we need is for each cell x gene x knot its delta
         # and for each cell x gene its overall
         delta_height = delta_height_slope * latent
@@ -88,7 +88,6 @@ class Decoding(torch.nn.Module, HybridModel):
         self.decoder = Decoder(
             fragments.n_genes,
             n_delta_height=n_delta_height,
-            n_layers=decoder_n_layers,
         )
 
         # calculate library size for each cell
