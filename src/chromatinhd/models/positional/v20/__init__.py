@@ -211,6 +211,12 @@ class EmbeddingToExpression(torch.nn.Module):
         ).squeeze()
         return out
 
+    def cache_params(self, gene_ix):
+        return self.weight1(gene_ix), self.bias1(gene_ix).squeeze()
+
+    def forward_cached(self, cell_gene_embedding, weight1, bias1):
+        return (cell_gene_embedding * weight1).sum(-1) + bias1
+
     def parameters_sparse(self):
         return [self.bias1.weight, self.weight1.weight]
 
@@ -249,7 +255,7 @@ class Model(torch.nn.Module, HybridModel):
             initialization=embedding_to_expression_initialization,
         )
 
-    def forward(self, data):
+    def forward(self, data, fragments_oi=None):
         fragment_embedding = self.fragment_embedder(data.coordinates, data.genemapping)
         cell_gene_embedding = self.embedding_gene_pooler(
             fragment_embedding, data.local_cellxgene_ix, data.n_cells, data.n_genes
@@ -258,3 +264,37 @@ class Model(torch.nn.Module, HybridModel):
             cell_gene_embedding, data.genes_oi_torch
         )
         return expression_predicted
+
+    def forward_multiple(self, data, fragments_oi, extract_total=False):
+        fragment_embedding = self.fragment_embedder(data.coordinates, data.genemapping)
+
+        embedding_to_expression_params = self.embedding_to_expression.cache_params(
+            data.genes_oi_torch
+        )
+
+        for fragments_oi_ in fragments_oi:
+            cell_gene_embedding = self.embedding_gene_pooler(
+                fragment_embedding[fragments_oi_],
+                data.local_cellxgene_ix[fragments_oi_],
+                data.n_cells,
+                data.n_genes,
+            )
+            # expression_predicted = self.embedding_to_expression.forward_cached(
+            #     cell_gene_embedding, *embedding_to_expression_params
+            # )
+            expression_predicted = self.embedding_to_expression.forward(
+                cell_gene_embedding, data.genes_oi_torch
+            )
+
+            if extract_total:
+                n_fragments = torch.bincount(
+                    data.local_cellxgene_ix,
+                    minlength=data.n_genes * data.n_cells,
+                ).reshape((data.n_cells, data.n_genes))
+                yield expression_predicted, n_fragments
+            else:
+                n_fragments_lost = torch.bincount(
+                    data.local_cellxgene_ix[~fragments_oi_],
+                    minlength=data.n_genes * data.n_cells,
+                ).reshape((data.n_cells, data.n_genes))
+                yield expression_predicted, n_fragments_lost

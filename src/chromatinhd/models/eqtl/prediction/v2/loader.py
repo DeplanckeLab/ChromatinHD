@@ -1,6 +1,7 @@
 import numpy as np
 import dataclasses
 import torch
+import copy
 
 from chromatinhd.utils import indices_to_indptr
 
@@ -60,6 +61,8 @@ class Data:
     genes_oi: np.ndarray
     clusters_oi: np.ndarray
 
+    variantxgene_tss_distances: torch.Tensor
+
     def to(self, device):
         for field_name, field in self.__dataclass_fields__.items():
             if field.type is torch.Tensor:
@@ -84,6 +87,7 @@ class Loader:
         genotype,
         fragments,
         gene_variants_mapping,
+        variantxgenes_info,
         window_size=5000,
     ):
         # map genes to variantxgene
@@ -94,6 +98,10 @@ class Loader:
             self.gene_variantxgene_ix_mapping.append(np.arange(i, i + len(variants)))
             i += len(variants)
         self.n_variantxgenes = i
+
+        assert self.n_variantxgenes == len(variantxgenes_info)
+
+        self.variantxgene_tss_distances = variantxgenes_info["tss_distance"].values
 
         self.variant_ix_to_local_variant_ix = np.zeros(
             len(genotype.variants_info), dtype=int
@@ -248,6 +256,9 @@ class Loader:
         # genotypes
         genotypes = self.genotypes[:, variants_oi]
 
+        # tss distance
+        variantxgene_tss_distances = self.variantxgene_tss_distances[variantxgene_ixs]
+
         return Data(
             variantxgene_to_gene=torch.from_numpy(variantxgene_to_gene),
             variantxgene_ixs=torch.from_numpy(variantxgene_ixs),
@@ -264,4 +275,12 @@ class Loader:
             local_cluster_ixs=torch.from_numpy(local_cluster_ixs),
             local_clusterxvariant_indptr=torch.from_numpy(local_clusterxvariant_indptr),
             window_size=self.window_size,
+            variantxgene_tss_distances=torch.from_numpy(variantxgene_tss_distances),
         )
+
+    def copy(self):
+        new_copy = copy.copy(self)
+        new_copy.variant_ix_to_local_variant_ix = copy.copy(
+            new_copy.variant_ix_to_local_variant_ix
+        )
+        return new_copy

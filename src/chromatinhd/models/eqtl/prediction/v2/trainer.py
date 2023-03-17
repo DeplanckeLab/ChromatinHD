@@ -10,6 +10,7 @@ class Trainer:
         loaders,
         loaders_validation,
         optim,
+        hooks_checkpoint=None,
         device="cuda",
         n_epochs=30,
         checkpoint_every_epoch=1,
@@ -28,6 +29,8 @@ class Trainer:
         self.step_ix = 0
         self.epoch = 0
         self.n_epochs = n_epochs
+
+        self.hooks_checkpoint = hooks_checkpoint if hooks_checkpoint is not None else []
 
         self.checkpoint_every_epoch = checkpoint_every_epoch
         self.optimize_every_step = optimize_every_step
@@ -49,6 +52,9 @@ class Trainer:
 
             # checkpoint if necessary
             if (self.epoch % self.checkpoint_every_epoch) == 0:
+                for hook in self.hooks_checkpoint:
+                    hook.start()
+
                 with torch.no_grad():
                     for data_validation in self.loaders_validation:
                         data_validation = data_validation.to(self.device)
@@ -59,7 +65,13 @@ class Trainer:
                             loss.item(), self.epoch, self.step_ix, "validation"
                         )
 
+                        for hook in self.hooks_checkpoint:
+                            hook.run_individual(self.model, data_validation)
+
                         self.loaders_validation.submit_next()
+
+                for hook in self.hooks_checkpoint:
+                    hook.finish()
 
                 print(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
                 self.trace.checkpoint()

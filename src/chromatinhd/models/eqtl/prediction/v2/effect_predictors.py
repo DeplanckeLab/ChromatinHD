@@ -33,17 +33,24 @@ class EffectPredictor(torch.nn.Module):
                 torch.nn.Linear(n_embedding_dimensions, 1),
             )
             self.nn[0].weight.data.zero_()
+            self.nn[0].bias.data[:] = -2.0
         else:
-            layers = [torch.nn.Linear(n_embedding_dimensions, 10)]
+            n_intermediate_dimensions = 10
+            layers = []
+
+            current_n_dimensions = n_embedding_dimensions
             for layer_ix in range(n_layers):
                 layers.extend(
                     [
+                        torch.nn.Linear(
+                            current_n_dimensions, n_intermediate_dimensions
+                        ),
                         torch.nn.ReLU(),
-                        torch.nn.Linear(10, 10),
                     ]
                 )
+                current_n_dimensions = n_intermediate_dimensions
             layers.append(
-                torch.nn.Linear(10, 1),
+                torch.nn.Linear(current_n_dimensions, 1),
             )
             self.nn = torch.nn.Sequential(*layers)
 
@@ -52,8 +59,18 @@ class EffectPredictor(torch.nn.Module):
         else:
             self.variantxgene_effect = torch.nn.Parameter(torch.zeros(n_variantxgenes))
 
-    def forward(self, variantxgene_embedding, variantxgene_ixs):
-        prioritization = torch.sigmoid(self.nn(variantxgene_embedding))
-        effect = self.variantxgene_effect[variantxgene_ixs] * prioritization.squeeze(-1)
+        self.embedding_bias = torch.nn.Parameter(torch.zeros(n_embedding_dimensions))
 
-        return effect
+    def forward(self, variantxgene_embedding, variantxgene_ixs):
+        # import matplotlib.pyplot as plt
+
+        # fig, ax = plt.subplots()
+        # ax.matshow(variantxgene_embedding[..., -1].cpu().detach().numpy())
+        prioritization = torch.sigmoid(
+            self.nn(variantxgene_embedding + self.embedding_bias)
+        )
+        self.prioritization = prioritization
+        effect = self.variantxgene_effect[variantxgene_ixs] * prioritization.squeeze(-1)
+        self.effect = effect
+
+        return effect, prioritization

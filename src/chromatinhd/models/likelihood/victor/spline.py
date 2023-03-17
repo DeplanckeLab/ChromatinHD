@@ -35,6 +35,8 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         self.nbins = nbins
 
         super().__init__()
+
+        # calculate how many heights, widths and (height_)deltas we will need
         splits_heights = []
         splits_widths = []
         split_deltas = []
@@ -46,6 +48,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             splits_widths.append(n_widths)
             split_deltas.append(n_heights)
 
+        # set up the baseline height and width
         self.unnormalized_heights = EmbeddingTensor(
             n_genes, (sum(splits_heights),), sparse=True
         )
@@ -72,24 +75,30 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
         unnormalized_widths = self.unnormalized_widths(genes_oi)
         unnormalized_heights = self.unnormalized_heights(genes_oi)
+
+        # apply the consecutive transformations
         for unnormalized_heights, unnormalized_widths, delta_heights in zip(
             self._split_parameters(unnormalized_heights, self.splits_heights),
             self._split_parameters(unnormalized_widths, self.splits_widths),
             self._split_parameters(delta, self.split_deltas),
         ):
+            # calculate widths for all genes
             widths = splines.quadratic.calculate_widths(unnormalized_widths)
             bin_locations = splines.quadratic.calculate_bin_locations(widths)
 
             # use index_select here as it is much faster in backwards than regular indexing
+            # get widths and bin_locations for each cut
             widths = widths.index_select(0, local_gene_ix)
             bin_locations = bin_locations.index_select(0, local_gene_ix)
 
+            # get heights and bin_left_cdf for each cut
             unnormalized_heights = (
                 unnormalized_heights.index_select(0, local_gene_ix) + delta_heights
             )
             heights = splines.quadratic.calculate_heights(unnormalized_heights, widths)
             bin_left_cdf = splines.quadratic.calculate_bin_left_cdf(heights, widths)
 
+            # apply the spline transformation
             outputs, logabsdet_ = splines.quadratic.quadratic_spline(
                 outputs,
                 widths=widths,
