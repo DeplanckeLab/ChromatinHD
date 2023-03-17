@@ -85,9 +85,11 @@ class Trace:
             self.n_current_validation_steps += 1
 
     def checkpoint(self):
-        if (self.n_last_train_steps is not None) and (self.n_last_train_steps > 0):
-            if self.n_current_train_steps == 0:
-                raise ValueError("No training steps were run since last checkpoint")
+        if (
+            (self.n_last_train_steps is not None)
+            and (self.n_last_train_steps > 0)
+            and (self.n_current_train_steps > 0)
+        ):
             last_train_steps = pd.DataFrame(
                 self.train_steps[
                     -(self.n_current_train_steps + self.n_last_train_steps) : -(

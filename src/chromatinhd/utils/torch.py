@@ -27,3 +27,13 @@ def indices_to_indptr(x, n):
     return torch.nn.functional.pad(
         torch.cumsum(torch.bincount(x, minlength=n), 0), (1, 0)
     )
+
+
+def ind2ptr(x, minlength):
+    return torch.nn.functional.pad(
+        torch.cumsum(torch.bincount(x, minlength=minlength), 0), (1, 0)
+    )
+
+
+def ptr2ind(x):
+    return torch.repeat_interleave(torch.arange(len(x) - 1), torch.diff(x))

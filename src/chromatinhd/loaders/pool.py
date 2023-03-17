@@ -54,7 +54,7 @@ class LoaderPool:
         self.n_workers = n_workers
 
         if loader is not None:
-            self.loaders = [copy.copy(loader) for i in range(n_workers)]
+            self.loaders = [loader.copy() for i in range(n_workers)]
         else:
             self.loaders = [loader_cls(**loader_kwargs) for i in range(n_workers)]
         for loader in self.loaders:

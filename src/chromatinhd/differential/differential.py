@@ -168,8 +168,6 @@ class DifferentialSlices:
         )
         cuts = np.where(np.hstack([True, (np.diff(groups) != 0), True]))[0]
 
-        print(positions)
-
         position_slices = (
             np.vstack((positions[cuts[:-1]], positions[cuts[1:] - 1] + 1)).T
             * resolution
@@ -259,7 +257,7 @@ class DifferentialSlices:
         )
 
     @classmethod
-    def from_basepair_ranking(cls, basepair_ranking, window, cutoff, resolution=None):
+    def from_basepair_ranking(cls, basepair_ranking, window, cutoff, resolution=1):
         """
         :param: cutoff
 

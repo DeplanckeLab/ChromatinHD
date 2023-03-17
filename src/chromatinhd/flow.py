@@ -139,3 +139,23 @@ class CompressedNumpyFloat64(CompressedNumpy):
 
 class CompressedNumpyInt64(CompressedNumpy):
     dtype = np.int64
+
+
+class TSV(Stored):
+    def get_path(self, folder):
+        return folder / (self.name + ".tsv")
+
+    def __get__(self, obj, type=None):
+        if obj is not None:
+            name = "_" + self.name
+            if not hasattr(obj, name):
+                import pandas as pd
+
+                x = pd.read_table(self.get_path(obj.path), index_col=0)
+                setattr(obj, name, x)
+            return getattr(obj, name)
+
+    def __set__(self, obj, value):
+        name = "_" + self.name
+        value.to_csv(self.get_path(obj.path), sep="\t")
+        setattr(obj, name, value)
