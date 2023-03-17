@@ -64,13 +64,12 @@ class Decoder(torch.nn.Module):
         return [self.delta_height_slope.weight]
 
 
-class Decoding(torch.nn.Module, HybridModel):
+class Model(torch.nn.Module, HybridModel):
     def __init__(
         self,
         fragments,
         latent,
         nbins=(128,),
-        decoder_n_layers=0,
         scale_likelihood=False,
         height_slope_p_scale=1.0,
     ):
@@ -81,7 +80,7 @@ class Decoding(torch.nn.Module, HybridModel):
         transform = DifferentialQuadraticSplineStack(
             nbins=nbins, n_genes=fragments.n_genes
         )
-        self.mixture = TransformedDistribution(transform)
+        self.nf = TransformedDistribution(transform)
 
         n_delta_height = sum(transform.split_deltas)
 
@@ -95,6 +94,7 @@ class Decoding(torch.nn.Module, HybridModel):
         self.register_buffer("libsize", libsize)
 
         # calculate and store the baseline accessibility for each gene
+        # overall_baseline: [genes]
         overall_baseline = (
             torch.bincount(fragments.mapping[:, 1], minlength=fragments.n_genes)
             / fragments.n_cells
@@ -159,7 +159,7 @@ class Decoding(torch.nn.Module, HybridModel):
         )
         height_delta = height_delta_cellxgene[cut_local_cellxgene_ix]
 
-        height_likelihood = self.mixture.log_prob(
+        height_likelihood = self.nf.log_prob(
             cut_coordinates, genes_oi, cut_local_gene_ix, height_delta=height_delta
         )
 
