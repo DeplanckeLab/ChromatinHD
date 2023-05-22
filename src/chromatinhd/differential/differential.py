@@ -4,7 +4,9 @@ import pandas as pd
 
 
 class DifferentialSlices:
-    def __init__(self, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters):
+    def __init__(
+        self, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters, scores=None
+    ):
         assert positions.ndim == 2
         assert positions.shape[1] == 2
         self.positions = positions
@@ -13,6 +15,7 @@ class DifferentialSlices:
         self.window = window
         self.n_genes = n_genes
         self.n_clusters = n_clusters
+        self.scores = scores
 
     def get_slicescores(self):
         slicescores = pd.DataFrame(
@@ -136,6 +139,22 @@ class DifferentialSlices:
         return position_chosen.flatten()
 
     @property
+    def position_ranked(self):
+        position_chosen = np.zeros(
+            (self.n_genes, self.n_clusters, (self.window[1] - self.window[0])),
+            # self.n_clusters * self.n_genes * (self.window[1] - self.window[0]),
+        )
+        for start, end, gene_ix, cluster_ix, score in zip(
+            self.positions[:, 0],
+            self.positions[:, 1],
+            self.gene_ixs,
+            self.cluster_ixs,
+            self.scores,
+        ):
+            position_chosen[gene_ix, cluster_ix, start:end] = score
+        return position_chosen
+
+    @property
     def position_indices(self):
         position_chosen = self.position_chosen
         position_indices = np.where(position_chosen)[0]
@@ -185,6 +204,7 @@ class DifferentialSlices:
         logfoldchanges_cutoff=1.0,
         pvals_adj_cutoff=0.05,
     ):
+
         # get significant
         peakscores["significant"] = (
             peakscores["logfoldchanges"] > logfoldchanges_cutoff
@@ -222,14 +242,24 @@ class DifferentialSlices:
                 # merge
                 peakscores_oi["component"] = connected_components[1]
                 peakscores_oi_joined = peakscores_oi.groupby("component").agg(
-                    {"relative_start": min, "relative_end": max}
+                    {
+                        "relative_start": min,
+                        "relative_end": max,
+                        "logfoldchanges": "mean",
+                    }
                 )
                 peakscores_oi_joined = peakscores_oi_joined.assign(
                     cluster=cluster, gene_ix=gene_ix
                 )
             else:
                 peakscores_oi_joined = peakscores_oi.reset_index()[
-                    ["gene_ix", "cluster", "relative_start", "relative_end"]
+                    [
+                        "gene_ix",
+                        "cluster",
+                        "relative_start",
+                        "relative_end",
+                        "logfoldchanges",
+                    ]
                 ].copy()
             peakscores_significant_joined.append(peakscores_oi_joined)
 
@@ -243,6 +273,7 @@ class DifferentialSlices:
 
         # get positions
         positions = peakscores_significant[["relative_start", "relative_end"]].values
+        scores = peakscores_significant["logfoldchanges"].values
         positions = positions - window[0]
         gene_ixs = peakscores_significant["gene_ix"].values
         cluster_ixs = peakscores_significant["cluster"].cat.codes
@@ -253,6 +284,7 @@ class DifferentialSlices:
             cluster_ixs,
             window,
             n_genes,
+            scores=scores,
             n_clusters=len(peakscores["cluster"].cat.categories),
         )
 

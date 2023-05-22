@@ -27,6 +27,9 @@ AXIS_WIDTH = AXIS_HEIGHT = 0.0
 
 
 class Ax(Element):
+    ax2 = None
+    insets = None
+
     def __init__(self, dim=None, pos=(0.0, 0.0)):
         global active_fig
         self.ax = mpl.figure.Axes(active_fig, [0, 0, 1, 1])
@@ -58,17 +61,42 @@ class Ax(Element):
         fig_width, fig_height = fig.get_size_inches()
         width, height = self.dim
         x, y = self.pos[0] + pos[0], self.pos[1] + pos[1]
-        ax = self.ax
-        ax.set_position(
-            [
-                x / fig_width,
-                (fig_height - y - height) / fig_height,
-                width / fig_width,
-                height / fig_height,
-            ]
-        )
 
-        fig.add_axes(ax)
+        axes = [self.ax]
+        if self.ax2 is not None:
+            axes.append(self.ax2)
+
+        for ax in axes:
+            ax.set_position(
+                [
+                    x / fig_width,
+                    (fig_height - y - height) / fig_height,
+                    width / fig_width,
+                    height / fig_height,
+                ]
+            )
+
+            fig.add_axes(ax)
+
+        for inset in self.insets or []:
+            inset.position(fig, pos=(x, y + height - inset.height))
+
+    def add_twinx(self):
+        global active_fig
+        self.ax2 = mpl.figure.Axes(active_fig, [0, 0, 1, 1])
+        self.ax2.xaxis.set_visible(False)
+        self.ax2.patch.set_visible(False)
+        self.ax2.yaxis.tick_right()
+        self.ax2.yaxis.set_label_position("right")
+        self.ax2.yaxis.set_offset_position("right")
+        self.ax.yaxis.tick_left()
+        return self.ax2
+
+    def add_inset(self, inset):
+        if self.insets is None:
+            self.insets = []
+        self.insets.append(inset)
+        return inset
 
 
 class Panel(Ax):
@@ -243,6 +271,8 @@ class Grid(Element):
         self.nrow = nrow
         self.ncol = ncol
 
+        self.paddings_height = [None] * (nrow - 1)
+
     def align(self):
         width = 0
         height = 0
@@ -266,18 +296,25 @@ class Grid(Element):
                         heights[row] = el.height
 
         for row, (row_elements, el_height) in enumerate(zip(self.elements, heights)):
+            if (len(self.paddings_height) > row) and (
+                self.paddings_height[row - 1] is not None
+            ):
+                padding_height = self.paddings_height[row - 1]
+            else:
+                padding_height = self.padding_height
+
             x = 0
             for col, (el, el_width) in enumerate(zip(row_elements, widths)):
                 if el is not None:
                     el.pos = (x, y)
 
-                    next_y = max(next_y, y + el.height + self.padding_height)
+                    next_y = max(next_y, y + el.height + padding_height)
                     height = max(height, next_y)
 
                     width = max(width, x + el.width)
 
                 x += el_width + self.padding_width
-            y += el_height + self.padding_height
+            y += el_height + padding_height
 
         if self.title is not None:
             self.title.dim = (width, self.title.dim[1])
@@ -309,6 +346,7 @@ class Grid(Element):
             for i in range(self.nrow, row + 1):
                 self.elements.append([None for _ in range(self.ncol)])
             self.nrow = row + 1
+            self.paddings_height.append(None)
 
         if col >= (self.ncol):
             # add new col(s)
@@ -318,6 +356,13 @@ class Grid(Element):
             self.ncol = col + 1
 
         self.elements[row][col] = v
+
+    def add_under(self, el, column=0, padding=None):
+        row = self.nrow
+        self[row, column] = el
+        if padding is not None:
+            self.paddings_height[row - 1] = padding
+        return el
 
 
 class _Figure(mpl.figure.Figure):

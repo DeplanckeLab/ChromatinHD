@@ -18,3 +18,4 @@ from . import grid
 from . import slicetypes
 from . import utils
 from . import peakcounts
+from . import predictive

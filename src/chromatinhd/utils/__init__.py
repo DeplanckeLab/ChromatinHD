@@ -4,8 +4,26 @@ import pickle
 import pandas as pd
 
 from .torch import interpolate_1d
-from .numpy import indices_to_indptr
+from .numpy import indices_to_indptr, indptr_to_indices
 from .ansi import colorcodes
+from .testing import repeated_kfold_corrected_t_test
+from . import biomart
+from . import ecdf
+
+__all__ = [
+    "get_git_root",
+    "get_output",
+    "get_code",
+    "name_window",
+    "paircor",
+    "interpolate_1d",
+    "indices_to_indptr",
+    "indptr_to_indices",
+    "colorcodes",
+    "repeated_kfold_corrected_t_test",
+    "biomart",
+    "ecdf",
+]
 
 
 def get_git_root(cwd=None):
@@ -63,6 +81,17 @@ def paircor(x, y, dim=0):
         cor = (
             (x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))
         ).mean(dim) / divisor
+    return cor
+
+
+def paircorr(x, y, dim=0):
+    import numpy as np
+
+    divisor = y.std(dim, keepdims=True) * x.std(dim, keepdims=True)
+    divisor[np.isclose(divisor, 0)] = 1.0
+    cor = (x - x.mean(dim, keepdims=True)) * (
+        y - y.mean(dim, keepdims=True)
+    )  # / divisor
     return cor
 
 

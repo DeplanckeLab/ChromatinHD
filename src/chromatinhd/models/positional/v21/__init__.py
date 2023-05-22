@@ -161,6 +161,30 @@ class EmbeddingGenePooler(torch.nn.Module):
         return cell_gene_embedding
 
 
+class LinearEmbedded(torch.nn.Module):
+    def __init__(self, n_input_features, n_output_features, n_genes):
+        super().__init__()
+        self.bias1 = EmbeddingTensor(
+            n_genes,
+            tuple([n_output_features]),
+            sparse=True,
+        )
+        self.weight1 = EmbeddingTensor(
+            n_genes,
+            tuple([n_input_features, n_output_features]),
+            sparse=True,
+        )
+        self.weight1.data[:] = 1.0
+
+    def __call__(self, x, gene_ix):
+        return torch.einsum("abc,bcd->abd", x, self.weight1(gene_ix)) + self.bias1(
+            gene_ix
+        )
+
+    def parameters_sparse(self):
+        return [self.bias1.weight, self.weight1.weight]
+
+
 class EmbeddingToExpression(torch.nn.Module):
     """
     Predicts gene expression using a [cell, gene, component] embedding in a gene-specific manner
@@ -180,45 +204,22 @@ class EmbeddingToExpression(torch.nn.Module):
         super().__init__()
 
         # set bias to empirical mean
-        self.bias1 = EmbeddingTensor(
-            n_genes,
-            tuple(),
-            sparse=True,
-        )
-        self.bias1.data = mean_gene_expression.clone().detach().to("cpu")[:, None]
+        n_intermediate_dimensions = 5
 
-        self.weight1 = EmbeddingTensor(
-            n_genes,
-            (n_embedding_dimensions,),
-            sparse=True,
+        self.linear1 = LinearEmbedded(
+            n_embedding_dimensions, n_intermediate_dimensions, n_genes
         )
-        if initialization == "ones":
-            self.weight1.data[:] = 1.0
-        elif initialization == "default":
-            self.weight1.data[:, :5] = 1.0
-            self.weight1.data[:, 5:] = 0.0
-            # stdv = 1. / math.sqrt(self.weight1.size(-1))
-            # self.weight1.data.uniform_(-stdv, stdv)
-        elif initialization == "smaller":
-            stdv = 1.0 / math.sqrt(self.weight1.size(-1)) / 100
-            self.weight1.data.uniform_(-stdv, stdv)
-        # stdv = 1. / math.sqrt(self.weight1.size(-1)) / 100
-        # self.weight1.data.uniform_(-stdv, stdv)
+
+        self.linear2 = LinearEmbedded(n_intermediate_dimensions, 1, n_genes)
 
     def forward(self, cell_gene_embedding, gene_ix):
-        out = (cell_gene_embedding * self.weight1(gene_ix)).sum(-1) + self.bias1(
-            gene_ix
-        ).squeeze()
+        out = self.linear1(cell_gene_embedding, gene_ix)
+        out = torch.sigmoid(out)
+        out = self.linear2(out, gene_ix).squeeze(-1)
         return out
 
-    def cache_params(self, gene_ix):
-        return self.weight1(gene_ix), self.bias1(gene_ix).squeeze()
-
-    def forward_cached(self, cell_gene_embedding, weight1, bias1):
-        return (cell_gene_embedding * weight1).sum(-1) + bias1
-
     def parameters_sparse(self):
-        return [self.bias1.weight, self.weight1.weight]
+        return self.linear1.parameters_sparse() + self.linear2.parameters_sparse()
 
 
 class Model(torch.nn.Module, HybridModel):
