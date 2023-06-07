@@ -102,6 +102,13 @@ class WindowFilterer:
             yield fragments_oi
 
 
+class ProvidedWindowFilterer(WindowFilterer):
+    def __init__(self, design):
+        design.index.name = "window"
+        design["ix"] = np.arange(len(design))
+        self.design = design
+
+
 class WindowPairFilterer:
     def __init__(self, windows_oi):
         design = []
@@ -322,7 +329,7 @@ class WindowDirectionAll(WindowFilterer):
 
 
 class WindowSizeAll(WindowFilterer):
-    def __init__(self, window, window_size=100):
+    def __init__(self, window, sizes, window_size=100):
         from chromatinhd.utils import crossing
 
         cuts = np.arange(*window, step=window_size).tolist() + [window[-1]]
@@ -337,16 +344,10 @@ class WindowSizeAll(WindowFilterer):
                 }
             )
 
-        cuts = [0, 20, 140, 240, 340, 400, 1000]
-        design_sizes = []
-        for size_start, size_end in zip(cuts[:-1], cuts[1:]):
-            design_sizes.append(
-                {
-                    "size_start": size_start,
-                    "size_end": size_end,
-                    "size": size_start + (size_end - size_start) / 2,
-                }
-            )
+        design_sizes = sizes.copy()
+        design_sizes["size_start"] = design_sizes["start"]
+        design_sizes["size_end"] = design_sizes["end"]
+        design_sizes["size"] = design_sizes["mid"]
 
         design = crossing(
             pd.DataFrame(design_windows),
@@ -371,5 +372,65 @@ class WindowSizeAll(WindowFilterer):
                 & (data.coordinates[:, 0] > window_start)
                 & (sizes > size_start)
                 & (sizes < size_end)
+            )
+            yield fragments_oi
+
+
+class WindowSize(WindowFilterer):
+    def __init__(self, windows, sizes):
+        from chromatinhd.utils import crossing
+
+        design_windows = windows.copy()
+        design_windows["window"] = design_windows.index
+
+        design_sizes = sizes.copy()
+        design_sizes["size_start"] = design_sizes["start"]
+        design_sizes["size_end"] = design_sizes["end"]
+        design_sizes["size"] = design_sizes["mid"]
+
+        design = crossing(
+            pd.DataFrame(design_windows),
+            pd.DataFrame(design_sizes),
+        )
+        design.index = design["window"].astype(str) + "_" + design["size"].astype(str)
+        design.index.names = ["window_size"]
+        design["ix"] = np.arange(len(design))
+        self.design = design
+
+    def filter(self, data):
+        for design_ix, window_start, window_end, size_start, size_end in zip(
+            self.design["ix"],
+            self.design["window_start"],
+            self.design["window_end"],
+            self.design["size_start"],
+            self.design["size_end"],
+        ):
+            sizes = data.coordinates[:, 1] - data.coordinates[:, 0]
+            fragments_oi = ~(
+                (data.coordinates[:, 0] < window_end)
+                & (data.coordinates[:, 0] > window_start)
+                & (sizes > size_start)
+                & (sizes < size_end)
+            )
+            yield fragments_oi
+
+
+class SizeIntervalFilterer(SizeFilterer):
+    def __init__(self, start, end, window_size=100):
+        super().__init__(window_size=window_size)
+        self.start = start
+        self.end = end
+
+    def setup_next_chunk(self):
+        return len(self.design)
+
+    def filter(self, data):
+        for design_ix, window_start, window_end in zip(
+            self.design["ix"], self.design["window_start"], self.design["window_end"]
+        ):
+            sizes = data.coordinates[:, 1] - data.coordinates[:, 0]
+            fragments_oi = ~select_window(data.coordinates, self.start, self.end)
+            fragments_oi = ~(
+                (sizes > window_start) & (sizes < window_end) & fragments_oi
             )
             yield fragments_oi

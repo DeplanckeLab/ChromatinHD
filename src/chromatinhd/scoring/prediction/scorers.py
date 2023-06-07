@@ -404,29 +404,7 @@ class Scorer2(chd.flow.Flow):
 
         # postprocess per cellxgene scores
         if extract_per_cellxgene:
-            effects = xr.concat(
-                cellgeneeffects,
-                dim=model_dim,
-            )  # .mean("model", skipna=True)
-
-            losts = xr.concat(
-                cellgenelosts,
-                dim=model_dim,
-            )  # .mean("model", skipna=True)
-
-            deltacors = xr.concat(
-                cellgenedeltacors,
-                dim=model_dim,
-            )  # .mean("model", skipna=True)
-
-            # calculate deltacor_down_ratio
-            # genescores["deltacor_down_ratio"] = (deltacors < -0.01).sum("cell") / (
-            #     deltacors > 0.01
-            # ).sum("cell")
-
-            scoring.effects = effects
-            scoring.losts = losts
-            scoring.deltacors = deltacors
+            scoring.cellgenelosts = cellgenelosts
             scoring.cellgenedeltacors = cellgenedeltacors
 
         return scoring

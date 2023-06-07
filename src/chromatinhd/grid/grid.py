@@ -98,6 +98,10 @@ class Ax(Element):
         self.insets.append(inset)
         return inset
 
+    def __iter__(self):
+        yield self
+        yield self.ax
+
 
 class Panel(Ax):
     pass
@@ -271,7 +275,8 @@ class Grid(Element):
         self.nrow = nrow
         self.ncol = ncol
 
-        self.paddings_height = [None] * (nrow - 1)
+        self.paddings_height = [None] * (nrow)
+        self.paddings_width = [None] * (ncol)
 
     def align(self):
         width = 0
@@ -296,11 +301,8 @@ class Grid(Element):
                         heights[row] = el.height
 
         for row, (row_elements, el_height) in enumerate(zip(self.elements, heights)):
-            if (len(self.paddings_height) > row) and (
-                self.paddings_height[row - 1] is not None
-            ):
-                padding_height = self.paddings_height[row - 1]
-            else:
+            padding_height = self.paddings_height[min(row + 1, self.nrow - 1)]
+            if padding_height is None:
                 padding_height = self.padding_height
 
             x = 0
@@ -313,7 +315,11 @@ class Grid(Element):
 
                     width = max(width, x + el.width)
 
-                x += el_width + self.padding_width
+                padding_width = self.paddings_width[min(col + 1, self.ncol - 1)]
+                if padding_width is None:
+                    padding_width = self.padding_width
+
+                x += el_width + padding_width
             y += el_height + padding_height
 
         if self.title is not None:
@@ -354,14 +360,29 @@ class Grid(Element):
                 for row_ in self.elements:
                     row_.append(None)
             self.ncol = col + 1
+            self.paddings_width.append(None)
 
         self.elements[row][col] = v
 
     def add_under(self, el, column=0, padding=None):
-        row = self.nrow
+        if self[0, 0] is None:
+            row = 0
+        else:
+            row = self.nrow
         self[row, column] = el
         if padding is not None:
-            self.paddings_height[row - 1] = padding
+            self.paddings_height[row] = padding
+        return el
+
+    def add_right(self, el, row=0, padding=None):
+        if self[0, 0] is None:
+            column = 0
+        else:
+            column = self.ncol
+        self[row, column] = el
+
+        if padding is not None:
+            self.paddings_width[column] = padding
         return el
 
 

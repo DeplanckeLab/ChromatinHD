@@ -1,4 +1,5 @@
 from .patch import *
+from .matshow45 import matshow45
 
 import matplotlib.ticker as ticker
 
@@ -40,7 +41,10 @@ def custom_formatter(value, tick_pos):
 gene_ticker = ticker.FuncFormatter(custom_formatter)
 
 
-def custom_formatter(value, tick_pos):
+def custom_formatter(value, tick_pos, base=1):
+    if base != 1:
+        value = value / base
+
     abs_value = abs(value)
     if abs_value >= 1000000:
         abs_value = abs_value / 1000000
@@ -62,6 +66,12 @@ def custom_formatter(value, tick_pos):
 
 
 distance_ticker = ticker.FuncFormatter(custom_formatter)
+
+import functools
+
+
+def DistanceFormatter(base=1):
+    return ticker.FuncFormatter(functools.partial(custom_formatter, base=base))
 
 
 def lighten_color(color, amount=0.5):
