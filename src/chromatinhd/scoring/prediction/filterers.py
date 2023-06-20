@@ -51,6 +51,9 @@ class SizeFilterer:
 
 
 def select_window(coordinates, window_start, window_end):
+    """
+    Selects coordinates of fragments that are within the window.
+    """
     return ~((coordinates[:, 0] < window_end) & (coordinates[:, 1] > window_start))
 
 
@@ -406,11 +409,9 @@ class WindowSize(WindowFilterer):
             self.design["size_end"],
         ):
             sizes = data.coordinates[:, 1] - data.coordinates[:, 0]
+            fragments_oi = select_window(data.coordinates, window_start, window_end)
             fragments_oi = ~(
-                (data.coordinates[:, 0] < window_end)
-                & (data.coordinates[:, 0] > window_start)
-                & (sizes > size_start)
-                & (sizes < size_end)
+                (~fragments_oi) & (sizes > size_start) & (sizes <= size_end)
             )
             yield fragments_oi
 

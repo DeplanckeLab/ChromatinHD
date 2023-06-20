@@ -7,30 +7,27 @@ import decimal
 
 
 def count_zeros(value):
-    decimal_value = decimal.Decimal(int(value))
-    decimal_part = decimal_value % 1
-    count = 0
-    while decimal_part != 0:
-        decimal_part *= 10
-        count += 1
-        decimal_part %= 1
+    decimal_value = str(decimal.Decimal((value)))
+    count = len(decimal_value.split(".")[1])
     return count
 
 
-def custom_formatter(value, tick_pos):
-    abs_value = abs(value)
+def custom_gene_formatter(value, tick_pos):
+    abs_value = int(abs(value))
     if abs_value >= 1000000:
+        zeros = len(str(abs_value).rstrip("0")) - 1
         abs_value = abs_value / 1000000
         suffix = "mb"
     elif abs_value >= 1000:
+        zeros = len(str(abs_value).rstrip("0")) - 1
         abs_value = abs_value / 1000
         suffix = "kb"
     elif abs_value == 0:
+        zeros = 0
         return "TSS"
     else:
+        zeros = 0
         suffix = "b"
-
-    zeros = count_zeros(abs_value)
 
     formatted_value = ("{abs_value:." + str(zeros) + "f}{suffix}").format(
         abs_value=abs_value, suffix=suffix
@@ -38,7 +35,7 @@ def custom_formatter(value, tick_pos):
     return f"-{formatted_value}" if value < 0 else f"+{formatted_value}"
 
 
-gene_ticker = ticker.FuncFormatter(custom_formatter)
+gene_ticker = ticker.FuncFormatter(custom_gene_formatter)
 
 
 def custom_formatter(value, tick_pos, base=1):

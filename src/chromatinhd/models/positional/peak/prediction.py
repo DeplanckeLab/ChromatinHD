@@ -111,7 +111,8 @@ class PeaksGene(Flow):
             try:
                 self.regressor.fit(x[train_ix], y[train_ix])
                 predicted = self.regressor.predict(x)
-            except:
+            except BaseException as e:
+                print(e)
                 predicted = np.repeat(
                     y[train_ix].mean(),
                     (len(train_ix) + len(validation_ix) + len(test_ix)),
@@ -179,12 +180,7 @@ class PeaksGeneLasso(PeaksGene):
         import sklearn.linear_model
         import sklearn.model_selection
 
-        test_fold = np.zeros(n)
-        test_fold[train_ix] = -1
-        test_fold[validation_ix] = 0
-        cv = sklearn.model_selection.PredefinedSplit(test_fold)
-
-        regressor = sklearn.linear_model.LassoCV(cv=cv)
+        regressor = sklearn.linear_model.LassoCV(n_alphas=10, n_jobs=12)
         return regressor
 
 

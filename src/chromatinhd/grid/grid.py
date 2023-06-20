@@ -347,6 +347,9 @@ class Grid(Element):
         row = index[0]
         col = index[1]
 
+        if not isinstance(row, int) or not isinstance(col, int):
+            raise TypeError("row and col must be integers")
+
         if row >= (self.nrow):
             # add new row(s)
             for i in range(self.nrow, row + 1):
@@ -365,22 +368,42 @@ class Grid(Element):
         self.elements[row][col] = v
 
     def add_under(self, el, column=0, padding=None):
-        if self[0, 0] is None:
+        if (self.nrow == 1) and self[0, 0] is None:
             row = 0
         else:
             row = self.nrow
+
+        # get column index if column is a panel
+        if "grid.Element" in column.__class__.__mro__.__repr__():
+            try:
+                column = (
+                    np.array(self.elements).flatten().tolist().index(column) % self.ncol
+                )
+            except ValueError as e:
+                raise ValueError(
+                    "The panel specified as column was not found in the grid"
+                ) from e
         self[row, column] = el
         if padding is not None:
             self.paddings_height[row] = padding
         return el
 
     def add_right(self, el, row=0, padding=None):
-        if self[0, 0] is None:
+        if (self.ncol == 0) and (self[0, 0] is None):
             column = 0
         else:
             column = self.ncol
-        self[row, column] = el
 
+        # get column index if column is a panel
+        if "grid.Element" in row.__class__.__mro__.__repr__():
+            try:
+                row = np.array(self.elements).flatten().tolist().index(row) // self.ncol
+            except ValueError as e:
+                raise ValueError(
+                    "The panel specified as row was not found in the grid"
+                ) from e
+
+        self[row, column] = el
         if padding is not None:
             self.paddings_width[column] = padding
         return el

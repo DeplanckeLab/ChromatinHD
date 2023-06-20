@@ -17,15 +17,18 @@ class Genes(chromatinhd.grid.Ax):
         window,
         width,
         full_ticks=False,
+        label_genome=False,
+        symbol=None,
     ):
-        super().__init__((width, len(plotdata_genes) * 0.08))
+        super().__init__((width, len(plotdata_genes) * 0.08 + 0.01))
 
         ax = self.ax
 
         ax.xaxis.tick_top()
-        ax.set_yticks([])
-        ax.set_ylabel("")
-        # ax.set_xlabel("Distance to TSS")
+        if label_genome:
+            if symbol is None:
+                symbol = gene_id
+            ax.set_xlabel("Distance to $\mathit{" + symbol + "}$ TSS")
         ax.xaxis.set_label_position("top")
         ax.tick_params(axis="x", length=2, pad=0, labelsize=8, width=0.5)
         ax.xaxis.set_major_formatter(chromatinhd.plotting.gene_ticker)
@@ -33,6 +36,13 @@ class Genes(chromatinhd.grid.Ax):
         sns.despine(ax=ax, right=True, left=True, bottom=True, top=True)
 
         ax.set_xlim(*window)
+
+        ax.set_yticks([])
+        ax.set_ylabel("")
+
+        if len(plotdata_genes) == 0:
+            return
+
         ax.set_ylim(-0.5, plotdata_genes["ix"].max() + 0.5)
         if full_ticks:
             ax.set_xticks(np.arange(window[0], window[1] + 1, 500))
@@ -400,6 +410,7 @@ class Peaks(chromatinhd.grid.Ax):
         width,
         label_methods=True,
         label_rows=True,
+        label_methods_side="right",
         row_height=1,
     ):
         super().__init__((width, row_height * len(peakcallers) / 5))
@@ -408,6 +419,9 @@ class Peaks(chromatinhd.grid.Ax):
         ax.set_xlim(*window)
         for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
             y = peakcallers.loc[peakcaller, "ix"]
+
+            if len(peaks_peakcaller) == 0:
+                continue
             if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(
                 peaks_peakcaller["cluster"]
             ).all():
@@ -423,7 +437,7 @@ class Peaks(chromatinhd.grid.Ax):
                     ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
                     ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
             else:
-                n_clusters = len(peaks_peakcaller["cluster"].unique())
+                n_clusters = peaks_peakcaller["cluster"].max() + 1
                 h = 1 / n_clusters
                 for _, peak in peaks_peakcaller.iterrows():
                     rect = mpl.patches.Rectangle(
@@ -453,8 +467,22 @@ class Peaks(chromatinhd.grid.Ax):
         else:
             ax.set_yticks([])
             ax.set_ylabel("")
-        ax.tick_params(axis="y", which="major", length=0, pad=1, right=True, left=False)
-        ax.tick_params(axis="y", which="minor", length=1, pad=1, right=True, left=False)
+        ax.tick_params(
+            axis="y",
+            which="major",
+            length=0,
+            pad=1,
+            right=label_methods_side == "right",
+            left=not label_methods_side == "left",
+        )
+        ax.tick_params(
+            axis="y",
+            which="minor",
+            length=1,
+            pad=1,
+            right=label_methods_side == "right",
+            left=not label_methods_side == "left",
+        )
         ax.yaxis.tick_right()
 
         ax.set_xticks([])

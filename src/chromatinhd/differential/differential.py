@@ -82,9 +82,13 @@ class DifferentialSlices:
         return slicelocations
 
     def get_sliceaverages(self, probs):
-        probs_mean = probs.mean(1)
-        slice_average_signal = []
-        slice_max_signal = []
+        probs_baseline = probs.mean(1)
+        slice_average_baseline = []
+        slice_max_baseline = []
+        slice_std_baseline = []
+        slice_average_oi = []
+        slice_max_oi = []
+        slice_std_oi = []
         slice_average_lfc = []
         slice_max_lfc = []
         slice_summit = []
@@ -97,28 +101,46 @@ class DifferentialSlices:
                 (start):(end),
             ]
 
-            prob_mean = probs_mean[
+            prob_baseline = probs_baseline[
                 gene_ix,
                 (start):(end),
             ]
-            slice_average_signal.append(prob_mean.mean())
-            slice_max_signal.append(prob_mean.max())
+            slice_average_oi.append(prob_oi.mean())
+            slice_max_oi.append(prob_oi.max())
+            slice_std_oi.append(prob_oi.std())
 
-            slice_lfc = prob_oi - prob_mean
+            slice_average_baseline.append(prob_baseline.mean())
+            slice_max_baseline.append(prob_baseline.max())
+            slice_std_baseline.append(prob_baseline.std())
+
+            slice_lfc = prob_oi - prob_baseline
 
             slice_average_lfc.append(slice_lfc.mean())
             slice_max_lfc.append(slice_lfc.max())
 
             slice_summit.append(start + np.argmax(prob_oi))
-        slice_average_signal = np.hstack(slice_average_signal)
-        slice_max_signal = np.hstack(slice_max_signal)
+
+        slice_average_baseline = np.hstack(slice_average_baseline)
+        slice_max_baseline = np.hstack(slice_max_baseline)
+        slice_std_baseline = np.hstack(slice_std_baseline)
+
+        slice_average_oi = np.hstack(slice_average_oi)
+        slice_max_oi = np.hstack(slice_max_oi)
+        slice_std_oi = np.hstack(slice_std_oi)
+
         slice_average_lfc = np.hstack(slice_average_lfc)
+        slice_max_lfc = np.hstack(slice_max_lfc)
+
         slice_summit = np.hstack(slice_summit)
 
         return pd.DataFrame(
             {
-                "average": slice_average_signal,
-                "max": slice_max_signal,
+                "average_baseline": slice_average_baseline,
+                "max_baseline": slice_max_baseline,
+                "std_baseline": slice_std_baseline,
+                "average": slice_average_oi,
+                "max": slice_max_oi,
+                "std": slice_std_oi,
                 "average_lfc": slice_average_lfc,
                 "max_lfc": slice_max_lfc,
                 "summit": slice_summit,
@@ -381,14 +403,6 @@ class DifferentialSlices:
                     )
                 )
 
-                # determine local "dominance"
-                # if slice[0] == 7966:
-                #     import matplotlib.pyplot as plt
-
-                #     plt.plot(x_)
-                #     plt.plot(x_neighborhoud)
-
-                #     raise ValueError()
                 dominances.append((x_.max() / max(x_.max(), x_neighborhoud.max())))
 
                 differentialdominances.append(
@@ -423,6 +437,7 @@ class DifferentialSlices:
             {
                 "prominence": prominences,
                 "n_subpeaks": n_subpeaks,
+                "log1p_n_subpeaks": n_subpeaks,
                 "balances_raw": balances_raw,
                 "balance": balances,
                 "dominance": dominances,

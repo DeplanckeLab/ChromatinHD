@@ -17,6 +17,9 @@ def get(query):
     session = requests.Session()
     session.headers.update({"User-Agent": "Custom user agent"})
     r = session.get(url)
+
+    if "Service unavailable" in r.content.decode("utf-8"):
+        raise ValueError("Service unavailable")
     result = pd.read_table(StringIO(r.content.decode("utf-8")))
 
     _cache[query] = result
