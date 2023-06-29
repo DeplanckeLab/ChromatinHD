@@ -8,7 +8,10 @@ import decimal
 
 def count_zeros(value):
     decimal_value = str(decimal.Decimal((value)))
-    count = len(decimal_value.split(".")[1])
+    if "." in decimal_value:
+        count = len(decimal_value.split(".")[1])
+    else:
+        count = 0
     return count
 
 

@@ -93,6 +93,9 @@ class PeaksGene(Flow):
 
         self.scores = scores
 
+    def _fit(self, x, y, train_ix, validation_ix):
+        self.regressor.fit(x[train_ix], y[train_ix])
+
     def _score(
         self,
         x,
@@ -109,7 +112,7 @@ class PeaksGene(Flow):
             )
         else:
             try:
-                self.regressor.fit(x[train_ix], y[train_ix])
+                self._fit(x, y, train_ix, validation_ix)
                 predicted = self.regressor.predict(x)
             except BaseException as e:
                 print(e)
@@ -180,8 +183,18 @@ class PeaksGeneLasso(PeaksGene):
         import sklearn.linear_model
         import sklearn.model_selection
 
-        regressor = sklearn.linear_model.LassoCV(n_alphas=10, n_jobs=12)
+        regressor = sklearn.linear_model.LassoCV(
+            n_alphas=10,
+            n_jobs=12,
+            # cv=[(train_ix, validation_ix)],
+        )
         return regressor
+
+    def _fit(self, x, y, train_ix, validation_ix):
+        self.regressor.fit(
+            x[np.concatenate([train_ix, validation_ix])],
+            y[np.concatenate([train_ix, validation_ix])],
+        )
 
 
 class PeaksGenePolynomial(PeaksGeneLinear):

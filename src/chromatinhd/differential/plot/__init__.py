@@ -142,6 +142,14 @@ class Genes(chromatinhd.grid.Ax):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
 
+def get_cmap_atac_diff():
+    return mpl.cm.RdBu_r
+
+
+def get_norm_atac_diff():
+    return mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True)
+
+
 class Differential(chromatinhd.grid.Wrap):
     def __init__(
         self,
@@ -159,7 +167,7 @@ class Differential(chromatinhd.grid.Wrap):
         ymax=20,
         **kwargs,
     ):
-        super().__init__(ncol=1, **kwargs)
+        super().__init__(ncol=1, **kwargs, padding_height=0)
         self.show_atac_diff = show_atac_diff
         self.cmap_atac_diff = cmap_atac_diff
         self.norm_atac_diff = norm_atac_diff

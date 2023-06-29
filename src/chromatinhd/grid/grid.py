@@ -37,6 +37,18 @@ class Ax(Element):
         self.pos = pos
 
     @property
+    def dim(self):
+        return self._dim
+
+    @dim.setter
+    def dim(self, value):
+        if len(value) != 2:
+            raise ValueError("dim must be a tuple of length 2")
+        if value[0] <= 0 or value[1] <= 0:
+            raise ValueError("dim must be positive")
+        self._dim = value
+
+    @property
     def height(self):
         h = self.dim[1]
 
@@ -130,7 +142,9 @@ class Wrap(Element):
     ):
         self.ncol = ncol
         self.padding_width = padding_width
-        self.padding_height = padding_height or padding_width
+        self.padding_height = (
+            padding_height if padding_height is not None else padding_width
+        )
         self.margin_width = margin_width
         self.margin_height = margin_height
         self.elements = []
@@ -193,6 +207,9 @@ class Wrap(Element):
 
     def __getitem__(self, key):
         return list(self.elements)[key]
+
+    def get_bottom_left_corner(self):
+        return self.elements[self.ncol * ((len(self.elements) % self.ncol) - 1)]
 
 
 class WrapAutobreak(Wrap):
@@ -389,7 +406,7 @@ class Grid(Element):
         return el
 
     def add_right(self, el, row=0, padding=None):
-        if (self.ncol == 0) and (self[0, 0] is None):
+        if (self.ncol == 1) and (self[0, 0] is None):
             column = 0
         else:
             column = self.ncol

@@ -108,6 +108,8 @@ class LabelBroken(Broken):
     def __init__(self, regions, *args, **kwargs):
         super().__init__(regions=regions, height=0.00001, *args, **kwargs)
 
+        assert len(self.elements[0]) == len(regions)
+
         for ((region, region_info), (panel, ax)) in zip(
             regions.iterrows(), self.elements[0]
         ):
