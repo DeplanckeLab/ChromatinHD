@@ -211,12 +211,6 @@ class EmbeddingToExpression(torch.nn.Module):
         ).squeeze()
         return out
 
-    def cache_params(self, gene_ix):
-        return self.weight1(gene_ix), self.bias1(gene_ix).squeeze()
-
-    def forward_cached(self, cell_gene_embedding, weight1, bias1):
-        return (cell_gene_embedding * weight1).sum(-1) + bias1
-
     def parameters_sparse(self):
         return [self.bias1.weight, self.weight1.weight]
 
@@ -255,7 +249,7 @@ class Model(torch.nn.Module, HybridModel):
             initialization=embedding_to_expression_initialization,
         )
 
-    def forward(self, data, fragments_oi=None):
+    def forward(self, data):
         fragment_embedding = self.fragment_embedder(data.coordinates, data.genemapping)
         cell_gene_embedding = self.embedding_gene_pooler(
             fragment_embedding, data.local_cellxgene_ix, data.n_cells, data.n_genes
