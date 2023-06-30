@@ -1,6 +1,7 @@
 import math
 import torch
 import torch_scatter
+import dataclasses
 import numpy as np
 import tqdm.auto as tqdm
 
@@ -28,7 +29,9 @@ class Decoder(torch.nn.Module):
 
         # do the same but for the "delta overall" slope
         self.delta_overall_slope = EmbeddingTensor(n_genes, (1,), sparse=True)
-        self.delta_overall_slope.weight.data.zero_()
+        self.delta_overall_slope.weight.data.zero_() 
+        # print(f"{self.delta_overall_slope.weight=}")
+        # TODO: check this variable
 
     def forward(self, latent, genes_oi):
         print("---  Decoder.forward()  ---")
@@ -60,6 +63,18 @@ class Decoder(torch.nn.Module):
         return [self.delta_height_slope.weight]
 
 
+# likelihoodresult = namedtuple("likelihoodresult", ["likelihood", "height_likelihood", "overall_likelihood"])
+# result = likelihoodresult(likelihood=torch.tensor(1), height_likelihood=torch.tensor(1), overall_likelihood=torch.tensor(1))
+# overall, height, total = result
+
+
+@dataclasses.dataclass
+class LikelihoodResult():
+    overall:torch.Tensor
+    height:torch.Tensor
+    total:torch.Tensor
+
+
 class Model(torch.nn.Module, HybridModel):
     def __init__(self, fragments, latent, nbins=(128,), scale_likelihood=False, height_slope_p_scale=1.0):
         super().__init__()
@@ -89,10 +104,9 @@ class Model(torch.nn.Module, HybridModel):
         self.register_buffer("height_slope_p_scale", torch.tensor(math.log(height_slope_p_scale)))
         self.register_buffer("overall_slope_p_scale", torch.tensor(math.log(1.0)))
 
-        print("Model initialized")
-
-    def forward_(self, cut_coordinates, latent, genes_oi, cut_local_cellxgene_ix, cut_localcellxgene_ix, cut_local_gene_ix):
+    def forward_(self, cut_coordinates, latent, genes_oi, cut_local_cellxgene_ix, cut_localcellxgene_ix, cut_local_gene_ix, return_likelihood=False):
         print("---  Model.forward_()  ---")
+
         self.track = {}
 
         # overall_delta: [cells, genes (all)]
@@ -103,10 +117,7 @@ class Model(torch.nn.Module, HybridModel):
         # cut_localcellxgene_ix: for each cut, the global cell index x local gene index
         # overall: [cellxgene]
         overall_baseline = self.overall_baseline.unsqueeze(0)
-        # print(f"{overall_baseline.shape=}")
-        # print(f"{overall_delta.shape=}")
         overall_cellxgene = torch.nn.functional.log_softmax(overall_baseline + overall_delta.squeeze(1).transpose(1, 0), -1)
-        # print(f"{overall_cellxgene.shape=}")
         overall_likelihood = overall_cellxgene.flatten()[cut_localcellxgene_ix] + math.log(self.n_total_genes)
 
         # height
@@ -116,15 +127,20 @@ class Model(torch.nn.Module, HybridModel):
         height_likelihood = self.nf.log_prob(cut_coordinates, genes_oi, cut_local_gene_ix, height_delta)
 
         # overall likelihood
+        # TODO: check this variable
+        # print(f"{height_likelihood=}")
+        # print(f"{overall_likelihood=}")
         likelihood = height_likelihood + overall_likelihood
-        self.track["likelihood"] = likelihood
 
         # ELBO
         elbo = (-likelihood.sum())
 
-        return elbo
+        if return_likelihood:
+            return LikelihoodResult(overall=overall_likelihood, height=height_likelihood, total=likelihood)
+        else:
+            return elbo
 
-    def forward(self, data):
+    def forward(self, data, return_likelihood=False):
         print("---  Model.forward()  ---")
         if not hasattr(data, "latent"):
             data.latent = self.latent[data.cells_oi]
@@ -135,12 +151,20 @@ class Model(torch.nn.Module, HybridModel):
             cut_local_cellxgene_ix=data.cut_local_cellxgene_ix,
             cut_local_gene_ix=data.cut_local_gene_ix,
             cut_localcellxgene_ix=data.cut_localcellxgene_ix,
+            return_likelihood=return_likelihood,
         )
     
     def evaluate_pseudo(self, coordinate_oi, latent_oi, gene_oi=None, gene_ix=None):
         print("---  Model.evaluate_pseudo()  ---")
+
+        index_tensor = torch.arange(len(latent_oi))
+        index_tensor_repeat = index_tensor.repeat_interleave(len(coordinate_oi))
+
+        index_gene =  index_tensor * self.n_total_genes + gene_oi
+        index_gene_repeat = index_gene.repeat_interleave(len(coordinate_oi))
+
+        coordinate_oi_lt = coordinate_oi.repeat(len(latent_oi))
         
-        # first provide single values for the coordinate, latent and gene
         device = coordinate_oi.device # on which device is coordinates stored, other data needs to be on the same device
 
         if gene_ix is None:
@@ -149,28 +173,25 @@ class Model(torch.nn.Module, HybridModel):
             # single gene provided as integer, convert to tensor
             genes_oi = torch.tensor([gene_oi], device=device, dtype=torch.long)
             # tensor with 0, same shape as coordinate_oi, in this case single value
-            cut_local_gene_ix = torch.zeros_like(coordinate_oi).to(torch.long)
+            cut_local_gene_ix = torch.zeros_like(coordinate_oi_lt).to(torch.long)
             # tensor with 0, same shape as coordinate_oi, in this case single value
-            cut_local_cellxgene_ix = torch.zeros_like(coordinate_oi).to(torch.long)
+            cut_local_cellxgene_ix = index_tensor_repeat.to(torch.long)
             # tensor with 0, same shape as coordinate_oi, in this case single value
-            cut_localcellxgene_ix = (torch.ones_like(coordinate_oi).to(torch.long) * gene_oi)
+            cut_localcellxgene_ix = index_gene_repeat.to(torch.long)
 
         data = FullDict(
-            cut_local_gene_ix=cut_local_gene_ix.to(device), #
-            cut_local_cellxgene_ix=cut_local_cellxgene_ix.to(device), #
-            cut_localcellxgene_ix=cut_localcellxgene_ix.to(device), #
-            cut_coordinates=coordinate_oi.to(device),
-            genes_oi_torch=genes_oi.to(device), #
+            cut_local_gene_ix=cut_local_gene_ix.to(device),
+            cut_local_cellxgene_ix=cut_local_cellxgene_ix.to(device),
+            cut_localcellxgene_ix=cut_localcellxgene_ix.to(device),
+            cut_coordinates=coordinate_oi_lt.to(device),
+            genes_oi_torch=genes_oi.to(device),
             latent=latent_oi.to(device),
         )
 
         with torch.no_grad():
-            self.forward(data)
+            result = self.forward(data, return_likelihood=True)
 
-        # return the likelihood
-        prob = self.track["likelihood"].detach().cpu()
-
-        return prob
+        return result
 
 
 class FullDict(dict):
