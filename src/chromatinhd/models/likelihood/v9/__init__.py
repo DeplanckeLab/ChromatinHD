@@ -124,7 +124,6 @@ class BaselineDecoder(torch.nn.Module):
 
 
 class Decoding(torch.nn.Module, HybridModel):
-    # mixture_delta_p_scale = 1.0
     def __init__(
         self,
         fragments,
@@ -149,8 +148,6 @@ class Decoding(torch.nn.Module, HybridModel):
         transform = DifferentialQuadraticSplineStack(
             nbins=nbins,
             n_genes=fragments.n_genes,
-            # local_gene_ix=fragments.cut_local_gene_ix.cpu(),
-            # x=fragments.cut_coordinates,
         )
         self.mixture = TransformedDistribution(transform)
         n_delta_mixture_components = sum(transform.split_deltas)
@@ -188,9 +185,7 @@ class Decoding(torch.nn.Module, HybridModel):
 
         if mixture_delta_p_scale_free:
             self.mixture_delta_p_scale = torch.nn.Parameter(
-                # torch.log(
                 torch.tensor(math.log(mixture_delta_p_scale), requires_grad=True)
-                # )
             )
         else:
             self.register_buffer(
