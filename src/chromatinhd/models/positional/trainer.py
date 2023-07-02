@@ -62,11 +62,9 @@ class Trainer:
         self.outcome = self.outcome.to(self.device)
 
         continue_training = True
-        finalizing = False
 
         prev_gene_loss = None
         improved = None
-        prev_improved = None
 
         self.loaders.initialize(next_task_sets=minibatches_train_sets)
         self.loaders_validation.initialize(minibatches_validation)
