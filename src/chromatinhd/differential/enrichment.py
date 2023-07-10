@@ -328,7 +328,6 @@ def enrich_windows(
         {
             "odds": ((motif_counts + 1) / (n_positions + 1))
             / ((background_motif_counts + 1) / (background_n_positions + 1)),
-            # "odds_conditional": odds_conditional,
             "motif": motifscan.motifs.index,
             "in": motif_counts / n_motifs,
             "perc": motif_counts / n_positions,
@@ -337,7 +336,6 @@ def enrich_windows(
             "perc_gene": [x for x in motif_percs_genewise.T],
         }
     ).set_index("motif")
-    # motifscores["logodds"] = np.log(odds_conditional)
     motifscores["logodds"] = np.log(motifscores["odds"])
     motifscores["qval"] = statsmodels.stats.multitest.fdrcorrection(
         motifscores["pval"]

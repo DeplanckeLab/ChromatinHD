@@ -11,7 +11,7 @@
 		}
 	],
 	"settings": {
-		"python.formatting.provider": "black",
+		"python.formatting.provider": "none",
 		"python.formatting.blackPath": "/home/wsaelens/miniconda3/bin/black",
 		"editor.formatOnSave": true,
 		"files.exclude": {
@@ -25,6 +25,10 @@
 			"titleBar.inactiveBackground": "#83256199",
 			"titleBar.inactiveForeground": "#e7e7e799"
 		},
-		"peacock.remoteColor": "#832561"
+		"peacock.remoteColor": "#832561",
+		"jupyter.logging.level": "verbose",
+		"[python]": {
+			"editor.defaultFormatter": "ms-python.black-formatter"
+		}
 	}
 }

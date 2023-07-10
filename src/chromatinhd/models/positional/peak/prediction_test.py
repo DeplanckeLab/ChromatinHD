@@ -157,3 +157,24 @@ class PeaksGeneLinear(PeaksGene):
 
         regressor = sklearn.linear_model.LinearRegression()
         return regressor
+
+
+class PeaksGeneLasso(PeaksGene):
+    default_name = "geneprediction_lasso"
+
+    def _create_regressor(self):
+        import sklearn.linear_model
+        import sklearn.model_selection
+
+        regressor = sklearn.linear_model.LassoCV(n_alphas=10, n_jobs=12)
+        return regressor
+
+
+class PeaksGeneXGBoost(PeaksGene):
+    default_name = "geneprediction_xgboost"
+
+    def _create_regressor(self):
+        import xgboost as xgb
+
+        regressor = xgb.XGBRegressor(n_estimators=100, early_stopping_rounds=50)
+        return regressor

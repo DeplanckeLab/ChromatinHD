@@ -258,3 +258,40 @@ class Model(torch.nn.Module, HybridModel):
             cell_gene_embedding, data.genes_oi_torch
         )
         return expression_predicted
+
+    def forward_multiple(self, data, fragments_oi, extract_total=False):
+        fragment_embedding = self.fragment_embedder(data.coordinates, data.genemapping)
+
+        for fragments_oi_ in fragments_oi:
+            if fragments_oi_ is not None:
+                fragment_embedding_ = fragment_embedding[fragments_oi_]
+                local_cellxgene_ix = data.local_cellxgene_ix[fragments_oi_]
+            else:
+                fragment_embedding_ = fragment_embedding
+                local_cellxgene_ix = data.local_cellxgene_ix
+
+            cell_gene_embedding = self.embedding_gene_pooler(
+                fragment_embedding_,
+                local_cellxgene_ix,
+                data.n_cells,
+                data.n_genes,
+            )
+            expression_predicted = self.embedding_to_expression.forward(
+                cell_gene_embedding, data.genes_oi_torch
+            )
+
+            if extract_total:
+                n_fragments = torch.bincount(
+                    data.local_cellxgene_ix,
+                    minlength=data.n_genes * data.n_cells,
+                ).reshape((data.n_cells, data.n_genes))
+                yield expression_predicted, n_fragments
+            else:
+                if fragments_oi_ is None:
+                    n_fragments_lost = 0
+                else:
+                    n_fragments_lost = torch.bincount(
+                        data.local_cellxgene_ix[~fragments_oi_],
+                        minlength=data.n_genes * data.n_cells,
+                    ).reshape((data.n_cells, data.n_genes))
+                yield expression_predicted, n_fragments_lost

@@ -8,6 +8,38 @@ class Minibatch:
     genes_oi: np.ndarray
 
 
+def create_bins_ordered(
+    genes,
+    n_genes_step=300,
+    use_all=True,
+    rg=None,
+    permute_genes=False,
+):
+    """
+    Creates bins of genes
+    A number of cell and gene bins are created first, and all combinations of these bins make up the
+    """
+    if rg is None:
+        rg = np.random.RandomState()
+    if permute_genes:
+        genes = rg.permutation(genes)
+    genes = np.array(genes)
+
+    gene_cuts = [*np.arange(0, len(genes), step=n_genes_step)]
+    if use_all:
+        gene_cuts.append(len(genes))
+    gene_bins = [genes[a:b] for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]
+
+    bins = []
+    for genes_oi in gene_bins:
+        bins.append(
+            Minibatch(
+                genes_oi=genes_oi,
+            )
+        )
+    return bins
+
+
 @dataclasses.dataclass
 class Data:
     variantxgene_to_gene: torch.Tensor

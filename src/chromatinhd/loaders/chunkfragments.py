@@ -1,35 +1,29 @@
 import torch
 import numpy as np
-import pyximport
-
-pyximport.install(
-    reload_support=True,
-    language_level=3,
-    setup_args=dict(include_dirs=[np.get_include()]),
-)
-import chromatinhd.loaders.extraction.fragments
 import dataclasses
 from functools import cached_property
 
+import chromatinhd
+
 
 @dataclasses.dataclass
-class Result:
-    coordinates: torch.Tensor
-    local_cellxgene_ix: torch.Tensor
-    genemapping: torch.Tensor
-    n_fragments: int
-    cells_oi: np.ndarray
+class Data:
+    relative_coordinates: torch.Tensor
+    local_cluster_ixs: torch.Tensor
+    local_clusterxvariant_indptr: torch.Tensor
+    cluster_cut_lib: torch.Tensor
+    local_variant_to_local_variantxgene_reshaper: torch.Tensor
+    variantxgene_to_gene: torch.Tensor
+    variantxgene_to_local_gene: torch.Tensor
+    variantxgene_ixs: torch.Tensor
+
+    expression: torch.Tensor
+    genotypes: torch.Tensor
+
+    window_size: np.ndarray
+    variants_oi: np.ndarray
     genes_oi: np.ndarray
-    window: np.ndarray
-    n_total_genes: int
-
-    @property
-    def n_cells(self):
-        return len(self.cells_oi)
-
-    @property
-    def n_genes(self):
-        return len(self.genes_oi)
+    clusters_oi: np.ndarray
 
     def to(self, device):
         for field_name, field in self.__dataclass_fields__.items():
@@ -40,53 +34,12 @@ class Result:
         return self
 
     @property
-    def local_gene_ix(self):
-        return self.local_cellxgene_ix % self.n_genes
+    def n_clusters(self):
+        return len(self.clusters_oi)
 
     @property
-    def local_cell_ix(self):
-        return torch.div(self.local_cellxgene_ix, self.n_genes, rounding_mode="floor")
-
-    def create_cut_data(self):
-        cut_coordinates = self.coordinates.flatten()
-        cut_coordinates = (cut_coordinates - self.window[0]) / (
-            self.window[1] - self.window[0]
-        )
-        keep_cuts = (cut_coordinates >= 0) & (cut_coordinates <= 1)
-        cut_coordinates = cut_coordinates[keep_cuts]
-
-        self._cut_coordinates = cut_coordinates
-
-        self.cut_local_gene_ix = self.local_gene_ix.expand(2, -1).T.flatten()[keep_cuts]
-        self.cut_local_cell_ix = self.local_cell_ix.expand(2, -1).T.flatten()[keep_cuts]
-        self.cut_local_cellxgene_ix = self.local_cellxgene_ix.expand(2, -1).T.flatten()[
-            keep_cuts
-        ]
-        self.cut_localcellxgene_ix = (
-            self.cut_local_cell_ix * self.n_total_genes
-            + self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
-        )
-
-    _cut_coordinates = None
-
-    @property
-    def cut_coordinates(self):
-        if self._cut_coordinates is None:
-            self.create_cut_data()
-        return self._cut_coordinates
-
-    @property
-    def genes_oi_torch(self):
-        return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
-
-    @property
-    def cells_oi_torch(self):
-        return torch.from_numpy(self.cells_oi).to(self.coordinates.device)
-
-
-class FragmentsResult(Result):
-    pass
-
+    def n_variants(self):
+        return len(self.variants_oi)
 
 
 class ChunkFragments:
@@ -103,42 +56,44 @@ class ChunkFragments:
     def __init__(
         self,
         fragments: chromatinhd.data.Fragments,
-        clusters_oi = None,
-        cellxgene_batch_size: int,
+        variant_positions,
+        window_size,
+        clusters_oi=None,
         n_fragment_per_cellxgene: int = None,
     ):
-        self.cellxgene_batch_size = cellxgene_batch_size
-
-        # store auxilliary information
-        window = fragments.window
-        self.window = window
-        self.window_width = window[1] - window[0]
-
         # store fragment data
-        self.cellxgene_indptr = fragments.cellxgene_indptr.numpy()
-        self.coordinates = fragments.coordinates.numpy()
-        self.genemapping = fragments.genemapping.numpy()
+        self.chunkcoords = fragments.chunkcoords.numpy().astype(np.int64)
+        self.relcoords = fragments.relcoords.numpy()
+        self.chunk_size = fragments.chunk_size
+        self.chunkcoords_indptr = fragments.chunkcoords_indptr.numpy()
+        self.clusters = fragments.clusters.numpy()
 
-        # create buffers for coordinates
-        if n_fragment_per_cellxgene is None:
-            n_fragment_per_cellxgene = fragments.estimate_fragment_per_cellxgene()
-        fragment_buffer_size = n_fragment_per_cellxgene * cellxgene_batch_size
-        self.fragment_buffer_size = fragment_buffer_size
+        # store the library size
+        self.cluster_cut_lib = torch.bincount(
+            fragments.clusters, minlength=len(fragments.clusters_info)
+        )
 
-        self.n_genes = fragments.n_genes
+        # create bounds from chromosome positions
+        # the windows will be bounded by these positions
+        self.bounds = np.hstack(
+            [
+                fragments.chromosomes["position_start"].values,
+                fragments.chromosomes["position_end"].values[[-1]],
+            ]
+        )
 
-    def preload(self):
-        self.out_coordinates = torch.from_numpy(
-            np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
-        )  # .pin_memory()
-        self.out_genemapping = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
-        self.out_local_cellxgene_ix = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
+        self.variant_positions = variant_positions
 
-        self.preloaded = True
+        # cache upper and lower bounds
+        self.variant_upper_bounds = self.bounds[
+            np.searchsorted(self.bounds, self.variant_positions)
+        ]
+        self.variant_lower_bounds = self.bounds[
+            np.searchsorted(self.bounds, self.variant_positions) - 1
+        ]
+
+        # store window size
+        self.window_size = window_size
 
     def load(self, minibatch):
         if not self.preloaded:
@@ -175,133 +130,12 @@ class ChunkFragments:
         self.out_genemapping.resize_((n_fragments))
         self.out_local_cellxgene_ix.resize_((n_fragments))
 
-        return FragmentsResult(
+        return Data(
             local_cellxgene_ix=self.out_local_cellxgene_ix,
             coordinates=self.out_coordinates,
             n_fragments=n_fragments,
             genemapping=self.out_genemapping,
             window=self.window,
             n_total_genes=self.n_genes,
-            **minibatch.items(),
-        )
-
-
-@dataclasses.dataclass
-class FragmentsCountingResult(FragmentsResult):
-    n: list[torch.Tensor]
-
-
-class FragmentsCounting:
-    cellxgene_batch_size: int
-
-    preloaded = False
-
-    out_coordinates: torch.Tensor
-    out_genemapping: torch.Tensor
-    out_local_cellxgene_ix: torch.Tensor
-
-    n: tuple = (2,)
-
-    def __init__(
-        self,
-        fragments,
-        cellxgene_batch_size,
-        n_fragment_per_cellxgene=None,
-        n=(2,),
-    ):
-        self.cellxgene_batch_size = cellxgene_batch_size
-
-        # store auxilliary information
-        window = fragments.window
-        self.window = window
-        self.window_width = window[1] - window[0]
-
-        # store fragment data
-        self.cellxgene_indptr = fragments.cellxgene_indptr.numpy()
-        self.coordinates = fragments.coordinates.numpy()
-        self.genemapping = fragments.genemapping.numpy()
-
-        # create buffers for coordinates
-        if n_fragment_per_cellxgene is None:
-            n_fragment_per_cellxgene = fragments.estimate_fragment_per_cellxgene()
-        fragment_buffer_size = n_fragment_per_cellxgene * cellxgene_batch_size
-        self.fragment_buffer_size = fragment_buffer_size
-
-        self.n = n
-
-    def preload(self):
-        self.out_coordinates = torch.from_numpy(
-            np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
-        )  # .pin_memory()
-        self.out_genemapping = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
-        self.out_local_cellxgene_ix = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
-
-        self.out_n = [
-            torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64))
-            for i in self.n
-        ]
-
-        self.preloaded = True
-
-    def load(self, minibatch):
-        if not self.preloaded:
-            self.preload()
-
-        # optional filtering based on fragments_oi
-        coordinates = self.coordinates
-        genemapping = self.genemapping
-        cellxgene_indptr = self.cellxgene_indptr
-
-        assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size
-        if self.n == (2,):
-            (
-                n_fragments,
-                *n_n,
-            ) = chromatinhd.loaders.extraction.fragments.extract_fragments_counting(
-                minibatch.cellxgene_oi,
-                cellxgene_indptr,
-                coordinates,
-                genemapping,
-                self.out_coordinates.numpy(),
-                self.out_genemapping.numpy(),
-                self.out_local_cellxgene_ix.numpy(),
-                *[out_n.numpy() for out_n in self.out_n],
-            )
-        else:
-            (
-                n_fragments,
-                *n_n,
-            ) = chromatinhd.loaders.extraction.fragments.extract_fragments_counting3(
-                minibatch.cellxgene_oi,
-                cellxgene_indptr,
-                coordinates,
-                genemapping,
-                self.out_coordinates.numpy(),
-                self.out_genemapping.numpy(),
-                self.out_local_cellxgene_ix.numpy(),
-                *[out_n.numpy() for out_n in self.out_n],
-            )
-        if n_fragments > self.fragment_buffer_size:
-            raise ValueError("n_fragments is too large for the current buffer size")
-
-        if n_fragments == 0:
-            n_fragments = 1
-        self.out_coordinates.resize_((n_fragments, 2))
-        self.out_genemapping.resize_((n_fragments))
-        self.out_local_cellxgene_ix.resize_((n_fragments))
-
-        self.out_n = [out_n.resize_((i)) for out_n, i in zip(self.out_n, n_n)]
-
-        return FragmentsCountingResult(
-            local_cellxgene_ix=self.out_local_cellxgene_ix,
-            coordinates=self.out_coordinates,
-            n_fragments=n_fragments,
-            genemapping=self.out_genemapping,
-            n=self.out_n,
-            window=self.window,
             **minibatch.items(),
         )

@@ -1,3 +1,4 @@
+import chromatinhd
 import chromatinhd.grid
 import matplotlib as mpl
 import seaborn as sns
@@ -15,21 +16,45 @@ class Genes(chromatinhd.grid.Ax):
         promoter,
         window,
         width,
+        full_ticks=False,
+        label_genome=False,
+        symbol=None,
     ):
-        super().__init__((width, len(plotdata_genes) * 0.08))
+        super().__init__((width, len(plotdata_genes) * 0.08 + 0.01))
 
         ax = self.ax
 
         ax.xaxis.tick_top()
-        ax.set_yticks([])
-        ax.set_ylabel("")
-        ax.set_xlabel("Distance to TSS")
+        if label_genome:
+            if symbol is None:
+                symbol = gene_id
+            ax.set_xlabel("Distance to $\mathit{" + symbol + "}$ TSS")
         ax.xaxis.set_label_position("top")
+        ax.tick_params(axis="x", length=2, pad=0, labelsize=8, width=0.5)
+        ax.xaxis.set_major_formatter(chromatinhd.plotting.gene_ticker)
 
-        sns.despine(ax=ax, right=True, left=True, bottom=True)
+        sns.despine(ax=ax, right=True, left=True, bottom=True, top=True)
 
         ax.set_xlim(*window)
+
+        ax.set_yticks([])
+        ax.set_ylabel("")
+
+        if len(plotdata_genes) == 0:
+            return
+
         ax.set_ylim(-0.5, plotdata_genes["ix"].max() + 0.5)
+        if full_ticks:
+            ax.set_xticks(np.arange(window[0], window[1] + 1, 500))
+            ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
+            ax.tick_params(
+                axis="x",
+                length=2,
+                pad=0,
+                labelsize=8,
+                width=0.5,
+                labelrotation=90,
+            )
         for gene, gene_info in plotdata_genes.iterrows():
             y = gene_info["ix"]
             is_oi = gene == gene_id
@@ -39,14 +64,13 @@ class Genes(chromatinhd.grid.Ax):
                 color="black" if is_oi else "grey",
             )
 
+            if pd.isnull(gene_info["symbol"]):
+                symbol = gene_info.name
+            else:
+                symbol = gene_info["symbol"]
+            strand = gene_info["strand"] * promoter["strand"]
             if (gene_info["start"] > window[0]) & (gene_info["start"] < window[1]):
-                strand = gene_info["strand"] * promoter["strand"]
-
-                label = (
-                    gene_info["symbol"] + " > "
-                    if strand == 1
-                    else " < " + gene_info["symbol"]
-                )
+                label = symbol + " → " if strand == 1 else " ← " + symbol
                 ha = "right"
                 # ha = "left" if (strand == -1) else "right"
 
@@ -60,12 +84,26 @@ class Genes(chromatinhd.grid.Ax):
                     fontsize=6,
                     weight="bold" if is_oi else "regular",
                 )
+            elif (gene_info["end"] > window[0]) & (gene_info["end"] < window[1]):
+
+                label = " → " + symbol if strand == 1 else symbol + " ← "
+                ha = "left"
+
+                ax.text(
+                    gene_info["end"],
+                    y,
+                    label,
+                    style="italic",
+                    ha=ha,
+                    va="center",
+                    fontsize=6,
+                    weight="bold" if is_oi else "regular",
+                )
             else:
-                label = gene_info["symbol"]
                 ax.text(
                     0,
                     y,
-                    "(" + label + ")",
+                    "(" + symbol + ")",
                     style="italic",
                     ha="center",
                     va="center",
@@ -100,6 +138,17 @@ class Genes(chromatinhd.grid.Ax):
                 )
                 ax.add_patch(rect)
 
+        # vline at tss
+        ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
+
+
+def get_cmap_atac_diff():
+    return mpl.cm.RdBu_r
+
+
+def get_norm_atac_diff():
+    return mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True)
+
 
 class Differential(chromatinhd.grid.Wrap):
     def __init__(
@@ -118,17 +167,16 @@ class Differential(chromatinhd.grid.Wrap):
         ymax=20,
         **kwargs,
     ):
-        super().__init__(ncol=1, **kwargs)
+        super().__init__(ncol=1, **{"padding_height": 0, **kwargs})
         self.show_atac_diff = show_atac_diff
         self.cmap_atac_diff = cmap_atac_diff
         self.norm_atac_diff = norm_atac_diff
         self.window = window
         self.cluster_info = cluster_info
 
-        if title is not False:
-            self.set_title("ATAC-seq insertion")
-
-        for cluster_ix in self.cluster_info["dimension"]:
+        for cluster_ix, cluster_info_oi in self.cluster_info.set_index(
+            "dimension"
+        ).iterrows():
             ax_genome = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax_genome)
 
@@ -137,6 +185,24 @@ class Differential(chromatinhd.grid.Wrap):
             ax.set_ylim(0, ymax)
             ax.set_xlim(*window)
             ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1)
+
+            text = ax.annotate(
+                text=f"{cluster_info_oi['label']}",
+                xy=(0, 1),
+                xytext=(2, -2),
+                textcoords="offset points",
+                xycoords="axes fraction",
+                ha="left",
+                va="top",
+                fontsize=10,
+                color="#333",
+            )
+            text.set_path_effects(
+                [
+                    mpl.patheffects.Stroke(linewidth=2, foreground="white"),
+                    mpl.patheffects.Normal(),
+                ]
+            )
 
             if plotdata_empirical is not None:
                 # empirical distribution of atac-seq cuts
@@ -150,8 +216,21 @@ class Differential(chromatinhd.grid.Wrap):
                     color="#333",
                 )
 
-            ax.set_yticks([])
             ax.set_xticks([])
+
+            if cluster_ix != self.cluster_info["dimension"].iloc[0]:
+                ax.set_yticks([])
+        ax.annotate(
+            text="Mean &\ndifferential\naccessibility",
+            xy=(0, len(cluster_info) / 2),
+            xycoords="axes fraction",
+            xytext=(-20, 0),
+            textcoords="offset points",
+            rotation=0,
+            ha="right",
+            va="center",
+        )
+
         self.draw(plotdata_genome, plotdata_genome_mean)
 
     def draw(self, plotdata_genome, plotdata_genome_mean):
@@ -224,6 +303,7 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
         panel_height,
         cmap_expression=mpl.cm.Reds,
         norm_expression=None,
+        symbol=None,
         **kwargs,
     ):
         super().__init__(ncol=1, **kwargs)
@@ -233,7 +313,9 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
                 0.0, plotdata_expression_clusters.max(), clip=True
             )
 
-        for cluster_ix in cluster_info["dimension"]:
+        for cluster_id, cluster_ix in zip(
+            cluster_info.index, cluster_info["dimension"]
+        ):
             ax = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax)
             ax = ax.ax
@@ -253,18 +335,34 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
                 ec="#333333",
             )
             ax.add_patch(circle)
-            ax.set_xlim(-1.1, 1.1)
-            ax.set_ylim(-1.1, 1.1)
+            ax.set_xlim(-1.05, 1.05)
+            ax.set_ylim(-1.05, 1.05)
             ax.set_aspect(1)
+            # text = ax.text(
+            #     0,
+            #     0,
+            #     cluster_info.loc[cluster_id, "label"],
+            #     ha="center",
+            #     va="center",
+            #     color="#FFFFFF",
+            # )
+            # text.set_path_effects(
+            #     [
+            #         mpl.patheffects.Stroke(linewidth=2, foreground="#333333"),
+            #         mpl.patheffects.Normal(),
+            #     ]
+            # )
 
-            ax.set_ylabel(
-                f"{cluster_info.iloc[cluster_ix]['label']}",
-                rotation=0,
-                ha="right",
+        if symbol is not None:
+            ax.annotate(
+                text="$\\mathit{" + symbol + "}$\nexpression",
+                xy=(1, len(cluster_info) / 2),
+                xytext=(5, 0),
+                textcoords="offset points",
+                xycoords="axes fraction",
+                ha="left",
                 va="center",
             )
-
-        self.set_title("RNA-seq")
 
 
 class MotifsLegend(chromatinhd.grid.Wrap):
@@ -360,18 +458,29 @@ class MotifsHighlighting:
 
 class Peaks(chromatinhd.grid.Ax):
     def __init__(
-        self, peaks, peak_methods, window, width, label_methods=True, panel_height=1
+        self,
+        peaks,
+        peakcallers,
+        window,
+        width,
+        label_methods=True,
+        label_rows=True,
+        label_methods_side="right",
+        row_height=1,
     ):
-        super().__init__((width, panel_height * len(peak_methods) / 5))
+        super().__init__((width, row_height * len(peakcallers) / 5))
 
         ax = self.ax
         ax.set_xlim(*window)
-        for peakname, peaks_method in peaks.groupby("method"):
-            y = peak_methods.loc[peakname, "ix"]
-            if ("cluster" not in peaks_method.columns) or pd.isnull(
-                peaks_method["cluster"]
+        for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
+            y = peakcallers.loc[peakcaller, "ix"]
+
+            if len(peaks_peakcaller) == 0:
+                continue
+            if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(
+                peaks_peakcaller["cluster"]
             ).all():
-                for _, peak in peaks_method.iterrows():
+                for _, peak in peaks_peakcaller.iterrows():
                     rect = mpl.patches.Rectangle(
                         (peak["start"], y),
                         peak["end"] - peak["start"],
@@ -383,9 +492,9 @@ class Peaks(chromatinhd.grid.Ax):
                     ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
                     ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
             else:
-                n_clusters = len(peaks_method["cluster"].unique())
+                n_clusters = peaks_peakcaller["cluster"].max() + 1
                 h = 1 / n_clusters
-                for _, peak in peaks_method.iterrows():
+                for _, peak in peaks_peakcaller.iterrows():
                     rect = mpl.patches.Rectangle(
                         (peak["start"], y + peak["cluster"] / n_clusters),
                         peak["end"] - peak["start"],
@@ -395,23 +504,42 @@ class Peaks(chromatinhd.grid.Ax):
                     )
                     ax.add_patch(rect)
             if y > 0:
-                ax.axhline(y, color="#DDD", zorder=10, lw=1)
+                ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
 
-        ax.set_ylim(peak_methods["ix"].max() + 1, 0)
+        ax.set_ylim(peakcallers["ix"].max() + 1, 0)
         if label_methods:
-            ax.set_yticks(peak_methods["ix"] + 0.5)
-            ax.set_yticks(peak_methods["ix"].tolist() + [len(peak_methods)], minor=True)
+            ax.set_yticks(peakcallers["ix"] + 0.5)
+            ax.set_yticks(peakcallers["ix"].tolist() + [len(peakcallers)], minor=True)
             ax.set_yticklabels(
-                peak_methods["label"],
-                fontsize=10 if panel_height >= 1 else 7,
+                peakcallers["label"],
+                fontsize=min(16 * row_height, 10),
                 va="center",
             )
-            ax.set_ylabel("Peak caller")
+            if label_rows:
+                ax.set_ylabel("CREs", rotation=0, ha="right", va="center")
+            else:
+                ax.set_ylabel("")
         else:
             ax.set_yticks([])
             ax.set_ylabel("")
-        ax.tick_params(axis="y", which="major", length=0)
-        ax.tick_params(axis="y", which="minor", length=10)
+        ax.tick_params(
+            axis="y",
+            which="major",
+            length=0,
+            pad=1,
+            right=label_methods_side == "right",
+            left=not label_methods_side == "left",
+        )
+        ax.tick_params(
+            axis="y",
+            which="minor",
+            length=1,
+            pad=1,
+            right=label_methods_side == "right",
+            left=not label_methods_side == "left",
+        )
+        ax.yaxis.tick_right()
+
         ax.set_xticks([])
 
 
@@ -468,7 +596,6 @@ class CommonUnique:
         expanded_slice_oi,
         window,
         method_info,
-        hatch_color="#FFF4",
     ):
         # add region and peak unique spans
         trans = mpl.transforms.blended_transform_factory(
@@ -479,61 +606,63 @@ class CommonUnique:
         ):
             start = start + expanded_slice_oi["start"] + window[0]
             end = end + expanded_slice_oi["start"] + window[0]
+
+            color = method_info.loc["peak", "color"]
+
             ax.axvspan(
                 start,
                 end,
-                fc=method_info.loc["peak", "color"] + "44",
-                lw=1,
-                hatch=r"\\\\\\",
-                ec=hatch_color,
+                fc=color,
+                alpha=0.3,
+                lw=0,
             )
             rect = mpl.patches.Rectangle(
                 (start, 1),
                 end - start,
                 0.2,
                 transform=trans,
-                fc=method_info.loc["peak", "color"],
+                fc=color,
                 clip_on=False,
+                lw=0,
             )
             ax.add_patch(rect)
-            # ax.plot([start, end], [1.1, 1.1], transform = trans, color = method_info.loc["peak", "color"], lw = 8, solid_capstyle = "butt", zorder = -1, clip_on = False)
-            # ax.plot([start, end], [0, 0], transform = trans, color = method_info.loc["peak", "color"], lw = 10, solid_capstyle = "butt", zorder = -1)
         for start, end in find_runs(
             peak_position_chosen_oi & region_position_chosen_oi
         ):
+            color = method_info.loc["common", "color"]
+
             start = start + expanded_slice_oi["start"] + window[0]
             end = end + expanded_slice_oi["start"] + window[0]
             ax.axvspan(
                 start,
                 end,
-                fc=method_info.loc["common", "color"] + "44",
-                lw=1,
-                hatch=r"\\\\\\/////",
-                ec=hatch_color,
+                fc=color,
+                alpha=0.3,
+                lw=0,
             )
             rect = mpl.patches.Rectangle(
                 (start, 1),
                 end - start,
                 0.2,
                 transform=trans,
-                fc=method_info.loc["common", "color"],
+                fc=color,
                 clip_on=False,
+                lw=0,
             )
             ax.add_patch(rect)
-            # ax.plot([start, end], [1.1, 1.1], transform = trans, color = method_info.loc["common", "color"], lw = 8, solid_capstyle = "butt", zorder = -1, clip_on = False)
-            # ax.plot([start, end], [0, 0], transform = trans, color = method_info.loc["common", "color"], lw = 10, solid_capstyle = "butt", zorder = -1)
         for start, end in find_runs(
             ~peak_position_chosen_oi & region_position_chosen_oi
         ):
+            color = method_info.loc["region", "color"]
+
             start = start + expanded_slice_oi["start"] + window[0]
             end = end + expanded_slice_oi["start"] + window[0]
             ax.axvspan(
                 start,
                 end,
-                fc=method_info.loc["region", "color"] + "44",
-                lw=1,
-                hatch="/////",
-                ec=hatch_color,
+                fc=color,
+                alpha=0.3,
+                lw=0,
             )
 
             rect = mpl.patches.Rectangle(
@@ -541,12 +670,11 @@ class CommonUnique:
                 end - start,
                 0.2,
                 transform=trans,
-                fc=method_info.loc["region", "color"],
+                fc=color,
+                lw=0,
                 clip_on=False,
             )
             ax.add_patch(rect)
-            # ax.plot([start, end], [1.1, 1.1], transform = trans, color = method_info.loc["region", "color"], lw = 8, solid_capstyle = "butt", zorder = -1, clip_on = False)
-            # ax.plot([start, end], [0, 0], transform = trans, color = method_info.loc["region", "color"], lw = 10, solid_capstyle = "butt", zorder = -1)
 
 
 class LabelSlice:

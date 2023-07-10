@@ -27,11 +27,26 @@ AXIS_WIDTH = AXIS_HEIGHT = 0.0
 
 
 class Ax(Element):
+    ax2 = None
+    insets = None
+
     def __init__(self, dim=None, pos=(0.0, 0.0)):
         global active_fig
         self.ax = mpl.figure.Axes(active_fig, [0, 0, 1, 1])
         self.dim = dim
         self.pos = pos
+
+    @property
+    def dim(self):
+        return self._dim
+
+    @dim.setter
+    def dim(self, value):
+        if len(value) != 2:
+            raise ValueError("dim must be a tuple of length 2")
+        if value[0] <= 0 or value[1] <= 0:
+            raise ValueError("dim must be positive")
+        self._dim = value
 
     @property
     def height(self):
@@ -58,17 +73,46 @@ class Ax(Element):
         fig_width, fig_height = fig.get_size_inches()
         width, height = self.dim
         x, y = self.pos[0] + pos[0], self.pos[1] + pos[1]
-        ax = self.ax
-        ax.set_position(
-            [
-                x / fig_width,
-                (fig_height - y - height) / fig_height,
-                width / fig_width,
-                height / fig_height,
-            ]
-        )
 
-        fig.add_axes(ax)
+        axes = [self.ax]
+        if self.ax2 is not None:
+            axes.append(self.ax2)
+
+        for ax in axes:
+            ax.set_position(
+                [
+                    x / fig_width,
+                    (fig_height - y - height) / fig_height,
+                    width / fig_width,
+                    height / fig_height,
+                ]
+            )
+
+            fig.add_axes(ax)
+
+        for inset in self.insets or []:
+            inset.position(fig, pos=(x, y + height - inset.height))
+
+    def add_twinx(self):
+        global active_fig
+        self.ax2 = mpl.figure.Axes(active_fig, [0, 0, 1, 1])
+        self.ax2.xaxis.set_visible(False)
+        self.ax2.patch.set_visible(False)
+        self.ax2.yaxis.tick_right()
+        self.ax2.yaxis.set_label_position("right")
+        self.ax2.yaxis.set_offset_position("right")
+        self.ax.yaxis.tick_left()
+        return self.ax2
+
+    def add_inset(self, inset):
+        if self.insets is None:
+            self.insets = []
+        self.insets.append(inset)
+        return inset
+
+    def __iter__(self):
+        yield self
+        yield self.ax
 
 
 class Panel(Ax):
@@ -98,7 +142,9 @@ class Wrap(Element):
     ):
         self.ncol = ncol
         self.padding_width = padding_width
-        self.padding_height = padding_height or padding_width
+        self.padding_height = (
+            padding_height if padding_height is not None else padding_width
+        )
         self.margin_width = margin_width
         self.margin_height = margin_height
         self.elements = []
@@ -161,6 +207,9 @@ class Wrap(Element):
 
     def __getitem__(self, key):
         return list(self.elements)[key]
+
+    def get_bottom_left_corner(self):
+        return self.elements[self.ncol * ((len(self.elements) % self.ncol) - 1)]
 
 
 class WrapAutobreak(Wrap):
@@ -243,6 +292,9 @@ class Grid(Element):
         self.nrow = nrow
         self.ncol = ncol
 
+        self.paddings_height = [None] * (nrow)
+        self.paddings_width = [None] * (ncol)
+
     def align(self):
         width = 0
         height = 0
@@ -256,6 +308,15 @@ class Grid(Element):
         widths = [0] * self.ncol
         heights = [0] * self.nrow
 
+        assert len(self.paddings_height) == self.nrow, (
+            len(self.paddings_height),
+            self.nrow,
+        )
+        assert len(self.paddings_width) == self.ncol, (
+            len(self.paddings_width),
+            self.ncol,
+        )
+
         for row, row_elements in enumerate(self.elements):
             for col, el in enumerate(row_elements):
                 if el is not None:
@@ -266,18 +327,26 @@ class Grid(Element):
                         heights[row] = el.height
 
         for row, (row_elements, el_height) in enumerate(zip(self.elements, heights)):
+            padding_height = self.paddings_height[min(row + 1, self.nrow - 1)]
+            if padding_height is None:
+                padding_height = self.padding_height
+
             x = 0
             for col, (el, el_width) in enumerate(zip(row_elements, widths)):
                 if el is not None:
                     el.pos = (x, y)
 
-                    next_y = max(next_y, y + el.height + self.padding_height)
+                    next_y = max(next_y, y + el.height + padding_height)
                     height = max(height, next_y)
 
                     width = max(width, x + el.width)
 
-                x += el_width + self.padding_width
-            y += el_height + self.padding_height
+                padding_width = self.paddings_width[min(col + 1, self.ncol - 1)]
+                if padding_width is None:
+                    padding_width = self.padding_width
+
+                x += el_width + padding_width
+            y += el_height + padding_height
 
         if self.title is not None:
             self.title.dim = (width, self.title.dim[1])
@@ -304,11 +373,15 @@ class Grid(Element):
         row = index[0]
         col = index[1]
 
+        if not isinstance(row, int) or not isinstance(col, int):
+            raise TypeError("row and col must be integers")
+
         if row >= (self.nrow):
             # add new row(s)
             for i in range(self.nrow, row + 1):
                 self.elements.append([None for _ in range(self.ncol)])
             self.nrow = row + 1
+            self.paddings_height.append(None)
 
         if col >= (self.ncol):
             # add new col(s)
@@ -316,12 +389,56 @@ class Grid(Element):
                 for row_ in self.elements:
                     row_.append(None)
             self.ncol = col + 1
+            self.paddings_width.append(None)
 
         self.elements[row][col] = v
 
+    def add_under(self, el, column=0, padding=None):
+        if (self.nrow == 1) and self[0, 0] is None:
+            row = 0
+        else:
+            row = self.nrow
+
+        # get column index if column is a panel
+        if "grid.Element" in column.__class__.__mro__.__repr__():
+            try:
+                column = (
+                    np.array(self.elements).flatten().tolist().index(column) % self.ncol
+                )
+            except ValueError as e:
+                raise ValueError(
+                    "The panel specified as column was not found in the grid"
+                ) from e
+        self[row, column] = el
+        if padding is not None:
+            self.paddings_height[row] = padding
+        return el
+
+    def add_right(self, el, row=0, padding=None):
+        if (self.ncol == 1) and (self[0, 0] is None):
+            column = 0
+        else:
+            column = self.ncol
+
+        # get column index if column is a panel
+        if "grid.Element" in row.__class__.__mro__.__repr__():
+            try:
+                row = np.array(self.elements).flatten().tolist().index(row) // self.ncol
+            except ValueError as e:
+                raise ValueError(
+                    "The panel specified as row was not found in the grid"
+                ) from e
+
+        self[row, column] = el
+        if padding is not None:
+            self.paddings_width[column] = padding
+        return el
+
 
 class _Figure(mpl.figure.Figure):
-    def __init__(self, main, *args, **kwargs):
+    main: Panel
+
+    def __init__(self, main: Panel, *args, **kwargs):
         self.main = main
         global active_fig
         active_fig = self
