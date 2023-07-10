@@ -308,6 +308,15 @@ class Grid(Element):
         widths = [0] * self.ncol
         heights = [0] * self.nrow
 
+        assert len(self.paddings_height) == self.nrow, (
+            len(self.paddings_height),
+            self.nrow,
+        )
+        assert len(self.paddings_width) == self.ncol, (
+            len(self.paddings_width),
+            self.ncol,
+        )
+
         for row, row_elements in enumerate(self.elements):
             for col, el in enumerate(row_elements):
                 if el is not None:
@@ -427,7 +436,9 @@ class Grid(Element):
 
 
 class _Figure(mpl.figure.Figure):
-    def __init__(self, main, *args, **kwargs):
+    main: Panel
+
+    def __init__(self, main: Panel, *args, **kwargs):
         self.main = main
         global active_fig
         active_fig = self
