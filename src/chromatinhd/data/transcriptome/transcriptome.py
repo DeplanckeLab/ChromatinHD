@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow
+from chromatinhd.flow import Flow, Stored
 from chromatinhd import sparse
 from chromatinhd.utils import Unpickler
 
@@ -91,3 +91,55 @@ class Transcriptome(Flow):
     def X(self, value):
         pickle.dump(value, (self.path / "X.pkl").open("wb"))
         self._X = value
+
+
+class ClusterTranscriptome(Flow):
+    var = Stored("var")
+    obs = Stored("obs")
+    adata = Stored("adata")
+    X = Stored("X")
+
+    def gene_id(self, symbol):
+        assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
+            pd.Series(symbol)[~pd.Series(symbol).isin(self.var["symbol"])]
+        )
+        return self.var.reset_index("gene").set_index("symbol").loc[symbol]["gene"]
+
+    def symbol(self, gene_id):
+        assert all(pd.Series(gene_id).isin(self.var.index)), set(
+            pd.Series(gene_id)[~pd.Series(gene_id).isin(self.var.index)]
+        )
+        return self.var.loc[gene_id]["symbol"]
+
+    def gene_ix(self, symbol):
+        self.var["ix"] = np.arange(self.var.shape[0])
+        assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
+            pd.Series(symbol)[~pd.Series(symbol).isin(self.var["symbol"])]
+        )
+        return self.var.reset_index("gene").set_index("symbol").loc[symbol]["ix"]
+
+
+class ClusteredTranscriptome(Flow):
+    donors_info = Stored("donors_info")
+    clusters_info = Stored("clusters_info")
+    var = Stored("var")
+    X = Stored("X")
+
+    def gene_id(self, symbol):
+        assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
+            pd.Series(symbol)[~pd.Series(symbol).isin(self.var["symbol"])]
+        )
+        return self.var.reset_index("gene").set_index("symbol").loc[symbol]["gene"]
+
+    def symbol(self, gene_id):
+        assert all(pd.Series(gene_id).isin(self.var.index)), set(
+            pd.Series(gene_id)[~pd.Series(gene_id).isin(self.var.index)]
+        )
+        return self.var.loc[gene_id]["symbol"]
+
+    def gene_ix(self, symbol):
+        self.var["ix"] = np.arange(self.var.shape[0])
+        assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
+            pd.Series(symbol)[~pd.Series(symbol).isin(self.var["symbol"])]
+        )
+        return self.var.reset_index("gene").set_index("symbol").loc[symbol]["ix"]

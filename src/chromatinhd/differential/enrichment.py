@@ -261,7 +261,13 @@ def enrich_windows(
     )
     motif_percs_genewise = motif_counts_genewise / (n_positions_gene[:, None] + 1e-5)
 
-    if background_position_slices is None:
+    # if no background, use all regions
+    if n_background == 0:
+        background_position_slices = np.stack(
+            [np.repeat(0, n_genes), np.repeat(window[1] - window[0], n_genes)]
+        ).T
+        background_gene_ixs_slices = np.arange(n_genes)
+    elif background_position_slices is None:
         assert (
             onehot_promoters is not None
         ), "Sequences are required for selecting a background"
@@ -304,11 +310,9 @@ def enrich_windows(
         .astype(np.uint)
     )
 
-    # odds_conditional = []
-    # for cont in contingencies:
-    #     odds_conditional.append(
-    #         scipy.stats.contingency.odds_ratio(cont + 1, kind="conditional").statistic
-    #     )  # pseudocount = 1
+    # if background == all positions, remove the counts from the slices_oi
+    if n_background == 0:
+        contingencies[:, [0]] = contingencies[:, [0]] - contingencies[:, [1]]
 
     p_values = fisher.pvalue_npy(
         contingencies[:, 0, 0],
@@ -324,7 +328,6 @@ def enrich_windows(
         {
             "odds": ((motif_counts + 1) / (n_positions + 1))
             / ((background_motif_counts + 1) / (background_n_positions + 1)),
-            # "odds_conditional": odds_conditional,
             "motif": motifscan.motifs.index,
             "in": motif_counts / n_motifs,
             "perc": motif_counts / n_positions,
@@ -333,11 +336,124 @@ def enrich_windows(
             "perc_gene": [x for x in motif_percs_genewise.T],
         }
     ).set_index("motif")
-    # motifscores["logodds"] = np.log(odds_conditional)
     motifscores["logodds"] = np.log(motifscores["odds"])
     motifscores["qval"] = statsmodels.stats.multitest.fdrcorrection(
         motifscores["pval"]
     )[-1]
+
+    return motifscores
+
+
+# pip install fisher
+def enrich_windows_genewise(
+    motifscan,
+    position_slices,
+    gene_ixs_slices,
+    n_genes,
+    window,
+    gene_ids,
+    oi_slices=None,
+):
+    if oi_slices is not None:
+        position_slices = position_slices[oi_slices]
+        gene_ixs_slices = gene_ixs_slices[oi_slices]
+
+    motif_counts = count_motifs_genewise(
+        position_slices[:, 0],
+        position_slices[:, 1],
+        gene_ixs_slices,
+        motifscan,
+        n_genes,
+        window,
+    )
+    n_positions = np.bincount(
+        gene_ixs_slices,
+        weights=position_slices[:, 1] - position_slices[:, 0],
+        minlength=n_genes,
+    )[:, None]
+
+    background_position_slices = np.stack(
+        [np.repeat(0, n_genes), np.repeat(window[1] - window[0], n_genes)]
+    ).T
+    background_gene_ixs_slices = np.arange(n_genes)
+
+    background_motif_counts = count_motifs_genewise(
+        background_position_slices[:, 0],
+        background_position_slices[:, 1],
+        background_gene_ixs_slices,
+        motifscan,
+        n_genes,
+        window,
+    )
+    background_n_positions = np.bincount(
+        background_gene_ixs_slices,
+        weights=background_position_slices[:, 1] - background_position_slices[:, 0],
+        minlength=n_genes,
+    )[:, None]
+
+    # create contingencies to calculate conditional odds
+    contingencies = np.stack(
+        [
+            np.stack(
+                [
+                    background_n_positions - background_motif_counts,
+                    background_motif_counts,
+                ],
+                -1,
+            ),
+            np.stack([n_positions - motif_counts, motif_counts], -1),
+        ],
+        -2,
+    ).astype(
+        int
+    )  # order is: gene, motif, motif yes/no, oi yes/no
+
+    background_motif_counts
+
+    # if background == all positions, remove the counts from the slices_oi
+    contingencies[..., [0], :] = contingencies[..., [0], :] - contingencies[..., [1], :]
+    assert contingencies.sum() == n_genes * (window[1] - window[0]) * motifscan.n_motifs
+
+    if contingencies.min() < 0:
+        raise ValueError("Likely some slices are overlapping!!")
+
+    contingencies = contingencies.astype(np.uint)
+
+    odds_conditional = []
+    for cont in contingencies.reshape(-1, 2, 2):
+        odds_conditional.append(
+            scipy.stats.contingency.odds_ratio(cont, kind="conditional").statistic
+        )
+
+    p_values = fisher.pvalue_npy(
+        contingencies[..., 0, 0].flatten(),
+        contingencies[..., 1, 0].flatten(),
+        contingencies[..., 0, 1].flatten(),
+        contingencies[..., 1, 1].flatten(),
+    )[-1].reshape(contingencies.shape[0:2])
+
+    # create motifscores
+    motifscores = pd.DataFrame(
+        {
+            "odds": odds_conditional,
+            "n": background_motif_counts.flatten(),
+            "n_found": motif_counts.flatten(),
+            "in": (motif_counts / (background_motif_counts + 1e-5)).flatten(),
+            "perc": (motif_counts / (n_positions + 1e-5)).flatten(),
+            "pval": p_values.flatten(),
+        }
+    )
+    motifscores.index = (
+        pd.DataFrame(columns=gene_ids, index=motifscan.motifs.index).unstack().index
+    )
+    motifscores["logodds"] = np.log(motifscores["odds"])
+    motifscores.loc[
+        motifscores["n"] > 0, "qval"
+    ] = statsmodels.stats.multitest.fdrcorrection(
+        motifscores.loc[motifscores["n"] > 0, "pval"]
+    )[
+        -1
+    ]
 
     return motifscores
 
@@ -409,24 +525,51 @@ def enrich_cluster_vs_background(
     clustering_id,
     n_genes,
     onehot_promoters,
+    n_background=10,
 ):
     motifscores = []
     for cluster_id in regions[clustering_id].cat.categories:
         print(cluster_id)
         oi_slices = regions[clustering_id] == cluster_id
-        motifscores_group = enrich_windows(
+        if oi_slices.sum() > 0:
+            motifscores_group = enrich_windows(
+                motifscan,
+                regions[["start", "end"]].values,
+                regions["gene_ix"].values,
+                oi_slices=oi_slices,
+                n_genes=n_genes,
+                window=window,
+                onehot_promoters=onehot_promoters,
+                n_background=n_background,
+            )
+            motifscores_group[clustering_id] = cluster_id
+
+            motifscores.append(motifscores_group)
+    motifscores = pd.concat(motifscores).reset_index()
+    motifscores = motifscores.reset_index().set_index([clustering_id, "motif"])
+    return motifscores
+
+
+import tqdm.auto as tqdm
+
+
+def enrich_cluster_vs_all(motifscan, window, regions, clustering_id, n_genes, gene_ids):
+    motifscores = []
+    for cluster_id in tqdm.tqdm(regions[clustering_id].cat.categories):
+        oi_slices = regions[clustering_id] == cluster_id
+        motifscores_group = enrich_windows_genewise(
             motifscan,
             regions[["start", "end"]].values,
             regions["gene_ix"].values,
             oi_slices=oi_slices,
             n_genes=n_genes,
             window=window,
-            onehot_promoters=onehot_promoters,
-            # n_background=1,
+            gene_ids=gene_ids,
         )
+        index_names = motifscores_group.index.names
         motifscores_group[clustering_id] = cluster_id
 
         motifscores.append(motifscores_group)
     motifscores = pd.concat(motifscores).reset_index()
-    motifscores = motifscores.reset_index().set_index([clustering_id, "motif"])
+    motifscores = motifscores.reset_index().set_index([clustering_id, *index_names])
     return motifscores

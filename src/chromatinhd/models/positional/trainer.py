@@ -62,11 +62,9 @@ class Trainer:
         self.outcome = self.outcome.to(self.device)
 
         continue_training = True
-        finalizing = False
 
         prev_gene_loss = None
         improved = None
-        prev_improved = None
 
         self.loaders.initialize(next_task_sets=minibatches_train_sets)
         self.loaders_validation.initialize(minibatches_validation)
@@ -77,9 +75,6 @@ class Trainer:
         while (self.epoch < self.n_epochs) and (continue_training):
             # checkpoint if necessary
             if (self.epoch % self.checkpoint_every_epoch) == 0:
-                # for parameter in parameters:
-                #     parameter.replace()
-
                 with torch.no_grad():
                     gene_loss = np.zeros(self.outcome.shape[1])
                     for data_validation in self.loaders_validation:
@@ -108,37 +103,32 @@ class Trainer:
                 print(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
                 self.trace.checkpoint()
 
-                if True or (
-                    (self.epoch > 1)
-                    and ((self.trace.last_validation_diff[-1] > 0) or (finalizing))
-                ):
-                    if prev_gene_loss is not None:
-                        improvement = gene_loss - prev_gene_loss
-                        # if improved is not None:
-                        #     assert (
-                        #         np.isclose(improvement[~improved], 0)
-                        #     ).all(), improvement[~improved]
+                # compare with previous loss per gene
+                if prev_gene_loss is not None:
+                    improvement = gene_loss - prev_gene_loss
 
+                    if improved is not None:
+                        improved = improved & (improvement > 0)
+                    else:
                         improved = improvement > 0
-                        print(f"{improved.mean():.1%}")
+                    print(f"{improved.mean():.1%}")
 
-                        if improved.mean() < 0.05:
-                            break
+                    # stop training once less than 1% of genes are still being optimized
+                    if improved.mean() < 0.01:
+                        break
 
-                        minibatches_train_sets = filter_minibatch_sets(
-                            minibatches_train_sets, improved
-                        )
-                        self.loaders.initialize(next_task_sets=minibatches_train_sets)
-
-                    finalizing = True
+                    minibatches_train_sets = filter_minibatch_sets(
+                        minibatches_train_sets, improved
+                    )
+                    self.loaders.initialize(next_task_sets=minibatches_train_sets)
 
                 prev_gene_loss = gene_loss.copy()
 
             # train
             for data_train in self.loaders:
-                # actual training
                 data_train = data_train.to(self.device)
 
+                # get subset of transcriptomics data
                 transcriptome_subset = self.outcome[data_train.cells_oi, :][
                     :, data_train.genes_oi
                 ].to(self.device)

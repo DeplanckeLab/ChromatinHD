@@ -2,64 +2,16 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow
+from chromatinhd.flow import Flow, StoredTorchInt32, Stored, StoredTorchInt64, TSV
 
 import torch
 import math
 
 
 class Fragments(Flow):
-    _coordinates = None
-
-    @property
-    def coordinates(self):
-        if self._coordinates is None:
-            self._coordinates = pickle.load((self.path / "coordinates.pkl").open("rb"))
-        if not self._coordinates.dtype is torch.int64:
-            self._coordinates = self._coordinates.to(torch.int64)
-        if not self._coordinates.is_contiguous():
-            self._coordinates = self._coordinates.contiguous()
-        return self._coordinates
-
-    @coordinates.setter
-    def coordinates(self, value):
-        value = value.to(torch.int64).contiguous()
-        pickle.dump(value, (self.path / "coordinates.pkl").open("wb"))
-        self._coordinates = value
-
-    _mapping = None
-
-    @property
-    def mapping(self):
-        if self._mapping is None:
-            self._mapping = pickle.load((self.path / "mapping.pkl").open("rb"))
-        if not self._mapping.dtype is torch.int64:
-            self._mapping = self._mapping.to(torch.int64)
-        if not self._mapping.is_contiguous():
-            self._mapping = self._mapping.contiguous()
-        return self._mapping
-
-    @mapping.setter
-    def mapping(self, value):
-        value = value.to(torch.int64).contiguous()
-        pickle.dump(value, (self.path / "mapping.pkl").open("wb"))
-        self._mapping = value
-
-    _cellxgene_indptr = None
-
-    @property
-    def cellxgene_indptr(self):
-        if self._cellxgene_indptr is None:
-            self._cellxgene_indptr = pickle.load(
-                (self.path / "cellxgene_indptr.pkl").open("rb")
-            )
-        return self._cellxgene_indptr
-
-    @cellxgene_indptr.setter
-    def cellxgene_indptr(self, value):
-        value = value.to(torch.int64).contiguous()
-        pickle.dump(value, (self.path / "cellxgene_indptr.pkl").open("wb"))
-        self._cellxgene_indptr = value
+    coordinates = StoredTorchInt64("coordinates")
+    mapping = StoredTorchInt64("mapping")
+    cellxgene_indptr = StoredTorchInt64("cellxgene_indptr")
 
     def create_cellxgene_indptr(self):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
@@ -96,33 +48,8 @@ class Fragments(Flow):
             self._cellmapping = self.mapping[:, 0].contiguous()
         return self._cellmapping
 
-    _var = None
-
-    @property
-    def var(self):
-        if self._var is None:
-            self._var = pd.read_table(self.path / "var.tsv", index_col=0)
-        return self._var
-
-    @var.setter
-    def var(self, value):
-        value.index.name = "gene"
-        value.to_csv(self.path / "var.tsv", sep="\t")
-        self._var = value
-
-    _obs = None
-
-    @property
-    def obs(self):
-        if self._obs is None:
-            self._obs = pd.read_table(self.path / "obs.tsv", index_col=0)
-        return self._obs
-
-    @obs.setter
-    def obs(self, value):
-        value.index.name = "gene"
-        value.to_csv(self.path / "obs.tsv", sep="\t")
-        self._obs = value
+    var = TSV("var")
+    obs = TSV("obs")
 
     _n_genes = None
 
@@ -167,3 +94,15 @@ class Fragments(Flow):
     @property
     def cells_oi_torch(self):
         return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+
+
+class ChunkedFragments(Flow):
+    chunk_size = Stored("chunk_size")
+    chunkcoords = StoredTorchInt64("chunkcoords")
+    chunkcoords_indptr = StoredTorchInt32("chunkcoords_indptr")
+    clusters = StoredTorchInt32("clusters")
+    relcoords = StoredTorchInt32("relcoords")
+
+    clusters = Stored("clusters")
+    clusters_info = Stored("clusters_info")
+    chromosomes = Stored("chromosomes")

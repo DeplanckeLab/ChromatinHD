@@ -7,7 +7,6 @@ import dataclasses
 class Minibatch:
     cells_oi: np.ndarray
     genes_oi: np.ndarray
-    cellxgene_oi: np.ndarray
     phase: str = "train"
 
     def items(self):
@@ -15,18 +14,12 @@ class Minibatch:
 
     def filter_genes(self, genes):
         genes_oi = self.genes_oi[genes[self.genes_oi]]
-        cellxgene_oi = cell_gene_to_cellxgene(self.cells_oi, genes_oi, len(genes))
 
         return Minibatch(
             cells_oi=self.cells_oi,
             genes_oi=genes_oi,
-            cellxgene_oi=cellxgene_oi,
             phase=self.phase,
         )
-
-
-def cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes):
-    return (cells_oi[:, None] * n_genes + genes_oi).flatten()
 
 
 def create_bins_ordered(
@@ -70,7 +63,7 @@ def create_bins_ordered(
             Minibatch(
                 cells_oi=cells_oi,
                 genes_oi=genes_oi,
-                cellxgene_oi=cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes_total),
+                # cellxgene_oi=cell_gene_to_cellxgene(cells_oi, genes_oi, n_genes_total),
                 **kwargs
             )
         )
@@ -115,9 +108,9 @@ def create_bins_random(
                 Minibatch(
                     cells_oi=cells_oi,
                     genes_oi=genes_oi,
-                    cellxgene_oi=cell_gene_to_cellxgene(
-                        cells_oi, genes_oi, n_genes_total
-                    ),
+                    # cellxgene_oi=cell_gene_to_cellxgene(
+                    #     cells_oi, genes_oi, n_genes_total
+                    # ),
                     **kwargs
                 )
             )

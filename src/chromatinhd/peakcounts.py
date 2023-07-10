@@ -32,6 +32,7 @@ class PeakCounts(Flow):
 
         # count
         counts = collections.defaultdict(int)
+        cell_ids = [str(cell_id) for cell_id in cell_ids]
         barcode_idxs = {barcode: ix for ix, barcode in enumerate(cell_ids)}
 
         process = sp.Popen(
@@ -54,6 +55,7 @@ class PeakCounts(Flow):
             else:
                 fragment = line.split("\t")
                 barcode = fragment[3].strip("\n")
+
                 if barcode in barcode_idxs:
                     counts[(barcode_idxs[barcode], peak_idx)] += 1
 
@@ -66,6 +68,9 @@ class PeakCounts(Flow):
         counts_csr = scipy.sparse.csr_matrix(
             (v, (i, j)), shape=(len(barcode_idxs), len(peak_idxs))
         )
+
+        if counts_csr.sum() == 0:
+            raise ValueError("Something went wrong with counting")
 
         self.counts = counts_csr
 

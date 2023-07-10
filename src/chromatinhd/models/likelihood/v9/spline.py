@@ -274,12 +274,14 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         logabsdet = None
         outputs = x
 
+        stride = 1 if not inverse else -1
+
         unnormalized_widths = self.unnormalized_widths(genes_oi)
         unnormalized_heights = self.unnormalized_heights(genes_oi)
         for unnormalized_heights, unnormalized_widths, delta_heights in zip(
-            self._split_parameters(unnormalized_heights, self.splits_heights),
-            self._split_parameters(unnormalized_widths, self.splits_widths),
-            self._split_parameters(delta, self.split_deltas),
+            self._split_parameters(unnormalized_heights, self.splits_heights)[::stride],
+            self._split_parameters(unnormalized_widths, self.splits_widths)[::stride],
+            self._split_parameters(delta, self.split_deltas)[::stride],
         ):
             widths = splines.quadratic.calculate_widths(unnormalized_widths)
             bin_locations = splines.quadratic.calculate_bin_locations(widths)
@@ -308,8 +310,10 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 logabsdet = logabsdet + logabsdet_
         return outputs, logabsdet
 
-    def transform_inverse(self, y, local_gene_ix):
-        return self.transform_forward(y, local_gene_ix=local_gene_ix, inverse=True)
+    def transform_inverse(self, y, genes_oi, local_gene_ix, delta):
+        return self.transform_forward(
+            y, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=delta, inverse=True
+        )
 
     def parameters_sparse(self):
         return [self.unnormalized_heights.weight, self.unnormalized_widths.weight]

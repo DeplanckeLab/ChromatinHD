@@ -4,7 +4,9 @@ import pandas as pd
 
 
 class DifferentialSlices:
-    def __init__(self, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters):
+    def __init__(
+        self, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters, scores=None
+    ):
         assert positions.ndim == 2
         assert positions.shape[1] == 2
         self.positions = positions
@@ -13,6 +15,7 @@ class DifferentialSlices:
         self.window = window
         self.n_genes = n_genes
         self.n_clusters = n_clusters
+        self.scores = scores
 
     def get_slicescores(self):
         slicescores = pd.DataFrame(
@@ -79,9 +82,13 @@ class DifferentialSlices:
         return slicelocations
 
     def get_sliceaverages(self, probs):
-        probs_mean = probs.mean(1)
-        slice_average_signal = []
-        slice_max_signal = []
+        probs_baseline = probs.mean(1)
+        slice_average_baseline = []
+        slice_max_baseline = []
+        slice_std_baseline = []
+        slice_average_oi = []
+        slice_max_oi = []
+        slice_std_oi = []
         slice_average_lfc = []
         slice_max_lfc = []
         slice_summit = []
@@ -94,28 +101,46 @@ class DifferentialSlices:
                 (start):(end),
             ]
 
-            prob_mean = probs_mean[
+            prob_baseline = probs_baseline[
                 gene_ix,
                 (start):(end),
             ]
-            slice_average_signal.append(prob_mean.mean())
-            slice_max_signal.append(prob_mean.max())
+            slice_average_oi.append(prob_oi.mean())
+            slice_max_oi.append(prob_oi.max())
+            slice_std_oi.append(prob_oi.std())
 
-            slice_lfc = prob_oi - prob_mean
+            slice_average_baseline.append(prob_baseline.mean())
+            slice_max_baseline.append(prob_baseline.max())
+            slice_std_baseline.append(prob_baseline.std())
+
+            slice_lfc = prob_oi - prob_baseline
 
             slice_average_lfc.append(slice_lfc.mean())
             slice_max_lfc.append(slice_lfc.max())
 
             slice_summit.append(start + np.argmax(prob_oi))
-        slice_average_signal = np.hstack(slice_average_signal)
-        slice_max_signal = np.hstack(slice_max_signal)
+
+        slice_average_baseline = np.hstack(slice_average_baseline)
+        slice_max_baseline = np.hstack(slice_max_baseline)
+        slice_std_baseline = np.hstack(slice_std_baseline)
+
+        slice_average_oi = np.hstack(slice_average_oi)
+        slice_max_oi = np.hstack(slice_max_oi)
+        slice_std_oi = np.hstack(slice_std_oi)
+
         slice_average_lfc = np.hstack(slice_average_lfc)
+        slice_max_lfc = np.hstack(slice_max_lfc)
+
         slice_summit = np.hstack(slice_summit)
 
         return pd.DataFrame(
             {
-                "average": slice_average_signal,
-                "max": slice_max_signal,
+                "average_baseline": slice_average_baseline,
+                "max_baseline": slice_max_baseline,
+                "std_baseline": slice_std_baseline,
+                "average": slice_average_oi,
+                "max": slice_max_oi,
+                "std": slice_std_oi,
                 "average_lfc": slice_average_lfc,
                 "max_lfc": slice_max_lfc,
                 "summit": slice_summit,
@@ -136,6 +161,22 @@ class DifferentialSlices:
         return position_chosen.flatten()
 
     @property
+    def position_ranked(self):
+        position_chosen = np.zeros(
+            (self.n_genes, self.n_clusters, (self.window[1] - self.window[0])),
+            # self.n_clusters * self.n_genes * (self.window[1] - self.window[0]),
+        )
+        for start, end, gene_ix, cluster_ix, score in zip(
+            self.positions[:, 0],
+            self.positions[:, 1],
+            self.gene_ixs,
+            self.cluster_ixs,
+            self.scores,
+        ):
+            position_chosen[gene_ix, cluster_ix, start:end] = score
+        return position_chosen
+
+    @property
     def position_indices(self):
         position_chosen = self.position_chosen
         position_indices = np.where(position_chosen)[0]
@@ -143,7 +184,14 @@ class DifferentialSlices:
 
     @classmethod
     def from_positions(
-        cls, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters
+        cls,
+        positions,
+        gene_ixs,
+        cluster_ixs,
+        window,
+        n_genes,
+        n_clusters,
+        resolution=1,
     ):
         groups = np.hstack(
             [
@@ -161,9 +209,10 @@ class DifferentialSlices:
         )
         cuts = np.where(np.hstack([True, (np.diff(groups) != 0), True]))[0]
 
-        position_slices = np.vstack(
-            (positions[cuts[:-1]], positions[cuts[1:] - 1] + 1)
-        ).T
+        position_slices = (
+            np.vstack((positions[cuts[:-1]], positions[cuts[1:] - 1] + 1)).T
+            * resolution
+        )
         gene_ixs = gene_ixs[cuts[:-1]]
         cluster_ixs = cluster_ixs[cuts[:-1]]
         return cls(position_slices, gene_ixs, cluster_ixs, window, n_genes, n_clusters)
@@ -177,6 +226,7 @@ class DifferentialSlices:
         logfoldchanges_cutoff=1.0,
         pvals_adj_cutoff=0.05,
     ):
+
         # get significant
         peakscores["significant"] = (
             peakscores["logfoldchanges"] > logfoldchanges_cutoff
@@ -214,14 +264,24 @@ class DifferentialSlices:
                 # merge
                 peakscores_oi["component"] = connected_components[1]
                 peakscores_oi_joined = peakscores_oi.groupby("component").agg(
-                    {"relative_start": min, "relative_end": max}
+                    {
+                        "relative_start": min,
+                        "relative_end": max,
+                        "logfoldchanges": "mean",
+                    }
                 )
                 peakscores_oi_joined = peakscores_oi_joined.assign(
                     cluster=cluster, gene_ix=gene_ix
                 )
             else:
                 peakscores_oi_joined = peakscores_oi.reset_index()[
-                    ["gene_ix", "cluster", "relative_start", "relative_end"]
+                    [
+                        "gene_ix",
+                        "cluster",
+                        "relative_start",
+                        "relative_end",
+                        "logfoldchanges",
+                    ]
                 ].copy()
             peakscores_significant_joined.append(peakscores_oi_joined)
 
@@ -235,6 +295,7 @@ class DifferentialSlices:
 
         # get positions
         positions = peakscores_significant[["relative_start", "relative_end"]].values
+        scores = peakscores_significant["logfoldchanges"].values
         positions = positions - window[0]
         gene_ixs = peakscores_significant["gene_ix"].values
         cluster_ixs = peakscores_significant["cluster"].cat.codes
@@ -245,11 +306,12 @@ class DifferentialSlices:
             cluster_ixs,
             window,
             n_genes,
+            scores=scores,
             n_clusters=len(peakscores["cluster"].cat.categories),
         )
 
     @classmethod
-    def from_basepair_ranking(cls, basepair_ranking, window, cutoff):
+    def from_basepair_ranking(cls, basepair_ranking, window, cutoff, resolution=1):
         """
         :param: cutoff
 
@@ -262,7 +324,13 @@ class DifferentialSlices:
         gene_ixs, cluster_ixs, positions = np.where(basepairs_oi)
 
         return cls.from_positions(
-            positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters
+            positions,
+            gene_ixs,
+            cluster_ixs,
+            window,
+            n_genes,
+            n_clusters,
+            resolution=resolution,
         )
 
     def get_slicetopologies(self, probs):
@@ -335,14 +403,6 @@ class DifferentialSlices:
                     )
                 )
 
-                # determine local "dominance"
-                # if slice[0] == 7966:
-                #     import matplotlib.pyplot as plt
-
-                #     plt.plot(x_)
-                #     plt.plot(x_neighborhoud)
-
-                #     raise ValueError()
                 dominances.append((x_.max() / max(x_.max(), x_neighborhoud.max())))
 
                 differentialdominances.append(
@@ -377,6 +437,7 @@ class DifferentialSlices:
             {
                 "prominence": prominences,
                 "n_subpeaks": n_subpeaks,
+                "log1p_n_subpeaks": n_subpeaks,
                 "balances_raw": balances_raw,
                 "balance": balances,
                 "dominance": dominances,
