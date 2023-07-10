@@ -1,0 +1,13 @@
+site_name: documentation
+theme:
+  name: material
+  palette:
+    primary: blue grey
+  logo: static/logo.png
+  custom_dir: docs
+repo_url: https://github.com/DeplanckeLab/ChromatinHD
+
+plugins:
+  - mkdocstrings
+  - mike
+  - search
