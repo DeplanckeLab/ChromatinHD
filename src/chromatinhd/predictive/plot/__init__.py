@@ -1,12 +1,10 @@
 import chromatinhd.grid
 import matplotlib as mpl
-import seaborn as sns
-import numpy as np
-import pandas as pd
+from chromatinhd.grid.broken import Broken, Panel
 
 
 class Predictive(chromatinhd.grid.Panel):
-    def __init__(self, plotdata, window, width):
+    def __init__(self, plotdata, window, width, show_accessibility=False):
         super().__init__((width, 0.5))
 
         ax = self.ax
@@ -19,36 +17,44 @@ class Predictive(chromatinhd.grid.Panel):
             lw=1,
         )
 
-        # ax.set_ylim(0, 1)
-        ax.set_ylabel("$\Delta$ cor", rotation=0, ha="right", va="center")
+        ax.set_ylabel(
+            "Predictivity\n($\Delta$ cor)",
+            rotation=0,
+            ha="right",
+            va="center",
+        )
+
         ax.set_xticks([])
         ax.invert_yaxis()
-        ax.set_ylim(0)
+        ax.set_ylim(0, max(-0.05, ax.get_ylim()[1]))
 
-        ax2 = self.add_twinx()
-        ax2.plot(
-            plotdata["position"],
-            plotdata["lost"],
-            color="tomato",
-            # color="#333",
-            lw=1,
-        )
-        ax2.set_xlim(ax.get_xlim())
-        ax2.set_ylabel(
-            "# fragments\nper 1kb\nper 1k cells",
-            rotation=0,
-            ha="left",
-            va="center",
-            color="tomato",
-        )
-        ax2.tick_params(axis="y", colors="tomato")
-        ax2.set_ylim(0)
+        if show_accessibility:
+            ax2 = self.add_twinx()
+            ax2.plot(
+                plotdata["position"],
+                plotdata["lost"],
+                color="tomato",
+                # color="#333",
+                lw=1,
+            )
+            ax2.set_xlim(ax.get_xlim())
+            ax2.set_ylabel(
+                "# fragments\nper 1kb\nper 1k cells",
+                rotation=0,
+                ha="left",
+                va="center",
+                color="tomato",
+            )
+            ax2.tick_params(axis="y", colors="tomato")
+            ax2.set_ylim(0)
+
+        # change vertical alignment of last y tick to bottom
+        ax.set_yticks([0, ax.get_ylim()[1]])
+        ax.get_yticklabels()[-1].set_verticalalignment("top")
+        ax.get_yticklabels()[0].set_verticalalignment("bottom")
 
         # vline at tss
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
-
-
-from chromatinhd.grid.broken import Broken, Panel
 
 
 class PredictiveBroken(Broken):

@@ -167,17 +167,16 @@ class Differential(chromatinhd.grid.Wrap):
         ymax=20,
         **kwargs,
     ):
-        super().__init__(ncol=1, **kwargs, padding_height=0)
+        super().__init__(ncol=1, **{"padding_height": 0, **kwargs})
         self.show_atac_diff = show_atac_diff
         self.cmap_atac_diff = cmap_atac_diff
         self.norm_atac_diff = norm_atac_diff
         self.window = window
         self.cluster_info = cluster_info
 
-        if title is not False:
-            self.set_title("ATAC-seq insertion")
-
-        for cluster_ix in self.cluster_info["dimension"]:
+        for cluster_ix, cluster_info_oi in self.cluster_info.set_index(
+            "dimension"
+        ).iterrows():
             ax_genome = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax_genome)
 
@@ -186,6 +185,24 @@ class Differential(chromatinhd.grid.Wrap):
             ax.set_ylim(0, ymax)
             ax.set_xlim(*window)
             ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1)
+
+            text = ax.annotate(
+                text=f"{cluster_info_oi['label']}",
+                xy=(0, 1),
+                xytext=(2, -2),
+                textcoords="offset points",
+                xycoords="axes fraction",
+                ha="left",
+                va="top",
+                fontsize=10,
+                color="#333",
+            )
+            text.set_path_effects(
+                [
+                    mpl.patheffects.Stroke(linewidth=2, foreground="white"),
+                    mpl.patheffects.Normal(),
+                ]
+            )
 
             if plotdata_empirical is not None:
                 # empirical distribution of atac-seq cuts
@@ -199,8 +216,21 @@ class Differential(chromatinhd.grid.Wrap):
                     color="#333",
                 )
 
-            ax.set_yticks([])
             ax.set_xticks([])
+
+            if cluster_ix != self.cluster_info["dimension"].iloc[0]:
+                ax.set_yticks([])
+        ax.annotate(
+            text="Mean &\ndifferential\naccessibility",
+            xy=(0, len(cluster_info) / 2),
+            xycoords="axes fraction",
+            xytext=(-20, 0),
+            textcoords="offset points",
+            rotation=0,
+            ha="right",
+            va="center",
+        )
+
         self.draw(plotdata_genome, plotdata_genome_mean)
 
     def draw(self, plotdata_genome, plotdata_genome_mean):
@@ -273,6 +303,7 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
         panel_height,
         cmap_expression=mpl.cm.Reds,
         norm_expression=None,
+        symbol=None,
         **kwargs,
     ):
         super().__init__(ncol=1, **kwargs)
@@ -304,18 +335,34 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
                 ec="#333333",
             )
             ax.add_patch(circle)
-            ax.set_xlim(-1.1, 1.1)
-            ax.set_ylim(-1.1, 1.1)
+            ax.set_xlim(-1.05, 1.05)
+            ax.set_ylim(-1.05, 1.05)
             ax.set_aspect(1)
+            # text = ax.text(
+            #     0,
+            #     0,
+            #     cluster_info.loc[cluster_id, "label"],
+            #     ha="center",
+            #     va="center",
+            #     color="#FFFFFF",
+            # )
+            # text.set_path_effects(
+            #     [
+            #         mpl.patheffects.Stroke(linewidth=2, foreground="#333333"),
+            #         mpl.patheffects.Normal(),
+            #     ]
+            # )
 
-            ax.set_ylabel(
-                f"{cluster_info.loc[cluster_id]['label']}",
-                rotation=0,
-                ha="right",
+        if symbol is not None:
+            ax.annotate(
+                text="$\\mathit{" + symbol + "}$\nexpression",
+                xy=(1, len(cluster_info) / 2),
+                xytext=(5, 0),
+                textcoords="offset points",
+                xycoords="axes fraction",
+                ha="left",
                 va="center",
             )
-
-        self.set_title("RNA-seq")
 
 
 class MotifsLegend(chromatinhd.grid.Wrap):
