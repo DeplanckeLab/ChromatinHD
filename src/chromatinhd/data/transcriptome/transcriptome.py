@@ -92,6 +92,12 @@ class Transcriptome(Flow):
         pickle.dump(value, (self.path / "X.pkl").open("wb"))
         self._X = value
 
+    @classmethod
+    def from_adata(cls, adata, path):
+        return cls.create(
+            path=path, adata=adata, obs=adata.obs, var=adata.var
+        ).create_X()
+
 
 class ClusterTranscriptome(Flow):
     var = Stored("var")
