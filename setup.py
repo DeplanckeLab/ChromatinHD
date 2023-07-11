@@ -21,9 +21,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name=name,
     version=version,
-    # author="Wouter Saelens",
-    # author_email="wouter.saelens@gmail.com",
-    description="Blabla",
+    author="Wouter Saelens",
+    author_email="wouter.saelens@gmail.com",
+    description="Modeling of chromatin + transcriptomics data",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/DeplanckeLab/ChromatinHD",
@@ -36,13 +36,18 @@ setuptools.setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        "torch==1.12.1",  # --extra-index-url https://download.pytorch.org/whl/cu113
-        "torch-scatter",  # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
+        "torch=",  # --extra-index-url https://download.pytorch.org/whl/cu113
+        "torch-scatter",
+        # "torch==1.12.1",  # --extra-index-url https://download.pytorch.org/whl/cu113
+        # "torch-scatter",  # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
         "scanpy",
+        "matplotlib",
+        "numpy",
         "seaborn",
         "pybedtools",
         "Cython",
         "fisher",
+        "pysam",
     ],
     extras_require={
         "full": [],
@@ -59,6 +64,8 @@ setuptools.setup(
             "mkdocs-material",
             "mkdocstrings[python]",
             "mike",
+            "cairosvg", # for mkdocs social
+            "pillow", # for mkdocs social
             # "faiss-cpu",
         ],
         "eqtl": ["cyvcf2", "xarray"],

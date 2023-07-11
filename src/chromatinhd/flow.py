@@ -4,6 +4,8 @@ import pickle
 import numpy as np
 import gzip
 import copy
+import json
+import importlib
 
 
 class Flow:
@@ -23,8 +25,72 @@ class Flow:
         if not path.exists():
             path.mkdir(parents=True)
 
+        if not self._get_info_path().exists():
+            self._store_info()
+
+    @classmethod
+    def create(cls, path, **kwargs):
+        path = pathlib.Path(path)
+        self = cls(path=path)
+
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        return self
+
+
+    def _store_info(self):
+        info = {"module": self.__class__.__module__, "class": self.__class__.__name__}
+
+        json.dump(info, self._get_info_path().open("w"))
+
+    def _get_info_path(self):
+        return self.path / ".flow"
+
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.path})"
+        return f"{self.__class__.__name__}(\"{self.path}\")"
+
+    @classmethod
+    def from_path(cls, path):
+        info = json.load(open(path / ".flow"))
+
+        # load class
+        module = importlib.import_module(info["module"])
+        cls = getattr(module, info["class"])
+
+        return cls(path=path)
+
+
+class Linked:
+    def __init__(self, name):
+        self.name = name
+
+    def __get__(self, obj, type=None):
+        if obj is not None:
+            name = "_" + self.name
+            if not hasattr(obj, name):
+                path = obj.path / self.name
+
+                if not path.exists():
+                    raise FileNotFoundError(f"File {path} does not exist")
+                if not path.is_symlink():
+                    raise FileNotFoundError(f"File {path} is not a symlink")
+
+                value = Flow.from_path(path.resolve())
+                setattr(obj, name, value)
+                
+            return getattr(obj, name)
+
+    def __set__(self, obj, value):
+        # symlink to value.path
+        path = obj.path / self.name
+        name = "_" + self.name
+        if path.exists():
+            if not path.is_symlink():
+                raise FileExistsError(f"File {path} already exists")
+            else:
+                path.unlink()
+        path.symlink_to(value.path.resolve())
+        setattr(obj, name, value)
 
 
 class Stored:
@@ -142,10 +208,14 @@ class CompressedNumpyInt64(CompressedNumpy):
 
 
 class TSV(Stored):
+    def __init__(self, name, columns=None):
+        super().__init__(name)
+        self.columns = columns
+
     def get_path(self, folder):
         return folder / (self.name + ".tsv")
 
-    def __get__(self, obj, type=None):
+    def __get__(self, obj = None, type=None):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
@@ -155,7 +225,47 @@ class TSV(Stored):
                 setattr(obj, name, x)
             return getattr(obj, name)
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value, folder = None):
         name = "_" + self.name
-        value.to_csv(self.get_path(obj.path), sep="\t")
+        if folder is None:
+            folder = obj.path
+        value.to_csv(self.get_path(folder), sep="\t")
         setattr(obj, name, value)
+
+
+class StoredDict():
+    def __init__(self, name, cls):
+        self.name = name
+        self.cls = cls
+
+    def get_path(self, folder):
+        return folder / self.name
+
+    def __get__(self, obj, type=None):
+        return StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+
+class StoredDictInstance():
+    def __init__(self, name, path, cls, obj):
+        self.dict = {}
+        self.cls = cls
+        self.obj = obj
+        self.name = name
+        self.path = path
+        if not self.path.exists():
+            self.path.mkdir(parents=True)
+        for file in self.path.iterdir():
+            if file.is_dir():
+                raise ValueError(f"Folder {file} in {self.obj.path} is not allowed")
+            # key is file name without extension
+            key = file.name.split(".")[0]
+            self.dict[key] = self.cls(key)
+            
+    def __getitem__(self, key):
+        return self.dict[key].__get__(self)
+
+    def __setitem__(self, key, value):
+        if key not in self.dict:
+            self.dict[key] = self.cls(key)
+        self.dict[key].__set__(self, value)
+
+    
