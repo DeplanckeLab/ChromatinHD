@@ -15,6 +15,16 @@
 # %% [markdown]
 # # Quickstart - python
 
+# %%
+# autoreload
+import IPython
+if IPython.get_ipython() is not None:
+    IPython.get_ipython().run_line_magic('load_ext',   'autoreload')
+    IPython.get_ipython().run_line_magic('autoreload', '2')
+
+# %%
+import chromatinhd as chd
+
 # %% [markdown]
 # ## Install
 
@@ -43,23 +53,50 @@
 # %% [markdown]
 # ## Prepare data
 
+# To speed up training and inference, ChromatinHD stores several intermediate files to disk.
+
 # %%
-import chromatinhd as chd
+import pathlib
+import shutil
+
+dataset_folder = pathlib.Path("example")
+dataset_folder.mkdir(exist_ok=True)
+
+for file in dataset_folder.iterdir():
+    if file.is_file():
+        file.unlink()
+    else:
+        shutil.rmtree(file)
 
 # %% [markdown]
 # For this quickstart, we will use a tiny example dataset. You can of course use your own data.
 
 # %%
-dataset_folder = "example"
-chd.
+import pkg_resources
+import shutil
+
+DATA_PATH = pathlib.Path(
+    pkg_resources.resource_filename("chromatinhd", "data/examples/pbmc10ktiny/")
+)
+
+# copy all files from data path to dataset folder
+for file in DATA_PATH.iterdir():
+    shutil.copy(file, dataset_folder / file.name)
+
+# %%
+!ls {dataset_folder}
 
 # %% [markdown]
 #
 # ### Transcriptomics
-#
 
 # %%
 import scanpy as sc
+
+adata = sc.read(dataset_folder / "transcriptome.h5ad")
+
+# %%
+transcriptome = chd.data.Transcriptome.from_adata(adata, path = dataset_folder / "transcriptome")
 
 # %% [markdown]
 # <div class="admonition note">
@@ -71,7 +108,7 @@ import scanpy as sc
 #     <li>If it mainly comes from biological differences (e.g. cell stress, patient differences, ...), we recommend to use the uncorrected data. The reason is that this batch effect will likely be reflected in the ATAC-seq data as well, given that the genes are truly differentially regulated between the cells.</li>
 #     </ul>
 #   </p>
-# </div>   
+# </div>
 
 # %% [markdown]
 #

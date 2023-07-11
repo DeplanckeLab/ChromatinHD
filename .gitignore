@@ -177,3 +177,6 @@ software/
 
 
 .vscode/
+
+# ignore example
+docs/quickstart/example
