@@ -1,4 +1,4 @@
-# Quickstart
+# Quickstart - CLI
 
 ## Hardware requirements
 
@@ -34,8 +34,9 @@ If not, follow the instructions at https://pytorch.org/get-started/locally/
 
 ### ATAC-seq
 
-ChromatinHD simply requires a `fragments.tsv` file, which, is typically produced by the Cellranger pipeline.
-If you have a bam file, [you can use sinto to create the `fragments.tsv` file](https://timoast.github.io/sinto/basic_usage.html)
+ChromatinHD simply requires a `fragments.tsv` file:
+- This is produced by the Cellranger pipeline.
+- If you have a bam file, [you can use use sinto to](https://timoast.github.io/sinto/basic_usage.html)
 
 ### Genome
 
