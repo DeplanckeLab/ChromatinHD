@@ -1,13 +1,39 @@
-site_name: documentation
+site_name: High-definition modeling of chromatin + transcriptomics data
 theme:
   name: material
   palette:
-    primary: blue grey
+    primary: white
   logo: static/logo.png
-  custom_dir: docs
+  favicon: static/favicon.png
+  custom_dir: docs/override
+  features:
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.footer
 repo_url: https://github.com/DeplanckeLab/ChromatinHD
 
 plugins:
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          import:
+          - https://docs.python-requests.org/en/master/objects.inv
+          options:
+            docstring_style: google
   - mike
   - search
+  - mkdocs-jupyter:
+      remove_tag_config:
+        remove_input_tags:
+          - hide_code
+  - social
+extra:
+  version:
+    provider: mike
+  analytics:
+    provider: google
+    property: G-2EDCBPY71H
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow, Stored
+from chromatinhd.flow import Flow, Stored, StoredDict
 from chromatinhd import sparse
 from chromatinhd.utils import Unpickler
 
@@ -91,6 +91,8 @@ class Transcriptome(Flow):
     def X(self, value):
         pickle.dump(value, (self.path / "X.pkl").open("wb"))
         self._X = value
+
+    layers = StoredDict("layers", Stored)
 
 
 class ClusterTranscriptome(Flow):

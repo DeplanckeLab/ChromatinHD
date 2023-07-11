@@ -13,9 +13,9 @@ from . import embedding
 from . import optim
 from . import scoring
 from . import splines
-from . import differential
 from . import grid
 from . import slicetypes
 from . import utils
 from . import peakcounts
 from . import predictive
+from . import biomart
