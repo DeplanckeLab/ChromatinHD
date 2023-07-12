@@ -18,7 +18,7 @@ class Predictive(chromatinhd.grid.Panel):
         )
 
         ax.set_ylabel(
-            "Predictivity\n($\Delta$ cor)",
+            "Predictivity\n($\\Delta$ cor)",
             rotation=0,
             ha="right",
             va="center",
@@ -103,7 +103,7 @@ class PredictiveBroken(Broken):
 
         ax = self[0, 0].ax
         ax.set_ylabel(
-            "$\Delta$ cor",
+            "$\\Delta$ cor",
             rotation=0,
             ha="right",
             va="center",
