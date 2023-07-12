@@ -1,4 +1,5 @@
 site_name: High-definition modeling of chromatin + transcriptomics data
+docs_dir: docs/source
 theme:
   name: material
   palette:
@@ -23,6 +24,7 @@ plugins:
   - mike
   - search
   - mkdocs-jupyter:
+      include: ["*.ipynb"] # Default: ["*.py", "*.ipynb"]
       remove_tag_config:
         remove_input_tags:
           - hide_code
