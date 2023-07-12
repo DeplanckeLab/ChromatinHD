@@ -28,7 +28,7 @@ class Genes(chromatinhd.grid.Ax):
         if label_genome:
             if symbol is None:
                 symbol = gene_id
-            ax.set_xlabel("Distance to $\mathit{" + symbol + "}$ TSS")
+            ax.set_xlabel("Distance to $\\mathit{" + symbol + "}$ TSS")
         ax.xaxis.set_label_position("top")
         ax.tick_params(axis="x", length=2, pad=0, labelsize=8, width=0.5)
         ax.xaxis.set_major_formatter(chromatinhd.plotting.gene_ticker)
