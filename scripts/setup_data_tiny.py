@@ -484,7 +484,7 @@ transcriptome.layers["magic"] = X_smoothened
 # ## Store small dataset
 
 # %%
-folder_dataset = folder_data / "pbmc10ktiny"
+folder_dataset = chd.get_git_root() / "src" / "chromatinhd" / "data" / "examples" / "pbmc10ktiny"
 folder_dataset.mkdir(exist_ok=True, parents=True)
 
 # %%
@@ -519,11 +519,12 @@ for i, (gene, promoter_info) in tqdm.tqdm(
     fragments_new.extend(list(fragments_promoter))
 
 fragments_new = pd.DataFrame([x.split("\t") for x in fragments_new], columns = ["chrom", "start", "end", "cell", "nreads"])
-fragments_new = fragments_new.sort_values(["chrom", "start", "end", "cell"])
+fragments_new["start"] = fragments_new["start"].astype(int)
+fragments_new = fragments_new.sort_values(["chrom", "start", "cell"])
 
 # %%
 import gzip
-fragments_new.to_csv(folder_dataset / "fragments.tsv.gz", sep="\t", index=False, header = False)
+fragments_new.to_csv(folder_dataset / "fragments.tsv", sep="\t", index=False, header = False)
 
 # %%
 import pysam
@@ -532,4 +533,6 @@ pysam.tabix_compress(folder_dataset / "fragments.tsv", folder_dataset / "fragmen
 !ls -lh {folder_dataset}
 # %%
 !tabix -p bed {folder_dataset / "fragments.tsv.gz"}
+# %%
+folder_dataset
 # %%
