@@ -94,9 +94,10 @@ class Transcriptome(Flow):
 
     @classmethod
     def from_adata(cls, adata, path):
-        return cls.create(
-            path=path, adata=adata, obs=adata.obs, var=adata.var
-        ).create_X()
+        transcriptome = cls(path=path)
+        transcriptome.adata = adata
+        transcriptome.layers["X"] = adata.X
+        return transcriptome
 
     layers = StoredDict("layers", Stored)
 

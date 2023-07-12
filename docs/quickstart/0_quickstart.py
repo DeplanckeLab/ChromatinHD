@@ -98,6 +98,9 @@ adata = sc.read(dataset_folder / "transcriptome.h5ad")
 # %%
 transcriptome = chd.data.Transcriptome.from_adata(adata, path = dataset_folder / "transcriptome")
 
+# %%
+transcriptome.layers["X"]
+
 # %% [markdown]
 # <div class="admonition note">
 #   <p class="admonition-title">Batch effects</p>
