@@ -178,5 +178,5 @@ software/
 
 .vscode/
 
-# ignore example
-docs/quickstart/example
+# ignore example dataset
+docs/source/quickstart/example/*

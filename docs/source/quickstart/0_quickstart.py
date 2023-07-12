@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.4
+#       jupytext_version: 1.14.7
 #   kernelspec:
 #     display_name: chromatinhd
 #     language: python
@@ -18,9 +18,11 @@
 # %%
 # autoreload
 import IPython
+
 if IPython.get_ipython() is not None:
-    IPython.get_ipython().run_line_magic('load_ext',   'autoreload')
-    IPython.get_ipython().run_line_magic('autoreload', '2')
+    IPython.get_ipython().run_line_magic("load_ext", "autoreload")
+    IPython.get_ipython().run_line_magic("autoreload", "2")
+print(1)
 
 # %%
 import chromatinhd as chd
@@ -52,7 +54,7 @@ import chromatinhd as chd
 
 # %% [markdown]
 # ## Prepare data
-
+#
 # To speed up training and inference, ChromatinHD stores several intermediate files to disk.
 
 # %%
@@ -84,7 +86,7 @@ for file in DATA_PATH.iterdir():
     shutil.copy(file, dataset_folder / file.name)
 
 # %%
-!ls {dataset_folder}
+# !ls {dataset_folder}
 
 # %% [markdown]
 #
@@ -96,7 +98,9 @@ import scanpy as sc
 adata = sc.read(dataset_folder / "transcriptome.h5ad")
 
 # %%
-transcriptome = chd.data.Transcriptome.from_adata(adata, path = dataset_folder / "transcriptome")
+transcriptome = chd.data.Transcriptome.from_adata(
+    adata, path=dataset_folder / "transcriptome"
+)
 
 # %%
 transcriptome.layers["X"]

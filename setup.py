@@ -63,9 +63,10 @@ setuptools.setup(
             "mkdocs",
             "mkdocs-material",
             "mkdocstrings[python]",
+            "mkdocs-jupyter",
             "mike",
-            "cairosvg", # for mkdocs social
-            "pillow", # for mkdocs social
+            "cairosvg",  # for mkdocs social
+            "pillow",  # for mkdocs social
             # "faiss-cpu",
         ],
         "eqtl": ["cyvcf2", "xarray"],

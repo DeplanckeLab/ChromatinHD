@@ -97,6 +97,8 @@ class Transcriptome(Flow):
         transcriptome = cls(path=path)
         transcriptome.adata = adata
         transcriptome.layers["X"] = adata.X
+        transcriptome.var = adata.var
+        transcriptome.obs = adata.obs
         return transcriptome
 
     layers = StoredDict("layers", Stored)

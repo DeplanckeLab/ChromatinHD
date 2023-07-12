@@ -28,6 +28,8 @@ plugins:
       remove_tag_config:
         remove_input_tags:
           - hide_code
+        remove_all_output_tags:
+          - hide_output
   - social
 extra:
   version:
@@ -39,3 +41,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+extra_css:
+  - stylesheets/extra.css

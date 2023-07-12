@@ -4,26 +4,29 @@ import pandas as pd
 import numpy as np
 import pathlib
 
+
 class Regions(Flow):
     """
     Regions, typically centered around a transcription start site
     """
 
-    coordinates = TSV("coordinates", columns = ["chrom", "start", "end"])
+    coordinates = TSV("coordinates", columns=["chrom", "start", "end"])
     window = Stored("window")
-    
+
     @classmethod
-    def from_genes(cls, genes:pd.DataFrame, window:np.ndarray, path:pathlib.Path):
-        regions = genes[["chrom", "start", "end"]].copy()
+    def from_canonical_transcripts(
+        cls, canonical_transcripts: pd.DataFrame, window: np.ndarray, path: pathlib.Path
+    ):
+        regions = canonical_transcripts[["chrom", "start", "end"]].copy()
 
         regions["tss"] = [
             genes_row["start"] if genes_row["strand"] == +1 else genes_row["end"]
-            for _, genes_row in genes.loc[regions.index].iterrows()
+            for _, genes_row in canonical_transcripts.loc[regions.index].iterrows()
         ]
-        regions["strand"] = genes["strand"]
+        regions["strand"] = canonical_transcripts["strand"]
         regions["positive_strand"] = (regions["strand"] == 1).astype(int)
         regions["negative_strand"] = (regions["strand"] == -1).astype(int)
-        regions["chrom"] = genes.loc[regions.index, "chrom"]
+        regions["chrom"] = canonical_transcripts.loc[regions.index, "chrom"]
 
         regions["start"] = (
             regions["tss"]
@@ -37,7 +40,7 @@ class Regions(Flow):
         )
 
         return cls.create(
-            path = path,
-            coordinates = regions[["chrom", "start", "end", "tss", "strand"]],
-            window = window
+            path=path,
+            coordinates=regions[["chrom", "start", "end", "tss", "strand"]],
+            window=window,
         )

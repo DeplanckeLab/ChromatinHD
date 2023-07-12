@@ -1,0 +1,31 @@
+.jp-InputArea-prompt,
+.jp-OutputArea-prompt {
+    display: none !important;
+}
+
+.jp-OutputArea-output {
+    background-color: #f8f8f8;
+    font-size: 1.2em;
+    padding: 0.5em;
+}
+
+.jupyter-wrapper,
+.jp-Cell:not(.jp-mod-noOutputs),
+.jp-Cell-outputWrapper {
+    margin-top: 0;
+}
+
+.jp-mod-noOutputs.celltag_hide_code {
+    display: none;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+    margin: 0;
+}
+
+p {
+    margin-top: 0.1em;
+}
