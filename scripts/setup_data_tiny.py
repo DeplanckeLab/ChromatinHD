@@ -518,9 +518,18 @@ for i, (gene, promoter_info) in tqdm.tqdm(
     fragments_promoter = fragments_tabix.fetch(promoter_info["chrom"], start, promoter_info["end"])
     fragments_new.extend(list(fragments_promoter))
 
+fragments_new = pd.DataFrame([x.split("\t") for x in fragments_new], columns = ["chrom", "start", "end", "cell", "nreads"])
+fragments_new = fragments_new.sort_values(["chrom", "start", "end", "cell"])
+
+# %%
 import gzip
-with gzip.GzipFile(folder_dataset / "fragments.tsv.gz", "wb") as f:
-    f.write("\n".join(fragments_new).encode())
+fragments_new.to_csv(folder_dataset / "fragments.tsv.gz", sep="\t", index=False, header = False)
+
+# %%
+import pysam
+pysam.tabix_compress(folder_dataset / "fragments.tsv", folder_dataset / "fragments.tsv.gz", force=True)
 # %%
 !ls -lh {folder_dataset}
+# %%
+!tabix -p bed {folder_dataset / "fragments.tsv.gz"}
 # %%
