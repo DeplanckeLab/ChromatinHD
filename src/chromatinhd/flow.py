@@ -37,7 +37,6 @@ class Flow:
             setattr(self, key, value)
         return self
 
-
     def _store_info(self):
         info = {"module": self.__class__.__module__, "class": self.__class__.__name__}
 
@@ -47,7 +46,7 @@ class Flow:
         return self.path / ".flow"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(\"{self.path}\")"
+        return f'{self.__class__.__name__}("{self.path}")'
 
     @classmethod
     def from_path(cls, path):
@@ -77,7 +76,7 @@ class Linked:
 
                 value = Flow.from_path(path.resolve())
                 setattr(obj, name, value)
-                
+
             return getattr(obj, name)
 
     def __set__(self, obj, value):
@@ -215,7 +214,7 @@ class TSV(Stored):
     def get_path(self, folder):
         return folder / (self.name + ".tsv")
 
-    def __get__(self, obj = None, type=None):
+    def __get__(self, obj=None, type=None):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
@@ -225,7 +224,7 @@ class TSV(Stored):
                 setattr(obj, name, x)
             return getattr(obj, name)
 
-    def __set__(self, obj, value, folder = None):
+    def __set__(self, obj, value, folder=None):
         name = "_" + self.name
         if folder is None:
             folder = obj.path
@@ -233,7 +232,7 @@ class TSV(Stored):
         setattr(obj, name, value)
 
 
-class StoredDict():
+class StoredDict:
     def __init__(self, name, cls):
         self.name = name
         self.cls = cls
@@ -244,7 +243,8 @@ class StoredDict():
     def __get__(self, obj, type=None):
         return StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
 
-class StoredDictInstance():
+
+class StoredDictInstance:
     def __init__(self, name, path, cls, obj):
         self.dict = {}
         self.cls = cls
@@ -259,7 +259,7 @@ class StoredDictInstance():
             # key is file name without extension
             key = file.name.split(".")[0]
             self.dict[key] = self.cls(key)
-            
+
     def __getitem__(self, key):
         return self.dict[key].__get__(self)
 
@@ -267,5 +267,3 @@ class StoredDictInstance():
         if key not in self.dict:
             self.dict[key] = self.cls(key)
         self.dict[key].__set__(self, value)
-
-    
