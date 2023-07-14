@@ -17,10 +17,11 @@ class PeaksGene(Flow):
     transcriptome: "typing.Any"
     peaks: "typing.Any"
 
-    def __init__(self, path, transcriptome, peaks):
+    def __init__(self, path, transcriptome, peaks, expression_source="raw"):
         super().__init__(path)
         self.transcriptome = transcriptome
         self.peaks = peaks
+        self.expression_source = expression_source
 
     def _create_regressor(self, n, train_ix, validation_ix):
         regressor = xgb.XGBRegressor(n_estimators=100)
@@ -30,13 +31,15 @@ class PeaksGene(Flow):
         return X
 
     def score(self, peak_gene_links, folds):
-        if scipy.sparse.issparse(self.transcriptome.adata.X):
-            X_transcriptome = self.transcriptome.adata.X.tocsc()
-        else:
-            X_transcriptome = scipy.sparse.csc_matrix(self.transcriptome.adata.X)
-        # X_transcriptome = scipy.sparse.csc_matrix(
-        #     self.transcriptome.adata.layers["magic"]
-        # )  #! Use magic
+        if self.expression_source == "raw":
+            if scipy.sparse.issparse(self.transcriptome.adata.X):
+                X_transcriptome = self.transcriptome.adata.X.tocsc()
+            else:
+                X_transcriptome = scipy.sparse.csc_matrix(self.transcriptome.adata.X)
+        elif self.expression_source == "magic":
+            X_transcriptome = scipy.sparse.csc_matrix(
+                self.transcriptome.adata.layers["magic"]
+            )
 
         X_peaks = self.peaks.counts.tocsc()
 
