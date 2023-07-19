@@ -54,4 +54,7 @@ def get_canonical_transcripts(biomart_dataset: Dataset, gene_ids):
     # remove genes on mitochondrial DNA
     genes = genes.loc[~genes["chrom"].isin(["chrMT", "chrM"])]
 
+    # order according to gene_ids
+    genes = genes.reindex(gene_ids)
+
     return genes

@@ -296,7 +296,7 @@ marker_annotation = pd.read_table(
 5	FCGR3A, MS4A7	FCGR3A+ Monocytes
 5	CD27, JCHAIN	Plasma
 6	TCF4	pDCs
-6	CST3	cDCs
+6	CST3, CD1C	cDCs
 """
     )
 ).set_index("celltype")
@@ -307,7 +307,14 @@ marker_annotation["symbols"] = marker_annotation["symbols"].str.split(", ")
 sc.pl.umap(
     adata,
     color=transcriptome.gene_id(
-        marker_annotation.query("celltype == 'pDCs'")["symbols"].explode()
+        marker_annotation.query("celltype == 'cDCs'")["symbols"].explode()
+    ),
+)
+# %%
+sc.pl.umap(
+    adata,
+    color=transcriptome.gene_id(
+        "CD1C"
     ),
 )
 
@@ -478,8 +485,6 @@ X_smoothened = magic_operator.fit_transform(adata.X)
 # %%
 transcriptome.layers["magic"] = X_smoothened
 
-
-
 # %% [markdown]
 # ## Store small dataset
 
@@ -493,6 +498,7 @@ fragments_original = chd.data.Fragments(folder_data_preproc / "fragments" / "10k
 
 # %%
 genes_oi = transcriptome_original.var.sort_values("dispersions_norm", ascending=False).index[:50]
+# genes_oi = transcriptome_original.var.loc[transcriptome_original.gene_id(["IL1B"])].index
 adata = sc.AnnData(
     X = transcriptome_original.adata[:, genes_oi].layers["magic"],
     obs = transcriptome_original.obs,
@@ -535,4 +541,83 @@ pysam.tabix_compress(folder_dataset / "fragments.tsv", folder_dataset / "fragmen
 !tabix -p bed {folder_dataset / "fragments.tsv.gz"}
 # %%
 folder_dataset
+# %%
+
+
+# %% [markdown]
+# ## Try to create dataset
+
+# %%
+gene_ix = transcriptome_original.gene_ix("IL1B")
+transcriptome_original.obs["n_fragments"] = torch.bincount(fragments_original.mapping[fragments_original.mapping[:, 1] == gene_ix, 0], minlength = transcriptome_original.obs.shape[0])
+transcriptome_original.obs["expression"] = transcriptome_original.layers["magic"][:, gene_ix]
+
+# %%
+fig, ax = plt.subplots()
+sns.scatterplot(transcriptome_original.obs, x="n_fragments", y="expression", alpha = 0.1, s = 1, ax = ax)
+# %%
+import pathlib
+import shutil
+
+dataset_folder = pathlib.Path("/tmp/chromatinhd/pbmc10ktiny")
+dataset_folder.mkdir(exist_ok=True, parents=True)
+
+for file in dataset_folder.iterdir():
+    if file.is_file():
+        file.unlink()
+    else:
+        shutil.rmtree(file)
+# %%
+import pkg_resources
+
+DATA_PATH = pathlib.Path(
+    pkg_resources.resource_filename("chromatinhd", "data/examples/pbmc10ktiny/")
+)
+
+# copy all files from data path to dataset folder
+for file in DATA_PATH.iterdir():
+    shutil.copy(file, dataset_folder / file.name)
+# %%
+!ls {dataset_folder}
+# %%
+import scanpy as sc
+
+adata = sc.read(dataset_folder / "transcriptome.h5ad")
+# %%
+transcriptome = chd.data.Transcriptome.from_adata(
+    adata, path=dataset_folder / "transcriptome"
+)
+
+# %%
+biomart_dataset = chd.biomart.Dataset.from_genome("GRCh38")
+canonical_transcripts = chd.biomart.get_canonical_transcripts(
+    biomart_dataset, transcriptome.var.index
+)
+# %%
+regions = chd.data.Regions.from_canonical_transcripts(
+    canonical_transcripts,
+    path=dataset_folder / "regions",
+    window=[-10000, 10000],
+)
+# %%
+if not (dataset_folder / "fragments.tsv.gz.tbi").exists():
+    !tabix {dataset_folder}/fragments.tsv.gz
+# %%
+fragments = chd.data.Fragments.from_fragments_tsv(
+    dataset_folder / "fragments.tsv.gz",
+    regions,
+    obs = transcriptome.obs,
+    path=dataset_folder / "fragments",
+)
+# %%
+fragments.mapping.shape
+
+# %%
+gene_ix = transcriptome.gene_ix("IL1B")
+transcriptome.obs["n_fragments"] = torch.bincount(fragments.mapping[fragments.mapping[:, 1] == gene_ix, 0], minlength = transcriptome.obs.shape[0])
+transcriptome.obs["expression"] = transcriptome.layers["X"][:, gene_ix]
+
+# %%
+fig, ax = plt.subplots()
+sns.regplot(transcriptome.obs, x="n_fragments", y="expression", ax = ax)
 # %%
