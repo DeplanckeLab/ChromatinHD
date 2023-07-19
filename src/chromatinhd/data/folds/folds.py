@@ -57,3 +57,6 @@ class Folds(Flow):
                     }
                 )
         self.folds = folds
+
+    def __getitem__(self, ix):
+        return self.folds[ix]

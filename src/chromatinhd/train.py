@@ -37,7 +37,7 @@ class Trace:
             )
             self.n_current_validation_steps += 1
 
-    def checkpoint(self):
+    def checkpoint(self, logger=print):
         if (
             (self.n_last_train_steps is not None)
             and (self.n_last_train_steps > 0)
@@ -60,7 +60,7 @@ class Trace:
             )
             perc_diff_loss = diff_loss / current_loss
 
-            print(
+            logger.info(
                 f"{'train':>10} {current_loss:+.2f} Δ{colorcodes.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}"
             )
         self.n_last_train_steps = self.n_current_train_steps
@@ -98,11 +98,11 @@ class Trace:
                 self.last_validation_diff.append(diff_loss)
                 perc_diff_loss = diff_loss / current_loss
 
-                print(
+                logger.info(
                     f"{'validation':>10} {current_loss:+.2f} Δ{colorcodes.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}"
                 )
             else:
-                print(f"{'validation':>10} {current_loss:+.2f}")
+                logger.info(f"{'validation':>10} {current_loss:+.2f}")
             self.n_last_validation_steps = self.n_current_validation_steps
             self.n_current_validation_steps = 0
 
@@ -126,7 +126,7 @@ class Trace:
             plotdata_validation["loss"],
             label="validation",
         )
-        # ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label = "train")
+        ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label="train")
         ax.legend()
 
 

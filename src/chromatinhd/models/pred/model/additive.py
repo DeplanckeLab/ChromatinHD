@@ -14,6 +14,24 @@ import torch_scatter
 import math
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.models import HybridModel
+from chromatinhd.flow import Linked, Flow
+
+
+def paircor(x, y, dim=0, eps=0.1):
+    divisor = (y.std(dim) * x.std(dim)) + eps
+    cor = ((x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))).mean(
+        dim
+    ) / divisor
+    return cor
+
+
+def paircor_loss(x, y):
+    return -paircor(x, y).mean() * 100
+
+
+def gene_paircor_loss(x, y):
+    return -paircor(x, y) * 100
+
 
 class SineEncoding(torch.nn.Module):
     def __init__(self, n_frequencies):
@@ -21,7 +39,6 @@ class SineEncoding(torch.nn.Module):
 
         self.register_buffer(
             "frequencies",
-            # torch.tensor([[] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2)
             torch.tensor(
                 [
                     [1 / 1000 ** (2 * i / n_frequencies)] * 2
@@ -157,12 +174,7 @@ class EmbeddingToExpression(torch.nn.Module):
     """
 
     def __init__(
-        self,
-        n_genes,
-        mean_gene_expression,
-        n_embedding_dimensions=5,
-        initialization="ones",
-        **kwargs
+        self, n_genes, n_embedding_dimensions=5, initialization="ones", **kwargs
     ):
         self.n_genes = n_genes
         self.n_embedding_dimensions = n_embedding_dimensions
@@ -175,7 +187,7 @@ class EmbeddingToExpression(torch.nn.Module):
             tuple(),
             sparse=True,
         )
-        self.bias1.data = mean_gene_expression.clone().detach().to("cpu")[:, None]
+        self.bias1.data[:] = 0.0
 
         self.weight1 = EmbeddingTensor(
             n_genes,
@@ -209,7 +221,6 @@ class Model(torch.nn.Module, HybridModel):
     def __init__(
         self,
         n_genes,
-        mean_gene_expression,
         dummy=False,
         n_frequencies=50,
         reduce="sum",
@@ -235,19 +246,33 @@ class Model(torch.nn.Module, HybridModel):
         self.embedding_to_expression = EmbeddingToExpression(
             n_genes=n_genes,
             n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
-            mean_gene_expression=mean_gene_expression,
             initialization=embedding_to_expression_initialization,
         )
 
     def forward(self, data):
-        fragment_embedding = self.fragment_embedder(data.coordinates, data.genemapping)
+        fragment_embedding = self.fragment_embedder(
+            data.fragments.coordinates, data.fragments.genemapping
+        )
         cell_gene_embedding = self.embedding_gene_pooler(
-            fragment_embedding, data.local_cellxgene_ix, data.n_cells, data.n_genes
+            fragment_embedding,
+            data.fragments.local_cellxgene_ix,
+            data.fragments.n_cells,
+            data.fragments.n_genes,
         )
         expression_predicted = self.embedding_to_expression(
-            cell_gene_embedding, data.genes_oi_torch
+            cell_gene_embedding, data.fragments.genes_oi_torch
         )
         return expression_predicted
+
+    def forward_loss(self, data):
+        expression_predicted = self.forward(data)
+        expression_true = data.transcriptome.value
+        return paircor_loss(expression_predicted, expression_true)
+
+    def forward_gene_loss(self, data):
+        expression_predicted = self.forward(data)
+        expression_true = data.transcriptome.value
+        return gene_paircor_loss(expression_predicted, expression_true)
 
     def forward_multiple(self, data, fragments_oi, extract_total=False):
         fragment_embedding = self.fragment_embedder(data.coordinates, data.genemapping)
@@ -286,6 +311,267 @@ class Model(torch.nn.Module, HybridModel):
                     ).reshape((data.n_cells, data.n_genes))
                 yield expression_predicted, n_fragments_lost
 
+    def train_model(self, fragments, transcriptome, fold, device="cuda"):
+        import chromatinhd
+        import chromatinhd.models.pred.loader
+        import chromatinhd.models.pred.trainer
+        import chromatinhd.loaders
 
-class Models():
-    folds = 
+        # set up minibatchers and loaders
+        minibatcher_train = chromatinhd.models.pred.loader.minibatches.Minibatcher(
+            fold["cells_train"],
+            range(fragments.n_genes),
+            n_genes_step=500,
+            n_cells_step=200,
+        )
+        minibatcher_validation = chromatinhd.models.pred.loader.minibatches.Minibatcher(
+            fold["cells_validation"],
+            range(fragments.n_genes),
+            n_genes_step=10,
+            n_cells_step=10000,
+            permute_cells=False,
+            permute_genes=False,
+        )
+
+        loaders_train = chromatinhd.loaders.LoaderPool2(
+            chromatinhd.models.pred.loader.transcriptome_fragments.TranscriptomeFragments,
+            dict(
+                transcriptome=transcriptome,
+                fragments=fragments,
+                cellxgene_batch_size=minibatcher_train.cellxgene_batch_size,
+            ),
+            n_workers=10,
+        )
+        loaders_validation = chromatinhd.loaders.LoaderPool2(
+            chromatinhd.models.pred.loader.transcriptome_fragments.TranscriptomeFragments,
+            dict(
+                transcriptome=transcriptome,
+                fragments=fragments,
+                cellxgene_batch_size=minibatcher_validation.cellxgene_batch_size,
+            ),
+            n_workers=5,
+        )
+
+        trainer = chromatinhd.models.pred.trainer.Trainer(
+            self,
+            loaders_train,
+            loaders_validation,
+            minibatcher_train,
+            minibatcher_validation,
+            chromatinhd.optim.SparseDenseAdam(
+                self.parameters_sparse(),
+                self.parameters_dense(),
+                lr=1e-2,
+                weight_decay=1e-5,
+            ),
+            n_epochs=30,
+            checkpoint_every_epoch=1,
+            optimize_every_step=1,
+            device=device,
+        )
+
+        trainer.train()
+        trainer.trace.plot()
+
+    def get_prediction(self, fragments, transcriptome, cells=None, device="cuda"):
+        import chromatinhd
+        import chromatinhd.models.pred.loader
+        import chromatinhd.models.pred.trainer
+        import chromatinhd.loaders
+
+        if cells is None:
+            cells = np.arange(fragments.n_cells)
+
+        minibatcher_test = chd.models.pred.loader.minibatches.Minibatcher(
+            cells,
+            range(fragments.n_genes),
+            n_genes_step=500,
+            n_cells_step=200,
+            use_all_cells=True,
+            use_all_genes=True,
+            permute_cells=False,
+            permute_genes=False,
+        )
+        loaders_test = chd.loaders.LoaderPool2(
+            chd.models.pred.loader.transcriptome_fragments.TranscriptomeFragments,
+            dict(
+                transcriptome=transcriptome,
+                fragments=fragments,
+                cellxgene_batch_size=minibatcher_test.cellxgene_batch_size,
+            ),
+            n_workers=5,
+        )
+        loaders_test.initialize(minibatcher_test)
+
+        predicted = np.zeros((len(cells), fragments.n_genes))
+        expected = np.zeros((len(cells), fragments.n_genes))
+        n_fragments = np.zeros((len(cells), fragments.n_genes))
+
+        testcell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
+        testcell_mapping[cells] = np.arange(len(cells))
+
+        device = "cuda"
+        model.eval()
+        model = model.to(device)
+
+        for data in loaders_test:
+            data = data.to(device)
+            with torch.no_grad():
+                pred_mb = model.forward(data)
+            predicted[
+                np.ix_(
+                    testcell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi
+                )
+            ] = pred_mb.cpu().numpy()
+            expected[
+                np.ix_(
+                    testcell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi
+                )
+            ] = data.transcriptome.value.cpu().numpy()
+            n_fragments[
+                np.ix_(
+                    testcell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi
+                )
+            ] = (
+                torch.bincount(
+                    data.fragments.local_cellxgene_ix,
+                    minlength=len(data.minibatch.cells_oi)
+                    * len(data.minibatch.genes_oi),
+                )
+                .reshape(len(data.minibatch.cells_oi), len(data.minibatch.genes_oi))
+                .cpu()
+                .numpy()
+            )
+
+        model = model.to("cpu")
+
+
+class Models(Flow):
+    folds = Linked("folds")
+
+    @property
+    def models_path(self):
+        return self.path / "models"
+
+    def train(self, fragments, transcriptome, folds):
+        for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)][
+            fold_slice
+        ]:
+            desired_outputs = [self.models_path / (str(fold_ix) + ".pkl")]
+            force = subdesign["force"].iloc[0]
+            if not all([desired_output.exists() for desired_output in desired_outputs]):
+                force = True
+
+            if force:
+                general_model_parameters = {
+                    "mean_gene_expression": transcriptome_X_dense.mean(0),
+                    "n_genes": fragments.n_genes,
+                }
+
+                general_loader_parameters = {
+                    "fragments": fragments,
+                    "cellxgene_batch_size": n_cells_step * n_genes_step,
+                }
+
+                fold = get_folds_training(fragments, [copy.copy(fold)])[0]
+                loaders = chd.loaders.LoaderPool(
+                    method_info["loader_cls"],
+                    method_info["loader_parameters"],
+                    shuffle_on_iter=True,
+                    n_workers=10,
+                )
+                loaders_validation = chd.loaders.LoaderPool(
+                    method_info["loader_cls"],
+                    method_info["loader_parameters"],
+                    n_workers=5,
+                )
+                loaders_validation.shuffle_on_iter = False
+
+                # model
+                model = method_info["model_cls"](**method_info["model_parameters"])
+
+                # optimization
+                optimize_every_step = 1
+                lr = 1e-2
+                optimizer = chd.optim.SparseDenseAdam(
+                    model.parameters_sparse(),
+                    model.parameters_dense(),
+                    lr=lr,
+                    weight_decay=1e-5,
+                )
+                n_epochs = (
+                    30 if "n_epoch" not in method_info else method_info["n_epoch"]
+                )
+                checkpoint_every_epoch = 1
+
+                # train
+                from chromatinhd.models.positional.trainer import Trainer
+
+                def paircor(x, y, dim=0, eps=0.1):
+                    divisor = (y.std(dim) * x.std(dim)) + eps
+                    cor = (
+                        (x - x.mean(dim, keepdims=True))
+                        * (y - y.mean(dim, keepdims=True))
+                    ).mean(dim) / divisor
+                    return cor
+
+                loss = lambda x, y: -paircor(x, y).mean() * 100
+
+                if outcome_source == "counts":
+                    outcome = transcriptome.X.dense()
+                else:
+                    outcome = torch.from_numpy(transcriptome.adata.layers["magic"])
+
+                trainer = Trainer(
+                    model,
+                    loaders,
+                    loaders_validation,
+                    optim=optimizer,
+                    outcome=outcome,
+                    loss=loss,
+                    checkpoint_every_epoch=checkpoint_every_epoch,
+                    optimize_every_step=optimize_every_step,
+                    n_epochs=n_epochs,
+                    device=device,
+                )
+                trainer.train(
+                    fold["minibatches_train_sets"],
+                    fold["minibatches_validation_trace"],
+                )
+
+                model = model.to("cpu")
+                pickle.dump(
+                    model,
+                    open(prediction.path / ("model_" + str(fold_ix) + ".pkl"), "wb"),
+                )
+
+                torch.cuda.empty_cache()
+                import gc
+
+                gc.collect()
+                torch.cuda.empty_cache()
+
+                import matplotlib.pyplot as plt
+
+                fig, ax = plt.subplots()
+                plotdata_validation = (
+                    pd.DataFrame(trainer.trace.validation_steps)
+                    .groupby("checkpoint")
+                    .mean()
+                    .reset_index()
+                )
+                plotdata_train = (
+                    pd.DataFrame(trainer.trace.train_steps)
+                    .groupby("checkpoint")
+                    .mean()
+                    .reset_index()
+                )
+                ax.plot(
+                    plotdata_validation["checkpoint"],
+                    plotdata_validation["loss"],
+                    label="validation",
+                )
+                # ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label = "train")
+                ax.legend()
+                fig.savefig(str(prediction.path / ("trace_" + str(fold_ix) + ".png")))
+                plt.close()

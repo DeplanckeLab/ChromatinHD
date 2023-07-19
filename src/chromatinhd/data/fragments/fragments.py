@@ -2,7 +2,14 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow, StoredTorchInt32, Stored, StoredTorchInt64, TSV, Linked
+from chromatinhd.flow import (
+    Flow,
+    StoredTorchInt32,
+    Stored,
+    StoredTorchInt64,
+    TSV,
+    Linked,
+)
 
 from chromatinhd.data.regions import Regions
 
@@ -13,7 +20,7 @@ import typing
 import tqdm.auto as tqdm
 
 
-class RawFragments():
+class RawFragments:
     def __init__(self, file):
         self.file = file
 
@@ -120,7 +127,14 @@ class Fragments(Flow):
         return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
 
     @classmethod
-    def from_fragments_tsv(cls, fragments_file: typing.Union[pathlib.Path, str], regions:Regions, obs:pd.DataFrame, path: typing.Union[pathlib.Path, str], overwrite = True):
+    def from_fragments_tsv(
+        cls,
+        fragments_file: typing.Union[pathlib.Path, str],
+        regions: Regions,
+        obs: pd.DataFrame,
+        path: typing.Union[pathlib.Path, str],
+        overwrite=True,
+    ):
         """
         Create a Fragments object from a tsv file
 
@@ -157,18 +171,27 @@ class Fragments(Flow):
 
         # load fragments tabix
         import pysam
+
         fragments_tabix = pysam.TabixFile(str(fragments_file))
 
         coordinates_raw = []
         mapping_raw = []
 
         for i, (gene, promoter_info) in tqdm.tqdm(
-            enumerate(regions.coordinates.iterrows()), total=regions.coordinates.shape[0], leave=False, desc="Processing fragments"
+            enumerate(regions.coordinates.iterrows()),
+            total=regions.coordinates.shape[0],
+            leave=False,
+            desc="Processing fragments",
         ):
             gene_ix = var.loc[gene, "ix"]
             start = max(0, promoter_info["start"])
-            
-            fragments_promoter = fragments_tabix.fetch(promoter_info["chrom"], start, promoter_info["end"], parser=pysam.asTuple())
+
+            fragments_promoter = fragments_tabix.fetch(
+                promoter_info["chrom"],
+                start,
+                promoter_info["end"],
+                parser=pysam.asTuple(),
+            )
 
             for fragment in fragments_promoter:
                 cell = fragment[3]
@@ -178,8 +201,10 @@ class Fragments(Flow):
                     # add raw data of fragment relative to tss
                     coordinates_raw.append(
                         [
-                            (int(fragment[1]) - promoter_info["tss"]) * promoter_info["strand"],
-                            (int(fragment[2]) - promoter_info["tss"]) * promoter_info["strand"],
+                            (int(fragment[1]) - promoter_info["tss"])
+                            * promoter_info["strand"],
+                            (int(fragment[2]) - promoter_info["tss"])
+                            * promoter_info["strand"],
                         ][:: promoter_info["strand"]]
                     )
 
@@ -193,7 +218,7 @@ class Fragments(Flow):
         sorted_idx = torch.argsort((mapping[:, 0] * var.shape[0] + mapping[:, 1]))
         mapping = mapping[sorted_idx]
         coordinates = coordinates[sorted_idx]
-        
+
         return cls.create(
             path=path,
             coordinates=coordinates,
@@ -202,11 +227,6 @@ class Fragments(Flow):
             var=var,
             obs=obs,
         )
-
-
-
-
-
 
 
 class ChunkedFragments(Flow):
