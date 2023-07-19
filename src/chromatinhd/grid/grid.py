@@ -90,8 +90,20 @@ class Ax(Element):
 
             fig.add_axes(ax)
 
-        for inset in self.insets or []:
-            inset.position(fig, pos=(x, y + height - inset.height))
+        for inset, inset_position, inset_offset, inset_anchor in self.insets or []:
+            inset.position(
+                fig,
+                pos=(
+                    x
+                    + (width - inset.dim[0]) * inset_anchor[0]
+                    + (width) * inset_position[0]
+                    + inset_offset[0],
+                    y
+                    + (height - inset.dim[1]) * inset_anchor[1]
+                    + (height) * inset_position[1]
+                    + inset_offset[1],
+                ),
+            )
 
     def add_twinx(self):
         global active_fig
@@ -104,10 +116,10 @@ class Ax(Element):
         self.ax.yaxis.tick_left()
         return self.ax2
 
-    def add_inset(self, inset):
+    def add_inset(self, inset, pos=(0, 0), offset=(0, 0), anchor=(0, 0)):
         if self.insets is None:
             self.insets = []
-        self.insets.append(inset)
+        self.insets.append([inset, pos, offset, anchor])
         return inset
 
     def __iter__(self):

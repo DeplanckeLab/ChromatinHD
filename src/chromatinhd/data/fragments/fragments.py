@@ -10,7 +10,7 @@ import torch
 import math
 import pathlib
 import typing
-import tqdm
+import tqdm.auto as tqdm
 
 
 class RawFragments():
@@ -163,7 +163,7 @@ class Fragments(Flow):
         mapping_raw = []
 
         for i, (gene, promoter_info) in tqdm.tqdm(
-            enumerate(regions.coordinates.iterrows()), total=regions.coordinates.shape[0]
+            enumerate(regions.coordinates.iterrows()), total=regions.coordinates.shape[0], leave=False, desc="Processing fragments"
         ):
             gene_ix = var.loc[gene, "ix"]
             start = max(0, promoter_info["start"])

@@ -285,3 +285,7 @@ class Model(torch.nn.Module, HybridModel):
                         minlength=data.n_genes * data.n_cells,
                     ).reshape((data.n_cells, data.n_genes))
                 yield expression_predicted, n_fragments_lost
+
+
+class Models():
+    folds = 

@@ -23,7 +23,7 @@ class Flow:
 
         self.path = path
         if not path.exists():
-            path.mkdir(parents=True)
+            path.mkdir(parents=True, exist_ok=True)
 
         if not self._get_info_path().exists():
             self._store_info()

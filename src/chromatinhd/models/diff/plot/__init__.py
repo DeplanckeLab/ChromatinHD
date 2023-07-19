@@ -293,6 +293,10 @@ class Differential(chromatinhd.grid.Wrap):
         return self.artists
 
 
+def get_cmap_rna_diff():
+    return mpl.cm.BuGn
+
+
 class DifferentialExpression(chromatinhd.grid.Wrap):
     def __init__(
         self,
@@ -301,17 +305,22 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
         cluster_info,
         width,
         panel_height,
-        cmap_expression=mpl.cm.Reds,
         norm_expression=None,
         symbol=None,
         **kwargs,
     ):
         super().__init__(ncol=1, **kwargs)
 
+        plotdata_expression_clusters = plotdata_expression_clusters.loc[
+            ~plotdata_expression_clusters.index.isin(["Plasma"])
+        ]
+
         if norm_expression is None:
             norm_expression = mpl.colors.Normalize(
                 0.0, plotdata_expression_clusters.max(), clip=True
             )
+
+        cmap_expression = get_cmap_rna_diff()
 
         for cluster_id, cluster_ix in zip(
             cluster_info.index, cluster_info["dimension"]
