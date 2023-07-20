@@ -220,6 +220,7 @@ class LoaderPool2:
             self.loaders = [loader_cls(**loader_kwargs) for i in range(n_workers)]
         for loader in self.loaders:
             loader.running = False
+        self.wait = []
 
     def initialize(self, tasker, *args, **kwargs):
         self.tasker = tasker
@@ -255,7 +256,11 @@ class LoaderPool2:
 
     def pull(self):
         thread = self.running.pop(0)
+        import time
+
+        start = time.time()
         thread.join()
+        self.wait.append(time.time() - start)
         thread.loader.running = False
         self.submit_next()
         return thread.result
@@ -269,6 +274,9 @@ class LoaderPool2:
 
     def __next__(self):
         if len(self.running) == 0:
+            # if len(self.wait) > 0:
+            #     print("Average wait: ", np.mean(self.wait))
+            #     print("Cumulative wait: ", np.sum(self.wait))
             raise StopIteration
         return self.pull()
 
@@ -283,6 +291,8 @@ class LoaderPool2:
         self.loaders_available = copy.copy(self.loaders)
 
         self.running = []
+
+        self.wait = []
 
         self.iter = iter(self.tasker)
 

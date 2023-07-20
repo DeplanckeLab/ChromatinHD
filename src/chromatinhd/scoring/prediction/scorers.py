@@ -244,13 +244,6 @@ class Scorer2(chd.flow.Flow):
                 np.zeros([len(cells_dim), len(genes_dim)]) for i in range(n_design)
             ]
 
-            cell_oi = "GGACTAAAGGAACACA-1"
-
-            debug = False
-            if cell_oi in cells_dim:
-                debug = True
-                cell_ix = cells_dim.tolist().index(cell_oi)
-
             # infer and score
             with torch.no_grad():
                 # infer

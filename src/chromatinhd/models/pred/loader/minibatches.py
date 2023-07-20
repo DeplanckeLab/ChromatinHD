@@ -29,11 +29,19 @@ class Minibatch:
 
     @property
     def genes_oi_torch(self):
-        return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+        return torch.from_numpy(self.genes_oi).to(self.device)
 
     @property
     def cells_oi_torch(self):
-        return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+        return torch.from_numpy(self.genes_oi).to(self.device)
+
+    @property
+    def n_cells(self):
+        return len(self.cells_oi)
+
+    @property
+    def n_genes(self):
+        return len(self.genes_oi)
 
 
 def create_bins_ordered(

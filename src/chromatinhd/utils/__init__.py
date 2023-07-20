@@ -57,7 +57,7 @@ def name_window(window_info):
     )
 
 
-def paircor(x, y, dim=0):
+def paircor(x, y, dim=-2):
     import torch
     import pandas as pd
     import numpy as np
@@ -84,7 +84,7 @@ def paircor(x, y, dim=0):
     return cor
 
 
-def paircorr(x, y, dim=0):
+def paircorr(x, y, dim=-2):
     import numpy as np
 
     divisor = y.std(dim, keepdims=True) * x.std(dim, keepdims=True)

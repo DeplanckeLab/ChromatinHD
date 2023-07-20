@@ -6,17 +6,22 @@ import gzip
 import copy
 import json
 import importlib
+import shutil
 
 
 class Flow:
     path: pathlib.Path
     default_name = None
 
-    def __init__(self, path=None, folder=None, name=None):
+    def __init__(self, path=None, folder=None, name=None, reset=False):
         if path is None:
-            assert folder is not None
+            if folder is None:
+                raise ValueError("Either path or folder must be specified")
             if name is None:
-                assert self.default_name is not None
+                if self.default_name is None:
+                    raise ValueError(
+                        "Cannot create Flow without name, and no default_name specified"
+                    )
                 name = self.default_name
 
             path = folder / name
@@ -24,6 +29,9 @@ class Flow:
         self.path = path
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
+
+        if reset:
+            self.reset()
 
         if not self._get_info_path().exists():
             self._store_info()
@@ -57,6 +65,10 @@ class Flow:
         cls = getattr(module, info["class"])
 
         return cls(path=path)
+
+    def reset(self):
+        shutil.rmtree(self.path)
+        self.path.mkdir(parents=True, exist_ok=True)
 
 
 class Linked:

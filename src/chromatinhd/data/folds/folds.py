@@ -60,3 +60,6 @@ class Folds(Flow):
 
     def __getitem__(self, ix):
         return self.folds[ix]
+
+    def __len__(self):
+        return len(self.folds)

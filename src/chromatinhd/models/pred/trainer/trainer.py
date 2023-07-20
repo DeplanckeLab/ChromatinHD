@@ -73,7 +73,7 @@ class Trainer:
         self.loaders_validation.initialize(self.minibatcher_validation)
 
         n_steps_total = self.n_epochs * len(self.loaders_train)
-        pbar = tqdm.tqdm(total=n_steps_total)
+        pbar = tqdm.tqdm(total=n_steps_total, leave=False)
 
         while (self.epoch < self.n_epochs) and (continue_training):
             # checkpoint if necessary
@@ -140,5 +140,8 @@ class Trainer:
 
                 self.trace.append(loss.item(), self.epoch, self.step_ix, "train")
             self.epoch += 1
+
+        pbar.update(n_steps_total)
+        pbar.close()
 
         self.model = self.model.to("cpu")
