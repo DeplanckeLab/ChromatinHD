@@ -37,6 +37,7 @@ dataset_folder.mkdir(exist_ok=True)
 
 # %% tags=["hide_code", "hide_output"]
 import shutil
+
 for file in dataset_folder.iterdir():
     if file.is_file():
         file.unlink()
@@ -48,6 +49,7 @@ for file in dataset_folder.iterdir():
 
 # %%
 import pkg_resources
+import shutil
 
 DATA_PATH = pathlib.Path(
     pkg_resources.resource_filename("chromatinhd", "data/examples/pbmc10ktiny/")
@@ -98,7 +100,9 @@ transcriptome = chd.data.Transcriptome.from_adata(
 # Although not needed for every model, for interpretation it can be helpful to store some clustering.
 
 # %%
-clustering = chd.data.Clustering.from_labels(adata.obs["celltype"], path = dataset_folder / "clustering")
+clustering = chd.data.Clustering.from_labels(
+    adata.obs["celltype"], path=dataset_folder / "clustering"
+)
 
 # %%
 # !ls {clustering.path}
@@ -155,13 +159,20 @@ regions = chd.data.Regions.from_canonical_transcripts(
 
 # %%
 if not (dataset_folder / "fragments.tsv.gz.tbi").exists():
-    # !tabix {dataset_folder}/fragments.tsv.gz
+    import subprocess
+
+    subprocess.run(
+        [
+            "tabix",
+            dataset_folder / "fragments.tsv.gz",
+        ]
+    )
 
 # %%
 fragments = chd.data.Fragments.from_fragments_tsv(
     dataset_folder / "fragments.tsv.gz",
     regions,
-    obs = transcriptome.obs,
+    obs=transcriptome.obs,
     path=dataset_folder / "fragments",
 )
 
@@ -178,6 +189,10 @@ fragments.create_cellxgene_indptr()
 # The final set of data are the training folds that will be used to train - and test - the model. For basic models this is simply done by randomly sampling cells.
 
 # %%
-folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(fragments, 5, 1)
+folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(
+    fragments, 5, 1
+)
+
+# %%
 
 # %%

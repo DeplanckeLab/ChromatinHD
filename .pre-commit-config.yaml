@@ -1,12 +1,4 @@
 repos:
--   repo: https://github.com/mwouts/jupytext
-    rev: v1.14.7  # CURRENT_TAG/COMMIT_HASH
-    hooks:
-    - id: jupytext
-      args: [--sync, docs/source/*/*.ipynb, --pipe, black]
-      additional_dependencies:
-        - black==23.3.0 # Matches hook
-
 -   repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:

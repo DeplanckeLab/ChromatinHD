@@ -18,4 +18,5 @@ jobs:
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
       - run: pip install torch # because torch_scatter contains import torch in the setup.py
       - run: pip install -e .[dev]
+      - run: pytest
       # - run: mkdocs gh-deploy --force
