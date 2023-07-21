@@ -134,7 +134,6 @@ class Dataset:
         for attribute in attributes:
             dataset.append(attribute.to_xml())
         query = ET.tostring(xml).decode("utf-8")
-        # print(query)
         query = query.replace("\t", "").replace("\n", "")
         url = f"{self.baseurl}query={query}"
 

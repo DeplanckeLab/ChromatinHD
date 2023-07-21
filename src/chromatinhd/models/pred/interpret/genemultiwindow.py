@@ -4,6 +4,7 @@ import pandas as pd
 import xarray as xr
 import pickle
 import scipy.stats
+import tqdm.auto as tqdm
 
 
 def select_cutwindow(coordinates, window_start, window_end):
@@ -23,6 +24,10 @@ class MultiWindowCensorer:
             cuts = np.arange(*window, step=int(window_size * relative_stride))
 
             for window_start, window_end in zip(cuts, cuts + window_size):
+                if window_start < window[0]:
+                    continue
+                if window_end > window[1]:
+                    continue
                 design.append(
                     {
                         "window_start": window_start,
@@ -33,6 +38,7 @@ class MultiWindowCensorer:
                     }
                 )
         design = pd.DataFrame(design).set_index("window")
+        assert design.index.is_unique
         design["ix"] = np.arange(len(design))
         self.design = design
 
@@ -55,6 +61,8 @@ class MultiWindowCensorer:
 class GeneMultiWindow(chd.flow.Flow):
     design = chd.flow.Stored("design")
 
+    genes = chd.flow.Stored("genes", default=set)
+
     def score(
         self,
         fragments,
@@ -70,7 +78,10 @@ class GeneMultiWindow(chd.flow.Flow):
         design = censorer.design.iloc[1:].copy()
         self.design = design
 
-        for gene in genes:
+        pbar = tqdm.tqdm(genes, leave=False)
+
+        for gene in pbar:
+            pbar.set_description(gene)
             scores_file = self.get_scoring_path(gene) / "scores.pkl"
 
             force = force_
@@ -127,7 +138,9 @@ class GeneMultiWindow(chd.flow.Flow):
 
                 pickle.dump(result, scores_file.open("wb"))
 
-    def interpolate(self, genes, force=False):
+                self.genes = self.genes | {gene}
+
+    def interpolate(self, genes=None, force=False):
         force_ = force
 
         def fdr(p_vals):
@@ -139,7 +152,13 @@ class GeneMultiWindow(chd.flow.Flow):
 
             return fdr
 
-        for gene in genes:
+        if genes is None:
+            genes = self.genes
+
+        pbar = tqdm.tqdm(genes, leave=False)
+
+        for gene in pbar:
+            pbar.set_description(gene)
             scores_file = self.get_scoring_path(gene) / "scores.pkl"
 
             if not scores_file.exists():

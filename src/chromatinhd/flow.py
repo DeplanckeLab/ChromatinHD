@@ -105,8 +105,9 @@ class Linked:
 
 
 class Stored:
-    def __init__(self, name):
+    def __init__(self, name, default=None):
         self.name = name
+        self.default = default
 
     def get_path(self, folder):
         return folder / (self.name + ".pkl")
@@ -115,6 +116,13 @@ class Stored:
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
+                path = self.get_path(obj.path)
+                if not path.exists():
+                    if self.default is None:
+                        raise FileNotFoundError(f"File {path} does not exist")
+                    else:
+                        value = self.default()
+                        pickle.dump(value, path.open("wb"))
                 setattr(obj, name, pickle.load(self.get_path(obj.path).open("rb")))
             return getattr(obj, name)
 

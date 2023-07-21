@@ -7,6 +7,7 @@
     background-color: #f8f8f8;
     font-size: 1.2em;
     padding: 0.5em;
+    border-left: 2px #33333333 solid !important;
 }
 
 .jupyter-wrapper,
@@ -28,4 +29,16 @@
 
 p {
     margin-top: 0.1em;
+}
+
+.md-grid {
+    max-width: 90rem;
+}
+
+clipboard-copy:hover {
+    background-color: #33333333;
+}
+
+.jupyter-wrapper .jp-InputArea-editor {
+    border-left: 2px green solid !important;
 }

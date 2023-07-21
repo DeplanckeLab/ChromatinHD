@@ -6,10 +6,15 @@ Additive model for predicting gene expression from fragments
 import torch
 import torch_scatter
 import math
+import numpy as np
+import xarray as xr
+import pandas as pd
+
+import pickle
+
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.models import HybridModel
 from chromatinhd.flow import Linked, Flow, Stored
-import numpy as np
 
 from chromatinhd.models.pred.loader.minibatches import Minibatcher
 from chromatinhd.models.pred.loader.transcriptome_fragments import (
@@ -18,9 +23,6 @@ from chromatinhd.models.pred.loader.transcriptome_fragments import (
 from chromatinhd.models.pred.trainer import Trainer
 from chromatinhd.loaders import LoaderPool2
 from chromatinhd.optim import SparseDenseAdam
-import xarray as xr
-
-import pickle
 
 
 def paircor(x, y, dim=0, eps=0.1):
@@ -280,7 +282,7 @@ class Model(torch.nn.Module, HybridModel):
         expression_true = data.transcriptome.value
         return gene_paircor_loss(expression_predicted, expression_true)
 
-    def forward_multiple(self, data, fragments_oi, min_fragments=10):
+    def forward_multiple(self, data, fragments_oi, min_fragments=1):
         fragment_embedding = self.fragment_embedder(
             data.fragments.coordinates, data.fragments.genemapping
         )
@@ -625,3 +627,39 @@ class Models(Flow):
 
     def __len__(self):
         return self.n_models
+
+    def __iter__(self):
+        for ix in range(len(self)):
+            yield self[ix]
+
+    def get_gene_cors(self, fragments, transcriptome, folds, device="cuda"):
+        cor_predicted = np.zeros((len(fragments.var.index), len(folds)))
+        cor_n_fragments = np.zeros((len(fragments.var.index), len(folds)))
+        n_fragments = np.zeros((len(fragments.var.index), len(folds)))
+        for model_ix, (model, fold) in enumerate(zip(self, folds)):
+            prediction = model.get_prediction(
+                fragments, transcriptome, cell_ixs=fold["cells_test"], device=device
+            )
+
+            cor_predicted[:, model_ix] = paircor(
+                prediction["predicted"].values, prediction["expected"].values
+            )
+            cor_n_fragments[:, model_ix] = paircor(
+                prediction["n_fragments"].values, prediction["expected"].values
+            )
+
+            n_fragments[:, model_ix] = prediction["n_fragments"].values.sum(0)
+        cor_predicted = pd.Series(
+            cor_predicted.mean(1), index=fragments.var.index, name="cor_predicted"
+        )
+        cor_n_fragments = pd.Series(
+            cor_n_fragments.mean(1), index=fragments.var.index, name="cor_n_fragments"
+        )
+        n_fragments = pd.Series(
+            n_fragments.mean(1), index=fragments.var.index, name="n_fragments"
+        )
+        result = pd.concat([cor_predicted, cor_n_fragments, n_fragments], axis=1)
+        result["deltacor"] = result["cor_predicted"] - result["cor_n_fragments"]
+        result
+
+        return result

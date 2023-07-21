@@ -6,142 +6,6 @@ import numpy as np
 import pandas as pd
 
 
-class Genes(chromatinhd.grid.Ax):
-    def __init__(
-        self,
-        plotdata_genes,
-        plotdata_exons,
-        plotdata_coding,
-        gene_id,
-        promoter,
-        window,
-        width,
-        full_ticks=False,
-        label_genome=False,
-        symbol=None,
-    ):
-        super().__init__((width, len(plotdata_genes) * 0.08 + 0.01))
-
-        ax = self.ax
-
-        ax.xaxis.tick_top()
-        if label_genome:
-            if symbol is None:
-                symbol = gene_id
-            ax.set_xlabel("Distance to $\\mathit{" + symbol + "}$ TSS")
-        ax.xaxis.set_label_position("top")
-        ax.tick_params(axis="x", length=2, pad=0, labelsize=8, width=0.5)
-        ax.xaxis.set_major_formatter(chromatinhd.plotting.gene_ticker)
-
-        sns.despine(ax=ax, right=True, left=True, bottom=True, top=True)
-
-        ax.set_xlim(*window)
-
-        ax.set_yticks([])
-        ax.set_ylabel("")
-
-        if len(plotdata_genes) == 0:
-            return
-
-        ax.set_ylim(-0.5, plotdata_genes["ix"].max() + 0.5)
-        if full_ticks:
-            ax.set_xticks(np.arange(window[0], window[1] + 1, 500))
-            ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
-            ax.tick_params(
-                axis="x",
-                length=2,
-                pad=0,
-                labelsize=8,
-                width=0.5,
-                labelrotation=90,
-            )
-        for gene, gene_info in plotdata_genes.iterrows():
-            y = gene_info["ix"]
-            is_oi = gene == gene_id
-            ax.plot(
-                [gene_info["start"], gene_info["end"]],
-                [y, y],
-                color="black" if is_oi else "grey",
-            )
-
-            if pd.isnull(gene_info["symbol"]):
-                symbol = gene_info.name
-            else:
-                symbol = gene_info["symbol"]
-            strand = gene_info["strand"] * promoter["strand"]
-            if (gene_info["start"] > window[0]) & (gene_info["start"] < window[1]):
-                label = symbol + " → " if strand == 1 else " ← " + symbol
-                ha = "right"
-                # ha = "left" if (strand == -1) else "right"
-
-                ax.text(
-                    gene_info["start"],
-                    y,
-                    label,
-                    style="italic",
-                    ha=ha,
-                    va="center",
-                    fontsize=6,
-                    weight="bold" if is_oi else "regular",
-                )
-            elif (gene_info["end"] > window[0]) & (gene_info["end"] < window[1]):
-
-                label = " → " + symbol if strand == 1 else symbol + " ← "
-                ha = "left"
-
-                ax.text(
-                    gene_info["end"],
-                    y,
-                    label,
-                    style="italic",
-                    ha=ha,
-                    va="center",
-                    fontsize=6,
-                    weight="bold" if is_oi else "regular",
-                )
-            else:
-                ax.text(
-                    0,
-                    y,
-                    "(" + symbol + ")",
-                    style="italic",
-                    ha="center",
-                    va="center",
-                    fontsize=6,
-                    bbox=dict(facecolor="#FFFFFF88", boxstyle="square,pad=0", lw=0),
-                )
-
-            plotdata_exons_gene = plotdata_exons.query("gene == @gene")
-            h = 1
-            for exon, exon_info in plotdata_exons_gene.iterrows():
-                rect = mpl.patches.Rectangle(
-                    (exon_info["start"], y - h / 2),
-                    exon_info["end"] - exon_info["start"],
-                    h,
-                    fc="white",
-                    ec="#333333",
-                    lw=1.0,
-                    zorder=9,
-                )
-                ax.add_patch(rect)
-
-            plotdata_coding_gene = plotdata_coding.query("gene == @gene")
-            for coding, coding_info in plotdata_coding_gene.iterrows():
-                rect = mpl.patches.Rectangle(
-                    (coding_info["start"], y - h / 2),
-                    coding_info["end"] - coding_info["start"],
-                    h,
-                    fc="#333333",
-                    ec="#333333",
-                    lw=1.0,
-                    zorder=10,
-                )
-                ax.add_patch(rect)
-
-        # vline at tss
-        ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
-
-
 def get_cmap_atac_diff():
     return mpl.cm.RdBu_r
 
@@ -322,9 +186,7 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
         cmap_expression = get_cmap_rna_diff()
 
-        for cluster_id, cluster_ix in zip(
-            cluster_info.index, cluster_info["dimension"]
-        ):
+        for cluster_id in cluster_info.index:
             ax = chromatinhd.grid.Ax((width, panel_height))
             self.add(ax)
             ax = ax.ax
@@ -335,10 +197,9 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
             circle = mpl.patches.Circle(
                 (0, 0),
-                norm_expression(plotdata_expression_clusters.iloc[cluster_ix]) * 0.9
-                + 0.1,
+                norm_expression(plotdata_expression_clusters[cluster_id]) * 0.9 + 0.1,
                 fc=cmap_expression(
-                    norm_expression(plotdata_expression_clusters.iloc[cluster_ix])
+                    norm_expression(plotdata_expression_clusters[cluster_id])
                 ),
                 lw=1,
                 ec="#333333",

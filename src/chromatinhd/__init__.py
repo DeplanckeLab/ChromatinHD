@@ -19,3 +19,4 @@ from . import peakcounts
 from . import predictive
 from . import biomart
 from . import models
+from . import plot

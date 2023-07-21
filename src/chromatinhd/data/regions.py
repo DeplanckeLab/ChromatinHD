@@ -17,7 +17,9 @@ class Regions(Flow):
     def from_canonical_transcripts(
         cls, canonical_transcripts: pd.DataFrame, window: np.ndarray, path: pathlib.Path
     ):
-        regions = canonical_transcripts[["chrom", "start", "end"]].copy()
+        regions = canonical_transcripts[
+            ["chrom", "start", "end", "ensembl_transcript_id"]
+        ].copy()
 
         regions["tss"] = [
             genes_row["start"] if genes_row["strand"] == +1 else genes_row["end"]
@@ -41,6 +43,8 @@ class Regions(Flow):
 
         return cls.create(
             path=path,
-            coordinates=regions[["chrom", "start", "end", "tss", "strand"]],
+            coordinates=regions[
+                ["chrom", "start", "end", "tss", "strand", "ensembl_transcript_id"]
+            ],
             window=window,
         )
