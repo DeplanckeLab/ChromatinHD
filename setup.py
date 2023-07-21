@@ -47,6 +47,7 @@ setuptools.setup(
         "Cython",
         "fisher",
         "diskcache",
+        "appdirs",
     ],
     extras_require={
         "full": [],
