@@ -2,16 +2,47 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow, StoredTorchInt32, Stored, StoredTorchInt64, TSV
+from chromatinhd.flow import (
+    Flow,
+    StoredTorchInt32,
+    Stored,
+    StoredTorchInt64,
+    TSV,
+    Linked,
+)
+
+from chromatinhd.data.regions import Regions
 
 import torch
 import math
+import pathlib
+import typing
+import tqdm.auto as tqdm
+
+
+class RawFragments:
+    def __init__(self, file):
+        self.file = file
 
 
 class Fragments(Flow):
+    """
+    Fragments centered around a gene window
+    """
+
+    regions = Linked("regions")
+    """regions of the fragments"""
+
     coordinates = StoredTorchInt64("coordinates")
+    """Coordinates of the fragments"""
+
     mapping = StoredTorchInt64("mapping")
+    """Mapping of a fragment to a gene and a cell"""
+
     cellxgene_indptr = StoredTorchInt64("cellxgene_indptr")
+    """Index pointers for each cellxgene combination"""
+
+    regions = Linked("regions")
 
     def create_cellxgene_indptr(self):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
@@ -94,6 +125,108 @@ class Fragments(Flow):
     @property
     def cells_oi_torch(self):
         return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
+
+    @classmethod
+    def from_fragments_tsv(
+        cls,
+        fragments_file: typing.Union[pathlib.Path, str],
+        regions: Regions,
+        obs: pd.DataFrame,
+        path: typing.Union[pathlib.Path, str],
+        overwrite=True,
+    ):
+        """
+        Create a Fragments object from a tsv file
+
+        Parameters:
+            fragments_file:
+                fragments_file of the tsv file
+            path:
+                folder in which the fragments object will be created
+            regions:
+                regions object
+        """
+
+        if isinstance(fragments_file, str):
+            fragments_file = pathlib.Path(fragments_file)
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+        if not fragments_file.exists():
+            raise FileNotFoundError(f"File {fragments_file} does not exist")
+        if not overwrite and path.exists():
+            raise FileExistsError(f"Folder {path} already exists")
+        path.mkdir(parents=True, exist_ok=True)
+
+        # region information
+        var = pd.DataFrame(index=regions.coordinates.index)
+        var["ix"] = np.arange(var.shape[0])
+
+        n_genes = var.shape[0]
+
+        # cell information
+        obs["ix"] = np.arange(obs.shape[0])
+        cell_to_cell_ix = obs["ix"].to_dict()
+
+        n_cells = obs.shape[0]
+
+        # load fragments tabix
+        import pysam
+
+        fragments_tabix = pysam.TabixFile(str(fragments_file))
+
+        coordinates_raw = []
+        mapping_raw = []
+
+        for i, (gene, promoter_info) in tqdm.tqdm(
+            enumerate(regions.coordinates.iterrows()),
+            total=regions.coordinates.shape[0],
+            leave=False,
+            desc="Processing fragments",
+        ):
+            gene_ix = var.loc[gene, "ix"]
+            start = max(0, promoter_info["start"])
+
+            fragments_promoter = fragments_tabix.fetch(
+                promoter_info["chrom"],
+                start,
+                promoter_info["end"],
+                parser=pysam.asTuple(),
+            )
+
+            for fragment in fragments_promoter:
+                cell = fragment[3]
+
+                # only store the fragment if the cell is actually of interest
+                if cell in cell_to_cell_ix:
+                    # add raw data of fragment relative to tss
+                    coordinates_raw.append(
+                        [
+                            (int(fragment[1]) - promoter_info["tss"])
+                            * promoter_info["strand"],
+                            (int(fragment[2]) - promoter_info["tss"])
+                            * promoter_info["strand"],
+                        ][:: promoter_info["strand"]]
+                    )
+
+                    # add mapping of cell/gene
+                    mapping_raw.append([cell_to_cell_ix[fragment[3]], gene_ix])
+
+        coordinates = torch.tensor(np.array(coordinates_raw, dtype=np.int64))
+        mapping = torch.tensor(np.array(mapping_raw), dtype=torch.int64)
+
+        # Sort `coordinates` and `mapping` according to `mapping`
+        sorted_idx = torch.argsort((mapping[:, 0] * var.shape[0] + mapping[:, 1]))
+        mapping = mapping[sorted_idx]
+        coordinates = coordinates[sorted_idx]
+
+        return cls.create(
+            path=path,
+            coordinates=coordinates,
+            mapping=mapping,
+            regions=regions,
+            var=var,
+            obs=obs,
+        )
 
 
 class ChunkedFragments(Flow):

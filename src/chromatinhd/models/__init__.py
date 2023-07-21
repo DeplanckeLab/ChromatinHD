@@ -1,5 +1,8 @@
 class HybridModel:
     def parameters_dense(self, autoextend=True):
+        """
+        Get all dense parameters of the model
+        """
         parameters = [
             parameter
             for module in self._modules.values()
@@ -24,6 +27,9 @@ class HybridModel:
         return parameters
 
     def parameters_sparse(self):
+        """
+        Get all sparse parameters in a model
+        """
         return [
             parameter
             for module in self._modules.values()
@@ -37,3 +43,4 @@ class HybridModel:
 
 from . import likelihood
 from . import positional
+from . import pred

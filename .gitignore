@@ -177,3 +177,7 @@ software/
 
 
 .vscode/
+
+# ignore example dataset
+docs/source/quickstart/example/*
+docs/source/quickstart/restats

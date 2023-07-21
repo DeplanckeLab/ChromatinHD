@@ -1,0 +1,52 @@
+.jp-InputArea-prompt,
+.jp-OutputArea-prompt {
+    display: none !important;
+}
+
+.jp-OutputArea-output {
+    font-size: 1.2em;
+    padding: 0.5em;
+    border-left: 2px #33333333 solid !important;
+}
+
+.jupyter-wrapper,
+.jp-Cell:not(.jp-mod-noOutputs),
+.jp-Cell-outputWrapper {
+    margin-top: 0;
+}
+
+.jp-Cell-outputWrapper img {
+    box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+}
+
+.jp-mod-noOutputs.celltag_hide_code {
+    display: none;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4 {
+    margin: 0;
+}
+
+p {
+    margin-top: 0.1em;
+}
+
+.md-grid {
+    max-width: 90rem;
+}
+
+clipboard-copy:hover {
+    background-color: #33333333;
+}
+
+.jupyter-wrapper .jp-InputArea-editor {
+    border-left: 2px green solid !important;
+}
+
+/* remove the cell toolbar with ugly tags */
+.jupyter-wrapper .celltoolbar {
+    display: none !important;
+}
