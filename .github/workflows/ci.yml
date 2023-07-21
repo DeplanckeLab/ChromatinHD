@@ -13,6 +13,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.x
+          cache: 'pip'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
       - uses: actions/cache@v3
         with:
@@ -20,5 +21,5 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install ./ChromatinHD mkdocs-material mkdocstrings[python] mkdocs-jupyter mike cairosvg pillow
+      - run: pip install ./ mkdocs-material mkdocstrings[python] mkdocs-jupyter mike cairosvg pillow
       - run: mkdocs gh-deploy --force
