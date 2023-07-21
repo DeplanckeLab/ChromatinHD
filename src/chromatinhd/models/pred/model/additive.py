@@ -182,7 +182,7 @@ class EmbeddingToExpression(torch.nn.Module):
     """
 
     def __init__(
-        self, n_genes, n_embedding_dimensions=5, initialization="ones", **kwargs
+        self, n_genes, n_embedding_dimensions=5, initialization="default", **kwargs
     ):
         self.n_genes = n_genes
         self.n_embedding_dimensions = n_embedding_dimensions
@@ -207,13 +207,10 @@ class EmbeddingToExpression(torch.nn.Module):
         elif initialization == "default":
             self.weight1.data[:, :5] = 1.0
             self.weight1.data[:, 5:] = 0.0
-            # stdv = 1. / math.sqrt(self.weight1.size(-1))
-            # self.weight1.data.uniform_(-stdv, stdv)
+            self.weight1.data[:, -1] = -1.0
         elif initialization == "smaller":
-            stdv = 1.0 / math.sqrt(self.weight1.size(-1)) / 100
+            stdv = 1.0 / math.sqrt(self.weight1.data.size(-1)) / 100
             self.weight1.data.uniform_(-stdv, stdv)
-        # stdv = 1. / math.sqrt(self.weight1.size(-1)) / 100
-        # self.weight1.data.uniform_(-stdv, stdv)
 
     def forward(self, cell_gene_embedding, gene_ix):
         out = (cell_gene_embedding * self.weight1(gene_ix)).sum(-1) + self.bias1(
@@ -235,7 +232,7 @@ class Model(torch.nn.Module, HybridModel):
         nonlinear=True,
         n_embedding_dimensions=10,
         dropout_rate=0.0,
-        embedding_to_expression_initialization="ones",
+        embedding_to_expression_initialization="default",
         **kwargs
     ):
         super().__init__()
@@ -660,6 +657,5 @@ class Models(Flow):
         )
         result = pd.concat([cor_predicted, cor_n_fragments, n_fragments], axis=1)
         result["deltacor"] = result["cor_predicted"] - result["cor_n_fragments"]
-        result
 
         return result

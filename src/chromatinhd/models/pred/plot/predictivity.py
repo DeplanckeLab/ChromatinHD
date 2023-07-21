@@ -8,23 +8,43 @@ class Predictivity(chromatinhd.grid.Panel):
     def __init__(self, plotdata, window, width, show_accessibility=False):
         super().__init__((width, 0.5))
 
+        plotdata["effect_sign"] = np.sign(plotdata["effect"])
+        plotdata["segment"] = plotdata["effect_sign"].diff().ne(0).cumsum()
+
         ax = self.ax
         ax.set_xlim(*window)
 
-        ax.plot(
-            plotdata["position"],
-            plotdata["deltacor"],
-            color="#333",
-            lw=1,
-        )
-        ax.fill_between(
-            plotdata["position"],
-            plotdata["deltacor"],
-            0,
-            color="#333",
-            alpha=0.2,
-            lw=0,
-        )
+        for segment, segment_data in plotdata.groupby("segment"):
+            color = "tomato" if segment_data["effect"].iloc[0] > 0 else "#0074D9"
+            ax.plot(
+                segment_data["position"],
+                segment_data["deltacor"],
+                lw=1,
+                color=color,
+            )
+            ax.fill_between(
+                segment_data["position"],
+                segment_data["deltacor"],
+                0,
+                alpha=0.2,
+                lw=0,
+                color=color,
+            )
+
+        # ax.plot(
+        #     plotdata["position"],
+        #     plotdata["deltacor"],
+        #     color="#333",
+        #     lw=1,
+        # )
+        # ax.fill_between(
+        #     plotdata["position"],
+        #     plotdata["deltacor"],
+        #     0,
+        #     color="#333",
+        #     alpha=0.2,
+        #     lw=0,
+        # )
 
         ax.set_ylabel(
             "Predictivity\n($\\Delta$ cor)",
@@ -84,6 +104,50 @@ class Predictivity(chromatinhd.grid.Panel):
         plotdata = genemultiwindow.get_plotdata(gene).reset_index()
         window = np.array([plotdata["position"].min(), plotdata["position"].max()])
         return cls(plotdata, window, width, show_accessibility=show_accessibility)
+
+
+class Pileup(chromatinhd.grid.Panel):
+    def __init__(self, plotdata, window, width):
+        super().__init__((width, 0.5))
+
+        ax = self.ax
+        ax.set_xlim(*window)
+        ax.plot(
+            plotdata["position"],
+            plotdata["lost"],
+            color="#333",
+            lw=1,
+        )
+        ax.fill_between(
+            plotdata["position"],
+            plotdata["lost"],
+            0,
+            color="#333",
+            alpha=0.2,
+            lw=0,
+        )
+        ax.set_xlim(ax.get_xlim())
+        ax.set_ylabel(
+            "# fragments\nper 1kb\nper 1k cells",
+            rotation=0,
+            ha="right",
+            va="center",
+        )
+        # ax.tick_params(axis="y", colors="tomato")
+
+        # change vertical alignment of last y tick to bottom
+        ax.set_yticks([0, ax.get_ylim()[1]])
+        ax.get_yticklabels()[-1].set_verticalalignment("top")
+        ax.get_yticklabels()[0].set_verticalalignment("bottom")
+
+        # vline at tss
+        ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
+
+    @classmethod
+    def from_genemultiwindow(cls, genemultiwindow, gene, width):
+        plotdata = genemultiwindow.get_plotdata(gene).reset_index()
+        window = np.array([plotdata["position"].min(), plotdata["position"].max()])
+        return cls(plotdata, window, width)
 
 
 class PredictivityBroken(Broken):

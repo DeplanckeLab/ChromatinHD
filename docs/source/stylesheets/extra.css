@@ -4,7 +4,6 @@
 }
 
 .jp-OutputArea-output {
-    background-color: #f8f8f8;
     font-size: 1.2em;
     padding: 0.5em;
     border-left: 2px #33333333 solid !important;
@@ -14,6 +13,10 @@
 .jp-Cell:not(.jp-mod-noOutputs),
 .jp-Cell-outputWrapper {
     margin-top: 0;
+}
+
+.jp-Cell-outputWrapper img {
+    box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
 }
 
 .jp-mod-noOutputs.celltag_hide_code {

@@ -91,6 +91,7 @@ class GeneMultiWindow(chd.flow.Flow):
             if force:
                 deltacor_folds = []
                 lost_folds = []
+                effect_folds = []
                 for fold, model in zip(folds, models):
                     predicted, expected, n_fragments = model.get_prediction_censored(
                         fragments,
@@ -102,6 +103,8 @@ class GeneMultiWindow(chd.flow.Flow):
                         genes=[gene],
                         device=device,
                     )
+
+                    # select 1st gene, given that we're working with one gene anyway
                     predicted = predicted[..., 0]
                     expected = expected[..., 0]
                     n_fragments = n_fragments[..., 0]
@@ -111,11 +114,15 @@ class GeneMultiWindow(chd.flow.Flow):
 
                     lost = (n_fragments[0] - n_fragments[1:]).mean(-1)
 
+                    effect = (predicted[0] - predicted[1:]).mean(-1)
+
                     deltacor_folds.append(deltacor)
                     lost_folds.append(lost)
+                    effect_folds.append(effect)
 
                 deltacor_folds = np.stack(deltacor_folds, 0)
                 lost_folds = np.stack(lost_folds, 0)
+                effect_folds = np.stack(effect_folds, 0)
 
                 result = xr.Dataset(
                     {
@@ -128,6 +135,13 @@ class GeneMultiWindow(chd.flow.Flow):
                         ),
                         "lost": xr.DataArray(
                             lost_folds,
+                            coords=[
+                                ("model", np.arange(len(models))),
+                                ("window", design.index),
+                            ],
+                        ),
+                        "effect": xr.DataArray(
+                            effect_folds,
                             coords=[
                                 ("model", np.arange(len(models))),
                                 ("window", design.index),
@@ -203,6 +217,9 @@ class GeneMultiWindow(chd.flow.Flow):
                 lost_interpolated = np.zeros(
                     (len(window_sizes_info), len(positions_oi))
                 )
+                effect_interpolated = np.zeros(
+                    (len(window_sizes_info), len(positions_oi))
+                )
                 for window_size, window_size_info in window_sizes_info.iterrows():
                     plotdata_oi = plotdata.query("window_size == @window_size")
                     x = plotdata_oi["window_mid"].values.copy()
@@ -227,6 +244,19 @@ class GeneMultiWindow(chd.flow.Flow):
                     )
                     lost_interpolated[window_size_info["ix"], :] = lost_interpolated_
 
+                    effect_interpolated_ = (
+                        np.interp(
+                            positions_oi,
+                            plotdata_oi["window_mid"],
+                            plotdata_oi["effect"],
+                        )
+                        / window_size
+                        * 1000
+                    )
+                    effect_interpolated[
+                        window_size_info["ix"], :
+                    ] = effect_interpolated_
+
                 deltacor = xr.DataArray(
                     deltacor_interpolated.mean(0),
                     coords=[
@@ -240,8 +270,17 @@ class GeneMultiWindow(chd.flow.Flow):
                     ],
                 )
 
+                effect = xr.DataArray(
+                    effect_interpolated.mean(0),
+                    coords=[
+                        ("position", positions_oi),
+                    ],
+                )
+
                 # save
-                interpolated = xr.Dataset({"deltacor": deltacor, "lost": lost})
+                interpolated = xr.Dataset(
+                    {"deltacor": deltacor, "lost": lost, "effect": effect}
+                )
                 pickle.dump(
                     interpolated,
                     interpolate_file.open("wb"),
