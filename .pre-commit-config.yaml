@@ -3,7 +3,7 @@ repos:
     rev: v1.14.7  # CURRENT_TAG/COMMIT_HASH
     hooks:
     - id: jupytext
-      args: [--sync, --pipe, black]
+      args: [--sync, docs/source/*/*.ipynb, --pipe, black]
       additional_dependencies:
         - black==23.3.0 # Matches hook
 
