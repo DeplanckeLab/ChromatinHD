@@ -46,6 +46,7 @@ setuptools.setup(
         "seaborn",
         "Cython",
         "fisher",
+        "diskcache",
     ],
     extras_require={
         "full": [],
