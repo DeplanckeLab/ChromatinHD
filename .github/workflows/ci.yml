@@ -14,14 +14,8 @@ jobs:
         with:
           python-version: 3.x
           cache: 'pip'
-          cache-dependency-path: '**/setup.py'
+          cache-dependency-path: 'setup.py'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
-      - uses: actions/cache@v3
-        with:
-          key: mkdocs-material-${{ env.cache_id }}
-          path: .cache
-          restore-keys: |
-            mkdocs-material-
       - run: pip install torch # because torch_scatter contains import torch in the setup.py
-      - run: pip install ./[dev]
+      - run: pip install -e .[dev]
       # - run: mkdocs gh-deploy --force
