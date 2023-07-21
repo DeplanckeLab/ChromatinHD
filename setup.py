@@ -44,10 +44,8 @@ setuptools.setup(
         "matplotlib",
         "numpy",
         "seaborn",
-        "pybedtools",
         "Cython",
         "fisher",
-        "pysam",
     ],
     extras_require={
         "full": [],

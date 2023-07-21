@@ -216,7 +216,6 @@ class Genes(chromatinhd.grid.Ax):
 
 import chromatinhd as chd
 import pandas as pd
-import pybedtools
 import numpy as np
 
 
