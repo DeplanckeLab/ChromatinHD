@@ -49,6 +49,7 @@ setuptools.setup(
         "diskcache",
         "appdirs",
         "xarray",
+        "pysam",
     ],
     extras_require={
         "full": [],
