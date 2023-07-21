@@ -45,3 +45,8 @@ clipboard-copy:hover {
 .jupyter-wrapper .jp-InputArea-editor {
     border-left: 2px green solid !important;
 }
+
+/* remove the cell toolbar with ugly tags */
+.jupyter-wrapper .celltoolbar {
+    display: none !important;
+}

@@ -72,13 +72,10 @@ def matshow45(ax, series, radius=None, cmap=None, norm=None):
     ax.add_collection(collection)
 
     for x in [xlim[1]]:
-        # for x in np.linspace(*xlim, 16):
         x2 = x
         x1 = x2 + (xlim[0] - x2) / 2
         y2 = 0
         y1 = x2 - x1
-
-        print(x1, x2, y1, y2)
 
         if True:
             color = "black"

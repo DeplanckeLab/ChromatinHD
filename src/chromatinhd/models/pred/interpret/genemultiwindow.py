@@ -7,6 +7,16 @@ import scipy.stats
 import tqdm.auto as tqdm
 
 
+def fdr(p_vals):
+    from scipy.stats import rankdata
+
+    ranked_p_values = rankdata(p_vals)
+    fdr = p_vals * len(p_vals) / ranked_p_values
+    fdr[fdr > 1] = 1
+
+    return fdr
+
+
 class GeneMultiWindow(chd.flow.Flow):
     design = chd.flow.Stored("design")
 
@@ -105,15 +115,6 @@ class GeneMultiWindow(chd.flow.Flow):
 
     def interpolate(self, genes=None, force=False):
         force_ = force
-
-        def fdr(p_vals):
-            from scipy.stats import rankdata
-
-            ranked_p_values = rankdata(p_vals)
-            fdr = p_vals * len(p_vals) / ranked_p_values
-            fdr[fdr > 1] = 1
-
-            return fdr
 
         if genes is None:
             genes = self.genes

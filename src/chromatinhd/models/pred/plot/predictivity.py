@@ -133,7 +133,6 @@ class Pileup(chromatinhd.grid.Panel):
             ha="right",
             va="center",
         )
-        # ax.tick_params(axis="y", colors="tomato")
 
         # change vertical alignment of last y tick to bottom
         ax.set_yticks([0, ax.get_ylim()[1]])
@@ -144,6 +143,7 @@ class Pileup(chromatinhd.grid.Panel):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
         ax.set_xticks([])
+        ax.set_ylim(0)
 
     @classmethod
     def from_genemultiwindow(cls, genemultiwindow, gene, width):

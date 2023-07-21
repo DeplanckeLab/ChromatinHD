@@ -28,7 +28,7 @@ plugins:
       remove_tag_config:
         remove_input_tags:
           - hide_code
-        remove_all_output_tags:
+        remove_all_outputs_tags:
           - hide_output
   - social
 extra:

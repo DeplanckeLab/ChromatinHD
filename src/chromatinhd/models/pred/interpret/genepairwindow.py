@@ -6,6 +6,7 @@ import pickle
 import scipy.stats
 import tqdm.auto as tqdm
 import numpy as np
+import itertools
 
 
 def zscore(x, dim=0):
@@ -14,6 +15,16 @@ def zscore(x, dim=0):
 
 def zscore_relative(x, y, dim=0):
     return (x - y.mean(axis=dim, keepdims=True)) / y.std(axis=dim, keepdims=True)
+
+
+def fdr(p_vals):
+    from scipy.stats import rankdata
+
+    ranked_p_values = rankdata(p_vals)
+    fdr = p_vals * len(p_vals) / ranked_p_values
+    fdr[fdr > 1] = 1
+
+    return fdr
 
 
 class GenePairWindow(chd.flow.Flow):
@@ -50,6 +61,7 @@ class GenePairWindow(chd.flow.Flow):
             if force:
                 deltacor_folds = []
                 copredictivity_folds = []
+                lost_folds = []
                 for fold, model in zip(folds, models):
                     predicted, expected, n_fragments = model.get_prediction_censored(
                         fragments,
@@ -90,10 +102,15 @@ class GenePairWindow(chd.flow.Flow):
                     cor = chd.utils.paircor(predicted, expected, dim=-1)
                     deltacor = cor[1:] - cor[0]
 
-                    deltacor_folds.append(deltacor)
+                    lost = (n_fragments[0] - n_fragments[1:]).mean(-1)
 
+                    deltacor_folds.append(deltacor)
+                    lost_folds.append(lost)
+
+                lost_folds = np.stack(lost_folds, 0)
                 deltacor_folds = np.stack(deltacor_folds, 0)
                 copredictivity_folds = np.stack(copredictivity_folds, 0)
+                print(copredictivity_folds.shape)
 
                 result = xr.Dataset(
                     {
@@ -104,15 +121,24 @@ class GenePairWindow(chd.flow.Flow):
                                 ("window", design.index),
                             ],
                         ),
+                        "lost": xr.DataArray(
+                            lost_folds,
+                            coords=[
+                                ("model", np.arange(len(models))),
+                                ("window", design.index),
+                            ],
+                        ),
                     }
                 )
 
+                windows_oi = lost_folds.mean(0) > 1e-3
+
                 interaction = xr.DataArray(
-                    copredictivity_folds,
+                    copredictivity_folds[:, windows_oi][:, :, windows_oi],
                     coords=[
                         ("model", np.arange(len(models))),
-                        ("window1", design.index),
-                        ("window2", design.index),
+                        ("window1", design.index[windows_oi]),
+                        ("window2", design.index[windows_oi]),
                     ],
                 )
 
@@ -132,28 +158,44 @@ class GenePairWindow(chd.flow.Flow):
             )
         )
 
-        plotdata_copredictivity = (
-            interaction.mean("model").to_dataframe("cor").reset_index()
-        )
+        plotdata = interaction.mean("model").to_dataframe("cor").reset_index()
+        plotdata["window1"] = plotdata["window1"].astype("category")
+        plotdata["window2"] = plotdata["window2"].astype("category")
 
-        plotdata_copredictivity["window_mid1"] = self.design.loc[
-            plotdata_copredictivity["window1"]
-        ]["window_mid"].values
-        plotdata_copredictivity["window_mid2"] = self.design.loc[
-            plotdata_copredictivity["window2"]
-        ]["window_mid"].values
-        plotdata_copredictivity["dist"] = np.abs(
-            plotdata_copredictivity["window_mid1"]
-            - plotdata_copredictivity["window_mid2"]
+        plotdata = (
+            pd.DataFrame(
+                itertools.combinations(self.design.index, 2),
+                columns=["window1", "window2"],
+            )
+            .set_index(["window1", "window2"])
+            .join(plotdata.set_index(["window1", "window2"]))
         )
-        plotdata_copredictivity = plotdata_copredictivity.query(
-            "(window_mid1 < window_mid2)"
-        )
-        plotdata_copredictivity.loc[
-            plotdata_copredictivity["dist"] <= 1000, "cor"
-        ] = 0.0
+        plotdata = plotdata.reset_index().fillna({"cor": 0.0})
+        plotdata["window_mid1"] = self.design.loc[plotdata["window1"]][
+            "window_mid"
+        ].values
+        plotdata["window_mid2"] = self.design.loc[plotdata["window2"]][
+            "window_mid"
+        ].values
+        plotdata["dist"] = np.abs(plotdata["window_mid1"] - plotdata["window_mid2"])
+        plotdata = plotdata.query("(window_mid1 < window_mid2)")
+        # plotdata = plotdata.query("dist > 1000")
 
-        return plotdata_copredictivity
+        # x = interaction.stack({"window1_window2": ["window1", "window2"]}).values
+        # print(x.shape)
+        # scores_statistical = []
+        # for i in range(x.shape[1]):
+        #     scores_statistical.append(scipy.stats.ttest_1samp(x[:, i], 0).pvalue)
+        # scores_statistical = pd.DataFrame({"pval": scores_statistical})
+        # scores_statistical["pval"] = scores_statistical["pval"].fillna(1.0)
+        # scores_statistical["qval"] = fdr(scores_statistical["pval"])
+
+        # plotdata["pval"] = scores_statistical["pval"].values
+        # plotdata["qval"] = scores_statistical["qval"].values
+
+        plotdata.loc[plotdata["dist"] < 1000, "cor"] = 0.0
+
+        return plotdata
 
     def get_scoring_path(self, gene):
         path = self.path / f"{gene}"

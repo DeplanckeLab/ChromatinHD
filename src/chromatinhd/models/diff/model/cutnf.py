@@ -8,6 +8,18 @@ from chromatinhd.embedding import EmbeddingTensor
 from . import spline
 from chromatinhd.models import HybridModel
 
+from chromatinhd.flow import Flow, Stored
+
+from chromatinhd.models.diff.loader.minibatches import Minibatcher
+from chromatinhd.models.diff.loader.clustering_cuts import (
+    ClusteringCuts,
+)
+from chromatinhd.models.diff.trainer import Trainer
+from chromatinhd.loaders import LoaderPool2
+from chromatinhd.optim import SparseDenseAdam
+
+import pickle
+
 
 class Decoder(torch.nn.Module):
     def __init__(
@@ -123,12 +135,16 @@ class BaselineDecoder(torch.nn.Module):
         return [self.rho_weight.weight]
 
 
-class Decoding(torch.nn.Module, HybridModel):
+class Model(torch.nn.Module, HybridModel):
     def __init__(
         self,
         fragments,
-        latent,
-        nbins=(128,),
+        clustering,
+        nbins=(
+            128,
+            64,
+            32,
+        ),
         decoder_n_layers=0,
         baseline=False,
         mixture_delta_p_scale_free=False,
@@ -141,7 +157,7 @@ class Decoding(torch.nn.Module, HybridModel):
 
         self.n_total_genes = fragments.n_genes
 
-        n_latent_dimensions = latent.shape[1]
+        self.n_clusters = clustering.n_clusters
 
         from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
@@ -154,14 +170,14 @@ class Decoding(torch.nn.Module, HybridModel):
 
         if not baseline:
             self.decoder = Decoder(
-                n_latent_dimensions,
+                self.n_clusters,
                 fragments.n_genes,
                 n_delta_mixture_components,
                 n_layers=decoder_n_layers,
             )
         else:
             self.decoder = BaselineDecoder(
-                n_latent_dimensions,
+                self.n_clusters,
                 fragments.n_genes,
                 n_delta_mixture_components,
                 n_layers=decoder_n_layers,
@@ -178,8 +194,6 @@ class Decoding(torch.nn.Module, HybridModel):
 
         self.register_buffer("libsize", libsize)
         self.register_buffer("rho_bias", rho_bias)
-
-        self.register_buffer("latent", latent)
 
         self.track = {}
 
@@ -207,23 +221,19 @@ class Decoding(torch.nn.Module, HybridModel):
 
     def forward_(
         self,
-        local_cellxgene_ix,
-        cut_coordinates,
-        latent,
+        coordinates,
+        clustering,
         genes_oi,
-        cells_oi,
-        cut_local_cellxgene_ix,
-        cut_localcellxgene_ix,
-        cut_local_gene_ix,
-        n_cells,
-        n_genes,
+        local_cellxgene_ix,
+        localcellxgene_ix,
+        local_gene_ix,
     ):
         # decode
-        mixture_delta, rho_delta = self.decoder(latent.to(torch.float), genes_oi)
+        mixture_delta, rho_delta = self.decoder(clustering.to(torch.float), genes_oi)
 
         # rho
         rho = torch.nn.functional.softmax(torch.log(self.rho_bias) + rho_delta, -1)
-        rho_cuts = rho.flatten()[cut_localcellxgene_ix]
+        rho_cuts = rho.flatten()[localcellxgene_ix]
 
         # rho delta kl
         rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
@@ -233,16 +243,18 @@ class Decoding(torch.nn.Module, HybridModel):
         mixture_delta_cellxgene = mixture_delta.view(
             np.prod(mixture_delta.shape[:2]), mixture_delta.shape[-1]
         )
-        mixture_delta = mixture_delta_cellxgene[cut_local_cellxgene_ix]
+        mixture_delta = mixture_delta_cellxgene[local_cellxgene_ix]
 
-        likelihood_mixture = self.mixture.log_prob(
-            cut_coordinates, genes_oi, cut_local_gene_ix, mixture_delta
+        self.track["likelihood_mixture"] = likelihood_mixture = self.mixture.log_prob(
+            coordinates, genes_oi, local_gene_ix, mixture_delta
         )
+
+        self.track["likelihood_overall"] = likelihood_overall = torch.log(
+            rho_cuts
+        ) + math.log(self.n_total_genes)
 
         # overall likelihood
-        likelihood = self.track["likelihood"] = (
-            likelihood_mixture + torch.log(rho_cuts) + math.log(self.n_total_genes)
-        )
+        likelihood = self.track["likelihood"] = likelihood_mixture + likelihood_overall
         likelihood_scale = 1.0
 
         # mixture kl
@@ -261,34 +273,216 @@ class Decoding(torch.nn.Module, HybridModel):
         return elbo
 
     def forward(self, data):
-        if not hasattr(data, "latent"):
-            data.latent = self.latent[data.cells_oi]
         return self.forward_(
-            cut_coordinates=data.cut_coordinates,
-            latent=data.latent,
-            cells_oi=data.cells_oi_torch,
-            genes_oi=data.genes_oi_torch,
-            cut_local_cellxgene_ix=data.cut_local_cellxgene_ix,
-            n_cells=data.n_cells,
-            n_genes=data.n_genes,
-            cut_local_gene_ix=data.cut_local_gene_ix,
-            local_cellxgene_ix=data.local_cellxgene_ix,
-            cut_localcellxgene_ix=data.cut_localcellxgene_ix,
+            coordinates=data.cuts.coordinates,
+            clustering=data.clustering.onehot,
+            genes_oi=data.minibatch.genes_oi_torch,
+            local_gene_ix=data.cuts.local_gene_ix,
+            local_cellxgene_ix=data.cuts.local_cellxgene_ix,
+            localcellxgene_ix=data.cuts.localcellxgene_ix,
         )
 
-    def _get_likelihood_mixture_cell_gene(
-        self, likelihood_mixture, cut_local_cellxgene_ix, n_cells, n_genes
+    def train_model(self, fragments, clustering, fold, device="cuda", n_epochs=30):
+        # set up minibatchers and loaders
+        minibatcher_train = Minibatcher(
+            fold["cells_train"],
+            range(fragments.n_genes),
+            n_genes_step=500,
+            n_cells_step=200,
+        )
+        minibatcher_validation = Minibatcher(
+            fold["cells_validation"],
+            range(fragments.n_genes),
+            n_genes_step=10,
+            n_cells_step=10000,
+            permute_cells=False,
+            permute_genes=False,
+        )
+
+        loaders_train = LoaderPool2(
+            ClusteringCuts,
+            dict(
+                clustering=clustering,
+                fragments=fragments,
+                cellxgene_batch_size=minibatcher_train.cellxgene_batch_size,
+            ),
+            n_workers=10,
+        )
+        loaders_validation = LoaderPool2(
+            ClusteringCuts,
+            dict(
+                clustering=clustering,
+                fragments=fragments,
+                cellxgene_batch_size=minibatcher_validation.cellxgene_batch_size,
+            ),
+            n_workers=5,
+        )
+
+        trainer = Trainer(
+            self,
+            loaders_train,
+            loaders_validation,
+            minibatcher_train,
+            minibatcher_validation,
+            SparseDenseAdam(
+                self.parameters_sparse(),
+                self.parameters_dense(),
+                lr=1e-2,
+                weight_decay=1e-5,
+            ),
+            n_epochs=n_epochs,
+            checkpoint_every_epoch=1,
+            optimize_every_step=1,
+            device=device,
+        )
+
+        trainer.train()
+
+    def _get_likelihood_cell_gene(
+        self, likelihood, local_cellxgene_ix, n_cells, n_genes
     ):
         return torch_scatter.segment_sum_coo(
-            likelihood_mixture, cut_local_cellxgene_ix, dim_size=n_cells * n_genes
+            likelihood, local_cellxgene_ix, dim_size=n_cells * n_genes
         ).reshape((n_cells, n_genes))
 
-    def evaluate_pseudo(self, coordinates, latent=None, gene_oi=None, gene_ix=None):
+    def get_prediction(
+        self,
+        fragments,
+        clustering,
+        cells=None,
+        cell_ixs=None,
+        genes=None,
+        gene_ixs=None,
+        device="cuda",
+        return_raw=False,
+    ):
+        """
+        Returns the prediction of a dataset
+        """
+        if cell_ixs is None:
+            if cells is None:
+                cells = fragments.obs.index
+            fragments.obs["ix"] = np.arange(len(fragments.obs))
+            cell_ixs = fragments.obs.loc[cells]["ix"].values
+        if cells is None:
+            cells = fragments.obs.index[cell_ixs]
+
+        if gene_ixs is None:
+            if genes is None:
+                genes = fragments.var.index
+            fragments.var["ix"] = np.arange(len(fragments.var))
+            gene_ixs = fragments.var.loc[genes]["ix"].values
+        if genes is None:
+            genes = fragments.var.index[gene_ixs]
+
+        minibatches = Minibatcher(
+            cell_ixs,
+            gene_ixs,
+            n_genes_step=500,
+            n_cells_step=200,
+            use_all_cells=True,
+            use_all_genes=True,
+            permute_cells=False,
+            permute_genes=False,
+        )
+        loaders = LoaderPool2(
+            ClusteringCuts,
+            dict(
+                clustering=clustering,
+                fragments=fragments,
+                cellxgene_batch_size=minibatches.cellxgene_batch_size,
+            ),
+            n_workers=5,
+        )
+        loaders.initialize(minibatches)
+
+        likelihood_mixture = np.zeros((len(cell_ixs), len(gene_ixs)))
+        likelihood_overall = np.zeros((len(cell_ixs), len(gene_ixs)))
+
+        cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
+        cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
+
+        gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
+        gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
+
+        device = "cuda"
+        self.eval()
+        self = self.to(device)
+
+        for data in loaders:
+            data = data.to(device)
+            with torch.no_grad():
+                self.forward(data)
+
+            likelihood_mixture[
+                np.ix_(
+                    cell_mapping[data.minibatch.cells_oi],
+                    gene_mapping[data.minibatch.genes_oi],
+                )
+            ] += (
+                self._get_likelihood_cell_gene(
+                    self.track["likelihood_mixture"],
+                    data.cuts.local_cellxgene_ix,
+                    data.minibatch.n_cells,
+                    data.minibatch.n_genes,
+                )
+                .cpu()
+                .numpy()
+            )
+            likelihood_overall[
+                np.ix_(
+                    cell_mapping[data.minibatch.cells_oi],
+                    gene_mapping[data.minibatch.genes_oi],
+                )
+            ] += (
+                self._get_likelihood_cell_gene(
+                    self.track["likelihood_overall"],
+                    data.cuts.local_cellxgene_ix,
+                    data.minibatch.n_cells,
+                    data.minibatch.n_genes,
+                )
+                .cpu()
+                .numpy()
+            )
+
+        self = self.to("cpu")
+
+        if return_raw:
+            return predicted, expected, n_fragments
+
+        import xarray as xr
+
+        result = xr.Dataset(
+            {
+                "likelihood_mixture": xr.DataArray(
+                    likelihood_mixture,
+                    dims=("cell", "gene"),
+                    coords={"cell": cells, "gene": fragments.var.index},
+                ),
+                "likelihood_overall": xr.DataArray(
+                    likelihood_overall,
+                    dims=("cell", "gene"),
+                    coords={"cell": cells, "gene": fragments.var.index},
+                ),
+            }
+        )
+        return result
+
+    def evaluate_pseudo(self, coordinates, clustering=None, gene_oi=None, gene_ix=None):
+        from chromatinhd.models.diff.loader.cuts import Result as CutsResult
+        from chromatinhd.models.diff.loader.minibatches import Minibatch
+        from chromatinhd.models.diff.loader.clustering import Result as ClusteringResult
+        from chromatinhd.models.diff.loader.clustering_cuts import (
+            Result as ClusteringCutsResult,
+        )
+
         device = coordinates.device
-        if not torch.is_tensor(latent):
-            if latent is None:
-                latent = 0.0
-            latent = torch.ones((1, self.n_latent), device=device) * latent
+        if not torch.is_tensor(clustering):
+            if clustering is None:
+                clustering = 0.0
+            clustering = torch.ones((1, self.n_clusters), device=device) * clustering
+
+            print(clustering)
 
         cells_oi = torch.ones((1,), dtype=torch.long)
 
@@ -297,12 +491,9 @@ class Decoding(torch.nn.Module, HybridModel):
             if gene_oi is None:
                 gene_oi = 0
             genes_oi = torch.tensor([gene_oi], device=device, dtype=torch.long)
-            # genes_oi = torch.arange(self.rho_bias.shape[0])
-            cut_local_gene_ix = torch.zeros_like(coordinates).to(torch.long)
-            cut_local_cellxgene_ix = torch.zeros_like(coordinates).to(torch.long)
-            cut_localcellxgene_ix = (
-                torch.ones_like(coordinates).to(torch.long) * gene_oi
-            )
+            local_gene_ix = torch.zeros_like(coordinates).to(torch.long)
+            local_cellxgene_ix = torch.zeros_like(coordinates).to(torch.long)
+            localcellxgene_ix = torch.ones_like(coordinates).to(torch.long) * gene_oi
         else:
             assert len(gene_ix) == len(coordinates)
             genes_oi = torch.unique(gene_ix)
@@ -314,27 +505,29 @@ class Decoding(torch.nn.Module, HybridModel):
                 0, genes_oi, torch.arange(len(genes_oi), device=device)
             )
 
-            cut_local_gene_ix = local_gene_mapping[gene_ix]
-            cut_local_cell_ix = torch.arange(
-                latent.shape[0], device=cut_local_gene_ix.device
+            local_gene_ix = local_gene_mapping[gene_ix]
+            local_cell_ix = torch.arange(
+                clustering.shape[0], device=local_gene_ix.device
             )
-            cut_local_cellxgene_ix = (
-                cut_local_cell_ix * len(genes_oi) + cut_local_gene_ix
-            )
-            cut_localcellxgene_ix = cut_local_cell_ix * self.n_total_genes + gene_ix
+            local_cellxgene_ix = local_cell_ix * len(genes_oi) + local_gene_ix
+            localcellxgene_ix = local_cell_ix * self.n_total_genes + gene_ix
 
-        data = FullDict(
-            local_cellxgene_ix=local_cellxgene_ix.to(device),
-            cut_local_gene_ix=cut_local_gene_ix.to(device),
-            cut_local_cellxgene_ix=cut_local_cellxgene_ix.to(device),
-            cut_localcellxgene_ix=cut_localcellxgene_ix.to(device),
-            cut_coordinates=coordinates.to(device),
-            n_cells=1,
-            n_genes=1,
-            genes_oi_torch=genes_oi.to(device),
-            cells_oi_torch=cells_oi.to(device),
-            latent=latent.to(device),
+        data = ClusteringCutsResult(
+            cuts=CutsResult(
+                coordinates=coordinates,
+                local_cellxgene_ix=local_cellxgene_ix,
+                localcellxgene_ix=localcellxgene_ix,
+                n_genes=len(genes_oi),
+            ),
+            clustering=ClusteringResult(
+                onehot=clustering,
+            ),
+            minibatch=Minibatch(
+                cells_oi=cells_oi.numpy(),
+                genes_oi=genes_oi.numpy(),
+            ),
         )
+
         with torch.no_grad():
             self.forward(data)
 
@@ -446,7 +639,46 @@ class Decoding(torch.nn.Module, HybridModel):
             raise NotImplementedError()
 
 
-class FullDict(dict):
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+class Models(Flow):
+    n_models = Stored("n_models")
+
+    @property
+    def models_path(self):
+        path = self.path / "models"
+        path.mkdir(exist_ok=True)
+        return path
+
+    def train_models(
+        self, fragments, clustering, folds, device="cuda", n_epochs=30, **kwargs
+    ):
+        self.n_models = len(folds)
+        for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)]:
+            desired_outputs = [self.models_path / ("model_" + str(fold_ix) + ".pkl")]
+            force = False
+            if not all([desired_output.exists() for desired_output in desired_outputs]):
+                force = True
+
+            if force:
+                model = Model(fragments, clustering, **kwargs)
+                model.train_model(
+                    fragments, clustering, fold, device=device, n_epochs=n_epochs
+                )
+
+                model = model.to("cpu")
+
+                pickle.dump(
+                    model,
+                    open(self.models_path / ("model_" + str(fold_ix) + ".pkl"), "wb"),
+                )
+
+    def __getitem__(self, ix):
+        return pickle.load(
+            (self.models_path / ("model_" + str(ix) + ".pkl")).open("rb")
+        )
+
+    def __len__(self):
+        return self.n_models
+
+    def __iter__(self):
+        for ix in range(len(self)):
+            yield self[ix]
