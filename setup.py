@@ -48,6 +48,7 @@ setuptools.setup(
         "fisher",
         "diskcache",
         "appdirs",
+        "xarray",
     ],
     extras_require={
         "full": [],
