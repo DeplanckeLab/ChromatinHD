@@ -1,5 +1,5 @@
 import chromatinhd.grid
-import chromatinhd.plotting
+import chromatinhd.plot
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +12,7 @@ class Copredictivity(chromatinhd.grid.Panel):
         norm = mpl.colors.CenteredNorm(0, np.abs(plotdata["cor"]).max())
         cmap = mpl.cm.RdBu_r
 
-        chromatinhd.plotting.matshow45(
+        chromatinhd.plot.matshow45(
             self.ax,
             plotdata.set_index(["window_mid1", "window_mid2"])["cor"],
             cmap=cmap,

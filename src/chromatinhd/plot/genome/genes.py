@@ -80,7 +80,7 @@ class Genes(chromatinhd.grid.Ax):
             ax.set_xlabel("Distance to $\\mathit{" + symbol + "}$ TSS")
         ax.xaxis.set_label_position("top")
         ax.tick_params(axis="x", length=2, pad=0, labelsize=8, width=0.5)
-        ax.xaxis.set_major_formatter(chromatinhd.plotting.gene_ticker)
+        ax.xaxis.set_major_formatter(chromatinhd.plot.gene_ticker)
 
         sns.despine(ax=ax, right=True, left=True, bottom=True, top=True)
 
@@ -221,7 +221,7 @@ import numpy as np
 
 
 from chromatinhd.grid.broken import Broken, Panel
-from chromatinhd.plotting import gene_ticker
+from chromatinhd.plot import gene_ticker
 import matplotlib as mpl
 import seaborn as sns
 
