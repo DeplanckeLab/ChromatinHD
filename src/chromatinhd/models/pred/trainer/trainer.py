@@ -6,6 +6,7 @@ from chromatinhd.train import Trace
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 
 def paircor(x, y, dim=0, eps=0.1):

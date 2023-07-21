@@ -143,6 +143,8 @@ class Pileup(chromatinhd.grid.Panel):
         # vline at tss
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
+        ax.set_xticks([])
+
     @classmethod
     def from_genemultiwindow(cls, genemultiwindow, gene, width):
         plotdata = genemultiwindow.get_plotdata(gene).reset_index()
