@@ -22,5 +22,6 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
+      - run: pip install torch # because torch_scatter contains import torch in the setup.py
       - run: pip install ./[dev]
       - run: mkdocs gh-deploy --force
