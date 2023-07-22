@@ -38,7 +38,7 @@ license = {text = "MIT"}
 "Bug Tracker" = "https://github.com/DeplanckeLab/ChromatinHD/issues"
 
 [tool.setuptools.dynamic]
-readme = {file = ["README.md"]}
+readme = {file = "README.md", parser = "markdown"}
 
 [project.optional-dependencies]
 dev = [
