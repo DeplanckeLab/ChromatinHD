@@ -64,4 +64,13 @@ Currently, the following models are supported:
         </div>
     </article>
     </a>
+         <article class="card disabled">
+        <header>
+            <h2>Time</h2>
+        </header>    
+        <div class="content">
+            <p>To learn where and how accessibility is predictive over (pseudo)time</p>
+        <img src="static/models/time/logo.png" alt="ChromatinHD-diff" style="scale:0.7">
+        </div>
+    </article>
 </div>

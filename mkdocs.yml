@@ -11,6 +11,8 @@ theme:
     - navigation.tracking
     - navigation.tabs
     - navigation.footer
+
+site_url: "https://deplanckelab.github.io/ChromatinHD/"
 repo_url: https://github.com/DeplanckeLab/ChromatinHD
 
 plugins:
