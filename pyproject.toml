@@ -11,10 +11,8 @@ authors = [
     {name = "Wouter Saelens", email = "wouter.saelens@gmail.com"},
 ]
 description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
-readme = "README.rst"
 requires-python = ">=3.8"
 keywords = ["bioinformatics", "chromatin accessibility", "transcriptomics"]
-license = {text = "MIT", file = "LICENSE"}
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
@@ -32,7 +30,15 @@ dependencies = [
     "xarray",
     "pysam",
 ]
-dynamic = ["version", "readme", "license"]
+dynamic = ["version", "readme"]
+license = {text = "MIT"}
+
+[project.urls]
+"Homepage" = "https://github.com/DeplanckeLab/ChromatinHD"
+"Bug Tracker" = "https://github.com/DeplanckeLab/ChromatinHD/issues"
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.md"]}
 
 [project.optional-dependencies]
 dev = [
