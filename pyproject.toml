@@ -1,5 +1,5 @@
 [build-system]
-requires = [ "setuptools>=41", "wheel", "setuptools-git-versioning<2", ]
+requires = [ "setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools-git-versioning]
@@ -20,9 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "torch",  # --extra-index-url https://download.pytorch.org/whl/cu113
-    "torch-scatter",
-    # "torch==1.12.1",  # --extra-index-url https://download.pytorch.org/whl/cu113
-    # "torch-scatter",  # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
+    "torch-scatter", # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
     "scanpy",
     "matplotlib",
     "numpy",
@@ -34,4 +32,27 @@ dependencies = [
     "xarray",
     "pysam",
 ]
-dynamic = ["version"]
+dynamic = ["version", "readme", "license"]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "pytest",
+    "coverage",
+    "black",
+    "pylint",
+    "jupytext",
+    "pytest",
+    "statsmodels",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocs-jupyter",
+    "mike",
+    "cairosvg",  # for mkdocs social
+    "pillow",  # for mkdocs social
+    "setuptools_scm"
+    # "faiss-cpu",
+]
+
+[tool.setuptools_scm]
