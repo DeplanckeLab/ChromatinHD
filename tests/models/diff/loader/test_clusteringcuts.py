@@ -2,7 +2,7 @@ import numpy as np
 import chromatinhd as chd
 
 
-class ClusteringCuts:
+class TestClusteringCuts:
     def test_example(self, example_fragments, example_clustering):
         loader = chd.models.diff.loader.ClusteringCuts(
             fragments=example_fragments,

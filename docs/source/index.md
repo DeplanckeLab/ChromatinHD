@@ -39,7 +39,7 @@ Currently, the following models are supported:
 
 
 <div class="cards">
-    <a href="quickstart/1_pred">
+    <a href="quickstart/2_pred">
     <article class="card">
         <header>
             <h2>Pred</h2>
@@ -51,7 +51,7 @@ Currently, the following models are supported:
             
     </article>
     </a>
-            <a href="quickstart/2_diff">
+            <a href="quickstart/3_diff">
      <article class="card">
         <header>
             <h2>Diff</h2>
