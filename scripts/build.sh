@@ -10,4 +10,6 @@ python -m build
 twine upload --repository testpypi dist/chromatinhd-${version}.tar.gz --verbose
 
 
+gh release create v${version} -t "v${version}" -n "v${version}" dist/chromatinhd-${version}.tar.gz
+
 twine upload dist/chromatinhd-${version}.tar.gz --verbose
