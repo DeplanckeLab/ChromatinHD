@@ -15,7 +15,6 @@ jobs:
         with:
           python-version: 3.x
           cache: 'pip'
-          cache-dependency-path: 'setup.py'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
       - run: pip install torch # because torch_scatter contains import torch in the setup.py
       - run: pip install -e .[dev]
