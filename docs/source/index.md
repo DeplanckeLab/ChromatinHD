@@ -32,25 +32,32 @@ Currently, the following models are supported:
     margin:10px
 }
 
+.card.disabled {
+    opacity:0.5;
+}
+
 .card img {
   display: block;
   margin-left: auto;
   margin-right: auto;
 }
-</style>
 
+.card h2 {
+    font-style:italic;
+}
+</style>
 
 <div class="cards">
     <a href="quickstart/2_pred">
     <article class="card">
         <header>
             <h2>Pred</h2>
-        </header>    
+        </header>
         <div class="content">
             <p> To learn where and how accessibility is predictive for gene expression </p>
         <img src="static/models/pred/1x/logo.png" alt="ChromatinHD-pred" style="scale:0.7">
         </div>
-            
+
     </article>
     </a>
             <a href="quickstart/3_diff">
@@ -64,13 +71,22 @@ Currently, the following models are supported:
         </div>
     </article>
     </a>
-         <article class="card disabled">
+    <article class="card disabled">
         <header>
             <h2>Time</h2>
         </header>    
         <div class="content">
             <p>To learn where and how accessibility is predictive over (pseudo)time</p>
-        <img src="static/models/time/logo.png" alt="ChromatinHD-diff" style="scale:0.7">
+        <img src="static/models/time/logo.png" alt="ChromatinHD-time" style="scale:0.7">
+        </div>
+    </article>
+    <article class="card disabled">
+        <header>
+            <h2>Dime</h2>
+        </header>    
+        <div class="content">
+            <p>To learn the differences in accessibility over (pseudo)time</p>
+        <img src="static/models/dime/logo.png" alt="ChromatinHD-dime" style="scale:0.7">
         </div>
     </article>
 </div>

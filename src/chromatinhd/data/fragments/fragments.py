@@ -26,9 +26,7 @@ class RawFragments:
 
 
 class Fragments(Flow):
-    """
-    Fragments centered around a gene window
-    """
+    """Fragments centered around a gene window"""
 
     regions = Linked("regions")
     """regions of the fragments"""
