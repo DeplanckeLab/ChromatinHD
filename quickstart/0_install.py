@@ -42,12 +42,13 @@ if IPython.get_ipython() is not None:
 
 # %%
 import torch
-torch.cuda.is_available() # should return True
-torch.cuda.device_count() # should be >= 1
+
+torch.cuda.is_available()  # should return True
+torch.cuda.device_count()  # should be >= 1
 
 # %% [markdown]
 #
 # If not, follow the instructions at https://pytorch.org/get-started/locally/. You may have to re-install PyTorch.
 
-# %%
+# %% tags=["hide_output"]
 import chromatinhd as chd

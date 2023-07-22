@@ -2099,9 +2099,13 @@ adata.pkl  layers  obs.tsv  var.tsv
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">clustering</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Clustering</span><span class="o">.</span><span class="n">from_labels</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;celltype&quot;</span><span class="p">],</span> <span class="n">path</span> <span class="o">=</span> <span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;clustering&quot;</span><span class="p">)</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">clustering</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Clustering</span><span class="o">.</span><span class="n">from_labels</span><span class="p">(</span>
+    <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;celltype&quot;</span><span class="p">],</span> <span class="n">path</span><span class="o">=</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;clustering&quot;</span>
+<span class="p">)</span>
 </pre></div>
-<div id="cell-8" class="clipboard-copy-txt">clustering = chd.data.Clustering.from_labels(adata.obs["celltype"], path = dataset_folder / "clustering")</div>
+<div id="cell-8" class="clipboard-copy-txt">clustering = chd.data.Clustering.from_labels(
+    adata.obs["celltype"], path=dataset_folder / "clustering"
+)</div>
         
         </div>
     </div>
@@ -2429,6 +2433,7 @@ drwxr-xr-x 2 wsaelens peak_free_atac 4.0K Jul 21 19:49 layers
             </div>
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;fragments.tsv.gz.tbi&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
     <span class="kn">import</span> <span class="nn">subprocess</span>
+
     <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
         <span class="p">[</span>
             <span class="s2">&quot;tabix&quot;</span><span class="p">,</span>
@@ -2438,6 +2443,7 @@ drwxr-xr-x 2 wsaelens peak_free_atac 4.0K Jul 21 19:49 layers
 </pre></div>
 <div id="cell-13" class="clipboard-copy-txt">if not (dataset_folder / "fragments.tsv.gz.tbi").exists():
     import subprocess
+
     subprocess.run(
         [
             "tabix",
@@ -2476,14 +2482,14 @@ drwxr-xr-x 2 wsaelens peak_free_atac 4.0K Jul 21 19:49 layers
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">fragments</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Fragments</span><span class="o">.</span><span class="n">from_fragments_tsv</span><span class="p">(</span>
     <span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;fragments.tsv.gz&quot;</span><span class="p">,</span>
     <span class="n">regions</span><span class="p">,</span>
-    <span class="n">obs</span> <span class="o">=</span> <span class="n">transcriptome</span><span class="o">.</span><span class="n">obs</span><span class="p">,</span>
+    <span class="n">obs</span><span class="o">=</span><span class="n">transcriptome</span><span class="o">.</span><span class="n">obs</span><span class="p">,</span>
     <span class="n">path</span><span class="o">=</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;fragments&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 <div id="cell-14" class="clipboard-copy-txt">fragments = chd.data.Fragments.from_fragments_tsv(
     dataset_folder / "fragments.tsv.gz",
     regions,
-    obs = transcriptome.obs,
+    obs=transcriptome.obs,
     path=dataset_folder / "fragments",
 )</div>
         
@@ -2659,9 +2665,13 @@ adata.pkl  layers  obs.tsv  var.tsv
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">folds</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">folds</span><span class="o">.</span><span class="n">Folds</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;folds&quot;</span> <span class="o">/</span> <span class="s2">&quot;5x1&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">sample_cells</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">folds</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">folds</span><span class="o">.</span><span class="n">Folds</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;folds&quot;</span> <span class="o">/</span> <span class="s2">&quot;5x1&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">sample_cells</span><span class="p">(</span>
+    <span class="n">fragments</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span>
+<span class="p">)</span>
 </pre></div>
-<div id="cell-17" class="clipboard-copy-txt">folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(fragments, 5, 1)</div>
+<div id="cell-17" class="clipboard-copy-txt">folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(
+    fragments, 5, 1
+)</div>
         
         </div>
     </div>
