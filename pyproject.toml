@@ -1,3 +1,37 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = [ "setuptools>=41", "wheel", "setuptools-git-versioning<2", ]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "chromatinhd"
+authors = [
+    {name = "Wouter Saelens", email = "wouter.saelens@gmail.com"},
+]
+description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
+readme = "README.rst"
+requires-python = ">=3.8"
+keywords = ["bioinformatics", "chromatin accessibility", "transcriptomics"]
+license = {text = "MIT", file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "torch",  # --extra-index-url https://download.pytorch.org/whl/cu113
+    "torch-scatter",
+    # "torch==1.12.1",  # --extra-index-url https://download.pytorch.org/whl/cu113
+    # "torch-scatter",  # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
+    "scanpy",
+    "matplotlib",
+    "numpy",
+    "seaborn",
+    "Cython",
+    "fisher",
+    "diskcache",
+    "appdirs",
+    "xarray",
+    "pysam",
+]
+dynamic = ["version"]
