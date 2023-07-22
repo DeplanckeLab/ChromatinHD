@@ -2,7 +2,7 @@ import numpy as np
 import chromatinhd as chd
 
 
-class TranscriptomeFragments:
+class TestTranscriptomeFragments:
     def test_example(self, example_fragments, example_transcriptome):
         loader = chd.models.pred.loader.TranscriptomeFragments(
             fragments=example_fragments,
