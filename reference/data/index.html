@@ -1058,12 +1058,8 @@
 <span class="normal">224</span>
 <span class="normal">225</span>
 <span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Fragments</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Fragments centered around a gene window</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="normal">227</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Fragments</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fragments centered around a gene window&quot;&quot;&quot;</span>
 
     <span class="n">regions</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s2">&quot;regions&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;regions of the fragments&quot;&quot;&quot;</span>
@@ -1441,7 +1437,9 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/fragments/fragments.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">129</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
@@ -1539,9 +1537,7 @@
 <span class="normal">224</span>
 <span class="normal">225</span>
 <span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">227</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">from_fragments_tsv</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">fragments_file</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
