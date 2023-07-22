@@ -1,7 +1,7 @@
 import torch
 import tqdm.auto as tqdm
 import math
-from chromatinhd import splines
+from chromatinhd.models.diff.model import splines
 from chromatinhd.embedding import EmbeddingTensor
 
 
