@@ -44,7 +44,7 @@ Currently, the following models are supported:
         <header>
             <h2>Pred</h2>
         </header>    
-        <!-- <img src="balloons.jpg" alt="Hot air balloons"> -->
+        <img src="static/models/pred/1x/logo.png" alt="ChromatinHD-pred">
         <div class="content">
             <p> To learn where and how accessibility is predictive for gene expression </p>
         </div>
@@ -56,7 +56,7 @@ Currently, the following models are supported:
         <header>
             <h2>Diff</h2>
         </header>    
-        <!-- <img src="balloons2.jpg" alt="Hot air balloons"> -->
+        <img src="static/models/logo/1x/logo.png" alt="ChromatinHD-diff">
         <div class="content">
             <p>To understand the differences in accessibilty between cell types/states</p>
         </div>

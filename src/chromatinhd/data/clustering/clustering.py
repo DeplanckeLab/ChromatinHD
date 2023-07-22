@@ -9,7 +9,10 @@ from chromatinhd.utils import Unpickler
 
 class Clustering(Flow):
     labels = Stored("labels")
+    """Labels for each cell."""
+
     cluster_info = Stored("cluster_info")
+    """Dataframe containing information, such as a label, for each cluster."""
 
     @classmethod
     def from_labels(cls, labels, path):

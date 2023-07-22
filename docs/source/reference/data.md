@@ -7,6 +7,7 @@
 
 ::: chromatinhd.data.transcriptome.Transcriptome
 
+::: chromatinhd.data.clustering.Clustering
 
 
 
