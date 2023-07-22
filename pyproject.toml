@@ -11,7 +11,6 @@ authors = [
     {name = "Wouter Saelens", email = "wouter.saelens@gmail.com"},
 ]
 description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
-long_description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
 requires-python = ">=3.8"
 keywords = ["bioinformatics", "chromatin accessibility", "transcriptomics"]
 classifiers = [
