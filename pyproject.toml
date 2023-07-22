@@ -32,6 +32,7 @@ dependencies = [
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
+long_description_content_type = "text/markdown"
 
 [project.urls]
 "Homepage" = "https://github.com/DeplanckeLab/ChromatinHD"
