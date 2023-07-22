@@ -1,0 +1,64 @@
+[build-system]
+requires = [ "setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "chromatinhd"
+authors = [
+    {name = "Wouter Saelens", email = "wouter.saelens@gmail.com"},
+]
+description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
+requires-python = ">=3.8"
+keywords = ["bioinformatics", "chromatin accessibility", "transcriptomics"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "torch",  # --extra-index-url https://download.pytorch.org/whl/cu113
+    "torch-scatter", # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
+    "scanpy",
+    "matplotlib",
+    "numpy",
+    "seaborn",
+    "Cython",
+    "fisher",
+    "diskcache",
+    "appdirs",
+    "xarray",
+    "pysam",
+]
+dynamic = ["version", "readme"]
+license = {text = "MIT"}
+
+[project.urls]
+"Homepage" = "https://github.com/DeplanckeLab/ChromatinHD"
+"Bug Tracker" = "https://github.com/DeplanckeLab/ChromatinHD/issues"
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.md"]}
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "pytest",
+    "coverage",
+    "black",
+    "pylint",
+    "jupytext",
+    "pytest",
+    "statsmodels",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocs-jupyter",
+    "mike",
+    "cairosvg",  # for mkdocs social
+    "pillow",  # for mkdocs social
+    "setuptools_scm"
+    # "faiss-cpu",
+]
+
+[tool.setuptools_scm]
