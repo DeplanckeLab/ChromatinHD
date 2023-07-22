@@ -28,7 +28,7 @@ class Clustering:
             clustering.cluster_info.index,
         )
         self.onehot = torch.nn.functional.one_hot(
-            torch.from_numpy(clustering.labels.cat.codes.values).to(torch.int64),
+            torch.from_numpy(clustering.labels.cat.codes.values.copy()).to(torch.int64),
             clustering.n_clusters,
         )
 
