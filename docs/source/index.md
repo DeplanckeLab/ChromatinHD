@@ -6,16 +6,18 @@ Currently, the following models are supported:
 <style>
 .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     grid-gap: 20px;
 }
 
 .card {
     display: grid;
-    grid-template-rows: max-content 200px 1fr;
-    background: rgb(236, 236, 236);
+    grid-template-rows: max-content 250px 1fr;
+    background: rgb(255, 255, 255);
     padding:10px;
     box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px, rgba(0, 0, 0, 0.15) 0px 7px 13px -3px, rgba(0, 0, 0, 0.1) 0px -3px 0px inset;
+    transition: box-shadow 0.1s ease-out 100ms;
+    color:#333;
 }
 
 .card:hover{
@@ -31,9 +33,9 @@ Currently, the following models are supported:
 }
 
 .card img {
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 </style>
 
@@ -44,9 +46,9 @@ Currently, the following models are supported:
         <header>
             <h2>Pred</h2>
         </header>    
-        <img src="static/models/pred/1x/logo.png" alt="ChromatinHD-pred">
         <div class="content">
             <p> To learn where and how accessibility is predictive for gene expression </p>
+        <img src="static/models/pred/1x/logo.png" alt="ChromatinHD-pred" style="scale:0.7">
         </div>
             
     </article>
@@ -56,9 +58,9 @@ Currently, the following models are supported:
         <header>
             <h2>Diff</h2>
         </header>    
-        <img src="static/models/logo/1x/logo.png" alt="ChromatinHD-diff">
         <div class="content">
             <p>To understand the differences in accessibilty between cell types/states</p>
+        <img src="static/models/diff/1x/logo.png" alt="ChromatinHD-diff" style="scale:0.7">
         </div>
     </article>
     </a>
