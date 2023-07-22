@@ -40,6 +40,5 @@ class HybridModel:
             )
         ]
 
-
-from . import likelihood
-from . import positional
+from . import pred
+from . import diff

@@ -7,7 +7,6 @@ from .torch import interpolate_1d
 from .numpy import indices_to_indptr, indptr_to_indices
 from .ansi import colorcodes
 from .testing import repeated_kfold_corrected_t_test
-from . import biomart
 from . import ecdf
 
 __all__ = [
@@ -21,7 +20,6 @@ __all__ = [
     "indptr_to_indices",
     "colorcodes",
     "repeated_kfold_corrected_t_test",
-    "biomart",
     "ecdf",
 ]
 
@@ -57,7 +55,7 @@ def name_window(window_info):
     )
 
 
-def paircor(x, y, dim=0):
+def paircor(x, y, dim=-2):
     import torch
     import pandas as pd
     import numpy as np
@@ -84,7 +82,7 @@ def paircor(x, y, dim=0):
     return cor
 
 
-def paircorr(x, y, dim=0):
+def paircorr(x, y, dim=-2):
     import numpy as np
 
     divisor = y.std(dim, keepdims=True) * x.std(dim, keepdims=True)

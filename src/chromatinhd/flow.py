@@ -4,32 +4,110 @@ import pickle
 import numpy as np
 import gzip
 import copy
+import json
+import importlib
+import shutil
 
 
 class Flow:
     path: pathlib.Path
     default_name = None
 
-    def __init__(self, path=None, folder=None, name=None):
+    def __init__(self, path=None, folder=None, name=None, reset=False):
         if path is None:
-            assert folder is not None
+            if folder is None:
+                raise ValueError("Either path or folder must be specified")
             if name is None:
-                assert self.default_name is not None
+                if self.default_name is None:
+                    raise ValueError(
+                        "Cannot create Flow without name, and no default_name specified"
+                    )
                 name = self.default_name
 
             path = folder / name
 
         self.path = path
         if not path.exists():
-            path.mkdir(parents=True)
+            path.mkdir(parents=True, exist_ok=True)
+
+        if reset:
+            self.reset()
+
+        if not self._get_info_path().exists():
+            self._store_info()
+
+    @classmethod
+    def create(cls, path, **kwargs):
+        path = pathlib.Path(path)
+        self = cls(path=path)
+
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        return self
+
+    def _store_info(self):
+        info = {"module": self.__class__.__module__, "class": self.__class__.__name__}
+
+        json.dump(info, self._get_info_path().open("w"))
+
+    def _get_info_path(self):
+        return self.path / ".flow"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.path})"
+        return f'{self.__class__.__name__}("{self.path}")'
+
+    @classmethod
+    def from_path(cls, path):
+        info = json.load(open(path / ".flow"))
+
+        # load class
+        module = importlib.import_module(info["module"])
+        cls = getattr(module, info["class"])
+
+        return cls(path=path)
+
+    def reset(self):
+        shutil.rmtree(self.path)
+        self.path.mkdir(parents=True, exist_ok=True)
+
+
+class Linked:
+    def __init__(self, name):
+        self.name = name
+
+    def __get__(self, obj, type=None):
+        if obj is not None:
+            name = "_" + self.name
+            if not hasattr(obj, name):
+                path = obj.path / self.name
+
+                if not path.exists():
+                    raise FileNotFoundError(f"File {path} does not exist")
+                if not path.is_symlink():
+                    raise FileNotFoundError(f"File {path} is not a symlink")
+
+                value = Flow.from_path(path.resolve())
+                setattr(obj, name, value)
+
+            return getattr(obj, name)
+
+    def __set__(self, obj, value):
+        # symlink to value.path
+        path = obj.path / self.name
+        name = "_" + self.name
+        if path.exists():
+            if not path.is_symlink():
+                raise FileExistsError(f"File {path} already exists")
+            else:
+                path.unlink()
+        path.symlink_to(value.path.resolve())
+        setattr(obj, name, value)
 
 
 class Stored:
-    def __init__(self, name):
+    def __init__(self, name, default=None):
         self.name = name
+        self.default = default
 
     def get_path(self, folder):
         return folder / (self.name + ".pkl")
@@ -38,6 +116,13 @@ class Stored:
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
+                path = self.get_path(obj.path)
+                if not path.exists():
+                    if self.default is None:
+                        raise FileNotFoundError(f"File {path} does not exist")
+                    else:
+                        value = self.default()
+                        pickle.dump(value, path.open("wb"))
                 setattr(obj, name, pickle.load(self.get_path(obj.path).open("rb")))
             return getattr(obj, name)
 
@@ -142,10 +227,14 @@ class CompressedNumpyInt64(CompressedNumpy):
 
 
 class TSV(Stored):
+    def __init__(self, name, columns=None):
+        super().__init__(name)
+        self.columns = columns
+
     def get_path(self, folder):
         return folder / (self.name + ".tsv")
 
-    def __get__(self, obj, type=None):
+    def __get__(self, obj=None, type=None):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
@@ -155,7 +244,46 @@ class TSV(Stored):
                 setattr(obj, name, x)
             return getattr(obj, name)
 
-    def __set__(self, obj, value):
+    def __set__(self, obj, value, folder=None):
         name = "_" + self.name
-        value.to_csv(self.get_path(obj.path), sep="\t")
+        if folder is None:
+            folder = obj.path
+        value.to_csv(self.get_path(folder), sep="\t")
         setattr(obj, name, value)
+
+
+class StoredDict:
+    def __init__(self, name, cls):
+        self.name = name
+        self.cls = cls
+
+    def get_path(self, folder):
+        return folder / self.name
+
+    def __get__(self, obj, type=None):
+        return StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+
+
+class StoredDictInstance:
+    def __init__(self, name, path, cls, obj):
+        self.dict = {}
+        self.cls = cls
+        self.obj = obj
+        self.name = name
+        self.path = path
+        if not self.path.exists():
+            self.path.mkdir(parents=True)
+        for file in self.path.iterdir():
+            if file.is_dir():
+                raise ValueError(f"Folder {file} in {self.obj.path} is not allowed")
+            # key is file name without extension
+            key = file.name.split(".")[0]
+            self.dict[key] = self.cls(key)
+
+    def __getitem__(self, key):
+        return self.dict[key].__get__(self)
+
+    def __setitem__(self, key, value):
+        if key not in self.dict:
+            self.dict[key] = self.cls(key)
+        self.dict[key].__set__(self, value)

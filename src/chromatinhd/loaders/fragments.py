@@ -7,6 +7,7 @@ pyximport.install(
     language_level=3,
     setup_args=dict(include_dirs=[np.get_include()]),
 )
+import chromatinhd.data.fragments
 import chromatinhd.loaders.extraction.fragments
 import dataclasses
 from functools import cached_property
@@ -118,7 +119,7 @@ class Fragments:
 
     def __init__(
         self,
-        fragments: chromatinhd.data.Fragments,
+        fragments: chromatinhd.data.fragments.Fragments,
         cellxgene_batch_size: int,
         n_fragment_per_cellxgene: int = None,
     ):
