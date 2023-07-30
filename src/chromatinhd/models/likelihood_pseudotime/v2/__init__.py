@@ -26,11 +26,20 @@ class Decoder(torch.nn.Module):
         # a view of a tensor is a tensor which accesses the same data (so the same memory) as the original tensor, without making a copy
         self.delta_height_slope = EmbeddingTensor(n_genes, (n_delta_height,), sparse=True)
         self.delta_height_slope.weight.data.zero_()
+        print(f"{self.delta_height_slope.shape=}")
+
+        self.delta_height_scale = EmbeddingTensor(n_genes, (n_delta_height,), sparse=True)
+        self.delta_height_scale.weight.data.zero_()
+        print(f"{self.delta_height_scale.shape=}")
+
+        self.delta_height_shift = EmbeddingTensor(n_genes, (n_delta_height,), sparse=True)
+        self.delta_height_shift.weight.data.zero_()
+        print(f"{self.delta_height_shift.shape=}")
 
         # do the same but for the "delta overall" slope
         self.delta_overall_slope = EmbeddingTensor(n_genes, (1,), sparse=True)
-        self.delta_overall_slope.weight.data.zero_() 
-        # print(f"{self.delta_overall_slope.weight=}")
+        self.delta_overall_slope.weight.data.zero_()
+        print(f"{self.delta_overall_slope.shape=}")
         # TODO: check this variable
 
     def forward(self, latent, genes_oi):
@@ -38,21 +47,35 @@ class Decoder(torch.nn.Module):
         # genes oi is only used to get the deltas
         # we extract the overall slope for all genes because we have to do softmax later
         delta_height_slope = self.delta_height_slope(genes_oi)
+        delta_height_scale = self.delta_height_scale(genes_oi)
+        delta_height_shift = self.delta_height_shift(genes_oi)
         delta_overall_slope = self.delta_overall_slope.get_full_weight()
 
         #! you will have to do some broadcasting here
         # what we need is for each cell x gene x knot its delta
         # and for each cell x gene its overall
-        delta_height_slope = delta_height_slope.unsqueeze(2)
-        delta_overall_slope = delta_overall_slope.unsqueeze(2)
         latent = latent.unsqueeze(0).unsqueeze(0)
+        print(f"{latent.shape=}")
 
-        delta_height = delta_height_slope * latent
+        delta_overall_slope = delta_overall_slope.unsqueeze(2)
+        print(f"{delta_overall_slope.shape=}")
+
+        delta_overall = delta_overall_slope * latent
+        print(f"{delta_overall.shape=}")
+
+        ###
+        delta_height_slope = delta_height_slope.unsqueeze(2)
+        print(f"{delta_height_slope.shape=}")
+
+        delta_height_scale = delta_height_scale.unsqueeze(2)
+        print(f"{delta_height_scale.shape=}")
+
+        delta_height_shift = delta_height_shift.unsqueeze(2)
+        print(f"{delta_height_shift.shape=}")
 
         # https://pytorch.org/docs/stable/special.html#torch.special.expit
-        
-        delta_height = delta_height_slope/(1+torch.exp(-torch.exp(log_delta_height_scale) * latent - delta_height_shift))
-        delta_overall = delta_overall_slope * latent
+        delta_height = delta_height_slope/(1+torch.exp(-torch.exp(delta_height_scale) * latent - delta_height_shift))
+        print(f"{delta_height.shape=}")
 
         return delta_height, delta_overall
 
@@ -64,7 +87,7 @@ class Decoder(torch.nn.Module):
         return [self.delta_overall_slope.weight]
 
     def parameters_sparse(self):
-        return [self.delta_height_slope.weight]
+        return [self.delta_height_slope.weight, self.delta_height_scale.weight, self.delta_height_shift.weight]
 
 
 # likelihoodresult = namedtuple("likelihoodresult", ["likelihood", "height_likelihood", "overall_likelihood"])
