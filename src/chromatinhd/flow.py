@@ -62,6 +62,9 @@ class Flow:
 
     @classmethod
     def from_path(cls, path):
+        """
+        Load a previously created flow from disk
+        """
         info = json.load(open(path / ".flow"))
 
         # load class
@@ -71,8 +74,14 @@ class Flow:
         return cls(path=path)
 
     def reset(self):
+        """
+        Remove all files in this flow
+        """
         shutil.rmtree(self.path)
         self.path.mkdir(parents=True, exist_ok=True)
+
+    def __getstate__(self):
+        raise TypeError("This class cannot be pickled.")
 
 
 class Linked:

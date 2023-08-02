@@ -1,24 +1,26 @@
-import torch
-import numpy as np
 import math
-import tqdm.auto as tqdm
+import pickle
+
+import numpy as np
+import torch
 import torch_scatter
+import tqdm.auto as tqdm
+import xarray as xr
+import pandas as pd
 
 from chromatinhd.embedding import EmbeddingTensor
-from . import spline
-from chromatinhd.models import HybridModel
-
 from chromatinhd.flow import Flow, Stored
-
-from chromatinhd.models.diff.loader.minibatches import Minibatcher
-from chromatinhd.models.diff.loader.clustering_cuts import (
-    ClusteringCuts,
-)
-from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.loaders import LoaderPool2
+from chromatinhd.models import HybridModel
+from chromatinhd.models.diff.loader.clustering_cuts import ClusteringCuts
+from chromatinhd.models.diff.loader.minibatches import Minibatcher
+from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.optim import SparseDenseAdam
-
-import pickle
+from chromatinhd import default_device
+from chromatinhd.data.fragments import Fragments
+from chromatinhd.data.clustering import Clustering
+from chromatinhd.utils import crossing
+from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
 
 class Decoder(torch.nn.Module):
@@ -136,6 +138,10 @@ class BaselineDecoder(torch.nn.Module):
 
 
 class Model(torch.nn.Module, HybridModel):
+    """
+    A ChromatinHD-diff model that models the probability density of observing a cut site between clusterings
+    """
+
     def __init__(
         self,
         fragments,
@@ -158,8 +164,6 @@ class Model(torch.nn.Module, HybridModel):
         self.n_total_genes = fragments.n_genes
 
         self.n_clusters = clustering.n_clusters
-
-        from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
         transform = DifferentialQuadraticSplineStack(
             nbins=nbins,
@@ -282,7 +286,13 @@ class Model(torch.nn.Module, HybridModel):
             localcellxgene_ix=data.cuts.localcellxgene_ix,
         )
 
-    def train_model(self, fragments, clustering, fold, device="cuda", n_epochs=30):
+    def train_model(
+        self, fragments, clustering, fold, device=default_device, n_epochs=30
+    ):
+        """
+        Trains the model
+        """
+
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
@@ -347,17 +357,25 @@ class Model(torch.nn.Module, HybridModel):
 
     def get_prediction(
         self,
-        fragments,
-        clustering,
+        fragments: Fragments,
+        clustering: Clustering,
         cells=None,
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device="cuda",
-        return_raw=False,
+        device: str = default_device,
     ):
         """
         Returns the prediction of a dataset
+
+        Parameters:
+            fragments: Fragments object
+            clustering: Clustering object
+            cells: Cells to predict
+            cell_ixs: Cell indices to predict
+            genes: Genes to predict
+            gene_ixs: Gene indices to predict
+            device: Device to use
         """
         if cell_ixs is None:
             if cells is None:
@@ -447,11 +465,6 @@ class Model(torch.nn.Module, HybridModel):
 
         self = self.to("cpu")
 
-        if return_raw:
-            return predicted, expected, n_fragments
-
-        import xarray as xr
-
         result = xr.Dataset(
             {
                 "likelihood_mixture": xr.DataArray(
@@ -469,12 +482,12 @@ class Model(torch.nn.Module, HybridModel):
         return result
 
     def evaluate_pseudo(self, coordinates, clustering=None, gene_oi=None, gene_ix=None):
-        from chromatinhd.models.diff.loader.cuts import Result as CutsResult
-        from chromatinhd.models.diff.loader.minibatches import Minibatch
         from chromatinhd.models.diff.loader.clustering import Result as ClusteringResult
         from chromatinhd.models.diff.loader.clustering_cuts import (
             Result as ClusteringCutsResult,
         )
+        from chromatinhd.models.diff.loader.cuts import Result as CutsResult
+        from chromatinhd.models.diff.loader.minibatches import Minibatch
 
         device = coordinates.device
         if not torch.is_tensor(clustering):
@@ -543,9 +556,6 @@ class Model(torch.nn.Module, HybridModel):
         prob_cutoff: float = None,
     ) -> np.ndarray:
         n_genes = self.rho_bias.shape[0]
-
-        import pandas as pd
-        from chromatinhd.utils import crossing
 
         self = self.to(device).eval()
 
@@ -651,6 +661,13 @@ class Models(Flow):
     def train_models(
         self, fragments, clustering, folds, device="cuda", n_epochs=30, **kwargs
     ):
+        """
+        Trains the models
+
+        Parameters:
+            fragments:
+                Fragments object
+        """
         self.n_models = len(folds)
         for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)]:
             desired_outputs = [self.models_path / ("model_" + str(fold_ix) + ".pkl")]
