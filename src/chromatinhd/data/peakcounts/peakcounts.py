@@ -6,7 +6,6 @@ import scanpy as sc
 import collections
 import subprocess as sp
 import tqdm.auto as tqdm
-import pathlib
 import pickle
 
 from chromatinhd.flow import Flow
