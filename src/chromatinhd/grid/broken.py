@@ -5,6 +5,10 @@ import matplotlib as mpl
 
 
 class Broken(Grid):
+    """
+    A grid build from distinct "regions" that are using the same coordinate space
+    """
+
     def __init__(self, regions, width, gap=1, height=0.5, *args, **kwargs):
         super().__init__(padding_width=gap, *args, **kwargs)
 

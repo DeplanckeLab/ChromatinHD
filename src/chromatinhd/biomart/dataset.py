@@ -6,8 +6,11 @@ import xml.etree.cElementTree as ET
 
 
 def get_datasets(
-    mart="ENSEMBL_MART_ENSEMBL", baseurl="http://www.ensembl.org/biomart/martservice?"
-):
+    mart:str="ENSEMBL_MART_ENSEMBL", baseurl:str="http://www.ensembl.org/biomart/martservice?"
+) -> pd.DataFrame:
+    """
+    List all datasets available within a mart and baseurl
+    """
     url = f"{baseurl}type=datasets&requestid=biomaRt&mart={mart}"
     if url in cache:
         attributes = cache[url]
@@ -63,6 +66,9 @@ class Dataset:
         self.baseurl = baseurl
 
     def list_attributes(self):
+        """
+        List all attributes available in a dataset
+        """
         url = f"{self.baseurl}type=attributes&dataset={self.name}&mart={self.mart}"
 
         if url in cache:
@@ -87,6 +93,9 @@ class Dataset:
         return attributes
 
     def list_filters(self):
+        """
+        List all filters available in a dataset
+        """
         url = f"{self.baseurl}type=filters&dataset={self.name}&mart={self.mart}"
 
         if url in cache:
@@ -118,7 +127,10 @@ class Dataset:
     def filter(self, name, **kwargs):
         return Filter(name, **kwargs)
 
-    def get(self, attributes=[], filters=[]):
+    def get(self, attributes=[], filters=[]) -> pd.DataFrame:
+        """
+        Get the result with a given set of attributes and filters
+        """
         xml = ET.Element(
             "Query",
             virtualSchemaName="default",
@@ -151,6 +163,9 @@ class Dataset:
 
     @classmethod
     def from_genome(self, genome):
+        """
+        Get the biomart dataset given a particular genome name, e.g. GRCm38, GRCh38, GRCm39, mm10, hg19, ...
+        """
         if genome in ["mm10", "GRCm38"]:
             return Dataset(
                 "mmusculus_gene_ensembl",

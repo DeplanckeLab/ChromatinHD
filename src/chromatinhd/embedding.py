@@ -4,15 +4,13 @@ import numpy as np
 
 class EmbeddingTensor(torch.nn.Embedding):
     """
-    Simple wrapper around torch.nn.Embedding which allows an embedding of any dimensions
+    Simple wrapper around torch.nn.Embedding which allows an embedding of any number of dimensions instead of just 1
 
     The actual tensor underyling this embedding can be accessed using
     `x.weight`, although this will have dimensions [num_embeddings, prod(embedding_dims)]
 
     To get the underlying tensor in the correct dimensions, you can use
-    `x.get_full_weight()`, which will have dimensions [num_embeddings, *embedding_dims]
-
-    To set the value of this parameter, without tracking gradients, use `x.data`
+    `x.data`, which will have dimensions [num_embeddings, *embedding_dims]. This can also be used to set the value.
     """
 
     def __init__(self, num_embeddings, embedding_dims, *args, **kwargs):
@@ -55,8 +53,10 @@ class EmbeddingTensor(torch.nn.Embedding):
 
     @data.setter
     def data(self, value):
-        assert value.shape == self.weight.shape
-        self.weight.data = value
+        if value.ndim == 2:
+            self.weight.data = value
+        else:
+            self.weight.data = value.reshape(self.weight.data.shape)
 
     @property
     def shape(self):

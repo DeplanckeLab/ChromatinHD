@@ -49,7 +49,7 @@ class COOMatrix(Sparse):
     """
     COOMatrix sparse matrix
 
-    This implementation mainly cachges the row_switch and mapping dictionaries, which speed up subsampling in the first (row) dimension
+    Additional CSR-like data can be stored to speed up subsampling
     """
 
     row: torch.tensor

@@ -10,6 +10,10 @@ import shutil
 
 
 class Flow:
+    """
+    A folder on disk that can contain other folders or objects
+    """
+
     path: pathlib.Path
     default_name = None
 
@@ -72,6 +76,10 @@ class Flow:
 
 
 class Linked:
+    """
+    A link to another flow on disk
+    """
+
     def __init__(self, name):
         self.name = name
 
@@ -105,6 +113,10 @@ class Linked:
 
 
 class Stored:
+    """
+    A python object that is stored on disk using pickle
+    """
+
     def __init__(self, name, default=None):
         self.name = name
         self.default = default
@@ -133,6 +145,10 @@ class Stored:
 
 
 class StoredTorchInt64(Stored):
+    """
+    A pytorch int64 tensor stored on disk
+    """
+
     def __get__(self, obj, type=None):
         if obj is not None:
             name = "_" + self.name
@@ -153,6 +169,10 @@ class StoredTorchInt64(Stored):
 
 
 class StoredTorchInt32(Stored):
+    """
+    A pytorch int64 tensor stored on disk
+    """
+
     def __get__(self, obj, type=None):
         if obj is not None:
             name = "_" + self.name
@@ -173,6 +193,10 @@ class StoredTorchInt32(Stored):
 
 
 class StoredNumpyInt64(Stored):
+    """
+    A numpy int64 tensor stored on disk
+    """
+
     def __get__(self, obj, type=None):
         if obj is not None:
             name = "_" + self.name
@@ -193,6 +217,10 @@ class StoredNumpyInt64(Stored):
 
 
 class CompressedNumpy(Stored):
+    """
+    A compressed numpy array stored on disk
+    """
+
     dtype = np.float64
 
     def __get__(self, obj, type=None):
@@ -227,6 +255,10 @@ class CompressedNumpyInt64(CompressedNumpy):
 
 
 class TSV(Stored):
+    """
+    A pandas object stored on disk in tsv format
+    """
+
     def __init__(self, name, columns=None):
         super().__init__(name)
         self.columns = columns

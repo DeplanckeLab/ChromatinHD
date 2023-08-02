@@ -6,6 +6,10 @@ active_fig = None
 
 
 class Element:
+    """
+    A basic element in a figure with a (top-left) position and dimensions
+    """
+
     pos = None
     dim = None
 
@@ -17,14 +21,8 @@ class Element:
     def height(self):
         return self.dim[1]
 
-
 TITLE_HEIGHT = 0.3
-
-# AXIS_WIDTH = 0.2
-# AXIS_HEIGHT = 0.2
-
 AXIS_WIDTH = AXIS_HEIGHT = 0.0
-
 
 class Ax(Element):
     ax2 = None
@@ -142,6 +140,10 @@ class Title(Panel):
 
 
 class Wrap(Element):
+    """
+    Grid-like layout with a fixed number of columns that will automatically wrap panels in the next row
+    """
+
     title = None
 
     def __init__(
@@ -280,6 +282,10 @@ class WrapAutobreak(Wrap):
 
 
 class Grid(Element):
+    """
+    Grid layout with a fixed number of columns and rows
+    """
+
     title = None
 
     def __init__(
@@ -448,6 +454,10 @@ class Grid(Element):
 
 
 class _Figure(mpl.figure.Figure):
+    """
+    Figure but with panel support
+    """
+
     main: Panel
 
     def __init__(self, main: Panel, *args, **kwargs):
@@ -457,11 +467,18 @@ class _Figure(mpl.figure.Figure):
         super().__init__(*args, **kwargs)
 
     def plot(self):
+        """
+        Align all panels within the figure
+        """
+
         self.main.align()
         self.set_size_inches(*self.main.dim)
         self.main.position(self)
 
     def set_tight_bounds(self):
+        """
+        Sets the bounds of the figure so that all elements are visible
+        """
         new_bounds = self.get_tightbbox().extents
         current_size = self.get_size_inches()
         new_size = new_bounds[2] - new_bounds[0], new_bounds[3] - new_bounds[1]
@@ -490,4 +507,7 @@ class _Figure(mpl.figure.Figure):
 
 
 def Figure(main, *args, **kwargs):
+    """
+    Create a figure with panel support
+    """
     return plt.figure(*args, main=main, **kwargs, FigureClass=_Figure)

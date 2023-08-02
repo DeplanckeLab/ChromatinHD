@@ -5,6 +5,9 @@ from .dataset import Dataset
 def get_canonical_transcripts(
     biomart_dataset: Dataset, gene_ids=None, chrom=None, start=None, end=None
 ):
+    """
+    Get all canonical transcripts
+    """
     filters = []
     if gene_ids is not None:
         filters.append(
