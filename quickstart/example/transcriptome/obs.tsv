@@ -1,4 +1,4 @@
-cell	n_counts	n_genes	doublet_score	predicted_doublet	doublet	leiden	celltype	log_n_counts
+gene	n_counts	n_genes	doublet_score	predicted_doublet	doublet	leiden	celltype	log_n_counts
 AAACAGCCAAGGAATC-1	6903.0	3028	0.0914205344585091	False	False	2	CD4 naive T	8.839711
 AAACAGCCAATCCCTT-1	2967.0	1744	0.0632368703108253	False	False	1	CD4 memory T	7.9953065
 AAACAGCCAATGCGCT-1	5709.0	2693	0.0508788159111933	False	False	2	CD4 naive T	8.649799
