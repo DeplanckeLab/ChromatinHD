@@ -208,6 +208,10 @@ class EmbeddingToExpression(torch.nn.Module):
 
 
 class Model(torch.nn.Module, HybridModel):
+    """
+    Predicting gene expression from raw fragments using an additive model across fragments from the same cell
+    """
+
     def __init__(
         self,
         n_genes,
@@ -466,17 +470,17 @@ class Model(torch.nn.Module, HybridModel):
                 "predicted": xr.DataArray(
                     predicted,
                     dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    coords={"cell": cells, "gene": genes},
                 ),
                 "expected": xr.DataArray(
                     expected,
                     dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    coords={"cell": cells, "gene": genes},
                 ),
                 "n_fragments": xr.DataArray(
                     n_fragments,
                     dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    coords={"cell": cells, "gene": genes},
                 ),
             }
         )

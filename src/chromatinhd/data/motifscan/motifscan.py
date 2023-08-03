@@ -30,15 +30,18 @@ class Motifscan(Flow):
     "The regions"
 
     indptr = CompressedNumpyInt64("indptr")
-    "The index pointers for each position in the genome"
+    "The index pointers for each position in the regions"
+
+    position = CompressedNumpyInt64("position")
+    "Position associated to each site"
 
     indices = CompressedNumpyInt64("indices")
-    "Indices to which motif each site belongs"
+    "Motif index associated to each site"
 
     scores = CompressedNumpyFloat64("scores")
     "Scores associated with each detected site"
 
-    strand = CompressedNumpyFloat64("strand")
+    strands = CompressedNumpyFloat64("strands")
     "Strand associated with each detected site"
 
     shape = Stored("shape")
@@ -74,7 +77,7 @@ class Motifscan(Flow):
         cutoff_col=None,
         motifs=None,
         device=default_device,
-        batch_size=1000,
+        batch_size=5000000,
     ):
         """
         Create a motifscan object from a set of pwms and a set of regions
@@ -160,7 +163,7 @@ class Motifscan(Flow):
             sequences = [
                 fasta.fetch(chrom, start, end + 1)
                 for chrom, start, end in region_coordinates_batch[
-                    ["chr", "start", "end"]
+                    ["chrom", "start", "end"]
                 ].values
             ]
             assert (
@@ -171,7 +174,13 @@ class Motifscan(Flow):
             )
             for motif_ix, motif in enumerate(motifs.index):
                 cutoff = cutoffs[motif]
-                pwm = pwms[motif].to(onehot.device)
+
+                # get pwm
+                pwm = pwms[motif]
+                if not torch.is_tensor(pwm):
+                    pwm = torch.from_numpy(pwm)
+                pwm = pwm.to(dtype=torch.float32, device=onehot.device)
+
                 (
                     scores_motif,
                     positions_motif,
@@ -212,6 +221,7 @@ class Motifscan(Flow):
         self.indices = indices.numpy()
         self.scores = scores.numpy()
         self.strands = strands.numpy()
+        self.motifs = motifs
 
         return self
 
@@ -310,5 +320,15 @@ def create_onehot(seq):
 
 
 def digitize_sequence(sequence):
-    translate_table = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4}  # alphabetic order
+    translate_table = {
+        "A": 0,
+        "C": 1,
+        "G": 2,
+        "T": 3,
+        "N": 4,
+        "a": 0,
+        "c": 1,
+        "g": 2,
+        "t": 3,
+    }  # alphabetic order
     return np.array([translate_table[x] for x in sequence], dtype=np.int8)
