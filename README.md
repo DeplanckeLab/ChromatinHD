@@ -4,4 +4,4 @@
   </a>
 </p>
 
-Documentation is available at https://deplanckelab.github.io/ChromatinHD/
+Documentation is available at https://chromatinhd.eu
