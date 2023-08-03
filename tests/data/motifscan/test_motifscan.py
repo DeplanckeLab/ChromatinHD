@@ -109,7 +109,7 @@ class TestMotifscan:
         # create regions
         region_coordinates = pd.DataFrame(
             {
-                "chr": ["chr1", "chr2", "chr3"],
+                "chrom": ["chr1", "chr2", "chr3"],
                 "start": [0, 0, 0],
                 "end": [region_size, region_size, region_size],
                 "tss": [1, 1, 1],
@@ -146,14 +146,12 @@ class TestMotifscan:
         ).set_index("motif")
         cutoffs = [1.5, 1.5]
         motifs["cutoff"] = cutoffs
-        cutoff_col = "cutoff"
-        cutoffs = motifs["cutoff"]
 
         motifscan = motifscan.from_pwms(
             pwms=pwms,
             regions=regions,
             fasta_file=fa_file,
-            cutoffs=1.5,
+            cutoffs=motifs["cutoff"],
             path=f"{tmp_path}/motifscan",
         )
 
@@ -168,5 +166,15 @@ class TestMotifscan:
         assert np.array_equal(
             motifscan.strands,
             np.array([-1, -1, 1, -1, 1, 1], dtype=np.int8),
+        )
+        assert len(motifscan.indptr) == (region_size * len(region_coordinates) + 1)
+
+        # get all sites
+        motifscan = motifscan.from_pwms(
+            pwms=pwms,
+            regions=regions,
+            fasta_file=fa_file,
+            cutoffs=-99999,
+            path=f"{tmp_path}/motifscan",
         )
         assert len(motifscan.indptr) == (region_size * len(region_coordinates) + 1)
