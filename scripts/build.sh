@@ -1,4 +1,6 @@
-version="0.0.17"
+python -m setuptools_git_versioning
+
+version="0.0.18"
 
 git add .
 git commit -m "version v${version}"
