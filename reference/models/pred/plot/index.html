@@ -531,6 +531,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../data/motifscan/" class="md-nav__link">
+        Motifscan
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../data/regions/" class="md-nav__link">
         Regions
       </a>
@@ -958,10 +972,12 @@
 <span class="normal">47</span>
 <span class="normal">48</span>
 <span class="normal">49</span>
-<span class="normal">50</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Copredictivity</span><span class="p">(</span><span class="n">chromatinhd</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">Panel</span><span class="p">):</span>
+<span class="normal">50</span>
+<span class="normal">51</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Copredictivity</span><span class="p">(</span><span class="n">chromatinhd</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">Panel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot co-predictivity of a gene.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plotdata</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span>
 
@@ -1036,13 +1052,13 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/pred/plot/copredictivity.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">44</span>
-<span class="normal">45</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
 <span class="normal">48</span>
 <span class="normal">49</span>
-<span class="normal">50</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">50</span>
+<span class="normal">51</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">from_genepairwindow</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">genepairwindow</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot co-predictivity of a gene using a GenePairWindow object.</span>

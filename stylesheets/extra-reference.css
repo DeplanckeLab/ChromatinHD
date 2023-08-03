@@ -2,22 +2,40 @@
     display: none;
 }
 
-.doc-class > .doc-heading {
+.doc-class>.doc-heading {
     margin-top: 0.5em;
-    /* line op top */
     border-top: 2px #33333333 solid;
     padding-top: 0.5em;
 }
 
-.doc-attribute > h3 {
-    font-size:1.0rem;
+
+.doc-attribute>h3,
+.doc-function>h3 {
+    font-size: 1.0rem;
 }
 
-.doc-contents > details.quote > summary {
+.doc-contents>details.quote>summary {
     background-color: #FFFFFF;
     opacity: 0.6;
 }
 
-.doc-contents > details.quote {
-    border-color:#33333333;
+.doc-contents>details.quote {
+    border-color: #33333333;
+}
+
+/* attributes, functions, ... */
+.doc-attribute>h3::before {
+    content: "A";
+    font-size: 0.6em;
+    padding: 0.1em;
+    color: coral;
+    background-color: rgb(251, 220, 220);
+}
+
+.doc-function>h3::before {
+    content: "F";
+    font-size: 0.6em;
+    padding: 0.1em;
+    color: green;
+    background-color: rgb(220, 251, 220);
 }

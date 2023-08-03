@@ -2,57 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/quickstart/0_install/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/quickstart/1_data/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/quickstart/2_pred/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/quickstart/3_diff/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/reference/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/reference/data/clustering/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/reference/data/fragments/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://deplanckelab.github.io/ChromatinHD/reference/data/motifscan/</loc>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/reference/data/regions/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/reference/data/transcriptome/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://deplanckelab.github.io/ChromatinHD/reference/models/pred/plot/</loc>
-         <lastmod>2023-07-26</lastmod>
+         <lastmod>2023-08-03</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>

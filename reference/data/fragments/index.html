@@ -14,7 +14,7 @@
         <link rel="prev" href="../clustering/">
       
       
-        <link rel="next" href="../regions/">
+        <link rel="next" href="../motifscan/">
       
       <link rel="icon" href="../../../static/favicon.png">
       <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
@@ -580,8 +580,22 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#chromatinhd.data.fragments.fragments.Fragments.obs" class="md-nav__link">
+    obs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#chromatinhd.data.fragments.fragments.Fragments.regions" class="md-nav__link">
     regions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chromatinhd.data.fragments.fragments.Fragments.var" class="md-nav__link">
+    var
   </a>
   
 </li>
@@ -602,6 +616,20 @@
   
 </nav>
       
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../motifscan/" class="md-nav__link">
+        Motifscan
+      </a>
     </li>
   
 
@@ -784,8 +812,22 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#chromatinhd.data.fragments.fragments.Fragments.obs" class="md-nav__link">
+    obs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#chromatinhd.data.fragments.fragments.Fragments.regions" class="md-nav__link">
     regions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chromatinhd.data.fragments.fragments.Fragments.var" class="md-nav__link">
+    var
   </a>
   
 </li>
@@ -843,7 +885,8 @@
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/data/fragments/fragments.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 27</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 26</span>
+<span class="normal"> 27</span>
 <span class="normal"> 28</span>
 <span class="normal"> 29</span>
 <span class="normal"> 30</span>
@@ -1039,22 +1082,34 @@
 <span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
-<span class="normal">223</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Fragments</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Fragments</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Fragments centered around a gene window&quot;&quot;&quot;</span>
 
     <span class="n">regions</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s2">&quot;regions&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;regions of the fragments&quot;&quot;&quot;</span>
 
-    <span class="n">coordinates</span><span class="p">:</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s2">&quot;coordinates&quot;</span><span class="p">)</span>
+    <span class="n">coordinates</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s2">&quot;coordinates&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Coordinates of the fragments&quot;&quot;&quot;</span>
 
-    <span class="n">mapping</span><span class="p">:</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s2">&quot;mapping&quot;</span><span class="p">)</span>
+    <span class="n">mapping</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s2">&quot;mapping&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Mapping of a fragment to a gene and a cell&quot;&quot;&quot;</span>
 
-    <span class="n">cellxgene_indptr</span><span class="p">:</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s2">&quot;cellxgene_indptr&quot;</span><span class="p">)</span>
+    <span class="n">cellxgene_indptr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s2">&quot;cellxgene_indptr&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Index pointers for each cellxgene combination&quot;&quot;&quot;</span>
 
-    <span class="n">regions</span><span class="p">:</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s2">&quot;regions&quot;</span><span class="p">)</span>
+    <span class="n">regions</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s2">&quot;regions&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataframe containing chromosome, start, end and strand of each region&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">create_cellxgene_indptr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1093,7 +1148,10 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cellmapping</span>
 
     <span class="n">var</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s2">&quot;var&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;DataFrame containing information about regions.&quot;&quot;&quot;</span>
+
     <span class="n">obs</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s2">&quot;obs&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;DataFrame containing information about cells.&quot;&quot;&quot;</span>
 
     <span class="n">_n_genes</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -1142,22 +1200,29 @@
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_fragments_tsv</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span>
-        <span class="n">fragments_file</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">fragments_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">regions</span><span class="p">:</span> <span class="n">Regions</span><span class="p">,</span>
         <span class="n">obs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-        <span class="n">path</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">cell_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Create a Fragments object from a tsv file</span>
+<span class="sd">        Create a Fragments object from a fragments tsv file</span>
 
 <span class="sd">        Parameters:</span>
 <span class="sd">            fragments_file:</span>
 <span class="sd">                Location of the `fragments.tsv` file created by e.g. CellRanger or sinto</span>
+<span class="sd">            obs:</span>
+<span class="sd">                DataFrame containing information about cells. The index should be the cell names as present in the fragments file. If not, you can specify the column name using the `cell_column` argument.</span>
 <span class="sd">            path:</span>
 <span class="sd">                Folder in which the fragments data will be stored</span>
 <span class="sd">            regions:</span>
 <span class="sd">                Regions object</span>
+<span class="sd">            cell_column (optional):</span>
+<span class="sd">                Column name in the `obs` DataFrame containing the cell names. If not specified, the index of the `obs` DataFrame is used.</span>
+<span class="sd">            overwrite (optional):</span>
+<span class="sd">                Whether to overwrite the data if it already exists</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fragments_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -1176,7 +1241,10 @@
 
         <span class="c1"># cell information</span>
         <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">obs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="n">cell_to_cell_ix</span> <span class="o">=</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cell_column</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cell_to_cell_ix</span> <span class="o">=</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cell_to_cell_ix</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">cell_column</span><span class="p">)[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
 
         <span class="c1"># load fragments tabix</span>
         <span class="kn">import</span> <span class="nn">pysam</span>
@@ -1257,8 +1325,8 @@
 <code class="highlight language-python"><span class="n">cellxgene_indptr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s1">&#39;cellxgene_indptr&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
   </span>
 
 </h3>
@@ -1279,8 +1347,8 @@
 <code class="highlight language-python"><span class="n">coordinates</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s1">&#39;coordinates&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
   </span>
 
 </h3>
@@ -1301,8 +1369,8 @@
 <code class="highlight language-python"><span class="n">mapping</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s1">&#39;mapping&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
   </span>
 
 </h3>
@@ -1319,12 +1387,34 @@
 
 
 
+<h3 id="chromatinhd.data.fragments.fragments.Fragments.obs" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">obs</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s1">&#39;obs&#39;</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+  </span>
+
+</h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>DataFrame containing information about cells.</p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h3 id="chromatinhd.data.fragments.fragments.Fragments.regions" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">regions</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s1">&#39;regions&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
   </span>
 
 </h3>
@@ -1337,6 +1427,28 @@
 
 </div>
 
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="chromatinhd.data.fragments.fragments.Fragments.var" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">var</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s1">&#39;var&#39;</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+  </span>
+
+</h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>DataFrame containing information about regions.</p>
+  </div>
+
+</div>
+
 
 
 <div class="doc doc-object doc-function">
@@ -1344,7 +1456,7 @@
 
 
 <h3 id="chromatinhd.data.fragments.fragments.Fragments.from_fragments_tsv" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">from_fragments_tsv</span><span class="p">(</span><span class="n">fragments_file</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">from_fragments_tsv</span><span class="p">(</span><span class="n">fragments_file</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">cell_column</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -1355,7 +1467,7 @@
 
   <div class="doc doc-contents ">
   
-      <p>Create a Fragments object from a tsv file</p>
+      <p>Create a Fragments object from a fragments tsv file</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1371,7 +1483,7 @@
         <tr>
           <td><code>fragments_file</code></td>
           <td>
-                <code>typing.<span title="typing.Union">Union</span>[pathlib.<span title="pathlib.Path">Path</span>, str]</code>
+                <code><span title="typing.Union">Union</span>[pathlib.<span title="pathlib.Path">Path</span>, str]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1383,9 +1495,23 @@
           </td>
         </tr>
         <tr>
+          <td><code>obs</code></td>
+          <td>
+                <code><span title="pandas">pd</span>.<span title="pandas.DataFrame">DataFrame</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>DataFrame containing information about cells. The index should be the cell names as present in the fragments file. If not, you can specify the column name using the <code>cell_column</code> argument.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
           <td><code>path</code></td>
           <td>
-                <code>typing.<span title="typing.Union">Union</span>[pathlib.<span title="pathlib.Path">Path</span>, str]</code>
+                <code><span title="typing.Union">Union</span>[pathlib.<span title="pathlib.Path">Path</span>, str]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1410,14 +1536,40 @@
               <em>required</em>
           </td>
         </tr>
+        <tr>
+          <td><code>cell_column</code></td>
+          <td>
+                <code>optional</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Column name in the <code>obs</code> DataFrame containing the cell names. If not specified, the index of the <code>obs</code> DataFrame is used.</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>overwrite</code></td>
+          <td>
+                <code>optional</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Whether to overwrite the data if it already exists</p>
+            </div>
+          </td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
     </tbody>
   </table>
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/fragments/fragments.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
@@ -1511,25 +1663,44 @@
 <span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
-<span class="normal">223</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">from_fragments_tsv</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
-    <span class="n">fragments_file</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">fragments_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
     <span class="n">regions</span><span class="p">:</span> <span class="n">Regions</span><span class="p">,</span>
     <span class="n">obs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">path</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">cell_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Create a Fragments object from a tsv file</span>
+<span class="sd">    Create a Fragments object from a fragments tsv file</span>
 
 <span class="sd">    Parameters:</span>
 <span class="sd">        fragments_file:</span>
 <span class="sd">            Location of the `fragments.tsv` file created by e.g. CellRanger or sinto</span>
+<span class="sd">        obs:</span>
+<span class="sd">            DataFrame containing information about cells. The index should be the cell names as present in the fragments file. If not, you can specify the column name using the `cell_column` argument.</span>
 <span class="sd">        path:</span>
 <span class="sd">            Folder in which the fragments data will be stored</span>
 <span class="sd">        regions:</span>
 <span class="sd">            Regions object</span>
+<span class="sd">        cell_column (optional):</span>
+<span class="sd">            Column name in the `obs` DataFrame containing the cell names. If not specified, the index of the `obs` DataFrame is used.</span>
+<span class="sd">        overwrite (optional):</span>
+<span class="sd">            Whether to overwrite the data if it already exists</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fragments_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -1548,7 +1719,10 @@
 
     <span class="c1"># cell information</span>
     <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">obs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">cell_to_cell_ix</span> <span class="o">=</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">cell_column</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cell_to_cell_ix</span> <span class="o">=</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cell_to_cell_ix</span> <span class="o">=</span> <span class="n">obs</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">cell_column</span><span class="p">)[</span><span class="s2">&quot;ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
 
     <span class="c1"># load fragments tabix</span>
     <span class="kn">import</span> <span class="nn">pysam</span>
@@ -1660,13 +1834,13 @@
         
         
           
-          <a href="../regions/" class="md-footer__link md-footer__link--next" aria-label="Next: Regions" rel="next">
+          <a href="../motifscan/" class="md-footer__link md-footer__link--next" aria-label="Next: Motifscan" rel="next">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Regions
+                Motifscan
               </div>
             </div>
             <div class="md-footer__button md-icon">
