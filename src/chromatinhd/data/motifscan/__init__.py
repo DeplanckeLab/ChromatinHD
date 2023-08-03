@@ -1,2 +1,2 @@
-from .motifscan import Motifscan, GWAS
+from .motifscan import Motifscan
 from .motiftrack import Motiftrack

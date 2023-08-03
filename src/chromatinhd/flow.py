@@ -18,6 +18,8 @@ class Flow:
     default_name = None
 
     def __init__(self, path=None, folder=None, name=None, reset=False):
+        if not isinstance(path, pathlib.Path):
+            path = pathlib.Path(path)
         if path is None:
             if folder is None:
                 raise ValueError("Either path or folder must be specified")

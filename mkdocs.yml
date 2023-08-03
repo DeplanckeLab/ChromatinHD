@@ -52,3 +52,5 @@ markdown_extensions:
 extra_css:
   - stylesheets/extra.css
   - stylesheets/extra-reference.css
+extra_javascript:
+  - javascripts/reference.js
