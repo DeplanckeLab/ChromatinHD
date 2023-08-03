@@ -1,6 +1,9 @@
 
 import torch
 class SparseDenseAdam(torch.optim.Optimizer):
+    """
+    Optimize both sparse and densre parameters using ADAM
+    """
     def __init__(self, parameters_sparse, parameters_dense, lr = 1e-3, weight_decay = 0., **kwargs):
         if len(parameters_sparse) == 0:
             self.optimizer_sparse = None

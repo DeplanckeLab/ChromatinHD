@@ -1,3 +1,5 @@
+python -m setuptools_git_versioning
+
 version="0.0.18"
 
 git add .

@@ -1,3 +1,4 @@
+from .device import default_device
 from .utils import get_git_root, get_output, get_code, save, Unpickler, load
 from . import sparse
 from . import utils

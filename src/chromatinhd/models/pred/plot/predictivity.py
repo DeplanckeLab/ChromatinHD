@@ -5,6 +5,10 @@ import numpy as np
 
 
 class Predictivity(chromatinhd.grid.Panel):
+    """
+    Plot predictivity of a gene.
+    """
+
     def __init__(self, plotdata, window, width, show_accessibility=False):
         super().__init__((width, 0.5))
 
@@ -101,6 +105,9 @@ class Predictivity(chromatinhd.grid.Panel):
     def from_genemultiwindow(
         cls, genemultiwindow, gene, width, show_accessibility=False
     ):
+        """
+        Plot predictivity of a specific gene using a GeneMultiWindow object
+        """
         plotdata = genemultiwindow.get_plotdata(gene).reset_index()
         window = np.array([plotdata["position"].min(), plotdata["position"].max()])
         return cls(plotdata, window, width, show_accessibility=show_accessibility)
@@ -147,6 +154,9 @@ class Pileup(chromatinhd.grid.Panel):
 
     @classmethod
     def from_genemultiwindow(cls, genemultiwindow, gene, width):
+        """
+        Plot pileup of a specific gene using a GeneMultiWindow object
+        """
         plotdata = genemultiwindow.get_plotdata(gene).reset_index()
         window = np.array([plotdata["position"].min(), plotdata["position"].max()])
         return cls(plotdata, window, width)
@@ -167,7 +177,7 @@ class PredictivityBroken(Broken):
 
         ylim = plotdata["deltacor"].min() * 1.05
 
-        for ((region, region_info), (panel, ax)) in zip(
+        for (region, region_info), (panel, ax) in zip(
             regions.iterrows(), self.elements[0]
         ):
             plotdata_region = plotdata[
@@ -211,7 +221,7 @@ class LabelBroken(Broken):
 
         assert len(self.elements[0]) == len(regions)
 
-        for ((region, region_info), (panel, ax)) in zip(
+        for (region, region_info), (panel, ax) in zip(
             regions.iterrows(), self.elements[0]
         ):
             ax.set_xlim(region_info["start"], region_info["end"])

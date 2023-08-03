@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import pyximport
+from typing import List
 
 pyximport.install(
     reload_support=True,
@@ -203,7 +204,7 @@ class Fragments:
 
 @dataclasses.dataclass
 class FragmentsCountingResult(FragmentsResult):
-    n: list[torch.Tensor]
+    n: List[torch.Tensor]
 
 
 class FragmentsCounting:

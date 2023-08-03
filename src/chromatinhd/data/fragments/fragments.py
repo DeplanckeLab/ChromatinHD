@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pickle
 
 from chromatinhd.flow import (
     Flow,
@@ -31,16 +30,17 @@ class Fragments(Flow):
     regions = Linked("regions")
     """regions of the fragments"""
 
-    coordinates = StoredTorchInt64("coordinates")
+    coordinates: torch.Tensor = StoredTorchInt64("coordinates")
     """Coordinates of the fragments"""
 
-    mapping = StoredTorchInt64("mapping")
+    mapping: torch.Tensor = StoredTorchInt64("mapping")
     """Mapping of a fragment to a gene and a cell"""
 
-    cellxgene_indptr = StoredTorchInt64("cellxgene_indptr")
+    cellxgene_indptr: torch.Tensor = StoredTorchInt64("cellxgene_indptr")
     """Index pointers for each cellxgene combination"""
 
-    regions = Linked("regions")
+    regions: pd.DataFrame = Linked("regions")
+    """Dataframe containing chromosome, start, end and strand of each region"""
 
     def create_cellxgene_indptr(self):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
@@ -138,11 +138,11 @@ class Fragments(Flow):
 
         Parameters:
             fragments_file:
-                fragments_file of the tsv file
+                Location of the `fragments.tsv` file created by e.g. CellRanger or sinto
             path:
-                folder in which the fragments object will be created
+                Folder in which the fragments data will be stored
             regions:
-                regions object
+                Regions object
         """
 
         if isinstance(fragments_file, str):
@@ -159,13 +159,9 @@ class Fragments(Flow):
         var = pd.DataFrame(index=regions.coordinates.index)
         var["ix"] = np.arange(var.shape[0])
 
-        n_genes = var.shape[0]
-
         # cell information
         obs["ix"] = np.arange(obs.shape[0])
         cell_to_cell_ix = obs["ix"].to_dict()
-
-        n_cells = obs.shape[0]
 
         # load fragments tabix
         import pysam

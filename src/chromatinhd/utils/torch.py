@@ -23,17 +23,14 @@ def interpolate_0d(x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor) -> torch
     return b.index_select(a.ndim - 1, indices)
 
 
-def indices_to_indptr(x, n):
+def indices_to_indptr(x:torch.Tensor, n:int) -> torch.Tensor:
     return torch.nn.functional.pad(
         torch.cumsum(torch.bincount(x, minlength=n), 0), (1, 0)
     )
 
+ind2ptr = indices_to_indptr
 
-def ind2ptr(x, minlength):
-    return torch.nn.functional.pad(
-        torch.cumsum(torch.bincount(x, minlength=minlength), 0), (1, 0)
-    )
-
-
-def ptr2ind(x):
+def indptr_to_indices(x:torch.Tensor) -> torch.Tensor:
     return torch.repeat_interleave(torch.arange(len(x) - 1), torch.diff(x))
+
+ptr2ind = indptr_to_indices

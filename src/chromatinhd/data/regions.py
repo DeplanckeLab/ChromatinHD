@@ -17,6 +17,17 @@ class Regions(Flow):
     def from_canonical_transcripts(
         cls, canonical_transcripts: pd.DataFrame, window: np.ndarray, path: pathlib.Path
     ):
+        """
+        Create regions from a Dataframe of canonical transcripts, using a specified window around each transcription start site.
+
+        Parameters:
+            canonical_transcripts:
+                Dataframe of canonical transcripts, with columns chrom, start, end, strand, ensembl_transcript_id
+            window:
+                Window around each transcription start site. Should be a 2-element array, e.g. [-10000, 10000]
+            path:
+                Folder in which the fragments data will be stored
+        """
         regions = canonical_transcripts[
             ["chrom", "start", "end", "ensembl_transcript_id"]
         ].copy()

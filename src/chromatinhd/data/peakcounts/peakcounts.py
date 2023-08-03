@@ -6,13 +6,9 @@ import scanpy as sc
 import collections
 import subprocess as sp
 import tqdm.auto as tqdm
-import pathlib
 import pickle
 
 from chromatinhd.flow import Flow
-
-htslib_folder = pathlib.Path("/data/peak_free_atac/software/htslib-1.16/")
-tabix_location = htslib_folder / "tabix"
 
 
 class PeakCounts(Flow):
@@ -21,7 +17,7 @@ class PeakCounts(Flow):
         adata.obsm["X_umap"] = original_adata.obsm["X_umap"]
         self.adata = adata
 
-    def count_peaks(self, fragments_location, cell_ids):
+    def count_peaks(self, fragments_location, cell_ids, tabix_location="tabix"):
         # extract unique peaks
         peaks = self.peaks
         unique_peak_ids = list(set(peaks["peak"]))
@@ -285,7 +281,7 @@ class BroaderPeak(PeakCounts):
 class FragmentPeak(FullPeak):
     default_name = "fragment_peak"
 
-    def count_peaks(self, fragments_location, cell_ids):
+    def count_peaks(self, fragments_location, cell_ids, tabix_location="tabix"):
         # add ix to peaks
         peaks = self.peaks
         peaks["ix"] = np.arange(peaks.shape[0])

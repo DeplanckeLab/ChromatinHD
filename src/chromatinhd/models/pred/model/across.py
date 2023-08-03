@@ -3,25 +3,24 @@ Additive model for predicting gene expression from fragments
 """
 
 
-import torch
-import torch_scatter
 import math
-import numpy as np
-import xarray as xr
-import pandas as pd
-
 import pickle
 
-from chromatinhd.embedding import EmbeddingTensor
-from chromatinhd.models import HybridModel
-from chromatinhd.flow import Linked, Flow, Stored
+import numpy as np
+import pandas as pd
+import torch
+import torch_scatter
+import xarray as xr
 
+from chromatinhd.embedding import EmbeddingTensor
+from chromatinhd.flow import Flow, Stored
+from chromatinhd.loaders import LoaderPool2
+from chromatinhd.models import HybridModel
 from chromatinhd.models.pred.loader.minibatches import Minibatcher
 from chromatinhd.models.pred.loader.transcriptome_fragments import (
     TranscriptomeFragments,
 )
 from chromatinhd.models.pred.trainer import Trainer
-from chromatinhd.loaders import LoaderPool2
 from chromatinhd.optim import SparseDenseAdam
 
 from .loss import paircor, paircor_loss, gene_paircor_loss
@@ -78,30 +77,20 @@ class FragmentEmbedder(torch.nn.Module):
         self.sine_encoding = SineEncoding(n_frequencies=n_frequencies)
 
         # default initialization same as a torch.nn.Linear
-        self.bias1 = EmbeddingTensor(
-            n_genes,
-            (self.n_embedding_dimensions,),
-            sparse=True,
-        )
-        self.bias1.data.zero_()
+        self.bias1 = torch.nn.Parameter(torch.zeros((self.n_embedding_dimensions,)))
 
-        self.weight1 = EmbeddingTensor(
-            n_genes,
-            (
-                self.sine_encoding.n_embedding_dimensions,
-                self.n_embedding_dimensions,
-            ),
-            sparse=True,
+        self.weight1 = torch.nn.Parameter(
+            torch.zeros(
+                (
+                    self.sine_encoding.n_embedding_dimensions,
+                    self.n_embedding_dimensions,
+                ),
+            )
         )
-        stdv = 1.0 / math.sqrt(self.weight1.shape[-1])  # / 100
-        self.weight1.data.uniform_(-stdv, stdv)
 
-    def forward(self, coordinates, gene_ix):
+    def forward(self, coordinates):
         embedding = self.sine_encoding(coordinates)
-        embedding = torch.einsum(
-            "ab,abc->ac", embedding, self.weight1(gene_ix)
-        ) + self.bias1(gene_ix)
-        # embedding = (embedding[..., None] * self.weight1[gene_ix]).sum(-2)
+        embedding = torch.matmul(embedding, self.weight1) + self.bias1
 
         # non-linear
         if self.nonlinear is True:
@@ -116,9 +105,6 @@ class FragmentEmbedder(torch.nn.Module):
 
         return embedding
 
-    def parameters_sparse(self):
-        return [self.bias1.weight, self.weight1.weight]
-
 
 class FragmentEmbedderCounter(torch.nn.Sequential):
     """
@@ -129,7 +115,7 @@ class FragmentEmbedderCounter(torch.nn.Sequential):
         self.n_embedding_dimensions = 1
         super().__init__(*args, **kwargs)
 
-    def forward(self, coordinates, gene_ix):
+    def forward(self, coordinates):
         return torch.ones(
             (*coordinates.shape[:-1], 1), device=coordinates.device, dtype=torch.float
         )
@@ -197,14 +183,9 @@ class EmbeddingToExpression(torch.nn.Module):
             stdv = 1.0 / math.sqrt(self.weight1.data.size(-1)) / 100
             self.weight1.data.uniform_(-stdv, stdv)
 
-    def forward(self, cell_gene_embedding, gene_ix):
-        out = (cell_gene_embedding * self.weight1(gene_ix)).sum(-1) + self.bias1(
-            gene_ix
-        ).squeeze()
+    def forward(self, cell_gene_embedding):
+        out = torch.matmul(cell_gene_embedding, self.weight1) + self.bias1
         return out
-
-    def parameters_sparse(self):
-        return [self.bias1.weight, self.weight1.weight]
 
 
 class Model(torch.nn.Module, HybridModel):
@@ -282,7 +263,7 @@ class Model(torch.nn.Module, HybridModel):
         )
 
         total_expression_predicted = self.embedding_to_expression.forward(
-            total_cell_gene_embedding, data.minibatch.genes_oi_torch
+            total_cell_gene_embedding
         )
 
         for fragments_oi_ in fragments_oi:
@@ -306,7 +287,7 @@ class Model(torch.nn.Module, HybridModel):
                 )
 
                 expression_predicted = self.embedding_to_expression.forward(
-                    cell_gene_embedding, data.minibatch.genes_oi_torch
+                    cell_gene_embedding
                 )
             else:
                 n_fragments = total_n_fragments

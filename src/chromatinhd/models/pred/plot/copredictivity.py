@@ -6,6 +6,10 @@ import numpy as np
 
 
 class Copredictivity(chromatinhd.grid.Panel):
+    """
+    Plot co-predictivity of a gene.
+    """
+
     def __init__(self, plotdata, width):
         super().__init__((width, width / 2))
 
@@ -40,5 +44,8 @@ class Copredictivity(chromatinhd.grid.Panel):
 
     @classmethod
     def from_genepairwindow(cls, genepairwindow, gene, width):
+        """
+        Plot co-predictivity of a gene using a GenePairWindow object.
+        """
         plotdata = genepairwindow.get_plotdata(gene).reset_index()
         return cls(plotdata, width)

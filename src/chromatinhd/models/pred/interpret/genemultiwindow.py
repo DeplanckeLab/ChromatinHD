@@ -18,9 +18,19 @@ def fdr(p_vals):
 
 
 class GeneMultiWindow(chd.flow.Flow):
+    """
+    Interpret a *pred* model positionally by censoring windows of across multiple window sizes.
+    """
+
     design = chd.flow.Stored("design")
+    """
+    The design of the censoring windows.
+    """
 
     genes = chd.flow.Stored("genes", default=set)
+    """
+    The genes that have been scored.
+    """
 
     def score(
         self,

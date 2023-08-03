@@ -1,0 +1,23 @@
+.doc-labels {
+    display: none;
+}
+
+.doc-class > .doc-heading {
+    margin-top: 0.5em;
+    /* line op top */
+    border-top: 2px #33333333 solid;
+    padding-top: 0.5em;
+}
+
+.doc-attribute > h3 {
+    font-size:1.0rem;
+}
+
+.doc-contents > details.quote > summary {
+    background-color: #FFFFFF;
+    opacity: 0.6;
+}
+
+.doc-contents > details.quote {
+    border-color:#33333333;
+}
