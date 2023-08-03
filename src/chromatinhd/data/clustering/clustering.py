@@ -2,17 +2,17 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from chromatinhd.flow import Flow, Stored, StoredDict
+from chromatinhd.flow import Flow, Stored, StoredDict, StoredDataFrame
 from chromatinhd import sparse
 from chromatinhd.utils import Unpickler
 
 
 class Clustering(Flow):
     labels = Stored("labels")
-    """Labels for each cell."""
+    "Labels for each cell."
 
-    cluster_info = Stored("cluster_info")
-    """Dataframe containing information, such as a label, for each cluster."""
+    cluster_info = StoredDataFrame("cluster_info")
+    "Dataframe containing information for each cluster, such as a label."
 
     @classmethod
     def from_labels(cls, labels, path):

@@ -1,22 +1,21 @@
-import numpy as np
-import pandas as pd
-
-from chromatinhd.flow import (
-    Flow,
-    StoredTorchInt32,
-    Stored,
-    StoredTorchInt64,
-    TSV,
-    Linked,
-)
-
-from chromatinhd.data.regions import Regions
-
-import torch
 import math
 import pathlib
-import typing
+from typing import Union
+
+import numpy as np
+import pandas as pd
+import torch
 import tqdm.auto as tqdm
+
+from chromatinhd.data.regions import Regions
+from chromatinhd.flow import (
+    TSV,
+    Flow,
+    Linked,
+    Stored,
+    StoredTorchInt32,
+    StoredTorchInt64,
+)
 
 
 class RawFragments:
@@ -78,7 +77,10 @@ class Fragments(Flow):
         return self._cellmapping
 
     var = TSV("var")
+    """DataFrame containing information about regions."""
+
     obs = TSV("obs")
+    """DataFrame containing information about cells."""
 
     _n_genes = None
 
@@ -127,22 +129,29 @@ class Fragments(Flow):
     @classmethod
     def from_fragments_tsv(
         cls,
-        fragments_file: typing.Union[pathlib.Path, str],
+        fragments_file: Union[pathlib.Path, str],
         regions: Regions,
         obs: pd.DataFrame,
-        path: typing.Union[pathlib.Path, str],
+        path: Union[pathlib.Path, str],
+        cell_column: str = None,
         overwrite=True,
     ):
         """
-        Create a Fragments object from a tsv file
+        Create a Fragments object from a fragments tsv file
 
         Parameters:
             fragments_file:
                 Location of the `fragments.tsv` file created by e.g. CellRanger or sinto
+            obs:
+                DataFrame containing information about cells. The index should be the cell names as present in the fragments file. If not, you can specify the column name using the `cell_column` argument.
             path:
                 Folder in which the fragments data will be stored
             regions:
                 Regions object
+            cell_column (optional):
+                Column name in the `obs` DataFrame containing the cell names. If not specified, the index of the `obs` DataFrame is used.
+            overwrite (optional):
+                Whether to overwrite the data if it already exists
         """
 
         if isinstance(fragments_file, str):
@@ -161,7 +170,10 @@ class Fragments(Flow):
 
         # cell information
         obs["ix"] = np.arange(obs.shape[0])
-        cell_to_cell_ix = obs["ix"].to_dict()
+        if cell_column is None:
+            cell_to_cell_ix = obs["ix"].to_dict()
+        else:
+            cell_to_cell_ix = obs.set_index(cell_column)["ix"].to_dict()
 
         # load fragments tabix
         import pysam

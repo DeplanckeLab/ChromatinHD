@@ -26,7 +26,7 @@ class Regions(Flow):
             window:
                 Window around each transcription start site. Should be a 2-element array, e.g. [-10000, 10000]
             path:
-                Folder in which the fragments data will be stored
+                Folder in which the regions data will be stored
         """
         regions = canonical_transcripts[
             ["chrom", "start", "end", "ensembl_transcript_id"]

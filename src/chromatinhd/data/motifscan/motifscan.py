@@ -1,28 +1,53 @@
-from chromatinhd.flow import Flow, CompressedNumpyInt64, CompressedNumpyFloat64, Stored
+from chromatinhd.flow import (
+    Flow,
+    CompressedNumpyInt64,
+    CompressedNumpyFloat64,
+    Stored,
+    StoredDataFrame,
+    Linked,
+)
 from chromatinhd.utils import indptr_to_indices
 import pandas as pd
 
 
 class Motifscan(Flow):
+    """
+    A sprase representation of locations of different motifs in regions of the genome
+    """
+
+    regions = Linked("regions")
+    "The regions"
+
     indptr = CompressedNumpyInt64("indptr")
+    "The indptr"
+
     indices = CompressedNumpyInt64("indices")
+    "Indices for each motif"
+
     data = CompressedNumpyFloat64("data")
+    "Scores or other data associated with each detected motif"
+
     shape = Stored("shape")
+
     n_motifs = Stored("n_motifs")
+    "Number of motifs"
 
-    _motifs = None
+    motifs = StoredDataFrame("motifs")
+    "Auxilliary information for each motif"
 
-    @property
-    def motifs(self):
-        if self._motifs is None:
-            self._motifs = pd.read_pickle(self.path / "motifs.pkl")
-        return self._motifs
+    # _motifs = None
 
-    @motifs.setter
-    def motifs(self, value):
-        value.index.name = "gene"
-        value.to_pickle(self.path / "motifs.pkl")
-        self._motifs = value
+    # @property
+    # def motifs(self):
+    #     if self._motifs is None:
+    #         self._motifs = pd.read_pickle(self.path / "motifs.pkl")
+    #     return self._motifs
+
+    # @motifs.setter
+    # def motifs(self, value):
+    #     value.index.name = "gene"
+    #     value.to_pickle(self.path / "motifs.pkl")
+    #     self._motifs = value
 
 
 class GWAS(Motifscan):

@@ -153,6 +153,12 @@ class Stored:
         setattr(obj, name, value)
 
 
+class StoredDataFrame(Stored):
+    """
+    A pandas dataframe stored on disk
+    """
+
+
 class StoredTorchInt64(Stored):
     """
     A pytorch int64 tensor stored on disk
@@ -268,9 +274,10 @@ class TSV(Stored):
     A pandas object stored on disk in tsv format
     """
 
-    def __init__(self, name, columns=None):
+    def __init__(self, name, columns=None, index_name=None):
         super().__init__(name)
         self.columns = columns
+        self.index_name = index_name
 
     def get_path(self, folder):
         return folder / (self.name + ".tsv")
@@ -289,6 +296,8 @@ class TSV(Stored):
         name = "_" + self.name
         if folder is None:
             folder = obj.path
+        if self.index_name is not None:
+            value.index.name = self.index_name
         value.to_csv(self.get_path(folder), sep="\t")
         setattr(obj, name, value)
 
