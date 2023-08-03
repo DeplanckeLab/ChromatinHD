@@ -2,6 +2,7 @@ import copy
 import threading
 import numpy as np
 import time
+from typing import List
 
 
 class ThreadWithResult(threading.Thread):
@@ -16,7 +17,7 @@ class ThreadWithResult(threading.Thread):
         args=(),
         kwargs={},
         *,
-        daemon=None
+        daemon=None,
     ):
         assert target is not None
         self.loader = loader
@@ -31,7 +32,7 @@ class LoaderPool:
     tasks: list
     next_task_sets: list
     loaders_available: list
-    n_todo: list[int]
+    n_todo: List[int]
     shuffle_on_iter = False
 
     def __init__(
@@ -195,7 +196,7 @@ class LoaderPool:
 
 class LoaderPool2:
     loaders_available: list
-    n_todo: list[int]
+    n_todo: List[int]
     shuffle_on_iter = False
 
     def __init__(
