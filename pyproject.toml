@@ -61,6 +61,7 @@ dev = [
 ]
 test = [
     "pytest",
+    "ruff",
 ]
 
 [tool.setuptools_scm]
@@ -83,6 +84,7 @@ disable = [
 line-length = 120
 ignore-init-module-imports = true
 ignore = ['F401']
+include = ['src/**/*.py']
 
 [tool.black]
 line-length = 120
