@@ -12,7 +12,7 @@ theme:
     - navigation.tabs
     - navigation.footer
 
-site_url: "https://deplanckelab.github.io/ChromatinHD/"
+site_url: "https://chromatinhd.eu/"
 repo_url: https://github.com/DeplanckeLab/ChromatinHD
 
 plugins:
@@ -26,6 +26,7 @@ plugins:
             heading_level: 2
             inheritance_diagram: True
             show_root_heading: True
+            show_symbol_type_heading: True
   - mike
   - search
   - mkdocs-jupyter:

@@ -85,6 +85,9 @@ class Flow:
     def __getstate__(self):
         raise TypeError("This class cannot be pickled.")
 
+    def get(self, k):
+        return self.__class__.__dict__[k]
+
 
 class Linked:
     """
@@ -153,6 +156,9 @@ class Stored:
         name = "_" + self.name
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         setattr(obj, name, value)
+
+    def exists(self, obj):
+        return self.get_path(obj.path).exists()
 
 
 class StoredDataFrame(Stored):

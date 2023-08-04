@@ -146,3 +146,111 @@ class Trainer:
         pbar.close()
 
         self.model = self.model.to("cpu")
+
+
+class Trainer2:
+    def __init__(
+        self,
+        model,
+        loaders_train,
+        loaders_validation,
+        minibatcher_train,
+        minibatcher_validation,
+        optim,
+        device="cuda",
+        n_epochs=30,
+        checkpoint_every_epoch=1,
+        optimize_every_step=10,
+    ):
+        self.model = model
+        self.loaders_train = loaders_train
+        self.loaders_validation = loaders_validation
+
+        self.trace = Trace()
+
+        self.optim = optim
+
+        self.step_ix = 0
+        self.epoch = 0
+        self.n_epochs = n_epochs
+
+        self.checkpoint_every_epoch = checkpoint_every_epoch
+        self.optimize_every_step = optimize_every_step
+
+        self.minibatcher_train = minibatcher_train
+        self.minibatcher_validation = minibatcher_validation
+
+        self.device = device
+
+    def train(self):
+        self.model = self.model.to(self.device)
+
+        prev_loss = None
+
+        self.loaders_train.initialize(self.minibatcher_train)
+        self.loaders_validation.initialize(self.minibatcher_validation)
+
+        n_steps_total = self.n_epochs * len(self.loaders_train)
+        pbar = tqdm.tqdm(total=n_steps_total, leave=False)
+
+        while self.epoch < self.n_epochs:
+            # checkpoint if necessary
+            if (self.epoch % self.checkpoint_every_epoch) == 0:
+                with torch.no_grad():
+                    losses = []
+                    for data_validation in self.loaders_validation:
+                        data_validation = data_validation.to(self.device)
+
+                        loss_mb = (
+                            (
+                                self.model.forward_loss(data_validation)
+                                .cpu()
+                                .detach()
+                                .numpy()
+                            )
+                            .mean()
+                            .item()
+                        )
+                        losses.append(loss_mb)
+                    loss = np.mean(losses)
+
+                self.trace.append(
+                    loss,
+                    self.epoch,
+                    self.step_ix,
+                    "validation",
+                )
+                logger.info(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
+                self.trace.checkpoint(logger=logger)
+
+                if prev_loss is not None:
+                    improvement = loss - prev_loss
+                    print(improvement)
+                    logger.info(f"{improvement:.3f}")
+
+                    if improvement > 0.0:
+                        break
+                prev_loss = loss
+
+            # train
+            for data_train in self.loaders_train:
+                data_train = data_train.to(self.device)
+
+                loss = self.model.forward_loss(data_train)
+                loss.backward()
+
+                # check if optimization
+                if (self.step_ix % self.optimize_every_step) == 0:
+                    self.optim.step()
+                    self.optim.zero_grad()
+
+                self.step_ix += 1
+                pbar.update()
+
+                self.trace.append(loss.item(), self.epoch, self.step_ix, "train")
+            self.epoch += 1
+
+        pbar.update(n_steps_total)
+        pbar.close()
+
+        self.model = self.model.to("cpu")

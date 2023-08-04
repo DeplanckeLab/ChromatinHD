@@ -7,6 +7,11 @@ import scipy.stats
 import tqdm.auto as tqdm
 import numpy as np
 import itertools
+from chromatinhd.data.fragments import Fragments
+from chromatinhd.data.transcriptome import Transcriptome
+from chromatinhd.models.pred.model.additive import Models
+from chromatinhd.data.folds import Folds
+from typing import List, Optional
 
 
 def zscore(x, dim=0):
@@ -28,24 +33,47 @@ def fdr(p_vals):
 
 
 class GenePairWindow(chd.flow.Flow):
+    """
+    Interpret a *pred* model positionally by censoring windows and comparing the decrease in predictivity per cell between pairs of windows
+    """
+
     design = chd.flow.Stored("design")
 
     genes = chd.flow.Stored("genes", default=set)
 
     def score(
         self,
-        fragments,
-        transcriptome,
-        models,
-        folds,
-        genes,
+        fragments: Fragments,
+        transcriptome: Transcriptome,
+        models: Models,
+        folds: Folds,
         censorer,
+        genes: Optional[List] = None,
         force=False,
         device="cuda",
     ):
+        """
+        Score the models
+
+        Parameters:
+            fragments:
+                the fragments
+            transcriptome:
+                the transcriptome
+            models:
+                the models
+            folds:
+                the folds
+            genes:
+                which genes to score, defaults to all
+
+        """
         force_ = force
         design = censorer.design.iloc[1:].copy()
         self.design = design
+
+        if genes is None:
+            genes = transcriptome.var.index
 
         pbar = tqdm.tqdm(genes, leave=False)
 
@@ -110,7 +138,6 @@ class GenePairWindow(chd.flow.Flow):
                 lost_folds = np.stack(lost_folds, 0)
                 deltacor_folds = np.stack(deltacor_folds, 0)
                 copredictivity_folds = np.stack(copredictivity_folds, 0)
-                print(copredictivity_folds.shape)
 
                 result = xr.Dataset(
                     {

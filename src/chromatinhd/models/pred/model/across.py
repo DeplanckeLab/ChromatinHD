@@ -2,8 +2,6 @@
 Additive model for predicting gene expression from fragments
 """
 
-
-import math
 import pickle
 
 import numpy as np
@@ -12,7 +10,6 @@ import torch
 import torch_scatter
 import xarray as xr
 
-from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.flow import Flow, Stored
 from chromatinhd.loaders import LoaderPool2
 from chromatinhd.models import HybridModel
@@ -20,14 +17,14 @@ from chromatinhd.models.pred.loader.minibatches import Minibatcher
 from chromatinhd.models.pred.loader.transcriptome_fragments import (
     TranscriptomeFragments,
 )
-from chromatinhd.models.pred.trainer import Trainer
+from chromatinhd.models.pred.trainer import Trainer2
 from chromatinhd.optim import SparseDenseAdam
 
-from .loss import paircor, paircor_loss, gene_paircor_loss
+from .loss import gene_paircor_loss, paircor, paircor_loss
 
 
 class SineEncoding(torch.nn.Module):
-    def __init__(self, n_frequencies):
+    def __init__(self, n_frequencies, add_length=False):
         super().__init__()
 
         self.register_buffer(
@@ -48,10 +45,30 @@ class SineEncoding(torch.nn.Module):
 
         self.n_embedding_dimensions = n_frequencies * 2 * 2
 
+        if add_length:
+            self.n_embedding_dimensions += n_frequencies * 2
+        self.add_length = add_length
+
     def forward(self, coordinates):
         embedding = torch.sin(
             (coordinates[..., None] * self.frequencies + self.shifts).flatten(-2)
         )
+        if self.add_length:
+            embedding = torch.cat(
+                [
+                    embedding,
+                    torch.sin(
+                        (
+                            (coordinates[..., 0, None] - coordinates[..., 1, None])[
+                                ..., None
+                            ]
+                            * self.frequencies
+                            + self.shifts
+                        ).flatten(-2)
+                    ),
+                ],
+                -1,
+            )
         return embedding
 
 
@@ -60,11 +77,13 @@ class FragmentEmbedder(torch.nn.Module):
 
     def __init__(
         self,
-        n_genes,
         n_frequencies=10,
         n_embedding_dimensions=5,
+        n_layers=1,
         nonlinear=True,
         dropout_rate=0.0,
+        add_length=False,
+        add_residual_count=False,
         **kwargs,
     ):
         self.n_embedding_dimensions = n_embedding_dimensions
@@ -74,39 +93,59 @@ class FragmentEmbedder(torch.nn.Module):
 
         super().__init__(**kwargs)
 
-        self.sine_encoding = SineEncoding(n_frequencies=n_frequencies)
-
-        # default initialization same as a torch.nn.Linear
-        self.bias1 = torch.nn.Parameter(torch.zeros((self.n_embedding_dimensions,)))
-
-        self.weight1 = torch.nn.Parameter(
-            torch.zeros(
-                (
-                    self.sine_encoding.n_embedding_dimensions,
-                    self.n_embedding_dimensions,
-                ),
-            )
+        self.sine_encoding = SineEncoding(
+            n_frequencies=n_frequencies, add_length=add_length
         )
+
+        layers = []
+        for layer_ix in range(n_layers):
+            if layer_ix == 0:
+                layers.append(
+                    torch.nn.Linear(
+                        self.sine_encoding.n_embedding_dimensions,
+                        self.n_embedding_dimensions,
+                    )
+                )
+            else:
+                layers.append(
+                    torch.nn.Linear(
+                        self.n_embedding_dimensions, self.n_embedding_dimensions
+                    )
+                )
+            layers.append(torch.nn.Sigmoid())
+            if self.dropout_rate > 0:
+                layers.append(torch.nn.Dropout(self.dropout_rate))
+        layers.append(
+            torch.nn.Linear(self.n_embedding_dimensions, self.n_embedding_dimensions)
+        )
+
+        self.nn = torch.nn.Sequential(*layers)
+
+        if add_residual_count:
+            self.n_embedding_dimensions += 1
+        self.add_residual_count = add_residual_count
 
     def forward(self, coordinates):
         embedding = self.sine_encoding(coordinates)
-        embedding = torch.matmul(embedding, self.weight1) + self.bias1
+        embedding = self.nn(embedding)
 
-        # non-linear
-        if self.nonlinear is True:
-            embedding = torch.sigmoid(embedding)
-        elif isinstance(self.nonlinear, str) and self.nonlinear == "relu":
-            embedding = torch.relu(embedding)
-        elif isinstance(self.nonlinear, str) and self.nonlinear == "elu":
-            embedding = torch.nn.functional.elu(embedding)
-
-        if self.dropout_rate > 0:
-            embedding = torch.nn.functional.dropout(embedding, self.dropout_rate)
+        if self.add_residual_count:
+            embedding = torch.cat(
+                [
+                    embedding,
+                    torch.ones(
+                        (*coordinates.shape[:-1], 1),
+                        device=coordinates.device,
+                        dtype=torch.float,
+                    ),
+                ],
+                -1,
+            )
 
         return embedding
 
 
-class FragmentEmbedderCounter(torch.nn.Sequential):
+class FragmentEmbedderCounter(torch.nn.Module):
     """
     Dummy embedding of fragments in a single embedding dimension of ones
     """
@@ -152,54 +191,47 @@ class EmbeddingToExpression(torch.nn.Module):
     Predicts gene expression using a [cell, gene, component] embedding in a gene-specific manner
     """
 
-    def __init__(
-        self, n_genes, n_embedding_dimensions=5, initialization="default", **kwargs
-    ):
-        self.n_genes = n_genes
+    def __init__(self, n_embedding_dimensions=5, n_layers=1):
         self.n_embedding_dimensions = n_embedding_dimensions
 
         super().__init__()
 
-        # set bias to empirical mean
-        self.bias1 = EmbeddingTensor(
-            n_genes,
-            tuple(),
-            sparse=True,
-        )
-        self.bias1.data[:] = 0.0
-
-        self.weight1 = EmbeddingTensor(
-            n_genes,
-            (n_embedding_dimensions,),
-            sparse=True,
-        )
-        if initialization == "ones":
-            self.weight1.data[:] = 1.0
-        elif initialization == "default":
-            self.weight1.data[:, :5] = 1.0
-            self.weight1.data[:, 5:] = 0.0
-            self.weight1.data[:, -1] = -1.0
-        elif initialization == "smaller":
-            stdv = 1.0 / math.sqrt(self.weight1.data.size(-1)) / 100
-            self.weight1.data.uniform_(-stdv, stdv)
+        layers = []
+        for layer_ix in range(n_layers):
+            if layer_ix == 0:
+                layers.append(
+                    torch.nn.Linear(
+                        self.n_embedding_dimensions, self.n_embedding_dimensions
+                    )
+                )
+            else:
+                layers.append(
+                    torch.nn.Linear(
+                        self.n_embedding_dimensions, self.n_embedding_dimensions
+                    )
+                )
+            layers.append(torch.nn.Sigmoid())
+        layers.append(torch.nn.Linear(self.n_embedding_dimensions, 1))
+        self.nn = torch.nn.Sequential(*layers)
 
     def forward(self, cell_gene_embedding):
-        out = torch.matmul(cell_gene_embedding, self.weight1) + self.bias1
+        out = self.nn(cell_gene_embedding).squeeze(-1)
         return out
 
 
 class Model(torch.nn.Module, HybridModel):
     def __init__(
         self,
-        n_genes,
         dummy=False,
         n_frequencies=50,
+        n_fragment_embedder_layers=1,
+        n_embedding_to_expression_layers=1,
         reduce="sum",
         nonlinear=True,
         n_embedding_dimensions=10,
         dropout_rate=0.0,
-        embedding_to_expression_initialization="default",
-        **kwargs,
+        add_length=False,
+        add_residual_count=False,
     ):
         super().__init__()
 
@@ -208,31 +240,28 @@ class Model(torch.nn.Module, HybridModel):
         else:
             self.fragment_embedder = FragmentEmbedder(
                 n_frequencies=n_frequencies,
-                n_genes=n_genes,
                 nonlinear=nonlinear,
                 n_embedding_dimensions=n_embedding_dimensions,
                 dropout_rate=dropout_rate,
+                n_layers=n_fragment_embedder_layers,
+                add_length=add_length,
+                add_residual_count=add_residual_count,
             )
         self.embedding_gene_pooler = EmbeddingGenePooler(reduce=reduce)
         self.embedding_to_expression = EmbeddingToExpression(
-            n_genes=n_genes,
             n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
-            initialization=embedding_to_expression_initialization,
+            n_layers=n_embedding_to_expression_layers if not dummy else 0,
         )
 
     def forward(self, data):
-        fragment_embedding = self.fragment_embedder(
-            data.fragments.coordinates, data.fragments.genemapping
-        )
+        fragment_embedding = self.fragment_embedder(data.fragments.coordinates)
         cell_gene_embedding = self.embedding_gene_pooler(
             fragment_embedding,
             data.fragments.local_cellxgene_ix,
             data.minibatch.n_cells,
             data.minibatch.n_genes,
         )
-        expression_predicted = self.embedding_to_expression(
-            cell_gene_embedding, data.minibatch.genes_oi_torch
-        )
+        expression_predicted = self.embedding_to_expression(cell_gene_embedding)
         return expression_predicted
 
     def forward_loss(self, data):
@@ -299,15 +328,17 @@ class Model(torch.nn.Module, HybridModel):
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
-            range(fragments.n_genes),
+            fold["genes_train"],
             n_genes_step=500,
-            n_cells_step=200,
+            n_cells_step=500,
+            permute_cells=True,
+            permute_genes=True,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
-            range(fragments.n_genes),
-            n_genes_step=10,
-            n_cells_step=10000,
+            fold["genes_validation"],
+            n_genes_step=500,
+            n_cells_step=500,
             permute_cells=False,
             permute_genes=False,
         )
@@ -331,7 +362,7 @@ class Model(torch.nn.Module, HybridModel):
             n_workers=5,
         )
 
-        trainer = Trainer(
+        trainer = Trainer2(
             self,
             loaders_train,
             loaders_validation,
@@ -340,7 +371,7 @@ class Model(torch.nn.Module, HybridModel):
             SparseDenseAdam(
                 self.parameters_sparse(),
                 self.parameters_dense(),
-                lr=1e-2,
+                lr=1e-3,
                 weight_decay=1e-5,
             ),
             n_epochs=30,
@@ -350,6 +381,7 @@ class Model(torch.nn.Module, HybridModel):
         )
 
         trainer.train()
+        self.trace = trainer.trace
         # trainer.trace.plot()
 
     def get_prediction(
@@ -403,12 +435,15 @@ class Model(torch.nn.Module, HybridModel):
         )
         loaders.initialize(minibatches)
 
-        predicted = np.zeros((len(cell_ixs), fragments.n_genes))
-        expected = np.zeros((len(cell_ixs), fragments.n_genes))
-        n_fragments = np.zeros((len(cell_ixs), fragments.n_genes))
+        predicted = np.zeros((len(cell_ixs), len(gene_ixs)))
+        expected = np.zeros((len(cell_ixs), len(gene_ixs)))
+        n_fragments = np.zeros((len(cell_ixs), len(gene_ixs)))
 
         cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
         cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
+
+        gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
+        gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
 
         device = "cuda"
         self.eval()
@@ -419,13 +454,22 @@ class Model(torch.nn.Module, HybridModel):
             with torch.no_grad():
                 pred_mb = self.forward(data)
             predicted[
-                np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)
+                np.ix_(
+                    cell_mapping[data.minibatch.cells_oi],
+                    gene_mapping[data.minibatch.genes_oi],
+                )
             ] = pred_mb.cpu().numpy()
             expected[
-                np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)
+                np.ix_(
+                    cell_mapping[data.minibatch.cells_oi],
+                    gene_mapping[data.minibatch.genes_oi],
+                )
             ] = data.transcriptome.value.cpu().numpy()
             n_fragments[
-                np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)
+                np.ix_(
+                    cell_mapping[data.minibatch.cells_oi],
+                    gene_mapping[data.minibatch.genes_oi],
+                )
             ] = (
                 torch.bincount(
                     data.fragments.local_cellxgene_ix,
@@ -447,17 +491,17 @@ class Model(torch.nn.Module, HybridModel):
                 "predicted": xr.DataArray(
                     predicted,
                     dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    coords={"cell": cells, "gene": genes},
                 ),
                 "expected": xr.DataArray(
                     expected,
                     dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    coords={"cell": cells, "gene": genes},
                 ),
                 "n_fragments": xr.DataArray(
                     n_fragments,
                     dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    coords={"cell": cells, "gene": genes},
                 ),
             }
         )
@@ -571,9 +615,7 @@ class Models(Flow):
                 force = True
 
             if force:
-                model = Model(
-                    n_genes=fragments.n_genes,
-                )
+                model = Model()
                 model.train_model(fragments, transcriptome, fold, device=device)
 
                 model = model.to("cpu")

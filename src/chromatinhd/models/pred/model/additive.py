@@ -20,11 +20,15 @@ from chromatinhd.models.pred.loader.minibatches import Minibatcher
 from chromatinhd.models.pred.loader.transcriptome_fragments import (
     TranscriptomeFragments,
 )
+from chromatinhd.data.fragments import Fragments
+from chromatinhd.data.transcriptome import Transcriptome
 from chromatinhd.models.pred.trainer import Trainer
 from chromatinhd.loaders import LoaderPool2
 from chromatinhd.optim import SparseDenseAdam
 
 from .loss import paircor, paircor_loss, gene_paircor_loss
+
+from typing import Any
 
 
 class SineEncoding(torch.nn.Module):
@@ -210,20 +214,36 @@ class EmbeddingToExpression(torch.nn.Module):
 class Model(torch.nn.Module, HybridModel):
     """
     Predicting gene expression from raw fragments using an additive model across fragments from the same cell
+
+    Parameters:
+        n_genes:
+            the number of genes
+        dummy:
+            whether to use a dummy model that just counts fragments
+        n_frequencies:
+            the number of frequencies to use for sine encoding
+        reduce:
+            the reduction to use for pooling fragments across genes and cells
+        nonlinear:
+            whether to use a non-linear activation function
+        n_embedding_dimensions:
+            the number of embedding dimensions
+        dropout_rate:
+            the dropout rate
     """
 
     def __init__(
         self,
-        n_genes,
-        dummy=False,
-        n_frequencies=50,
-        reduce="sum",
-        nonlinear=True,
-        n_embedding_dimensions=10,
-        dropout_rate=0.0,
-        embedding_to_expression_initialization="default",
-        **kwargs,
-    ):
+        n_genes: int,
+        dummy: bool = False,
+        n_frequencies: int = 50,
+        reduce: str = "sum",
+        nonlinear: bool = True,
+        n_embedding_dimensions: int = 10,
+        dropout_rate: float = 0.0,
+        embedding_to_expression_initialization: str = "default",
+        **kwargs: Any,
+    ) -> None:
         super().__init__()
 
         if dummy:
@@ -244,6 +264,9 @@ class Model(torch.nn.Module, HybridModel):
         )
 
     def forward(self, data):
+        """
+        Make a prediction given a data object
+        """
         fragment_embedding = self.fragment_embedder(
             data.fragments.coordinates, data.fragments.genemapping
         )
@@ -259,11 +282,17 @@ class Model(torch.nn.Module, HybridModel):
         return expression_predicted
 
     def forward_loss(self, data):
+        """
+        Make a prediction and calculate the loss given a data object
+        """
         expression_predicted = self.forward(data)
         expression_true = data.transcriptome.value
         return paircor_loss(expression_predicted, expression_true)
 
     def forward_gene_loss(self, data):
+        """
+        Make a prediction and calculate the loss given a data object
+        """
         expression_predicted = self.forward(data)
         expression_true = data.transcriptome.value
         return gene_paircor_loss(expression_predicted, expression_true)
@@ -318,7 +347,18 @@ class Model(torch.nn.Module, HybridModel):
 
             yield expression_predicted, n_fragments
 
-    def train_model(self, fragments, transcriptome, fold, device="cuda"):
+    def train_model(
+        self,
+        fragments: Fragments,
+        transcriptome: Transcriptome,
+        fold: list,
+        device="cuda",
+        lr=1e-2,
+        n_epochs=30,
+    ):
+        """
+        Train the model
+        """
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
@@ -363,10 +403,10 @@ class Model(torch.nn.Module, HybridModel):
             SparseDenseAdam(
                 self.parameters_sparse(),
                 self.parameters_dense(),
-                lr=1e-2,
+                lr=lr,
                 weight_decay=1e-5,
             ),
-            n_epochs=30,
+            n_epochs=n_epochs,
             checkpoint_every_epoch=1,
             optimize_every_step=1,
             device=device,
@@ -426,12 +466,15 @@ class Model(torch.nn.Module, HybridModel):
         )
         loaders.initialize(minibatches)
 
-        predicted = np.zeros((len(cell_ixs), fragments.n_genes))
-        expected = np.zeros((len(cell_ixs), fragments.n_genes))
-        n_fragments = np.zeros((len(cell_ixs), fragments.n_genes))
+        predicted = np.zeros((len(cell_ixs), len(gene_ixs)))
+        expected = np.zeros((len(cell_ixs), len(gene_ixs)))
+        n_fragments = np.zeros((len(cell_ixs), len(gene_ixs)))
 
         cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
         cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
+
+        gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
+        gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
 
         device = "cuda"
         self.eval()

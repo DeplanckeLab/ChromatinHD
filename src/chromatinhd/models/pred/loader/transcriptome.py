@@ -1,6 +1,7 @@
 import chromatinhd.data.transcriptome
 import dataclasses
 import torch
+import chromatinhd.sparse
 
 
 @dataclasses.dataclass
@@ -18,7 +19,13 @@ class Transcriptome:
         transcriptome: chromatinhd.data.transcriptome.Transcriptome,
         layer: str = "X",
     ):
-        self.X = torch.from_numpy(transcriptome.layers[layer])
+        X = transcriptome.layers[layer]
+        if chromatinhd.sparse.is_sparse(X):
+            self.X = X.dense()
+        elif torch.is_tensor(X):
+            self.X = X
+        else:
+            self.X = torch.from_numpy(X)
 
     def load(self, minibatch):
         X = self.X[minibatch.cells_oi, :][:, minibatch.genes_oi]

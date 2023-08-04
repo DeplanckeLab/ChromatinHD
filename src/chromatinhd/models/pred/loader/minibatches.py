@@ -3,6 +3,7 @@ import dataclasses
 import itertools
 import math
 import torch
+import random
 
 
 @dataclasses.dataclass
@@ -114,7 +115,14 @@ class Minibatcher:
             cell_cuts.append(len(cells))
         cell_bins = [cells[a:b] for a, b in zip(cell_cuts[:-1], cell_cuts[1:])]
 
-        for cells_oi, genes_oi in itertools.product(cell_bins, gene_bins):
+        product = itertools.product(cell_bins, gene_bins)
+
+        if self.permute_cells and self.permute_genes:
+            rng = random.Random(self.i)
+            product = list(product)
+            rng.shuffle(list(product))
+
+        for cells_oi, genes_oi in product:
             yield Minibatch(cells_oi=cells_oi, genes_oi=genes_oi)
 
         self.i += 1
