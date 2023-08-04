@@ -1,9 +1,8 @@
 import chromatinhd
 import chromatinhd.grid
 import matplotlib as mpl
-import seaborn as sns
+import matplotlib.patheffects
 import numpy as np
-import pandas as pd
 
 
 def get_cmap_atac_diff():
@@ -12,6 +11,7 @@ def get_cmap_atac_diff():
 
 def get_norm_atac_diff():
     return mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True)
+
 
 class Differential(chromatinhd.grid.Wrap):
     def __init__(
@@ -37,16 +37,8 @@ class Differential(chromatinhd.grid.Wrap):
         self.cluster_info = cluster_info
 
         # check plotdata
-        plotdata = (
-            plotdata.reset_index()
-            .assign(coord=lambda x: x.coord.astype(int))
-            .set_index(["cluster", "coord"])
-        )
-        plotdata_mean = (
-            plotdata_mean.reset_index()
-            .assign(coord=lambda x: x.coord.astype(int))
-            .set_index(["coord"])
-        )
+        plotdata = plotdata.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["cluster", "coord"])
+        plotdata_mean = plotdata_mean.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["coord"])
 
         if "prob_diff" not in plotdata.columns:
             plotdata["prob_diff"] = plotdata["prob"] - plotdata_mean["prob"]
@@ -85,9 +77,7 @@ class Differential(chromatinhd.grid.Wrap):
 
             if plotdata_empirical is not None:
                 # empirical distribution of atac-seq cuts
-                plotdata_empirical_cluster = plotdata_empirical.query(
-                    "cluster == @cluster"
-                )
+                plotdata_empirical_cluster = plotdata_empirical.query("cluster == @cluster")
                 ax.fill_between(
                     plotdata_empirical_cluster["coord"],
                     np.exp(plotdata_empirical_cluster["prob"]),

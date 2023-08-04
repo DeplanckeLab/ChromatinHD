@@ -1,7 +1,5 @@
 import matplotlib as mpl
 import seaborn as sns
-import pandas as pd
-import numpy as np
 import chromatinhd
 
 
@@ -22,14 +20,12 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
     ):
         super().__init__(ncol=1, **{"padding_height": 0, **kwargs})
 
-        plotdata_expression_clusters = plotdata_expression_clusters.loc[
-            ~plotdata_expression_clusters.index.isin(["Plasma"])
-        ]
+        # plotdata_expression_clusters = plotdata_expression_clusters.loc[
+        #     ~plotdata_expression_clusters.index.isin(["Plasma"])
+        # ]
 
         if norm_expression is None:
-            norm_expression = mpl.colors.Normalize(
-                0.0, plotdata_expression_clusters.max(), clip=True
-            )
+            norm_expression = mpl.colors.Normalize(0.0, plotdata_expression_clusters.max(), clip=True)
 
         cmap_expression = get_cmap_rna_diff()
 
@@ -44,9 +40,7 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             circle = mpl.patches.Circle(
                 (0, 0),
                 norm_expression(plotdata_expression_clusters[cluster_id]) * 0.9 + 0.1,
-                fc=cmap_expression(
-                    norm_expression(plotdata_expression_clusters[cluster_id])
-                ),
+                fc=cmap_expression(norm_expression(plotdata_expression_clusters[cluster_id])),
                 lw=1,
                 ec="#333333",
             )
@@ -54,7 +48,7 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             ax.set_xlim(-1.05, 1.05)
             ax.set_ylim(-1.05, 1.05)
             ax.set_aspect(1)
-            text = ax.text(
+            ax.text(
                 1.05,
                 0,
                 cluster_info.loc[cluster_id, "label"],
@@ -81,18 +75,12 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             )
 
     @classmethod
-    def from_transcriptome(
-        cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, **kwargs
-    ):
+    def from_transcriptome(cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, **kwargs):
         import scanpy as sc
 
         transcriptome.adata.obs["cluster"] = clustering.labels
-        plotdata_expression = sc.get.obs_df(
-            transcriptome.adata, [gene, "cluster"]
-        ).rename(columns={gene: "expression"})
-        plotdata_expression_clusters = plotdata_expression.groupby("cluster")[
-            "expression"
-        ].mean()
+        plotdata_expression = sc.get.obs_df(transcriptome.adata, [gene, "cluster"]).rename(columns={gene: "expression"})
+        plotdata_expression_clusters = plotdata_expression.groupby("cluster")["expression"].mean()
         cluster_info = clustering.cluster_info
 
         return cls(

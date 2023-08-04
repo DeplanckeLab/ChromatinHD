@@ -45,9 +45,7 @@ class Fragments(Flow):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
 
         if not (cellxgene.diff() >= 0).all():
-            raise ValueError(
-                "Fragments should be ordered by cell then gene (ascending)"
-            )
+            raise ValueError("Fragments should be ordered by cell then gene (ascending)")
 
         n_cellxgene = self.n_genes * self.n_cells
         cellxgene_indptr = torch.nn.functional.pad(
@@ -55,9 +53,7 @@ class Fragments(Flow):
         )
         assert self.coordinates.shape[0] == cellxgene_indptr[-1]
         if not (cellxgene_indptr.diff() >= 0).all():
-            raise ValueError(
-                "Fragments should be ordered by cell then gene (ascending)"
-            )
+            raise ValueError("Fragments should be ordered by cell then gene (ascending)")
         self.cellxgene_indptr = cellxgene_indptr
 
     _genemapping = None
@@ -143,13 +139,16 @@ class Fragments(Flow):
             fragments_file:
                 Location of the `fragments.tsv` file created by e.g. CellRanger or sinto
             obs:
-                DataFrame containing information about cells. The index should be the cell names as present in the fragments file. If not, you can specify the column name using the `cell_column` argument.
+                DataFrame containing information about cells.
+                The index should be the cell names as present in the fragments file.
+                If not, you can specify the column name using the `cell_column` argument.
             path:
                 Folder in which the fragments data will be stored
             regions:
                 Regions object
             cell_column (optional):
-                Column name in the `obs` DataFrame containing the cell names. If not specified, the index of the `obs` DataFrame is used.
+                Column name in the `obs` DataFrame containing the cell names.
+                If not specified, the index of the `obs` DataFrame is used.
             overwrite (optional):
                 Whether to overwrite the data if it already exists
         """
@@ -207,10 +206,8 @@ class Fragments(Flow):
                     # add raw data of fragment relative to tss
                     coordinates_raw.append(
                         [
-                            (int(fragment[1]) - promoter_info["tss"])
-                            * promoter_info["strand"],
-                            (int(fragment[2]) - promoter_info["tss"])
-                            * promoter_info["strand"],
+                            (int(fragment[1]) - promoter_info["tss"]) * promoter_info["strand"],
+                            (int(fragment[2]) - promoter_info["tss"]) * promoter_info["strand"],
                         ][:: promoter_info["strand"]]
                     )
 

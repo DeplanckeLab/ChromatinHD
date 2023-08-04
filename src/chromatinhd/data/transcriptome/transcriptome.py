@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-import pickle
 import pathlib
 from typing import Union
 
 from chromatinhd.flow import Flow, Stored, StoredDict, TSV
 from chromatinhd import sparse
-from chromatinhd.utils import Unpickler
 
 
 class Transcriptome(Flow):

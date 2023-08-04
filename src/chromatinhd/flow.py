@@ -3,7 +3,6 @@ import torch
 import pickle
 import numpy as np
 import gzip
-import copy
 import json
 import importlib
 import shutil
@@ -25,9 +24,7 @@ class Flow:
                 raise ValueError("Either path or folder must be specified")
             if name is None:
                 if self.default_name is None:
-                    raise ValueError(
-                        "Cannot create Flow without name, and no default_name specified"
-                    )
+                    raise ValueError("Cannot create Flow without name, and no default_name specified")
                 name = self.default_name
 
             path = folder / name
@@ -177,7 +174,7 @@ class StoredTorchInt64(Stored):
             name = "_" + self.name
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not x.dtype is torch.int64:
+                if x.dtype is not torch.int64:
                     x = x.to(torch.int64)
                 if not x.is_contiguous():
                     x = x.contiguous()
@@ -201,7 +198,7 @@ class StoredTorchInt32(Stored):
             name = "_" + self.name
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not x.dtype is torch.int32:
+                if x.dtype is not torch.int32:
                     x = x.to(torch.int32)
                 if not x.is_contiguous():
                     x = x.contiguous()
@@ -225,7 +222,7 @@ class StoredNumpyInt64(Stored):
             name = "_" + self.name
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not x.dtype is np.int64:
+                if x.dtype is not np.int64:
                     x = x.astype(np.int64)
                 if not x.flags["C_CONTIGUOUS"]:
                     x = np.ascontiguousarray(x)
@@ -250,10 +247,8 @@ class CompressedNumpy(Stored):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
-                x = pickle.load(
-                    gzip.GzipFile(self.get_path(obj.path), "rb", compresslevel=3)
-                )
-                if not x.dtype is self.dtype:
+                x = pickle.load(gzip.GzipFile(self.get_path(obj.path), "rb", compresslevel=3))
+                if x.dtype is not self.dtype:
                     x = x.astype(self.dtype)
                 if not x.flags["C_CONTIGUOUS"]:
                     x = np.ascontiguousarray(x)
@@ -263,9 +258,7 @@ class CompressedNumpy(Stored):
     def __set__(self, obj, value):
         value = np.ascontiguousarray(value.astype(self.dtype))
         name = "_" + self.name
-        pickle.dump(
-            value, gzip.GzipFile(self.get_path(obj.path), "wb", compresslevel=3)
-        )
+        pickle.dump(value, gzip.GzipFile(self.get_path(obj.path), "wb", compresslevel=3))
         setattr(obj, name, value)
 
 

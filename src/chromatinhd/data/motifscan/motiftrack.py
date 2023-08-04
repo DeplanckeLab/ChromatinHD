@@ -1,4 +1,4 @@
-from chromatinhd.flow import Flow, CompressedNumpyInt64, CompressedNumpyFloat64, Stored
+from chromatinhd.flow import Flow, CompressedNumpyFloat64
 import pandas as pd
 
 

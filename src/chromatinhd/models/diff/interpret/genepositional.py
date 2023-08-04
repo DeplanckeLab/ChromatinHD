@@ -64,6 +64,7 @@ class GenePositional(chd.flow.Flow):
         window = fragments.regions.window
 
         for gene in pbar:
+            print(gene)
             pbar.set_description(gene)
             probs_file = self.get_scoring_path(gene) / "probs.pkl"
 
@@ -72,46 +73,30 @@ class GenePositional(chd.flow.Flow):
                 force = True
 
             if force:
-                design_gene = pd.DataFrame(
-                    {"gene_ix": [fragments.var.index.get_loc(gene)]}
-                ).astype("category")
+                design_gene = pd.DataFrame({"gene_ix": [fragments.var.index.get_loc(gene)]}).astype("category")
                 design_gene.index = pd.Series([gene], name="gene")
-                design_clustering = pd.DataFrame(
-                    {"active_cluster": np.arange(clustering.n_clusters)}
-                ).astype("category")
-                design_clustering.index = clustering.cluster_info.index
-                design_coord = pd.DataFrame(
-                    {"coord": np.arange(window[0], window[1] + 1, step=25)}
-                ).astype("category")
-                design_coord.index = design_coord["coord"]
-                design = chd.utils.crossing(
-                    design_gene, design_clustering, design_coord
+                design_clustering = pd.DataFrame({"active_cluster": np.arange(clustering.n_clusters)}).astype(
+                    "category"
                 )
+                design_clustering.index = clustering.cluster_info.index
+                design_coord = pd.DataFrame({"coord": np.arange(window[0], window[1] + 1, step=25)}).astype("category")
+                design_coord.index = design_coord["coord"]
+                design = chd.utils.crossing(design_gene, design_clustering, design_coord)
 
                 batch_size = 5000
-                design["batch"] = np.floor(
-                    np.arange(design.shape[0]) / batch_size
-                ).astype(int)
+                design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
 
                 probs = []
                 for model in models:
                     probs_model = []
                     for _, design_subset in design.groupby("batch"):
-                        pseudocoordinates = torch.from_numpy(
-                            design_subset["coord"].values.astype(int)
-                        )
-                        pseudocoordinates = (pseudocoordinates - window[0]) / (
-                            window[1] - window[0]
-                        )
+                        pseudocoordinates = torch.from_numpy(design_subset["coord"].values.astype(int))
+                        pseudocoordinates = (pseudocoordinates - window[0]) / (window[1] - window[0])
                         pseudocluster = torch.nn.functional.one_hot(
-                            torch.from_numpy(
-                                design_subset["active_cluster"].values.astype(int)
-                            ),
+                            torch.from_numpy(design_subset["active_cluster"].values.astype(int)),
                             clustering.n_clusters,
                         ).to(torch.float)
-                        gene_ix = torch.from_numpy(
-                            design_subset["gene_ix"].values.astype(int)
-                        )
+                        gene_ix = torch.from_numpy(design_subset["gene_ix"].values.astype(int))
 
                         prob = model.evaluate_pseudo(
                             pseudocoordinates,

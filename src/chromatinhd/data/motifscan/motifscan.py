@@ -1,4 +1,3 @@
-import math
 import pathlib
 from typing import Union
 
@@ -17,7 +16,6 @@ from chromatinhd.flow import (
     Stored,
     StoredDataFrame,
 )
-from chromatinhd.utils import indptr_to_indices
 from chromatinhd.utils.torch import ind2ptr
 
 
@@ -94,13 +92,9 @@ class Motifscan(Flow):
         # check or create cutoffs
         if cutoffs is None:
             if cutoff_col is None:
-                raise ValueError(
-                    "Either motifs+cutoff_col or cutoffs need to be specified."
-                )
+                raise ValueError("Either motifs+cutoff_col or cutoffs need to be specified.")
             if motifs is None:
-                raise ValueError(
-                    "Either motifs+cutoff_col or cutoffs need to be specified. motifs is not given"
-                )
+                raise ValueError("Either motifs+cutoff_col or cutoffs need to be specified. motifs is not given")
 
             cutoffs = motifs[cutoff_col].to_dict()
         else:
@@ -123,14 +117,9 @@ class Motifscan(Flow):
         # divide regions into batches according to batch size
         region_coordinates = regions.coordinates
 
-        regions_coordinates = regions.coordinates
-        region_coordinates = divide_regions_in_batches(
-            region_coordinates, batch_size=batch_size
-        )
+        region_coordinates = divide_regions_in_batches(region_coordinates, batch_size=batch_size)
 
-        region_size = (
-            region_coordinates["end"].values[0] - region_coordinates["start"].values[0]
-        )
+        region_size = region_coordinates["end"].values[0] - region_coordinates["start"].values[0]
 
         # load in fasta file
         import pysam
@@ -143,21 +132,15 @@ class Motifscan(Flow):
         scores = []
         strands = []
 
-        for batch, region_coordinates_batch in tqdm.tqdm(
-            region_coordinates.groupby("batch")
-        ):
+        for batch, region_coordinates_batch in tqdm.tqdm(region_coordinates.groupby("batch")):
             sequences = [
                 fasta.fetch(chrom, start, end + 1)
-                for chrom, start, end in region_coordinates_batch[
-                    ["chrom", "start", "end"]
-                ].values
+                for chrom, start, end in region_coordinates_batch[["chrom", "start", "end"]].values
             ]
             assert (
                 len(set(len(sequence) for sequence in sequences)) == 1
             ), "All regions/sequences should have the same length"
-            onehot = torch.stack(
-                [create_onehot(digitize_sequence(sequence)) for sequence in sequences]
-            )
+            onehot = torch.stack([create_onehot(digitize_sequence(sequence)) for sequence in sequences]).to(device)
             for motif_ix, motif in enumerate(motifs.index):
                 cutoff = cutoffs[motif]
 
@@ -173,14 +156,10 @@ class Motifscan(Flow):
                     strands_motif,
                 ) = scan(onehot, pwm, cutoff=cutoff)
 
-                positions_motif[0] = (
-                    positions_motif[0] + region_coordinates_batch["ix"].values[0]
-                )
+                positions_motif[0] = positions_motif[0] + region_coordinates_batch["ix"].values[0]
 
                 positions.append(positions_motif)
-                indices.append(
-                    torch.ones_like(scores_motif, dtype=torch.int) * motif_ix
-                )
+                indices.append(torch.ones_like(scores_motif, dtype=torch.int) * motif_ix)
                 scores.append(scores_motif)
                 strands.append(strands_motif)
 
@@ -215,21 +194,13 @@ class Motifscan(Flow):
 def divide_regions_in_batches(region_coordinates, batch_size=10):
     region_coordinates["len"] = region_coordinates["end"] - region_coordinates["start"]
 
-    assert (
-        len(region_coordinates["len"].unique()) == 1
-    ), "All regions should have the same size"
+    assert len(region_coordinates["len"].unique()) == 1, "All regions should have the same size"
 
-    region_coordinates["cumlen"] = (
-        region_coordinates["end"] - region_coordinates["start"]
-    ).cumsum()
+    region_coordinates["cumlen"] = (region_coordinates["end"] - region_coordinates["start"]).cumsum()
 
-    region_coordinates["batch"] = (region_coordinates["cumlen"] // batch_size).astype(
-        int
-    )
+    region_coordinates["batch"] = (region_coordinates["cumlen"] // batch_size).astype(int)
 
-    region_coordinates["batch"] = (
-        region_coordinates["batch"] - region_coordinates["batch"].min()
-    ).astype(int)
+    region_coordinates["batch"] = (region_coordinates["batch"] - region_coordinates["batch"].min()).astype(int)
 
     region_coordinates["ix"] = np.arange(region_coordinates.shape[0])
 
@@ -239,6 +210,7 @@ def divide_regions_in_batches(region_coordinates, batch_size=10):
 def read_pwms(pwms_file):
     pwms = {}
     motif = None
+    motif_id = None
     with open(pwms_file) as f:
         for line in f:
             if line.startswith(">"):

@@ -1,10 +1,6 @@
-import numpy as np
 import pandas as pd
-import pickle
 
-from chromatinhd.flow import Flow, Stored, StoredDict, StoredDataFrame
-from chromatinhd import sparse
-from chromatinhd.utils import Unpickler
+from chromatinhd.flow import Flow, Stored, StoredDataFrame
 
 
 class Clustering(Flow):

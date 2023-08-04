@@ -6,14 +6,14 @@ import xml.etree.cElementTree as ET
 
 
 def get_datasets(
-    mart:str="ENSEMBL_MART_ENSEMBL", baseurl:str="http://www.ensembl.org/biomart/martservice?"
+    mart: str = "ENSEMBL_MART_ENSEMBL", baseurl: str = "http://www.ensembl.org/biomart/martservice?"
 ) -> pd.DataFrame:
     """
     List all datasets available within a mart and baseurl
     """
     url = f"{baseurl}type=datasets&requestid=biomaRt&mart={mart}"
     if url in cache:
-        attributes = cache[url]
+        cache[url]
     else:
         response = requests.get(url)
         datasets = pd.read_table(

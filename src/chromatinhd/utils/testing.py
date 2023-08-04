@@ -20,9 +20,7 @@ def autocorrelation(x):
     return numerator / denominator
 
 
-def repeated_kfold_corrected_t_test(
-    performance_A, performance_B, k, num_repeats, alpha=0.05
-):
+def repeated_kfold_corrected_t_test(performance_A, performance_B, k, num_repeats, alpha=0.05):
     """
     Perform the corrected t-test between two learning algorithms A and B for repeated K-fold cross-validation.
 
@@ -39,13 +37,8 @@ def repeated_kfold_corrected_t_test(
     float: p-value.
     """
 
-    if (
-        len(performance_A) != len(performance_B)
-        or len(performance_A) != k * num_repeats
-    ):
-        raise ValueError(
-            "Performance scores for each algorithm should have the same length and match k * num_repeats."
-        )
+    if len(performance_A) != len(performance_B) or len(performance_A) != k * num_repeats:
+        raise ValueError("Performance scores for each algorithm should have the same length and match k * num_repeats.")
 
     n = k * num_repeats
 
@@ -71,12 +64,7 @@ import scipy.stats
 def repeated_kfold_corrected_t_test(diff, r, k, n_train, n_test):
     diff_corrected = 1 / (k * r) * diff.sum()
     variance = 1 / (k * r - 1) * ((diff - diff_corrected) ** 2).sum()
-    t = (
-        1
-        / (k * r)
-        * diff_corrected
-        / np.sqrt((1 / (k * r) + n_test / n_train) * variance)
-    )
+    t = 1 / (k * r) * diff_corrected / np.sqrt((1 / (k * r) + n_test / n_train) * variance)
 
-    p_value = scipy.stats.t.cdf(t, r * k - 1)
+    scipy.stats.t.cdf(t, r * k - 1)
     return t

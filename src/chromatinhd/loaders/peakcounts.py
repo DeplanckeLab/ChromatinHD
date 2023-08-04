@@ -2,11 +2,13 @@ import torch
 import numpy as np
 import dataclasses
 
+
 @dataclasses.dataclass
-class Result():
-    counts:np.ndarray
-    cells_oi:np.ndarray
-    genes_oi:np.ndarray
+class Result:
+    counts: np.ndarray
+    cells_oi: np.ndarray
+    genes_oi: np.ndarray
+
     @property
     def n_cells(self):
         return len(self.cells_oi)
@@ -29,10 +31,12 @@ class Result():
     def cells_oi_torch(self):
         return torch.from_numpy(self.cells_oi).to(self.coordinates.device)
 
+
 class PeakcountsResult(Result):
     pass
 
-class Peakcounts():
+
+class Peakcounts:
     def __init__(self, fragments, peakcounts):
         self.peakcounts = peakcounts
         assert "gene_ix" in peakcounts.peaks.columns
@@ -44,7 +48,6 @@ class Peakcounts():
         assert peakcounts.counts.shape[1] == peakcounts.var.shape[0]
 
         self.gene_peak_mapping = []
-        i = 0
         cur_gene_ix = -1
         for peak_ix, gene_ix in zip(peakcounts.var["ix"][peakcounts.peaks.index].values, peakcounts.peaks["gene_ix"]):
             while gene_ix != cur_gene_ix:
@@ -52,12 +55,8 @@ class Peakcounts():
                 cur_gene_ix += 1
             self.gene_peak_mapping[-1].append(peak_ix)
 
-        
     def load(self, minibatch):
         peak_ixs = np.concatenate([self.gene_peak_mapping[gene_ix] for gene_ix in minibatch.genes_oi])
         counts = self.peakcounts.counts[minibatch.cells_oi, :][:, peak_ixs]
-        
-        return PeakcountsResult(
-            counts = counts,
-            **minibatch.items()
-        )
+
+        return PeakcountsResult(counts=counts, **minibatch.items())

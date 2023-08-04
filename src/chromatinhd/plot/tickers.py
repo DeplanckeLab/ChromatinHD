@@ -1,7 +1,9 @@
-
 import matplotlib.ticker as ticker
 
 import decimal
+
+import functools
+
 
 def count_zeros(value):
     decimal_value = str(decimal.Decimal((value)))
@@ -29,9 +31,7 @@ def custom_gene_formatter(value, tick_pos):
         zeros = 0
         suffix = "b"
 
-    formatted_value = ("{abs_value:." + str(zeros) + "f}{suffix}").format(
-        abs_value=abs_value, suffix=suffix
-    )
+    formatted_value = ("{abs_value:." + str(zeros) + "f}{suffix}").format(abs_value=abs_value, suffix=suffix)
     return f"-{formatted_value}" if value < 0 else f"+{formatted_value}"
 
 
@@ -56,15 +56,11 @@ def custom_formatter(value, tick_pos, base=1):
 
     zeros = count_zeros(abs_value)
 
-    formatted_value = ("{abs_value:." + str(zeros) + "f}{suffix}").format(
-        abs_value=abs_value, suffix=suffix
-    )
+    formatted_value = ("{abs_value:." + str(zeros) + "f}{suffix}").format(abs_value=abs_value, suffix=suffix)
     return formatted_value
 
 
 distance_ticker = ticker.FuncFormatter(custom_formatter)
-
-import functools
 
 
 def DistanceFormatter(base=1):

@@ -1,7 +1,5 @@
 from chromatinhd.grid.grid import Grid, Panel
 import numpy as np
-import pandas as pd
-import matplotlib as mpl
 
 
 class Broken(Grid):

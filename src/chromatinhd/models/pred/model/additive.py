@@ -14,7 +14,7 @@ import pickle
 
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.models import HybridModel
-from chromatinhd.flow import Linked, Flow, Stored
+from chromatinhd.flow import Flow, Stored
 
 from chromatinhd.models.pred.loader.minibatches import Minibatcher
 from chromatinhd.models.pred.loader.transcriptome_fragments import (
@@ -39,26 +39,17 @@ class SineEncoding(torch.nn.Module):
 
         self.register_buffer(
             "frequencies",
-            torch.tensor(
-                [
-                    [1 / 1000 ** (2 * i / n_frequencies)] * 2
-                    for i in range(1, n_frequencies + 1)
-                ]
-            ).flatten(-2),
+            torch.tensor([[1 / 1000 ** (2 * i / n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2),
         )
         self.register_buffer(
             "shifts",
-            torch.tensor(
-                [[0, torch.pi / 2] for _ in range(1, n_frequencies + 1)]
-            ).flatten(-2),
+            torch.tensor([[0, torch.pi / 2] for _ in range(1, n_frequencies + 1)]).flatten(-2),
         )
 
         self.n_embedding_dimensions = n_frequencies * 2 * 2
 
     def forward(self, coordinates):
-        embedding = torch.sin(
-            (coordinates[..., None] * self.frequencies + self.shifts).flatten(-2)
-        )
+        embedding = torch.sin((coordinates[..., None] * self.frequencies + self.shifts).flatten(-2))
         return embedding
 
 
@@ -104,9 +95,7 @@ class FragmentEmbedder(torch.nn.Module):
 
     def forward(self, coordinates, gene_ix):
         embedding = self.sine_encoding(coordinates)
-        embedding = torch.einsum(
-            "ab,abc->ac", embedding, self.weight1(gene_ix)
-        ) + self.bias1(gene_ix)
+        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(gene_ix)) + self.bias1(gene_ix)
         # embedding = (embedding[..., None] * self.weight1[gene_ix]).sum(-2)
 
         # non-linear
@@ -136,9 +125,7 @@ class FragmentEmbedderCounter(torch.nn.Sequential):
         super().__init__(*args, **kwargs)
 
     def forward(self, coordinates, gene_ix):
-        return torch.ones(
-            (*coordinates.shape[:-1], 1), device=coordinates.device, dtype=torch.float
-        )
+        return torch.ones((*coordinates.shape[:-1], 1), device=coordinates.device, dtype=torch.float)
 
 
 class EmbeddingGenePooler(torch.nn.Module):
@@ -161,9 +148,7 @@ class EmbeddingGenePooler(torch.nn.Module):
             )
         else:
             raise ValueError()
-        cell_gene_embedding = cellxgene_embedding.reshape(
-            (cell_n, gene_n, cellxgene_embedding.shape[-1])
-        )
+        cell_gene_embedding = cellxgene_embedding.reshape((cell_n, gene_n, cellxgene_embedding.shape[-1]))
         return cell_gene_embedding
 
 
@@ -172,9 +157,7 @@ class EmbeddingToExpression(torch.nn.Module):
     Predicts gene expression using a [cell, gene, component] embedding in a gene-specific manner
     """
 
-    def __init__(
-        self, n_genes, n_embedding_dimensions=5, initialization="default", **kwargs
-    ):
+    def __init__(self, n_genes, n_embedding_dimensions=5, initialization="default", **kwargs):
         self.n_genes = n_genes
         self.n_embedding_dimensions = n_embedding_dimensions
 
@@ -204,9 +187,7 @@ class EmbeddingToExpression(torch.nn.Module):
             self.weight1.data.uniform_(-stdv, stdv)
 
     def forward(self, cell_gene_embedding, gene_ix):
-        out = (cell_gene_embedding * self.weight1(gene_ix)).sum(-1) + self.bias1(
-            gene_ix
-        ).squeeze()
+        out = (cell_gene_embedding * self.weight1(gene_ix)).sum(-1) + self.bias1(gene_ix).squeeze()
         return out
 
     def parameters_sparse(self):
@@ -269,18 +250,14 @@ class Model(torch.nn.Module, HybridModel):
         """
         Make a prediction given a data object
         """
-        fragment_embedding = self.fragment_embedder(
-            data.fragments.coordinates, data.fragments.genemapping
-        )
+        fragment_embedding = self.fragment_embedder(data.fragments.coordinates, data.fragments.genemapping)
         cell_gene_embedding = self.embedding_gene_pooler(
             fragment_embedding,
             data.fragments.local_cellxgene_ix,
             data.minibatch.n_cells,
             data.minibatch.n_genes,
         )
-        expression_predicted = self.embedding_to_expression(
-            cell_gene_embedding, data.minibatch.genes_oi_torch
-        )
+        expression_predicted = self.embedding_to_expression(cell_gene_embedding, data.minibatch.genes_oi_torch)
         return expression_predicted
 
     def forward_loss(self, data):
@@ -300,9 +277,7 @@ class Model(torch.nn.Module, HybridModel):
         return gene_paircor_loss(expression_predicted, expression_true)
 
     def forward_multiple(self, data, fragments_oi, min_fragments=1):
-        fragment_embedding = self.fragment_embedder(
-            data.fragments.coordinates, data.fragments.genemapping
-        )
+        fragment_embedding = self.fragment_embedder(data.fragments.coordinates, data.fragments.genemapping)
 
         total_n_fragments = torch.bincount(
             data.fragments.local_cellxgene_ix,
@@ -323,21 +298,16 @@ class Model(torch.nn.Module, HybridModel):
         for fragments_oi_ in fragments_oi:
             if (fragments_oi_ is not None) and ((~fragments_oi_).sum() > min_fragments):
                 lost_fragments_oi = ~fragments_oi_
-                lost_local_cellxgene_ix = data.fragments.local_cellxgene_ix[
-                    lost_fragments_oi
-                ]
+                lost_local_cellxgene_ix = data.fragments.local_cellxgene_ix[lost_fragments_oi]
                 n_fragments = total_n_fragments - torch.bincount(
                     lost_local_cellxgene_ix,
                     minlength=data.minibatch.n_genes * data.minibatch.n_cells,
                 ).reshape((data.minibatch.n_cells, data.minibatch.n_genes))
-                cell_gene_embedding = (
-                    total_cell_gene_embedding
-                    - self.embedding_gene_pooler.forward(
-                        fragment_embedding[lost_fragments_oi],
-                        lost_local_cellxgene_ix,
-                        data.minibatch.n_cells,
-                        data.minibatch.n_genes,
-                    )
+                cell_gene_embedding = total_cell_gene_embedding - self.embedding_gene_pooler.forward(
+                    fragment_embedding[lost_fragments_oi],
+                    lost_local_cellxgene_ix,
+                    data.minibatch.n_cells,
+                    data.minibatch.n_genes,
                 )
 
                 expression_predicted = self.embedding_to_expression.forward(
@@ -485,19 +455,14 @@ class Model(torch.nn.Module, HybridModel):
             data = data.to(device)
             with torch.no_grad():
                 pred_mb = self.forward(data)
-            predicted[
-                np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)
-            ] = pred_mb.cpu().numpy()
+            predicted[np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)] = pred_mb.cpu().numpy()
             expected[
                 np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)
             ] = data.transcriptome.value.cpu().numpy()
-            n_fragments[
-                np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)
-            ] = (
+            n_fragments[np.ix_(cell_mapping[data.minibatch.cells_oi], data.minibatch.genes_oi)] = (
                 torch.bincount(
                     data.fragments.local_cellxgene_ix,
-                    minlength=len(data.minibatch.cells_oi)
-                    * len(data.minibatch.genes_oi),
+                    minlength=len(data.minibatch.cells_oi) * len(data.minibatch.genes_oi),
                 )
                 .reshape(len(data.minibatch.cells_oi), len(data.minibatch.genes_oi))
                 .cpu()
@@ -651,9 +616,7 @@ class Models(Flow):
                 )
 
     def __getitem__(self, ix):
-        return pickle.load(
-            (self.models_path / ("model_" + str(ix) + ".pkl")).open("rb")
-        )
+        return pickle.load((self.models_path / ("model_" + str(ix) + ".pkl")).open("rb"))
 
     def __len__(self):
         return self.n_models
@@ -667,27 +630,15 @@ class Models(Flow):
         cor_n_fragments = np.zeros((len(fragments.var.index), len(folds)))
         n_fragments = np.zeros((len(fragments.var.index), len(folds)))
         for model_ix, (model, fold) in enumerate(zip(self, folds)):
-            prediction = model.get_prediction(
-                fragments, transcriptome, cell_ixs=fold["cells_test"], device=device
-            )
+            prediction = model.get_prediction(fragments, transcriptome, cell_ixs=fold["cells_test"], device=device)
 
-            cor_predicted[:, model_ix] = paircor(
-                prediction["predicted"].values, prediction["expected"].values
-            )
-            cor_n_fragments[:, model_ix] = paircor(
-                prediction["n_fragments"].values, prediction["expected"].values
-            )
+            cor_predicted[:, model_ix] = paircor(prediction["predicted"].values, prediction["expected"].values)
+            cor_n_fragments[:, model_ix] = paircor(prediction["n_fragments"].values, prediction["expected"].values)
 
             n_fragments[:, model_ix] = prediction["n_fragments"].values.sum(0)
-        cor_predicted = pd.Series(
-            cor_predicted.mean(1), index=fragments.var.index, name="cor_predicted"
-        )
-        cor_n_fragments = pd.Series(
-            cor_n_fragments.mean(1), index=fragments.var.index, name="cor_n_fragments"
-        )
-        n_fragments = pd.Series(
-            n_fragments.mean(1), index=fragments.var.index, name="n_fragments"
-        )
+        cor_predicted = pd.Series(cor_predicted.mean(1), index=fragments.var.index, name="cor_predicted")
+        cor_n_fragments = pd.Series(cor_n_fragments.mean(1), index=fragments.var.index, name="cor_n_fragments")
+        n_fragments = pd.Series(n_fragments.mean(1), index=fragments.var.index, name="n_fragments")
         result = pd.concat([cor_predicted, cor_n_fragments, n_fragments], axis=1)
         result["deltacor"] = result["cor_predicted"] - result["cor_n_fragments"]
 

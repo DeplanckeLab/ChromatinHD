@@ -1,6 +1,5 @@
 import chromatinhd.data.transcriptome
 import dataclasses
-import torch
 
 from .fragments import Fragments
 from .minibatches import Minibatch

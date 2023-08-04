@@ -1,9 +1,12 @@
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
 import chromatinhd
+import chromatinhd as chd
+from chromatinhd.grid.broken import Broken
+from chromatinhd.plot import gene_ticker
 
 
 def center(coords, region):
@@ -27,9 +30,7 @@ def get_genes_plotdata(region, genome="GRCh38"):
     canonical_transcripts = chd.biomart.get_canonical_transcripts(
         biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"]
     )
-    exons = chd.biomart.get_exons(
-        biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"]
-    )
+    exons = chd.biomart.get_exons(biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"])
 
     plotdata_genes = canonical_transcripts
     plotdata_genes = center(plotdata_genes, region)
@@ -136,7 +137,6 @@ class Genes(chromatinhd.grid.Ax):
                     weight="bold" if is_oi else "regular",
                 )
             elif (gene_info["end"] > window[0]) & (gene_info["end"] < window[1]):
-
                 label = " → " + symbol if strand == 1 else symbol + " ← "
                 ha = "left"
 
@@ -196,12 +196,8 @@ class Genes(chromatinhd.grid.Ax):
     def from_region(cls, region, genome="GRCh38", window=None, **kwargs):
         if window is None:
             assert "tss" in region
-            window = np.array(
-                [region["start"] - region["tss"], region["end"] - region["tss"]]
-            )
-        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
-            region, genome=genome
-        )
+            window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
+        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(region, genome=genome)
 
         return cls(
             plotdata_genes=plotdata_genes,
@@ -212,17 +208,6 @@ class Genes(chromatinhd.grid.Ax):
             window=window,
             **kwargs,
         )
-
-
-import chromatinhd as chd
-import pandas as pd
-import numpy as np
-
-
-from chromatinhd.grid.broken import Broken, Panel
-from chromatinhd.plot import gene_ticker
-import matplotlib as mpl
-import seaborn as sns
 
 
 def filter_start_end(x, start, end):
@@ -263,9 +248,7 @@ class GenesBrokenBase(Broken):
 
         ylim = (-0.5, plotdata_genes["ix"].max() + 0.5)
 
-        for ((region, region_info), (panel, ax)) in zip(
-            regions.iterrows(), self.elements[0]
-        ):
+        for (region, region_info), (panel, ax) in zip(regions.iterrows(), self.elements[0]):
             ax.xaxis.tick_top()
             ax.set_yticks([])
             ax.set_ylabel("")
@@ -280,9 +263,7 @@ class GenesBrokenBase(Broken):
             ax.set_xlim(region_info["start"], region_info["end"])
             ax.set_ylim(*ylim)
 
-            plotdata_genes_region = filter_start_end(
-                plotdata_genes, region_info["start"], region_info["end"]
-            )
+            plotdata_genes_region = filter_start_end(plotdata_genes, region_info["start"], region_info["end"])
 
             for gene, gene_info in plotdata_genes_region.iterrows():
                 y = gene_info["ix"]
@@ -294,9 +275,7 @@ class GenesBrokenBase(Broken):
                 )
 
                 plotdata_exons_gene = plotdata_exons.query("gene == @gene")
-                plotdata_exons_gene = filter_start_end(
-                    plotdata_exons_gene, region_info["start"], region_info["end"]
-                )
+                plotdata_exons_gene = filter_start_end(plotdata_exons_gene, region_info["start"], region_info["end"])
                 h = 1
                 for exon, exon_info in plotdata_exons_gene.iterrows():
                     rect = mpl.patches.Rectangle(
@@ -311,9 +290,7 @@ class GenesBrokenBase(Broken):
                     ax.add_patch(rect)
 
                 plotdata_coding_gene = plotdata_coding.query("gene == @gene")
-                plotdata_coding_gene = filter_start_end(
-                    plotdata_coding_gene, region_info["start"], region_info["end"]
-                )
+                plotdata_coding_gene = filter_start_end(plotdata_coding_gene, region_info["start"], region_info["end"])
                 for coding, coding_info in plotdata_coding_gene.iterrows():
                     rect = mpl.patches.Rectangle(
                         (coding_info["start"], y - h / 2),
@@ -337,9 +314,7 @@ class GenesBrokenBase(Broken):
 
 class GenesBroken(GenesBrokenBase):
     def __init__(self, promoter, genome_folder, window, *args, **kwargs):
-        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
-            promoter, genome_folder, window
-        )
+        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(promoter, genome_folder, window)
 
         return super().__init__(
             *args,

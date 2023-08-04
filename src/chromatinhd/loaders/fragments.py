@@ -15,7 +15,6 @@ import chromatinhd.loaders.extraction.fragments
 import chromatinhd.data.fragments
 
 import dataclasses
-from functools import cached_property
 
 
 @dataclasses.dataclass
@@ -40,9 +39,7 @@ class Result:
     def to(self, device):
         for field_name, field in self.__dataclass_fields__.items():
             if field.type is torch.Tensor:
-                self.__setattr__(
-                    field_name, self.__getattribute__(field_name).to(device)
-                )
+                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
         return self
 
     @property
@@ -55,9 +52,7 @@ class Result:
 
     def create_cut_data(self):
         cut_coordinates = self.coordinates.flatten()
-        cut_coordinates = (cut_coordinates - self.window[0]) / (
-            self.window[1] - self.window[0]
-        )
+        cut_coordinates = (cut_coordinates - self.window[0]) / (self.window[1] - self.window[0])
         keep_cuts = (cut_coordinates >= 0) & (cut_coordinates <= 1)
         cut_coordinates = cut_coordinates[keep_cuts]
 
@@ -65,12 +60,9 @@ class Result:
 
         self.cut_local_gene_ix = self.local_gene_ix.expand(2, -1).T.flatten()[keep_cuts]
         self.cut_local_cell_ix = self.local_cell_ix.expand(2, -1).T.flatten()[keep_cuts]
-        self.cut_local_cellxgene_ix = self.local_cellxgene_ix.expand(2, -1).T.flatten()[
-            keep_cuts
-        ]
+        self.cut_local_cellxgene_ix = self.local_cellxgene_ix.expand(2, -1).T.flatten()[keep_cuts]
         self.cut_localcellxgene_ix = (
-            self.cut_local_cell_ix * self.n_total_genes
-            + self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
+            self.cut_local_cell_ix * self.n_total_genes + self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
         )
 
     _cut_coordinates = None
@@ -152,9 +144,7 @@ class Fragments:
         self.out_coordinates = torch.from_numpy(
             np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
         )  # .pin_memory()
-        self.out_genemapping = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
+        self.out_genemapping = torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64))  # .pin_memory()
         self.out_local_cellxgene_ix = torch.from_numpy(
             np.zeros(self.fragment_buffer_size, dtype=np.int64)
         )  # .pin_memory()
@@ -169,9 +159,7 @@ class Fragments:
         genemapping = self.genemapping
         cellxgene_indptr = self.cellxgene_indptr
 
-        minibatch.cellxgene_oi = cell_gene_to_cellxgene(
-            minibatch.cells_oi, minibatch.genes_oi, self.n_genes
-        )
+        minibatch.cellxgene_oi = cell_gene_to_cellxgene(minibatch.cells_oi, minibatch.genes_oi, self.n_genes)
 
         assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size, (
             len(minibatch.cellxgene_oi),
@@ -255,17 +243,12 @@ class FragmentsCounting:
         self.out_coordinates = torch.from_numpy(
             np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
         )  # .pin_memory()
-        self.out_genemapping = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
+        self.out_genemapping = torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64))  # .pin_memory()
         self.out_local_cellxgene_ix = torch.from_numpy(
             np.zeros(self.fragment_buffer_size, dtype=np.int64)
         )  # .pin_memory()
 
-        self.out_n = [
-            torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64))
-            for i in self.n
-        ]
+        self.out_n = [torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64)) for i in self.n]
 
         self.preloaded = True
 
@@ -278,9 +261,7 @@ class FragmentsCounting:
         genemapping = self.genemapping
         cellxgene_indptr = self.cellxgene_indptr
 
-        minibatch.cellxgene_oi = cell_gene_to_cellxgene(
-            minibatch.cells_oi, minibatch.genes_oi, self.n_genes
-        )
+        minibatch.cellxgene_oi = cell_gene_to_cellxgene(minibatch.cells_oi, minibatch.genes_oi, self.n_genes)
 
         assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size
         if self.n == (2,):

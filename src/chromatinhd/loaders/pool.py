@@ -1,7 +1,6 @@
 import copy
 import threading
 import numpy as np
-import time
 from typing import List
 
 
@@ -83,9 +82,7 @@ class LoaderPool:
             raise ValueError
         self.loaders_available = self.loaders_available + [loader]
         loader.running = True
-        thread = ThreadWithResult(
-            target=loader.load, loader=loader, args=args, kwargs=kwargs
-        )
+        thread = ThreadWithResult(target=loader.load, loader=loader, args=args, kwargs=kwargs)
         self.running.append(thread)
         thread.start()
 
@@ -212,9 +209,7 @@ class LoaderPoolOld:
             raise ValueError
         self.loaders_available = self.loaders_available + [loader]
         loader.running = True
-        thread = ThreadWithResult(
-            target=loader.load, loader=loader, args=args, kwargs=kwargs
-        )
+        thread = ThreadWithResult(target=loader.load, loader=loader, args=args, kwargs=kwargs)
         self.running.append(thread)
         thread.start()
 
@@ -245,9 +240,7 @@ class LoaderPoolOld:
             raise StopIteration
         if len(self.running) == 0:
             if len(self.todo) > 0:
-                raise ValueError(
-                    "Iteration stopped too early, make sure to call submit_next in each iteration"
-                )
+                raise ValueError("Iteration stopped too early, make sure to call submit_next in each iteration")
         return self.pull()
 
     def submit_next(self):
@@ -262,18 +255,13 @@ class LoaderPoolOld:
             # if some new tasks are next, recreate the tasks
             next_task_set = self.next_task_sets.pop(0)
             self.tasks = copy.copy(next_task_set["tasks"])
-            if ("loader_kwargs" in next_task_set) and (
-                next_task_set["loader_kwargs"] is not None
-            ):
+            if ("loader_kwargs" in next_task_set) and (next_task_set["loader_kwargs"] is not None):
                 self.restart_loaders(loader_kwargs=next_task_set["loader_kwargs"])
 
         self.n_todo.append(len(self.tasks))
 
         if self.shuffle_on_iter:
-            self.todo = [
-                self.tasks[i]
-                for i in self.rg.choice(len(self.tasks), len(self.tasks), replace=False)
-            ]
+            self.todo = [self.tasks[i] for i in self.rg.choice(len(self.tasks), len(self.tasks), replace=False)]
         else:
             self.todo = copy.copy(self.tasks)
 

@@ -78,3 +78,14 @@ disable = [
     "redefined-builtin",
     "redefined-outer-name",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.extend-per-file-ignores]
+"__init__.py" = ["E402"]
+
+[tool.black]
+line-length = 120
+target-version = ['py37', 'py38']
+
