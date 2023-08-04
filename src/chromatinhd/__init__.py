@@ -8,7 +8,6 @@ from . import plot
 from . import data
 from . import train
 from . import loaders
-from . import loss
 from . import embedding
 from . import optim
 from . import biomart
