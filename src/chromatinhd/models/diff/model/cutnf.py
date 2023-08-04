@@ -588,7 +588,8 @@ class Model(torch.nn.Module, HybridModel):
 
         ## Single base-pair resolution
         # interpolate the scoring from above but now at single base pairs
-        # we may have to smooth this in the future, particularly for very detailed models that already look at base pair resolution
+        # we may have to smooth this in the future,
+        # particularly for very detailed models that already look at base pair resolution
         x = (design["coord"].values).reshape((design_gene.shape[0], design_latent.shape[0], design_coord.shape[0]))
 
         def interpolate(x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor) -> torch.Tensor:

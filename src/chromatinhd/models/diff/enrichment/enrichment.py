@@ -6,6 +6,8 @@ import fisher
 import statsmodels.stats.multitest
 import scipy.stats
 
+import tqdm.auto as tqdm
+
 
 def count_gc(relative_starts, relative_end, gene_ixs, onehot_promoters, window):
     eps = 1e-5
@@ -383,8 +385,6 @@ def enrich_windows_genewise(
         int
     )  # order is: gene, motif, motif yes/no, oi yes/no
 
-    background_motif_counts
-
     # if background == all positions, remove the counts from the slices_oi
     contingencies[..., [0], :] = contingencies[..., [0], :] - contingencies[..., [1], :]
     assert contingencies.sum() == n_genes * (window[1] - window[0]) * motifscan.n_motifs
@@ -513,9 +513,6 @@ def enrich_cluster_vs_background(
     motifscores = pd.concat(motifscores).reset_index()
     motifscores = motifscores.reset_index().set_index([clustering_id, "motif"])
     return motifscores
-
-
-import tqdm.auto as tqdm
 
 
 def enrich_cluster_vs_all(motifscan, window, regions, clustering_id, n_genes, gene_ids):

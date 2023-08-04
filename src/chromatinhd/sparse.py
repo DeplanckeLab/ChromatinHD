@@ -13,6 +13,7 @@ def is_scipysparse(value):
 def is_sparse(value):
     return isinstance(value, Sparse)
 
+
 class Sparse:
     pass
 
@@ -21,7 +22,8 @@ class Sparse:
 class CSR(Sparse):
     """
     CSR sparse tensor
-    We don't use the torch variant, because this is not supported on CUDA (and we would not use any of its functions anyway)
+    We don't use the torch variant, because this is not
+    supported on CUDA (and we would not use any of its functions anyway)
     """
 
     indptr: torch.tensor
@@ -76,14 +78,13 @@ class COOMatrix(Sparse):
 
     def populate_mapping(self):
         # this maps each row to its value and column indices
-        # this allows us to go subset in the row dimension very quickly, by just extracting the relevant rows from this dictionary
+        # this allows us to go subset in the row dimension very quickly,
+        # by just extracting the relevant rows from this dictionary
         # at the cost of having to keep these mappings in memory
         device = self.row.device
         self.populate_row_switch()
         self.mapping = {
-            row: torch.arange(
-                self.row_switch[row], self.row_switch[row + 1], device=device
-            )
+            row: torch.arange(self.row_switch[row], self.row_switch[row + 1], device=device)
             for row in range(self.shape[0])
         }
 
@@ -107,7 +108,9 @@ class COOMatrix(Sparse):
         elif isinstance(ix, np.ndarray):
             pass
         else:
-            raise ValueError("Cannot take dense_subset of " + str(ix.__class__) + ", requires a tensor, slice or numpy.ndarray")
+            raise ValueError(
+                "Cannot take dense_subset of " + str(ix.__class__) + ", requires a tensor, slice or numpy.ndarray"
+            )
 
         device = self.row.device
         ix_sparse = torch.cat([self.mapping[row] for row in ix])
@@ -116,9 +119,7 @@ class COOMatrix(Sparse):
         )
         newcol_idx = self.col[ix_sparse]
 
-        subsetted = torch.zeros(
-            (len(ix), self.shape[1]), device=device, dtype=self.values.dtype
-        )
+        subsetted = torch.zeros((len(ix), self.shape[1]), device=device, dtype=self.values.dtype)
         subsetted[newrow_idx, newcol_idx] = self.values[ix_sparse]
         return subsetted
 
@@ -182,9 +183,7 @@ class COOMatrix(Sparse):
         if self.row_switch is not None:
             self.row_switch = self.row_switch.to(device)
         if self.mapping is not None:
-            self.mapping = {
-                key: value.to(device) for key, value in self.mapping.items()
-            }
+            self.mapping = {key: value.to(device) for key, value in self.mapping.items()}
         return self
 
     def __getitem__(self, ix):

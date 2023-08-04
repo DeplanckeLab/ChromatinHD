@@ -35,7 +35,8 @@ def fdr(p_vals):
 
 class GenePairWindow(chd.flow.Flow):
     """
-    Interpret a *pred* model positionally by censoring windows and comparing the decrease in predictivity per cell between pairs of windows
+    Interpret a *pred* model positionally by censoring windows and comparing
+    the decrease in predictivity per cell between pairs of windows
     """
 
     design = chd.flow.Stored("design")
@@ -96,9 +97,7 @@ class GenePairWindow(chd.flow.Flow):
                         fragments,
                         transcriptome,
                         censorer,
-                        cell_ixs=np.concatenate(
-                            [fold["cells_validation"], fold["cells_test"]]
-                        ),
+                        cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         genes=[gene],
                         device=device,
                     )
@@ -113,15 +112,13 @@ class GenePairWindow(chd.flow.Flow):
                     predicted_censored = predicted[1:]
                     predicted_full = predicted[0][None, ...]
                     predicted_full_norm = zscore(predicted_full, 1)
-                    predicted_censored_norm = zscore_relative(
-                        predicted_censored, predicted_full, 1
-                    )
+                    predicted_censored_norm = zscore_relative(predicted_censored, predicted_full, 1)
 
                     expected_norm = zscore(expected[None, ...], 1)
 
-                    celldeltacor = -np.abs(
-                        predicted_censored_norm - expected_norm
-                    ) - -np.abs(predicted_full_norm - expected_norm)
+                    celldeltacor = -np.abs(predicted_censored_norm - expected_norm) - -np.abs(
+                        predicted_full_norm - expected_norm
+                    )
                     with np.errstate(divide="ignore", invalid="ignore"):
                         copredictivity = np.corrcoef(celldeltacor)
                     copredictivity[np.isnan(copredictivity)] = 0.0
@@ -199,12 +196,8 @@ class GenePairWindow(chd.flow.Flow):
             .join(plotdata.set_index(["window1", "window2"]))
         )
         plotdata = plotdata.reset_index().fillna({"cor": 0.0})
-        plotdata["window_mid1"] = self.design.loc[plotdata["window1"]][
-            "window_mid"
-        ].values
-        plotdata["window_mid2"] = self.design.loc[plotdata["window2"]][
-            "window_mid"
-        ].values
+        plotdata["window_mid1"] = self.design.loc[plotdata["window1"]]["window_mid"].values
+        plotdata["window_mid2"] = self.design.loc[plotdata["window2"]]["window_mid"].values
         plotdata["dist"] = np.abs(plotdata["window_mid1"] - plotdata["window_mid2"])
         plotdata = plotdata.query("(window_mid1 < window_mid2)")
         # plotdata = plotdata.query("dist > 1000")

@@ -81,9 +81,8 @@ disable = [
 
 [tool.ruff]
 line-length = 120
-
-[tool.ruff.extend-per-file-ignores]
-"__init__.py" = ["E402"]
+ignore-init-module-imports = true
+ignore = ['F401']
 
 [tool.black]
 line-length = 120
