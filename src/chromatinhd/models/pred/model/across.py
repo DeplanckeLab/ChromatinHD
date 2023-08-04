@@ -11,7 +11,7 @@ import torch_scatter
 import xarray as xr
 
 from chromatinhd.flow import Flow, Stored
-from chromatinhd.loaders import LoaderPool2
+from chromatinhd.loaders import LoaderPool
 from chromatinhd.models import HybridModel
 from chromatinhd.models.pred.loader.minibatches import Minibatcher
 from chromatinhd.models.pred.loader.transcriptome_fragments import (
@@ -345,7 +345,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_genes=False,
         )
 
-        loaders_train = LoaderPool2(
+        loaders_train = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,
@@ -354,7 +354,7 @@ class Model(torch.nn.Module, HybridModel):
             ),
             n_workers=10,
         )
-        loaders_validation = LoaderPool2(
+        loaders_validation = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,
@@ -426,7 +426,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
-        loaders = LoaderPool2(
+        loaders = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,
@@ -548,7 +548,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
-        loaders = LoaderPool2(
+        loaders = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,

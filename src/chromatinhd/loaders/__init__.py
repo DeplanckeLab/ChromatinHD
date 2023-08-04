@@ -1,4 +1,4 @@
-from .pool import LoaderPool, LoaderPool2
+from .pool import LoaderPool, LoaderPoolOld
 from . import minibatching
 
 # from . import fragments

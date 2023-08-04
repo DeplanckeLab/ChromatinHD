@@ -23,7 +23,7 @@ from chromatinhd.models.pred.loader.transcriptome_fragments import (
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.transcriptome import Transcriptome
 from chromatinhd.models.pred.trainer import Trainer
-from chromatinhd.loaders import LoaderPool2
+from chromatinhd.loaders import LoaderPool
 from chromatinhd.optim import SparseDenseAdam
 
 from chromatinhd import default_device
@@ -377,7 +377,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_genes=False,
         )
 
-        loaders_train = LoaderPool2(
+        loaders_train = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,
@@ -386,7 +386,7 @@ class Model(torch.nn.Module, HybridModel):
             ),
             n_workers=10,
         )
-        loaders_validation = LoaderPool2(
+        loaders_validation = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,
@@ -457,7 +457,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
-        loaders = LoaderPool2(
+        loaders = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,
@@ -570,7 +570,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
-        loaders = LoaderPool2(
+        loaders = LoaderPool(
             TranscriptomeFragments,
             dict(
                 transcriptome=transcriptome,

@@ -10,7 +10,7 @@ import pandas as pd
 
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.flow import Flow, Stored
-from chromatinhd.loaders import LoaderPool2
+from chromatinhd.loaders import LoaderPool
 from chromatinhd.models import HybridModel
 from chromatinhd.models.diff.loader.clustering_cuts import ClusteringCuts
 from chromatinhd.models.diff.loader.minibatches import Minibatcher
@@ -309,7 +309,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_genes=False,
         )
 
-        loaders_train = LoaderPool2(
+        loaders_train = LoaderPool(
             ClusteringCuts,
             dict(
                 clustering=clustering,
@@ -318,7 +318,7 @@ class Model(torch.nn.Module, HybridModel):
             ),
             n_workers=10,
         )
-        loaders_validation = LoaderPool2(
+        loaders_validation = LoaderPool(
             ClusteringCuts,
             dict(
                 clustering=clustering,
@@ -403,7 +403,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
-        loaders = LoaderPool2(
+        loaders = LoaderPool(
             ClusteringCuts,
             dict(
                 clustering=clustering,
