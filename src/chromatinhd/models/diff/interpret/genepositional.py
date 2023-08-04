@@ -6,6 +6,7 @@ import pickle
 import scipy.stats
 import tqdm.auto as tqdm
 import torch
+from chromatinhd import default_device
 
 
 def fdr(p_vals):
@@ -29,7 +30,7 @@ class GenePositional(chd.flow.Flow):
         folds,
         genes=None,
         force=False,
-        device="cuda",
+        device=default_device,
     ):
         force_ = force
 

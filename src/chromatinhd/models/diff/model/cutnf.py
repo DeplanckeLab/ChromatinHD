@@ -22,6 +22,8 @@ from chromatinhd.data.clustering import Clustering
 from chromatinhd.utils import crossing
 from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
+from chromatinhd import default_device
+
 
 class Decoder(torch.nn.Module):
     def __init__(
@@ -658,7 +660,7 @@ class Models(Flow):
         return path
 
     def train_models(
-        self, fragments, clustering, folds, device="cuda", n_epochs=30, **kwargs
+        self, fragments, clustering, folds, device=default_device, n_epochs=30, **kwargs
     ):
         """
         Trains the models

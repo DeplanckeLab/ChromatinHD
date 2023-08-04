@@ -19,7 +19,7 @@ jobs:
           python-version: 3.8
           cache: 'pip'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
-      - run: pip install torch # because torch_scatter contains import torch in the setup.py
+      - run: pip install torch # because torch_scatter contains import torch in the setup.py, we have to install torch first
       - run: pip install -e .[dev]
       - run: pytest
       # - run: mkdocs gh-deploy --force

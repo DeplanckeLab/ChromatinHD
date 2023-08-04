@@ -1,9 +1,11 @@
-import tqdm.auto as tqdm
-import torch
-import numpy as np
-from chromatinhd.train import Trace
-
 import logging
+
+import numpy as np
+import torch
+import tqdm.auto as tqdm
+
+from chromatinhd import default_device
+from chromatinhd.train import Trace
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -37,7 +39,7 @@ class Trainer:
         minibatcher_train,
         minibatcher_validation,
         optim,
-        device="cuda",
+        device=default_device,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=10,
@@ -157,7 +159,7 @@ class Trainer2:
         minibatcher_train,
         minibatcher_validation,
         optim,
-        device="cuda",
+        device=default_device,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=10,

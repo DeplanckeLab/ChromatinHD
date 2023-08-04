@@ -4,7 +4,6 @@ from typing import List, Optional
 
 import numpy as np
 import pandas as pd
-import scipy.stats
 import tqdm.auto as tqdm
 import xarray as xr
 
@@ -28,10 +27,10 @@ def fdr(p_vals):
     from scipy.stats import rankdata
 
     ranked_p_values = rankdata(p_vals)
-    fdr = p_vals * len(p_vals) / ranked_p_values
-    fdr[fdr > 1] = 1
+    qval = p_vals * len(p_vals) / ranked_p_values
+    qval[qval > 1] = 1
 
-    return fdr
+    return qval
 
 
 class GenePairWindow(chd.flow.Flow):

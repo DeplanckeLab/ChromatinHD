@@ -26,6 +26,8 @@ from chromatinhd.models.pred.trainer import Trainer
 from chromatinhd.loaders import LoaderPool2
 from chromatinhd.optim import SparseDenseAdam
 
+from chromatinhd import default_device
+
 from .loss import paircor, paircor_loss, gene_paircor_loss
 
 from typing import Any
@@ -352,7 +354,7 @@ class Model(torch.nn.Module, HybridModel):
         fragments: Fragments,
         transcriptome: Transcriptome,
         fold: list,
-        device="cuda",
+        device=default_device,
         lr=1e-2,
         n_epochs=30,
     ):
@@ -423,7 +425,7 @@ class Model(torch.nn.Module, HybridModel):
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device="cuda",
+        device=default_device,
         return_raw=False,
     ):
         """
@@ -476,7 +478,6 @@ class Model(torch.nn.Module, HybridModel):
         gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
         gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
 
-        device = "cuda"
         self.eval()
         self = self.to(device)
 
@@ -538,7 +539,7 @@ class Model(torch.nn.Module, HybridModel):
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device="cuda",
+        device=default_device,
     ):
         """
         Returns the prediction of multiple censored dataset
@@ -628,7 +629,7 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(self, fragments, transcriptome, folds, device="cuda"):
+    def train_models(self, fragments, transcriptome, folds, device=default_device):
         self.n_models = len(folds)
         for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)]:
             desired_outputs = [self.models_path / ("model_" + str(fold_ix) + ".pkl")]
@@ -661,7 +662,7 @@ class Models(Flow):
         for ix in range(len(self)):
             yield self[ix]
 
-    def get_gene_cors(self, fragments, transcriptome, folds, device="cuda"):
+    def get_gene_cors(self, fragments, transcriptome, folds, device=default_device):
         cor_predicted = np.zeros((len(fragments.var.index), len(folds)))
         cor_n_fragments = np.zeros((len(fragments.var.index), len(folds)))
         n_fragments = np.zeros((len(fragments.var.index), len(folds)))

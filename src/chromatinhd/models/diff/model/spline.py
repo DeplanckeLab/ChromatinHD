@@ -4,6 +4,8 @@ import math
 from chromatinhd.models.diff.model import splines
 from chromatinhd.embedding import EmbeddingTensor
 
+from chromatinhd import default_device
+
 
 class TransformedDistribution(torch.nn.Module):
     def __init__(self, transform):
@@ -78,7 +80,9 @@ def prioritize(x, n, k=2):
     return chosen
 
 
-def initialize_from_previous(x, n, local_gene_ix, n_genes, transforms, device="cuda"):
+def initialize_from_previous(
+    x, n, local_gene_ix, n_genes, transforms, device=default_device
+):
     q2_orig = torch.linspace(0, 1, n).expand(n_genes, -1)
     # q2_orig = prioritize(x, n).expand(n_genes, -1)
     q2 = q2_orig
