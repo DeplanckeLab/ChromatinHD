@@ -15,6 +15,7 @@ except ImportError:
         setup_args=dict(include_dirs=[np.get_include()]),
         build_in_temp=False,
     )
+    from . import fragments_helpers  # pylint: disable=C0413,E0611
 
 import dataclasses
 

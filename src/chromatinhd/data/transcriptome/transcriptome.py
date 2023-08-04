@@ -15,7 +15,7 @@ class Transcriptome(Flow):
     """
 
     var = TSV("var", index_name="gene")
-    obs = TSV("obs", index_name="gene")
+    obs = TSV("obs", index_name="cell")
 
     adata = Stored("adata")
     "Anndata object containing the transcriptome data."
