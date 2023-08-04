@@ -65,3 +65,10 @@ def example_fragments(example_dataset_folder, example_transcriptome, example_reg
     )
     fragments.create_cellxgene_indptr()
     return fragments
+
+
+@pytest.fixture(scope="session")
+def example_folds(example_dataset_folder, example_fragments):
+    folds = chd.data.folds.Folds(example_dataset_folder / "random_5fold")
+    folds.sample_cells(example_fragments, n_folds=5, n_repeats=1)
+    return folds

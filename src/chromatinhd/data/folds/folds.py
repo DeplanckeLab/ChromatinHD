@@ -1,23 +1,12 @@
 import numpy as np
 import pandas as pd
-import pickle
 
 from chromatinhd.flow import (
     Flow,
-    StoredTorchInt32,
     Stored,
-    StoredTorchInt64,
-    TSV,
-    Linked,
 )
 
 from chromatinhd.data.fragments import Fragments
-
-import torch
-import math
-import pathlib
-import typing
-import tqdm
 
 
 class Folds(Flow):
@@ -25,10 +14,32 @@ class Folds(Flow):
     Folds of multiple cell and gene combinations
     """
 
-    folds = Stored("folds")
-    """the folds"""
+    folds: dict = Stored("folds")
+    """The folds"""
 
-    def sample_cells(self, fragments: Fragments, n_folds: int, n_repeats: int = 1):
+    def sample_cells(
+        self,
+        fragments: Fragments,
+        n_folds: int,
+        n_repeats: int = 1,
+        overwrite: bool = False,
+    ):
+        """
+        Sample cells and genes into folds
+
+        Parameters:
+            fragments:
+                the fragments
+            n_folds:
+                the number of folds
+            n_repeats:
+                the number of repeats
+            overwrite:
+                whether to overwrite existing folds
+        """
+        if not overwrite and self.get("folds").exists(self):
+            return
+
         folds = []
 
         for repeat_ix in range(n_repeats):
@@ -58,7 +69,29 @@ class Folds(Flow):
                 )
         self.folds = folds
 
-    def sample_cellxgene(self, fragments: Fragments, n_folds: int, n_repeats: int = 1):
+    def sample_cellxgene(
+        self,
+        fragments: Fragments,
+        n_folds: int,
+        n_repeats: int = 1,
+        overwrite: bool = False,
+    ):
+        """
+        Sample cells and genes into folds
+
+        Parameters:
+            fragments:
+                the fragments
+            n_folds:
+                the number of folds
+            n_repeats:
+                the number of repeats
+            overwrite:
+                whether to overwrite existing folds
+        """
+        if not overwrite and self.get("folds").exists(self):
+            return
+
         folds = []
 
         for repeat_ix in range(n_repeats):
