@@ -19,7 +19,7 @@ jobs:
           python-version: 3.8
           cache: 'pipenv'
       - name: Install pipenv
-        run: pip install pipenv
+        run: curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
       - run: pipenv install torch # because torch_scatter contains import torch in the setup.py, we have to install torch first
       - run: pipenv install --dev .
