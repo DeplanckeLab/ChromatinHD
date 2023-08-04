@@ -423,7 +423,6 @@ class Model(torch.nn.Module, HybridModel):
         gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
         gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
 
-        device = "cuda"
         self.eval()
         self = self.to(device)
 
@@ -551,7 +550,7 @@ class Model(torch.nn.Module, HybridModel):
         self,
         window: np.ndarray,
         n_latent: int,
-        device: torch.DeviceObjType = "cuda",
+        device: torch.DeviceObjType = default_device,
         how: str = "probs_diff_masked",
         prob_cutoff: float = None,
     ) -> np.ndarray:

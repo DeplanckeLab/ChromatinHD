@@ -1,17 +1,19 @@
-import chromatinhd as chd
+import itertools
+import pickle
+from typing import List, Optional
+
 import numpy as np
 import pandas as pd
-import xarray as xr
-import pickle
 import scipy.stats
 import tqdm.auto as tqdm
-import numpy as np
-import itertools
+import xarray as xr
+
+import chromatinhd as chd
+from chromatinhd import default_device
+from chromatinhd.data.folds import Folds
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.transcriptome import Transcriptome
 from chromatinhd.models.pred.model.additive import Models
-from chromatinhd.data.folds import Folds
-from typing import List, Optional
 
 
 def zscore(x, dim=0):
@@ -50,7 +52,7 @@ class GenePairWindow(chd.flow.Flow):
         censorer,
         genes: Optional[List] = None,
         force=False,
-        device="cuda",
+        device=default_device,
     ):
         """
         Score the models

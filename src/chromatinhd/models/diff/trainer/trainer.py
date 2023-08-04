@@ -2,6 +2,7 @@ import tqdm.auto as tqdm
 import torch
 import numpy as np
 from chromatinhd.train import Trace
+from chromatinhd import default_device
 
 import logging
 
@@ -20,7 +21,7 @@ class Trainer:
         optim,
         hooks_checkpoint=None,
         hooks_checkpoint2=None,
-        device="cuda",
+        device=default_device,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=1,
