@@ -7,7 +7,6 @@ from chromatinhd import default_device
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class Trainer:

@@ -8,7 +8,6 @@ from chromatinhd import default_device
 from chromatinhd.train import Trace
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 def paircor(x, y, dim=0, eps=0.1):
