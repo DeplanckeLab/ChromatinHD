@@ -20,6 +20,12 @@ jobs:
           cache: 'pip'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
       - run: pip install torch # because torch_scatter contains import torch in the setup.py, we have to install torch first
-      - run: pip install -e .[dev]
-      - run: pytest
+      - name: regular install
+        run: pip install .
+      - name: attempt import
+        run: python -c "import chromatinhd"
+      - name: test install
+        run: pip install -e .[dev]
+      - name: test
+        run: pytest
       # - run: mkdocs gh-deploy --force
