@@ -1,5 +1,5 @@
 [build-system]
-requires = [ "setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = [ "setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2", "Cython", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools-git-versioning]
@@ -23,7 +23,6 @@ dependencies = [
     "matplotlib",
     "numpy",
     "seaborn",
-    "Cython",
     "fisher",
     "diskcache",
     "appdirs",
@@ -55,10 +54,12 @@ dev = [
     "mkdocstrings[python]",
     "mkdocs-jupyter",
     "mike",
+    "requests",
     "cairosvg",  # for mkdocs social
     "pillow",  # for mkdocs social
-    "setuptools_scm"
+    "setuptools_scm",
     # "faiss-cpu",
+    "Cython",
 ]
 
 [tool.setuptools_scm]
@@ -66,4 +67,13 @@ dev = [
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore",
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 120
+disable = [
+    "too-many-arguments",
+    "not-callable",
+    "redefined-builtin",
+    "redefined-outer-name",
 ]
