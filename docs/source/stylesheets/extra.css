@@ -50,3 +50,27 @@ clipboard-copy:hover {
 .jupyter-wrapper .celltoolbar {
     display: none !important;
 }
+
+/* nav bar */
+.md-tabs__item {
+    height: inherit;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.md-tabs__item>a {
+    padding-top: 0.8em;
+    padding-bottom: 0.8em;
+    padding-left: 0.8em;
+    padding-right: 0.8em;
+    margin-top: 0;
+    transition: 0.1s;
+}
+
+.md-tabs__item>a:hover {
+    background-color: #EEE;
+}
+
+.md-tabs__link--active {
+    background-color: #F8F8F8;
+}
