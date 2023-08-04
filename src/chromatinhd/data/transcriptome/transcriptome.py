@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 import pickle
+import pathlib
+import scanpy as sc
+from typing import Union
 
 from chromatinhd.flow import Flow, Stored, StoredDict, TSV
 from chromatinhd import sparse
@@ -14,34 +17,6 @@ class Transcriptome(Flow):
 
     var = TSV("var", index_name="gene")
     obs = TSV("obs", index_name="gene")
-
-    # _var = None
-
-    # @property
-    # def var(self):
-    #     if self._var is None:
-    #         self._var = pd.read_table(self.path / "var.tsv", index_col=0)
-    #     return self._var
-
-    # @var.setter
-    # def var(self, value):
-    #     value.index.name = "gene"
-    #     value.to_csv(self.path / "var.tsv", sep="\t")
-    #     self._var = value
-
-    # _obs = None
-
-    # @property
-    # def obs(self):
-    #     if self._obs is None:
-    #         self._obs = pd.read_table(self.path / "obs.tsv", index_col=0)
-    #     return self._obs
-
-    # @obs.setter
-    # def obs(self, value):
-    #     value.index.name = "cell"
-    #     value.to_csv(self.path / "obs.tsv", sep="\t")
-    #     self._obs = value
 
     adata = Stored("adata")
     "Anndata object containing the transcriptome data."
@@ -89,9 +64,15 @@ class Transcriptome(Flow):
     "Raw counts for each gene in each cell."
 
     @classmethod
-    def from_adata(cls, adata, path):
+    def from_adata(cls, adata: sc.AnnData, path: Union[pathlib.Path, str]):
         """
         Create a Transcriptome object from an AnnData object.
+
+        Parameters:
+            adata:
+                Anndata object containing the transcriptome data.
+            path:
+                Folder in which the transcriptome data will be stored.
         """
         transcriptome = cls(path=path)
         transcriptome.adata = adata

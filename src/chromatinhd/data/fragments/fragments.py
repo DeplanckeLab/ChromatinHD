@@ -134,7 +134,7 @@ class Fragments(Flow):
         obs: pd.DataFrame,
         path: Union[pathlib.Path, str],
         cell_column: str = None,
-        overwrite=True,
+        overwrite: bool = True,
     ):
         """
         Create a Fragments object from a fragments tsv file

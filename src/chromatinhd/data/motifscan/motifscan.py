@@ -52,32 +52,18 @@ class Motifscan(Flow):
     motifs = StoredDataFrame("motifs")
     "Dataframe storing auxilliary information for each motif"
 
-    # _motifs = None
-
-    # @property
-    # def motifs(self):
-    #     if self._motifs is None:
-    #         self._motifs = pd.read_pickle(self.path / "motifs.pkl")
-    #     return self._motifs
-
-    # @motifs.setter
-    # def motifs(self, value):
-    #     value.index.name = "gene"
-    #     value.to_pickle(self.path / "motifs.pkl")
-    #     self._motifs = value
-
     @classmethod
     def from_pwms(
         cls,
-        pwms,
+        pwms: dict,
         regions: Regions,
         fasta_file: Union[str, pathlib.Path],
-        path,
-        cutoffs=None,
-        cutoff_col=None,
-        motifs=None,
+        path: Union[str, pathlib.Path],
+        cutoffs: Union[int, float, pd.Series] = None,
+        cutoff_col: str = None,
+        motifs: pd.DataFrame = None,
         device=default_device,
-        batch_size=5000000,
+        batch_size: int = 5000000,
     ):
         """
         Create a motifscan object from a set of pwms and a set of regions
