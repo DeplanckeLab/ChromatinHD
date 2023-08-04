@@ -1,6 +1,6 @@
 python -m setuptools_git_versioning
 
-version="0.0.19"
+version="0.0.20"
 
 git add .
 git commit -m "version v${version}"
@@ -16,3 +16,5 @@ git push --tags
 gh release create v${version} -t "v${version}" -n "v${version}" dist/chromatinhd-${version}.tar.gz
 
 twine upload dist/chromatinhd-${version}.tar.gz --verbose
+
+python -m build --wheel

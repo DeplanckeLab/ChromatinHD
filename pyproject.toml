@@ -1,5 +1,5 @@
 [build-system]
-requires = [ "setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2", "numpy"]
+requires = ["setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools-git-versioning]
@@ -28,6 +28,7 @@ dependencies = [
     "appdirs",
     "xarray",
     "pysam",
+    "requests",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
@@ -54,7 +55,6 @@ dev = [
     "mkdocstrings[python]",
     "mkdocs-jupyter",
     "mike",
-    "requests",
     "cairosvg",  # for mkdocs social
     "pillow",  # for mkdocs social
     "setuptools_scm",
