@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://deplanckelab.github.io/ChromatinHD/reference/data/transcriptome/">
+        <link rel="canonical" href="https://chromatinhd.eu/reference/data/transcriptome/">
       
       
         <link rel="prev" href="../regions/">
       
       
-        <link rel="next" href="../../models/pred/plot/">
+        <link rel="next" href="../../models/pred/interpret/">
       
       <link rel="icon" href="../../../static/favicon.png">
       <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
@@ -75,7 +75,7 @@
       
         <meta  property="og:description"  content="None" >
       
-        <meta  property="og:image"  content="https://deplanckelab.github.io/ChromatinHD/assets/images/social/reference/data/transcriptome.png" >
+        <meta  property="og:image"  content="https://chromatinhd.eu/assets/images/social/reference/data/transcriptome.png" >
       
         <meta  property="og:image:type"  content="image/png" >
       
@@ -83,7 +83,7 @@
       
         <meta  property="og:image:height"  content="630" >
       
-        <meta  property="og:url"  content="https://deplanckelab.github.io/ChromatinHD/reference/data/transcriptome/" >
+        <meta  property="og:url"  content="https://chromatinhd.eu/reference/data/transcriptome/" >
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
@@ -91,7 +91,7 @@
       
         <meta  name="twitter:description"  content="None" >
       
-        <meta  name="twitter:image"  content="https://deplanckelab.github.io/ChromatinHD/assets/images/social/reference/data/transcriptome.png" >
+        <meta  name="twitter:image"  content="https://chromatinhd.eu/assets/images/social/reference/data/transcriptome.png" >
       
     
     
@@ -521,6 +521,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../folds/" class="md-nav__link">
+        Folds
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../fragments/" class="md-nav__link">
         Fragments
       </a>
@@ -730,6 +744,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/pred/interpret/" class="md-nav__link">
+        Interpret
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/pred/model/" class="md-nav__link">
+        Model
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/pred/plot/" class="md-nav__link">
         Plot
       </a>
@@ -885,135 +927,85 @@
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/data/transcriptome/transcriptome.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 10</span>
-<span class="normal"> 11</span>
-<span class="normal"> 12</span>
-<span class="normal"> 13</span>
-<span class="normal"> 14</span>
-<span class="normal"> 15</span>
-<span class="normal"> 16</span>
-<span class="normal"> 17</span>
-<span class="normal"> 18</span>
-<span class="normal"> 19</span>
-<span class="normal"> 20</span>
-<span class="normal"> 21</span>
-<span class="normal"> 22</span>
-<span class="normal"> 23</span>
-<span class="normal"> 24</span>
-<span class="normal"> 25</span>
-<span class="normal"> 26</span>
-<span class="normal"> 27</span>
-<span class="normal"> 28</span>
-<span class="normal"> 29</span>
-<span class="normal"> 30</span>
-<span class="normal"> 31</span>
-<span class="normal"> 32</span>
-<span class="normal"> 33</span>
-<span class="normal"> 34</span>
-<span class="normal"> 35</span>
-<span class="normal"> 36</span>
-<span class="normal"> 37</span>
-<span class="normal"> 38</span>
-<span class="normal"> 39</span>
-<span class="normal"> 40</span>
-<span class="normal"> 41</span>
-<span class="normal"> 42</span>
-<span class="normal"> 43</span>
-<span class="normal"> 44</span>
-<span class="normal"> 45</span>
-<span class="normal"> 46</span>
-<span class="normal"> 47</span>
-<span class="normal"> 48</span>
-<span class="normal"> 49</span>
-<span class="normal"> 50</span>
-<span class="normal"> 51</span>
-<span class="normal"> 52</span>
-<span class="normal"> 53</span>
-<span class="normal"> 54</span>
-<span class="normal"> 55</span>
-<span class="normal"> 56</span>
-<span class="normal"> 57</span>
-<span class="normal"> 58</span>
-<span class="normal"> 59</span>
-<span class="normal"> 60</span>
-<span class="normal"> 61</span>
-<span class="normal"> 62</span>
-<span class="normal"> 63</span>
-<span class="normal"> 64</span>
-<span class="normal"> 65</span>
-<span class="normal"> 66</span>
-<span class="normal"> 67</span>
-<span class="normal"> 68</span>
-<span class="normal"> 69</span>
-<span class="normal"> 70</span>
-<span class="normal"> 71</span>
-<span class="normal"> 72</span>
-<span class="normal"> 73</span>
-<span class="normal"> 74</span>
-<span class="normal"> 75</span>
-<span class="normal"> 76</span>
-<span class="normal"> 77</span>
-<span class="normal"> 78</span>
-<span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
-<span class="normal"> 85</span>
-<span class="normal"> 86</span>
-<span class="normal"> 87</span>
-<span class="normal"> 88</span>
-<span class="normal"> 89</span>
-<span class="normal"> 90</span>
-<span class="normal"> 91</span>
-<span class="normal"> 92</span>
-<span class="normal"> 93</span>
-<span class="normal"> 94</span>
-<span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span>
-<span class="normal">102</span>
-<span class="normal">103</span>
-<span class="normal">104</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Transcriptome</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Transcriptome</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A transcriptome containing counts for each gene in each cell.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">var</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s2">&quot;var&quot;</span><span class="p">,</span> <span class="n">index_name</span><span class="o">=</span><span class="s2">&quot;gene&quot;</span><span class="p">)</span>
     <span class="n">obs</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s2">&quot;obs&quot;</span><span class="p">,</span> <span class="n">index_name</span><span class="o">=</span><span class="s2">&quot;gene&quot;</span><span class="p">)</span>
-
-    <span class="c1"># _var = None</span>
-
-    <span class="c1"># @property</span>
-    <span class="c1"># def var(self):</span>
-    <span class="c1">#     if self._var is None:</span>
-    <span class="c1">#         self._var = pd.read_table(self.path / &quot;var.tsv&quot;, index_col=0)</span>
-    <span class="c1">#     return self._var</span>
-
-    <span class="c1"># @var.setter</span>
-    <span class="c1"># def var(self, value):</span>
-    <span class="c1">#     value.index.name = &quot;gene&quot;</span>
-    <span class="c1">#     value.to_csv(self.path / &quot;var.tsv&quot;, sep=&quot;\t&quot;)</span>
-    <span class="c1">#     self._var = value</span>
-
-    <span class="c1"># _obs = None</span>
-
-    <span class="c1"># @property</span>
-    <span class="c1"># def obs(self):</span>
-    <span class="c1">#     if self._obs is None:</span>
-    <span class="c1">#         self._obs = pd.read_table(self.path / &quot;obs.tsv&quot;, index_col=0)</span>
-    <span class="c1">#     return self._obs</span>
-
-    <span class="c1"># @obs.setter</span>
-    <span class="c1"># def obs(self, value):</span>
-    <span class="c1">#     value.index.name = &quot;cell&quot;</span>
-    <span class="c1">#     value.to_csv(self.path / &quot;obs.tsv&quot;, sep=&quot;\t&quot;)</span>
-    <span class="c1">#     self._obs = value</span>
 
     <span class="n">adata</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">(</span><span class="s2">&quot;adata&quot;</span><span class="p">)</span>
     <span class="s2">&quot;Anndata object containing the transcriptome data.&quot;</span>
@@ -1061,9 +1053,15 @@
     <span class="s2">&quot;Raw counts for each gene in each cell.&quot;</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_adata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">adata</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">from_adata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">adata</span><span class="p">:</span> <span class="n">sc</span><span class="o">.</span><span class="n">AnnData</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a Transcriptome object from an AnnData object.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            adata:</span>
+<span class="sd">                Anndata object containing the transcriptome data.</span>
+<span class="sd">            path:</span>
+<span class="sd">                Folder in which the transcriptome data will be stored.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">transcriptome</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
         <span class="n">transcriptome</span><span class="o">.</span><span class="n">adata</span> <span class="o">=</span> <span class="n">adata</span>
@@ -1095,8 +1093,8 @@
 <code class="highlight language-python"><span class="n">X</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1117,8 +1115,8 @@
 <code class="highlight language-python"><span class="n">adata</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">(</span><span class="s1">&#39;adata&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1139,8 +1137,8 @@
 <code class="highlight language-python"><span class="n">layers</span> <span class="o">=</span> <span class="n">StoredDict</span><span class="p">(</span><span class="s1">&#39;layers&#39;</span><span class="p">,</span> <span class="n">Stored</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1173,22 +1171,76 @@
   
       <p>Create a Transcriptome object from an AnnData object.</p>
 
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>adata</code></td>
+          <td>
+                <code><span title="scanpy">sc</span>.<span title="scanpy.AnnData">AnnData</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Anndata object containing the transcriptome data.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>path</code></td>
+          <td>
+                <code><span title="typing.Union">Union</span>[pathlib.<span title="pathlib.Path">Path</span>, str]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Folder in which the transcriptome data will be stored.</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/transcriptome/transcriptome.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 91</span>
-<span class="normal"> 92</span>
-<span class="normal"> 93</span>
-<span class="normal"> 94</span>
-<span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
-<span class="k">def</span> <span class="nf">from_adata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">adata</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">from_adata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">adata</span><span class="p">:</span> <span class="n">sc</span><span class="o">.</span><span class="n">AnnData</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a Transcriptome object from an AnnData object.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        adata:</span>
+<span class="sd">            Anndata object containing the transcriptome data.</span>
+<span class="sd">        path:</span>
+<span class="sd">            Folder in which the transcriptome data will be stored.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">transcriptome</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
     <span class="n">transcriptome</span><span class="o">.</span><span class="n">adata</span> <span class="o">=</span> <span class="n">adata</span>
@@ -1218,14 +1270,14 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/transcriptome/transcriptome.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">49</span>
-<span class="normal">50</span>
-<span class="normal">51</span>
-<span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
-<span class="normal">56</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">gene_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="s2">&quot;symbol&quot;</span><span class="p">):</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">gene_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="s2">&quot;symbol&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the gene id for a given gene symbol.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1255,15 +1307,15 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/transcriptome/transcriptome.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span>
-<span class="normal">70</span>
-<span class="normal">71</span>
-<span class="normal">72</span>
-<span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">gene_ix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">):</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">gene_ix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the gene index for a given gene symbol.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1294,14 +1346,14 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/transcriptome/transcriptome.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
-<span class="normal">64</span>
-<span class="normal">65</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">symbol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene_id</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="s2">&quot;symbol&quot;</span><span class="p">):</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">symbol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene_id</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="s2">&quot;symbol&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the gene symbol for a given gene ID (e.g. Ensembl ID).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1361,13 +1413,13 @@
         
         
           
-          <a href="../../models/pred/plot/" class="md-footer__link md-footer__link--next" aria-label="Next: Plot" rel="next">
+          <a href="../../models/pred/interpret/" class="md-footer__link md-footer__link--next" aria-label="Next: Interpret" rel="next">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Plot
+                Interpret
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -8,7 +8,7 @@
       
       
       
-        <link rel="canonical" href="https://deplanckelab.github.io/ChromatinHD/reference/data/motifscan/">
+        <link rel="canonical" href="https://chromatinhd.eu/reference/data/motifscan/">
       
       
         <link rel="prev" href="../fragments/">
@@ -75,7 +75,7 @@
       
         <meta  property="og:description"  content="None" >
       
-        <meta  property="og:image"  content="https://deplanckelab.github.io/ChromatinHD/assets/images/social/reference/data/motifscan.png" >
+        <meta  property="og:image"  content="https://chromatinhd.eu/assets/images/social/reference/data/motifscan.png" >
       
         <meta  property="og:image:type"  content="image/png" >
       
@@ -83,7 +83,7 @@
       
         <meta  property="og:image:height"  content="630" >
       
-        <meta  property="og:url"  content="https://deplanckelab.github.io/ChromatinHD/reference/data/motifscan/" >
+        <meta  property="og:url"  content="https://chromatinhd.eu/reference/data/motifscan/" >
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
@@ -91,7 +91,7 @@
       
         <meta  name="twitter:description"  content="None" >
       
-        <meta  name="twitter:image"  content="https://deplanckelab.github.io/ChromatinHD/assets/images/social/reference/data/motifscan.png" >
+        <meta  name="twitter:image"  content="https://chromatinhd.eu/assets/images/social/reference/data/motifscan.png" >
       
     
     
@@ -521,6 +521,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../folds/" class="md-nav__link">
+        Folds
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../fragments/" class="md-nav__link">
         Fragments
       </a>
@@ -737,6 +751,34 @@
           Pred
         </label>
         <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/pred/interpret/" class="md-nav__link">
+        Interpret
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/pred/model/" class="md-nav__link">
+        Model
+      </a>
+    </li>
+  
+
+            
           
             
               
@@ -1101,21 +1143,7 @@
 <span class="normal">209</span>
 <span class="normal">210</span>
 <span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Motifscan</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+<span class="normal">212</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Motifscan</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A sprase representation of locations of different motifs in regions of the genome</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1146,32 +1174,18 @@
     <span class="n">motifs</span> <span class="o">=</span> <span class="n">StoredDataFrame</span><span class="p">(</span><span class="s2">&quot;motifs&quot;</span><span class="p">)</span>
     <span class="s2">&quot;Dataframe storing auxilliary information for each motif&quot;</span>
 
-    <span class="c1"># _motifs = None</span>
-
-    <span class="c1"># @property</span>
-    <span class="c1"># def motifs(self):</span>
-    <span class="c1">#     if self._motifs is None:</span>
-    <span class="c1">#         self._motifs = pd.read_pickle(self.path / &quot;motifs.pkl&quot;)</span>
-    <span class="c1">#     return self._motifs</span>
-
-    <span class="c1"># @motifs.setter</span>
-    <span class="c1"># def motifs(self, value):</span>
-    <span class="c1">#     value.index.name = &quot;gene&quot;</span>
-    <span class="c1">#     value.to_pickle(self.path / &quot;motifs.pkl&quot;)</span>
-    <span class="c1">#     self._motifs = value</span>
-
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_pwms</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span>
-        <span class="n">pwms</span><span class="p">,</span>
+        <span class="n">pwms</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
         <span class="n">regions</span><span class="p">:</span> <span class="n">Regions</span><span class="p">,</span>
         <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">],</span>
-        <span class="n">path</span><span class="p">,</span>
-        <span class="n">cutoffs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">cutoff_col</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">motifs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">],</span>
+        <span class="n">cutoffs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cutoff_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">motifs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">device</span><span class="o">=</span><span class="n">default_device</span><span class="p">,</span>
-        <span class="n">batch_size</span><span class="o">=</span><span class="mi">5000000</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000000</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a motifscan object from a set of pwms and a set of regions</span>
@@ -1339,8 +1353,8 @@
 <code class="highlight language-python"><span class="n">indices</span> <span class="o">=</span> <span class="n">CompressedNumpyInt64</span><span class="p">(</span><span class="s1">&#39;indices&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1361,8 +1375,8 @@
 <code class="highlight language-python"><span class="n">indptr</span> <span class="o">=</span> <span class="n">CompressedNumpyInt64</span><span class="p">(</span><span class="s1">&#39;indptr&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1383,8 +1397,8 @@
 <code class="highlight language-python"><span class="n">motifs</span> <span class="o">=</span> <span class="n">StoredDataFrame</span><span class="p">(</span><span class="s1">&#39;motifs&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1405,8 +1419,8 @@
 <code class="highlight language-python"><span class="n">n_motifs</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">(</span><span class="s1">&#39;n_motifs&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1427,8 +1441,8 @@
 <code class="highlight language-python"><span class="n">position</span> <span class="o">=</span> <span class="n">CompressedNumpyInt64</span><span class="p">(</span><span class="s1">&#39;position&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1449,8 +1463,8 @@
 <code class="highlight language-python"><span class="n">regions</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s1">&#39;regions&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1471,8 +1485,8 @@
 <code class="highlight language-python"><span class="n">scores</span> <span class="o">=</span> <span class="n">CompressedNumpyFloat64</span><span class="p">(</span><span class="s1">&#39;scores&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1493,8 +1507,8 @@
 <code class="highlight language-python"><span class="n">strands</span> <span class="o">=</span> <span class="n">CompressedNumpyFloat64</span><span class="p">(</span><span class="s1">&#39;strands&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1541,6 +1555,7 @@
         <tr>
           <td><code>pwms</code></td>
           <td>
+                <code>dict</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1582,6 +1597,7 @@
         <tr>
           <td><code>motifs</code></td>
           <td>
+                <code><span title="pandas">pd</span>.<span title="pandas.DataFrame">DataFrame</span></code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1595,6 +1611,7 @@
         <tr>
           <td><code>path</code></td>
           <td>
+                <code><span title="typing.Union">Union</span>[str, pathlib.<span title="pathlib.Path">Path</span>]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1608,6 +1625,7 @@
         <tr>
           <td><code>cutoffs</code></td>
           <td>
+                <code><span title="typing.Union">Union</span>[int, float, <span title="pandas">pd</span>.<span title="pandas.Series">Series</span>]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1621,6 +1639,7 @@
         <tr>
           <td><code>cutoff_col</code></td>
           <td>
+                <code>str</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1647,6 +1666,7 @@
         <tr>
           <td><code>batch_size</code></td>
           <td>
+                <code>int</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1662,7 +1682,21 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/motifscan/motifscan.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 69</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 55</span>
+<span class="normal"> 56</span>
+<span class="normal"> 57</span>
+<span class="normal"> 58</span>
+<span class="normal"> 59</span>
+<span class="normal"> 60</span>
+<span class="normal"> 61</span>
+<span class="normal"> 62</span>
+<span class="normal"> 63</span>
+<span class="normal"> 64</span>
+<span class="normal"> 65</span>
+<span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
 <span class="normal"> 70</span>
 <span class="normal"> 71</span>
 <span class="normal"> 72</span>
@@ -1805,32 +1839,18 @@
 <span class="normal">209</span>
 <span class="normal">210</span>
 <span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">212</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">from_pwms</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
-    <span class="n">pwms</span><span class="p">,</span>
+    <span class="n">pwms</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
     <span class="n">regions</span><span class="p">:</span> <span class="n">Regions</span><span class="p">,</span>
     <span class="n">fasta_file</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">],</span>
-    <span class="n">path</span><span class="p">,</span>
-    <span class="n">cutoffs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">cutoff_col</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">motifs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">],</span>
+    <span class="n">cutoffs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cutoff_col</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">motifs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">device</span><span class="o">=</span><span class="n">default_device</span><span class="p">,</span>
-    <span class="n">batch_size</span><span class="o">=</span><span class="mi">5000000</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000000</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a motifscan object from a set of pwms and a set of regions</span>

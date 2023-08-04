@@ -8,10 +8,10 @@
       
       
       
-        <link rel="canonical" href="https://deplanckelab.github.io/ChromatinHD/reference/data/fragments/">
+        <link rel="canonical" href="https://chromatinhd.eu/reference/data/fragments/">
       
       
-        <link rel="prev" href="../clustering/">
+        <link rel="prev" href="../folds/">
       
       
         <link rel="next" href="../motifscan/">
@@ -75,7 +75,7 @@
       
         <meta  property="og:description"  content="None" >
       
-        <meta  property="og:image"  content="https://deplanckelab.github.io/ChromatinHD/assets/images/social/reference/data/fragments.png" >
+        <meta  property="og:image"  content="https://chromatinhd.eu/assets/images/social/reference/data/fragments.png" >
       
         <meta  property="og:image:type"  content="image/png" >
       
@@ -83,7 +83,7 @@
       
         <meta  property="og:image:height"  content="630" >
       
-        <meta  property="og:url"  content="https://deplanckelab.github.io/ChromatinHD/reference/data/fragments/" >
+        <meta  property="og:url"  content="https://chromatinhd.eu/reference/data/fragments/" >
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
@@ -91,7 +91,7 @@
       
         <meta  name="twitter:description"  content="None" >
       
-        <meta  name="twitter:image"  content="https://deplanckelab.github.io/ChromatinHD/assets/images/social/reference/data/fragments.png" >
+        <meta  name="twitter:image"  content="https://chromatinhd.eu/assets/images/social/reference/data/fragments.png" >
       
     
     
@@ -519,6 +519,20 @@
               
   
   
+  
+    <li class="md-nav__item">
+      <a href="../folds/" class="md-nav__link">
+        Folds
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
     
   
   
@@ -723,6 +737,34 @@
           Pred
         </label>
         <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/pred/interpret/" class="md-nav__link">
+        Interpret
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/pred/model/" class="md-nav__link">
+        Model
+      </a>
+    </li>
+  
+
+            
           
             
               
@@ -1205,7 +1247,7 @@
         <span class="n">obs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
         <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">cell_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a Fragments object from a fragments tsv file</span>
@@ -1325,8 +1367,8 @@
 <code class="highlight language-python"><span class="n">cellxgene_indptr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s1">&#39;cellxgene_indptr&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1347,8 +1389,8 @@
 <code class="highlight language-python"><span class="n">coordinates</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s1">&#39;coordinates&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1369,8 +1411,8 @@
 <code class="highlight language-python"><span class="n">mapping</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="n">StoredTorchInt64</span><span class="p">(</span><span class="s1">&#39;mapping&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1391,8 +1433,8 @@
 <code class="highlight language-python"><span class="n">obs</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s1">&#39;obs&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1413,8 +1455,8 @@
 <code class="highlight language-python"><span class="n">regions</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">Linked</span><span class="p">(</span><span class="s1">&#39;regions&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1435,8 +1477,8 @@
 <code class="highlight language-python"><span class="n">var</span> <span class="o">=</span> <span class="n">TSV</span><span class="p">(</span><span class="s1">&#39;var&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
   </span>
 
 </h3>
@@ -1683,7 +1725,7 @@
     <span class="n">obs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
     <span class="n">cell_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a Fragments object from a fragments tsv file</span>
@@ -1818,7 +1860,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../clustering/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Clustering" rel="prev">
+          <a href="../folds/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Folds" rel="prev">
             <div class="md-footer__button md-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
             </div>
@@ -1827,7 +1869,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Clustering
+                Folds
               </div>
             </div>
           </a>
