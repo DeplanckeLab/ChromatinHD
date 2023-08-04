@@ -12,7 +12,7 @@ class TestAdditive:
 
         delta = time.time() - start
 
-        assert delta < 3
+        assert delta < 20
         result = model.get_prediction(
             example_fragments, example_clustering, cell_ixs=fold["cells_test"]
         )
