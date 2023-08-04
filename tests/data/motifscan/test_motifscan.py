@@ -1,20 +1,9 @@
-# %% tags=["hide_code"]
-# autoreload
-import IPython
-
-if IPython.get_ipython() is not None:
-    IPython.get_ipython().run_line_magic("load_ext", "autoreload")
-    IPython.get_ipython().run_line_magic("autoreload", "2")
-
-# %%
-import tempfile
 import pandas as pd
 import chromatinhd as chd
 import numpy as np
 import torch
 
 
-# %%
 def test_digitize_sequence():
     assert (
         chd.data.motifscan.motifscan.digitize_sequence("ACGTN")
@@ -22,7 +11,6 @@ def test_digitize_sequence():
     ).all()
 
 
-# %%
 def test_create_onehot():
     assert (
         chd.data.motifscan.motifscan.create_onehot(
@@ -34,7 +22,6 @@ def test_create_onehot():
     ).all()
 
 
-# %%
 def test_scan():
     pwm = torch.tensor(
         [
