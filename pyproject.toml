@@ -48,8 +48,6 @@ dev = [
     "black",
     "pylint",
     "jupytext",
-    "pytest",
-    "statsmodels",
     "mkdocs",
     "mkdocs-material",
     "mkdocstrings[python]",
@@ -60,6 +58,9 @@ dev = [
     "setuptools_scm",
     # "faiss-cpu",
     "Cython",
+]
+test = [
+    "pytest",
 ]
 
 [tool.setuptools_scm]

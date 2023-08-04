@@ -25,7 +25,7 @@ jobs:
       - name: attempt import
         run: python -c "import chromatinhd"
       - name: test install
-        run: pip install -e .[dev]
+        run: pip install -e .[test]
       - name: test
         run: pytest
       # - run: mkdocs gh-deploy --force
