@@ -24,21 +24,6 @@
 }
 
 /* attributes, functions, ... */
-/* .doc-attribute>h3::before {
-    content: "A";
-    font-size: 0.6em;
-    padding: 0.1em;
-    color: coral;
-    background-color: rgb(251, 220, 220);
-}
-
-.doc-function>h3::before {
-    content: "F";
-    font-size: 0.6em;
-    padding: 0.1em;
-    color: green;
-    background-color: rgb(220, 251, 220);
-} */
 
 .doc-attribute-tag {
     font-size: 0.6em;
@@ -63,4 +48,13 @@
     padding: 0.1em;
     color: red;
     background-color: rgb(251, 220, 220);
+}
+
+/* bold name of attribute, function, ... */
+.doc-attribute code:first-child {
+    font-weight: bold;
+}
+
+.doc-function code:first-child {
+    font-weight: bold;
 }
