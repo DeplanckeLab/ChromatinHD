@@ -9,7 +9,7 @@ git tag -a v${version} -m "v${version}"
 
 python -m build
 
-twine upload --repository testpypi dist/chromatinhd-${version}.tar.gz --verbose
+# twine upload --repository testpypi dist/chromatinhd-${version}.tar.gz --verbose
 
 git push --tags
 

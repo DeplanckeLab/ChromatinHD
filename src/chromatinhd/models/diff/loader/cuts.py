@@ -13,6 +13,7 @@ except ImportError:
         reload_support=True,
         language_level=3,
         setup_args=dict(include_dirs=[np.get_include()]),
+        build_in_temp=False,
     )
 
 import dataclasses
