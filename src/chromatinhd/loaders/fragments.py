@@ -1,15 +1,18 @@
 import torch
 import numpy as np
-import pyximport
 from typing import List
+
+import pyximport
 
 pyximport.install(
     reload_support=True,
     language_level=3,
     setup_args=dict(include_dirs=[np.get_include()]),
 )
-import chromatinhd.data.fragments
 import chromatinhd.loaders.extraction.fragments
+
+import chromatinhd.data.fragments
+
 import dataclasses
 from functools import cached_property
 

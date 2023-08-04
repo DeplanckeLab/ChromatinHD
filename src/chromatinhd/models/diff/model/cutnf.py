@@ -22,8 +22,6 @@ from chromatinhd.data.clustering import Clustering
 from chromatinhd.utils import crossing
 from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
-from chromatinhd import default_device
-
 
 class Decoder(torch.nn.Module):
     def __init__(

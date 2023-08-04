@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pickle
 import pathlib
-import scanpy as sc
 from typing import Union
 
 from chromatinhd.flow import Flow, Stored, StoredDict, TSV
@@ -64,7 +63,7 @@ class Transcriptome(Flow):
     "Raw counts for each gene in each cell."
 
     @classmethod
-    def from_adata(cls, adata: sc.AnnData, path: Union[pathlib.Path, str]):
+    def from_adata(cls, adata, path: Union[pathlib.Path, str]):
         """
         Create a Transcriptome object from an AnnData object.
 

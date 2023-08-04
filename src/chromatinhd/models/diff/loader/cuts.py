@@ -1,13 +1,20 @@
 import torch
 import numpy as np
-import pyximport
 
-pyximport.install(
-    reload_support=True,
-    language_level=3,
-    setup_args=dict(include_dirs=[np.get_include()]),
-)
-from . import fragments_helpers  # pylint: disable=C0413,E0611
+# try to load the shared library
+# typically, this will be installed as a python extension
+try:
+    from . import fragments_helpers  # pylint: disable=C0413,E0611
+# however, during developement, we want to load the cython source directly
+except ImportError:
+    import pyximport
+
+    pyximport.install(
+        reload_support=True,
+        language_level=3,
+        setup_args=dict(include_dirs=[np.get_include()]),
+    )
+
 import dataclasses
 
 import chromatinhd.data.fragments

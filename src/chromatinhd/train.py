@@ -1,7 +1,6 @@
 import tqdm.auto as tqdm
 import torch
 import pandas as pd
-from chromatinhd.utils.ansi import colorcodes
 
 
 class Trace:
@@ -61,7 +60,7 @@ class Trace:
             perc_diff_loss = diff_loss / current_loss
 
             logger.info(
-                f"{'train':>10} {current_loss:+.2f} Δ{colorcodes.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}"
+                f"{'train':>10} {current_loss:+.2f} Δ{diff_loss, '{:+.3f}'} {perc_diff_loss:+.2%}"
             )
         self.n_last_train_steps = self.n_current_train_steps
         self.n_current_train_steps = 0
@@ -99,7 +98,7 @@ class Trace:
                 perc_diff_loss = diff_loss / current_loss
 
                 logger.info(
-                    f"{'validation':>10} {current_loss:+.2f} Δ{colorcodes.color_sign(diff_loss, '{:+.3f}')} {perc_diff_loss:+.2%}"
+                    f"{'validation':>10} {current_loss:+.2f} Δ{diff_loss, '{:+.3f}'} {perc_diff_loss:+.2%}"
                 )
             else:
                 logger.info(f"{'validation':>10} {current_loss:+.2f}")

@@ -7,7 +7,6 @@ from . import grid
 from . import plot
 from . import data
 from . import train
-from . import loaders
 from . import embedding
 from . import optim
 from . import biomart
@@ -25,8 +24,6 @@ __all__ = [
     "flow",
     "data",
     "train",
-    "loaders",
-    "loss",
     "embedding",
     "optim",
     "grid",

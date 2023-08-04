@@ -3,7 +3,6 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import chromatinhd
-import scanpy as sc
 
 
 def get_cmap_rna_diff():
@@ -85,6 +84,8 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
     def from_transcriptome(
         cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, **kwargs
     ):
+        import scanpy as sc
+
         transcriptome.adata.obs["cluster"] = clustering.labels
         plotdata_expression = sc.get.obs_df(
             transcriptome.adata, [gene, "cluster"]

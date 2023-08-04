@@ -5,7 +5,6 @@ import pandas as pd
 
 from .torch import interpolate_1d
 from .numpy import indices_to_indptr, indptr_to_indices
-from .ansi import colorcodes
 from .testing import repeated_kfold_corrected_t_test
 from . import ecdf
 
@@ -18,7 +17,6 @@ __all__ = [
     "interpolate_1d",
     "indices_to_indptr",
     "indptr_to_indices",
-    "colorcodes",
     "repeated_kfold_corrected_t_test",
     "ecdf",
 ]

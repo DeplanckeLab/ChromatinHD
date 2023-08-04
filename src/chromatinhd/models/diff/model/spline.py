@@ -19,7 +19,7 @@ class TransformedDistribution(torch.nn.Module):
         log_prob = log_prob + logabsdet
         return log_prob
 
-    def sample(self, sample_shape=torch.Size(), *args, device=None, **kwargs):
+    def sample(self, *args, sample_shape=torch.Size(), device=None, **kwargs):
         y = torch.rand(sample_shape, device=device)
         y, _ = self.transform.transform_inverse(y, *args, **kwargs)
         return y
@@ -29,6 +29,9 @@ class TransformedDistribution(torch.nn.Module):
 
     def parameters_dense(self):
         return self.transform.parameters_dense()
+
+    def forward(self, input):
+        pass
 
 
 class QuadraticSplineTransform(torch.nn.Module):

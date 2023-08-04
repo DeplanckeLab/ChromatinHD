@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+
 import pyximport
 
 pyximport.install(
@@ -81,7 +82,7 @@ class Full(Fragments):
             self.out_motif_ix.numpy(),
             self.out_score.numpy(),
             self.out_distance.numpy(),
-            self.out_motifcounts.numpy()
+            self.out_motifcounts.numpy(),
         )
         self.out_fragment_indptr.resize_(n_fragments + 1)
         self.out_motif_ix.resize_(n_motifs)
@@ -93,7 +94,7 @@ class Full(Fragments):
             motifcounts=self.out_motifcounts,
             local_cellxgene_ix=self.out_local_cellxgene_ix,
             n_fragments=n_fragments,
-            **minibatch.items()
+            **minibatch.items(),
         )
 
 
@@ -136,7 +137,7 @@ class Motifcounts(Fragments):
             *self.window,
             self.window_width,
             *self.cutwindow,
-            out_motifcounts
+            out_motifcounts,
         )
         out_motifcounts.resize((n_fragments, self.n_features))
 
@@ -146,7 +147,7 @@ class Motifcounts(Fragments):
             coordinates=self.out_coordinates,
             genemapping=self.out_genemapping,
             n_fragments=n_fragments,
-            **minibatch.items()
+            **minibatch.items(),
         )
 
 
@@ -185,7 +186,7 @@ class MotifcountsSplit(Fragments):
             *self.window,
             self.window_width,
             *self.cutwindow,
-            out_motifcounts
+            out_motifcounts,
         )
         out_motifcounts.resize((n_fragments, self.n_features))
 
@@ -195,7 +196,7 @@ class MotifcountsSplit(Fragments):
             coordinates=self.out_coordinates,
             genemapping=self.out_genemapping,
             n_fragments=n_fragments,
-            **minibatch.items()
+            **minibatch.items(),
         )
 
 
@@ -233,7 +234,7 @@ class MotifcountsMultiple(Fragments):
             *self.window,
             self.window_width,
             self.cutwindows,
-            out_motifcounts
+            out_motifcounts,
         )
         out_motifcounts.resize((n_fragments, self.n_features))
 
@@ -243,7 +244,7 @@ class MotifcountsMultiple(Fragments):
             coordinates=self.out_coordinates,
             genemapping=self.out_genemapping,
             n_fragments=n_fragments,
-            **minibatch.items()
+            **minibatch.items(),
         )
 
 
@@ -256,7 +257,7 @@ class MotifcountsRelative(Fragments):
         window,
         cutwindow,
         promoter_width,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(fragments, cellxgene_batch_size, window, **kwargs)
 
@@ -292,7 +293,7 @@ class MotifcountsRelative(Fragments):
             self.window_width,
             *self.cutwindow,
             self.promoter_width,
-            out_motifcounts
+            out_motifcounts,
         )
         out_motifcounts.resize((n_fragments, self.n_features))
 
@@ -302,5 +303,5 @@ class MotifcountsRelative(Fragments):
             coordinates=self.out_coordinates,
             genemapping=self.out_genemapping,
             n_fragments=n_fragments,
-            **minibatch.items()
+            **minibatch.items(),
         )

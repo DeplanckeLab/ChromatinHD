@@ -3,10 +3,12 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import pickle
-import scipy.stats
 import tqdm.auto as tqdm
 import torch
 from chromatinhd import default_device
+from chromatinhd.data.clustering import Clustering
+from chromatinhd.data.fragments import Fragments
+from chromatinhd.models.diff.model.cutnf import Models
 
 
 def fdr(p_vals):
@@ -20,18 +22,38 @@ def fdr(p_vals):
 
 
 class GenePositional(chd.flow.Flow):
+    """
+    Positional interpretation of *diff* models
+    """
+
     genes = chd.flow.Stored("genes", default=set)
 
     def score(
         self,
-        fragments,
-        clustering,
-        models,
-        folds,
+        fragments: Fragments,
+        clustering: Clustering,
+        models: Models,
         genes=None,
         force=False,
         device=default_device,
     ):
+        """
+        Main scoring function
+
+        Parameters:
+            fragments:
+                the fragments
+            clustering:
+                the clustering
+            models:
+                the models
+            genes:
+                the genes to score, if None, all genes are scored
+            force:
+                whether to force rescoring even if the scores already exist
+            device:
+                the device to use
+        """
         force_ = force
 
         if genes is None:
@@ -95,6 +117,7 @@ class GenePositional(chd.flow.Flow):
                             pseudocoordinates,
                             clustering=pseudocluster,
                             gene_ix=gene_ix,
+                            device=device,
                         )
 
                         probs_model.append(prob.numpy())

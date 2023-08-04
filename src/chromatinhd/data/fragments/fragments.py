@@ -105,18 +105,18 @@ class Fragments(Flow):
     def estimate_fragment_per_cellxgene(self):
         return math.ceil(self.coordinates.shape[0] / self.n_cells / self.n_genes * 2)
 
-    def create_cut_data(self):
-        cut_coordinates = self.coordinates.flatten()
-        cut_coordinates = (cut_coordinates - self.window[0]) / (
-            self.window[1] - self.window[0]
-        )
-        keep_cuts = (cut_coordinates >= 0) & (cut_coordinates <= 1)
-        cut_coordinates = cut_coordinates[keep_cuts]
+    # def create_cut_data(self):
+    #     cut_coordinates = self.coordinates.flatten()
+    #     cut_coordinates = (cut_coordinates - self.window[0]) / (
+    #         self.window[1] - self.window[0]
+    #     )
+    #     keep_cuts = (cut_coordinates >= 0) & (cut_coordinates <= 1)
+    #     cut_coordinates = cut_coordinates[keep_cuts]
 
-        self.cut_coordinates = cut_coordinates
+    #     self.cut_coordinates = cut_coordinates
 
-        self.cut_local_gene_ix = self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
-        self.cut_local_cell_ix = self.cellmapping.expand(2, -1).T.flatten()[keep_cuts]
+    #     self.cut_local_gene_ix = self.genemapping.expand(2, -1).T.flatten()[keep_cuts]
+    #     self.cut_local_cell_ix = self.cellmapping.expand(2, -1).T.flatten()[keep_cuts]
 
     @property
     def genes_oi_torch(self):
@@ -164,7 +164,7 @@ class Fragments(Flow):
             raise FileExistsError(f"Folder {path} already exists")
         path.mkdir(parents=True, exist_ok=True)
 
-        # region information
+        # regions information
         var = pd.DataFrame(index=regions.coordinates.index)
         var["ix"] = np.arange(var.shape[0])
 
@@ -183,7 +183,7 @@ class Fragments(Flow):
         coordinates_raw = []
         mapping_raw = []
 
-        for i, (gene, promoter_info) in tqdm.tqdm(
+        for _, (gene, promoter_info) in tqdm.tqdm(
             enumerate(regions.coordinates.iterrows()),
             total=regions.coordinates.shape[0],
             leave=False,

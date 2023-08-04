@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-import scanpy as sc
-
 import collections
 import subprocess as sp
 import tqdm.auto as tqdm
@@ -13,6 +11,8 @@ from chromatinhd.flow import Flow
 
 class PeakCounts(Flow):
     def create_adata(self, original_adata):
+        import scanpy as sc
+
         adata = sc.AnnData(self.counts, obs=self.obs, var=self.var)
         adata.obsm["X_umap"] = original_adata.obsm["X_umap"]
         self.adata = adata
