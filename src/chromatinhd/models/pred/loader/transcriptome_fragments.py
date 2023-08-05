@@ -25,7 +25,7 @@ class TranscriptomeFragments:
         fragments: chromatinhd.data.fragments.Fragments,
         transcriptome: chromatinhd.data.transcriptome.Transcriptome,
         cellxgene_batch_size: int,
-        layer: str = "X",
+        layer: str = None,
     ):
         # ensure that transcriptome and fragments have the same var
         if not all(transcriptome.var.index == fragments.var.index):
