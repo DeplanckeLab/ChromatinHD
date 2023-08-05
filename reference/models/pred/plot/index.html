@@ -295,7 +295,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href="../../../.." title="High-definition modeling of chromatin + transcriptomics data" class="md-nav__button md-logo" aria-label="High-definition modeling of chromatin + transcriptomics data" data-md-component="logo">
       
@@ -476,7 +478,9 @@
   
   
     
-    <li class="md-nav__item md-nav__item--nested">
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
       
       
@@ -596,7 +600,9 @@
   
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
       
       
@@ -866,103 +872,6 @@
               </div>
             
             
-              
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot" class="md-nav__link">
-    plot
-  </a>
-  
-    <nav class="md-nav" aria-label="plot">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot.Copredictivity" class="md-nav__link">
-    Copredictivity
-  </a>
-  
-    <nav class="md-nav" aria-label="Copredictivity">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot.copredictivity.Copredictivity.from_genepairwindow" class="md-nav__link">
-    from_genepairwindow()
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot.Pileup" class="md-nav__link">
-    Pileup
-  </a>
-  
-    <nav class="md-nav" aria-label="Pileup">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot.predictivity.Pileup.from_genemultiwindow" class="md-nav__link">
-    from_genemultiwindow()
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot.Predictivity" class="md-nav__link">
-    Predictivity
-  </a>
-  
-    <nav class="md-nav" aria-label="Predictivity">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.models.pred.plot.predictivity.Predictivity.from_genemultiwindow" class="md-nav__link">
-    from_genemultiwindow()
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-                  </div>
-                </div>
-              </div>
-            
           
           
             <div class="md-content" data-md-component="content">
@@ -1188,7 +1097,10 @@
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/models/pred/plot/predictivity.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">116</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
 <span class="normal">117</span>
 <span class="normal">118</span>
 <span class="normal">119</span>
@@ -1231,10 +1143,7 @@
 <span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Pileup</span><span class="p">(</span><span class="n">chromatinhd</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">Panel</span><span class="p">):</span>
+<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Pileup</span><span class="p">(</span><span class="n">chromatinhd</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">Panel</span><span class="p">):</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plotdata</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span>
 
@@ -1316,14 +1225,14 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/pred/plot/predictivity.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">155</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
 <span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">from_genemultiwindow</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">genemultiwindow</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot pileup of a specific gene using a GeneMultiWindow object</span>
@@ -1469,10 +1378,7 @@
 <span class="normal">107</span>
 <span class="normal">108</span>
 <span class="normal">109</span>
-<span class="normal">110</span>
-<span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Predictivity</span><span class="p">(</span><span class="n">chromatinhd</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">Panel</span><span class="p">):</span>
+<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Predictivity</span><span class="p">(</span><span class="n">chromatinhd</span><span class="o">.</span><span class="n">grid</span><span class="o">.</span><span class="n">Panel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot predictivity of a gene.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1557,8 +1463,7 @@
             <span class="n">ax2</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s2">&quot;tomato&quot;</span><span class="p">)</span>
             <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span>
                 <span class="mi">0</span><span class="p">,</span>
-                <span class="n">plotdata</span><span class="p">[</span><span class="s2">&quot;lost&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-                <span class="o">/</span> <span class="p">(</span><span class="n">plotdata</span><span class="p">[</span><span class="s2">&quot;deltacor&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">/</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()[</span><span class="mi">1</span><span class="p">]),</span>
+                <span class="n">plotdata</span><span class="p">[</span><span class="s2">&quot;lost&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">plotdata</span><span class="p">[</span><span class="s2">&quot;deltacor&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">/</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()[</span><span class="mi">1</span><span class="p">]),</span>
             <span class="p">)</span>
 
         <span class="c1"># change vertical alignment of last y tick to bottom</span>
@@ -1570,9 +1475,7 @@
         <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;#888888&quot;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">zorder</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dashes</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_genemultiwindow</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span> <span class="n">genemultiwindow</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">show_accessibility</span><span class="o">=</span><span class="kc">False</span>
-    <span class="p">):</span>
+    <span class="k">def</span> <span class="nf">from_genemultiwindow</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">genemultiwindow</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">show_accessibility</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot predictivity of a specific gene using a GeneMultiWindow object</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1614,19 +1517,15 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/pred/plot/predictivity.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">104</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">103</span>
+<span class="normal">104</span>
 <span class="normal">105</span>
 <span class="normal">106</span>
 <span class="normal">107</span>
 <span class="normal">108</span>
 <span class="normal">109</span>
-<span class="normal">110</span>
-<span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
-<span class="k">def</span> <span class="nf">from_genemultiwindow</span><span class="p">(</span>
-    <span class="bp">cls</span><span class="p">,</span> <span class="n">genemultiwindow</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">show_accessibility</span><span class="o">=</span><span class="kc">False</span>
-<span class="p">):</span>
+<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">from_genemultiwindow</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">genemultiwindow</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">show_accessibility</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plot predictivity of a specific gene using a GeneMultiWindow object</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1717,7 +1616,7 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../../..", "features": ["navigation.tracking", "navigation.tabs", "navigation.footer"], "search": "../../../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "../../../..", "features": ["navigation.tracking", "navigation.tabs", "navigation.footer", "navigation.sections", "toc.follow", "toc.integrate"], "search": "../../../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../../assets/javascripts/bundle.220ee61c.min.js"></script>

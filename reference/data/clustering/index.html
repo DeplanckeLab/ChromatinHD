@@ -297,7 +297,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href="../../.." title="High-definition modeling of chromatin + transcriptomics data" class="md-nav__button md-logo" aria-label="High-definition modeling of chromatin + transcriptomics data" data-md-component="logo">
       
@@ -480,7 +482,9 @@
   
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
       
       
@@ -655,7 +659,9 @@
   
   
     
-    <li class="md-nav__item md-nav__item--nested">
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
       
       
@@ -820,57 +826,6 @@
               </div>
             
             
-              
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#chromatinhd.data.clustering.Clustering" class="md-nav__link">
-    Clustering
-  </a>
-  
-    <nav class="md-nav" aria-label="Clustering">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.data.clustering.clustering.Clustering.cluster_info" class="md-nav__link">
-    cluster_info
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chromatinhd.data.clustering.clustering.Clustering.labels" class="md-nav__link">
-    labels
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-                  </div>
-                </div>
-              </div>
-            
           
           
             <div class="md-content" data-md-component="content">
@@ -932,7 +887,7 @@
 <span class="normal">32</span>
 <span class="normal">33</span>
 <span class="normal">34</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Clustering</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
-    <span class="n">labels</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">(</span><span class="s2">&quot;labels&quot;</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">()</span>
     <span class="s2">&quot;Labels for each cell.&quot;</span>
 
     <span class="n">cluster_info</span> <span class="o">=</span> <span class="n">StoredDataFrame</span><span class="p">(</span><span class="s2">&quot;cluster_info&quot;</span><span class="p">)</span>
@@ -1000,7 +955,7 @@
 
 
 <h3 id="chromatinhd.data.clustering.clustering.Clustering.labels" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">labels</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">(</span><span class="s1">&#39;labels&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">labels</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">()</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
@@ -1103,7 +1058,7 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.tracking", "navigation.tabs", "navigation.footer"], "search": "../../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.tracking", "navigation.tabs", "navigation.footer", "navigation.sections", "toc.follow", "toc.integrate"], "search": "../../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.220ee61c.min.js"></script>
