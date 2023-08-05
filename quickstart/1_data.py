@@ -51,9 +51,7 @@ for file in dataset_folder.iterdir():
 import pkg_resources
 import shutil
 
-DATA_PATH = pathlib.Path(
-    pkg_resources.resource_filename("chromatinhd", "data/examples/pbmc10ktiny/")
-)
+DATA_PATH = pathlib.Path(pkg_resources.resource_filename("chromatinhd", "data/examples/pbmc10ktiny/"))
 
 # # copy all files from data path to dataset folder
 for file in DATA_PATH.iterdir():
@@ -72,9 +70,7 @@ import scanpy as sc
 adata = sc.read(dataset_folder / "transcriptome.h5ad")
 
 # %%
-transcriptome = chd.data.Transcriptome.from_adata(
-    adata, path=dataset_folder / "transcriptome"
-)
+transcriptome = chd.data.Transcriptome.from_adata(adata, path=dataset_folder / "transcriptome")
 
 # %%
 # !ls {dataset_folder}/*
@@ -100,9 +96,7 @@ transcriptome = chd.data.Transcriptome.from_adata(
 # Although not needed for every model, for interpretation it can be helpful to store some clustering.
 
 # %%
-clustering = chd.data.Clustering.from_labels(
-    adata.obs["celltype"], path=dataset_folder / "clustering"
-)
+clustering = chd.data.Clustering.from_labels(adata.obs["celltype"], path=dataset_folder / "clustering")
 
 # %%
 # !ls {clustering.path}
@@ -118,15 +112,13 @@ clustering = chd.data.Clustering.from_labels(
 
 # %%
 biomart_dataset = chd.biomart.Dataset.from_genome("GRCh38")
-canonical_transcripts = chd.biomart.get_canonical_transcripts(
-    biomart_dataset, transcriptome.var.index
-)
+canonical_transcripts = chd.biomart.get_canonical_transcripts(biomart_dataset, transcriptome.var.index)
 
 # %% [markdown]
 # Now we can define the regions around the TSS. In this case we choose -10kb and +10kb around a TSS, although in real situations this will typically be much bigger (e.g. -100kb - +100kb)
 
 # %%
-regions = chd.data.Regions.from_canonical_transcripts(
+regions = chd.data.Regions.from_transcripts(
     canonical_transcripts,
     path=dataset_folder / "regions",
     window=[-10000, 10000],
@@ -189,9 +181,7 @@ fragments.create_cellxgene_indptr()
 # The final set of data are the training folds that will be used to train - and test - the model. For basic models this is simply done by randomly sampling cells.
 
 # %%
-folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(
-    fragments, 5, 1
-)
+folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(fragments, 5, 1)
 
 # %%
 

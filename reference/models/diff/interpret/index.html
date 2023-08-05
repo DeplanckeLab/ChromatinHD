@@ -14,7 +14,7 @@
         <link rel="prev" href="../../../data/transcriptome/">
       
       
-        <link rel="next" href="../../pred/interpret/">
+        <link rel="next" href="../model/">
       
       <link rel="icon" href="../../../../static/favicon.png">
       <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
@@ -714,6 +714,34 @@
 
             
           
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model/" class="md-nav__link">
+        Model
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plot/" class="md-nav__link">
+        Plot
+      </a>
+    </li>
+  
+
+            
+          
         </ul>
       </nav>
     </li>
@@ -890,6 +918,20 @@
     <li class="md-nav__item">
       <a href="../../../../benchmark/diff/models/" class="md-nav__link">
         Models
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../benchmark/diff/simulated/" class="md-nav__link">
+        Simulated
       </a>
     </li>
   
@@ -1114,7 +1156,10 @@
 <span class="normal">171</span>
 <span class="normal">172</span>
 <span class="normal">173</span>
-<span class="normal">174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">GenePositional</span><span class="p">(</span><span class="n">chd</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">Flow</span><span class="p">):</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">GenePositional</span><span class="p">(</span><span class="n">chd</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">Flow</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Positional interpretation of *diff* models</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1129,6 +1174,8 @@
         <span class="n">genes</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">25</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Main scoring function</span>
@@ -1174,11 +1221,12 @@
                     <span class="s2">&quot;category&quot;</span>
                 <span class="p">)</span>
                 <span class="n">design_clustering</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">clustering</span><span class="o">.</span><span class="n">cluster_info</span><span class="o">.</span><span class="n">index</span>
-                <span class="n">design_coord</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;coord&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">25</span><span class="p">)})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+                <span class="n">design_coord</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;coord&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">)})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+                    <span class="s2">&quot;category&quot;</span>
+                <span class="p">)</span>
                 <span class="n">design_coord</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">design_coord</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span>
                 <span class="n">design</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">crossing</span><span class="p">(</span><span class="n">design_gene</span><span class="p">,</span> <span class="n">design_clustering</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
 
-                <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">5000</span>
                 <span class="n">design</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
                 <span class="n">probs</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1346,10 +1394,7 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/interpret/genepositional.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
@@ -1381,7 +1426,10 @@
 <span class="normal">166</span>
 <span class="normal">167</span>
 <span class="normal">168</span>
-<span class="normal">169</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns average and differential probabilities for a particular gene.</span>
 
@@ -1428,7 +1476,7 @@
 
 
 <h3 id="chromatinhd.models.diff.interpret.genepositional.GenePositional.score" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">score</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">models</span><span class="p">,</span> <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">score</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">models</span><span class="p">,</span> <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1479,7 +1527,7 @@
         <tr>
           <td><code>models</code></td>
           <td>
-                <code><span title="chromatinhd.models.diff.model.cutnf.Models">Models</span></code>
+                <code><a class="autorefs autorefs-internal" title="chromatinhd.models.diff.model.cutnf.Models" href="../model/#chromatinhd.models.diff.model.cutnf.Models">Models</a></code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1638,7 +1686,10 @@
 <span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
-<span class="normal">132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">score</span><span class="p">(</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">score</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
@@ -1646,6 +1697,8 @@
     <span class="n">genes</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">25</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Main scoring function</span>
@@ -1691,11 +1744,12 @@
                 <span class="s2">&quot;category&quot;</span>
             <span class="p">)</span>
             <span class="n">design_clustering</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">clustering</span><span class="o">.</span><span class="n">cluster_info</span><span class="o">.</span><span class="n">index</span>
-            <span class="n">design_coord</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;coord&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">25</span><span class="p">)})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+            <span class="n">design_coord</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;coord&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">)})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+                <span class="s2">&quot;category&quot;</span>
+            <span class="p">)</span>
             <span class="n">design_coord</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">design_coord</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span>
             <span class="n">design</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">crossing</span><span class="p">(</span><span class="n">design_gene</span><span class="p">,</span> <span class="n">design_clustering</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
 
-            <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">5000</span>
             <span class="n">design</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
             <span class="n">probs</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1792,13 +1846,13 @@
         
         
           
-          <a href="../../pred/interpret/" class="md-footer__link md-footer__link--next" aria-label="Next: Interpret" rel="next">
+          <a href="../model/" class="md-footer__link md-footer__link--next" aria-label="Next: Model" rel="next">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Interpret
+                Model
               </div>
             </div>
             <div class="md-footer__button md-icon">

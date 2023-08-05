@@ -16,6 +16,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://chromatinhd.eu/benchmark/diff/simulated/</loc>
+         <lastmod>2023-08-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://chromatinhd.eu/benchmark/diff/timing/</loc>
          <lastmod>2023-08-05</lastmod>
          <changefreq>daily</changefreq>
@@ -77,6 +82,16 @@
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/diff/interpret/</loc>
+         <lastmod>2023-08-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://chromatinhd.eu/reference/models/diff/model/</loc>
+         <lastmod>2023-08-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://chromatinhd.eu/reference/models/diff/plot/</loc>
          <lastmod>2023-08-05</lastmod>
          <changefreq>daily</changefreq>
     </url>
