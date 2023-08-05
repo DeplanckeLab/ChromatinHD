@@ -377,7 +377,7 @@ class StoredDictInstance:
 
     def __setitem__(self, key, value):
         if key not in self.dict:
-            self.dict[key] = self.cls(key)
+            self.dict[key] = self.cls(name=key)
         self.dict[key].__set__(self, value)
 
     def items(self):

@@ -181,11 +181,11 @@ class Motifscan(Flow):
         indptr = ind2ptr(positions, region_size * len(region_coordinates))
 
         # store
-        self.positions = positions.numpy()
-        self.indptr = indptr.numpy()
-        self.indices = indices.numpy()
-        self.scores = scores.numpy()
-        self.strands = strands.numpy()
+        self.positions = positions.cpu().numpy()
+        self.indptr = indptr.cpu().numpy()
+        self.indices = indices.cpu().numpy()
+        self.scores = scores.cpu().numpy()
+        self.strands = strands.cpu().numpy()
         self.motifs = motifs
 
         return self
