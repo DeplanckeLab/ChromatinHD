@@ -888,8 +888,8 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../benchmark/diff/1-model/" class="md-nav__link">
-        1 model
+      <a href="../../../../benchmark/diff/models/" class="md-nav__link">
+        Models
       </a>
     </li>
   
@@ -1126,9 +1126,9 @@
         <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
         <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
         <span class="n">models</span><span class="p">:</span> <span class="n">Models</span><span class="p">,</span>
-        <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">genes</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Main scoring function</span>
@@ -1224,7 +1224,7 @@
 
                 <span class="bp">self</span><span class="o">.</span><span class="n">genes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">genes</span> <span class="o">|</span> <span class="p">{</span><span class="n">gene</span><span class="p">}</span>
 
-    <span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns average and differential probabilities for a particular gene.</span>
 
@@ -1261,7 +1261,7 @@
 
         <span class="k">return</span> <span class="n">plotdata</span><span class="p">,</span> <span class="n">plotdata_mean</span>
 
-    <span class="k">def</span> <span class="nf">get_scoring_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_scoring_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">path</span>
@@ -1308,6 +1308,7 @@
         <tr>
           <td><code>gene</code></td>
           <td>
+                <code>str</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1380,7 +1381,7 @@
 <span class="normal">166</span>
 <span class="normal">167</span>
 <span class="normal">168</span>
-<span class="normal">169</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="normal">169</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns average and differential probabilities for a particular gene.</span>
 
@@ -1492,6 +1493,7 @@
         <tr>
           <td><code>genes</code></td>
           <td>
+                <code>list</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1505,6 +1507,7 @@
         <tr>
           <td><code>force</code></td>
           <td>
+                <code>bool</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1518,6 +1521,7 @@
         <tr>
           <td><code>device</code></td>
           <td>
+                <code>str</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1639,9 +1643,9 @@
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
     <span class="n">models</span><span class="p">:</span> <span class="n">Models</span><span class="p">,</span>
-    <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">genes</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Main scoring function</span>
