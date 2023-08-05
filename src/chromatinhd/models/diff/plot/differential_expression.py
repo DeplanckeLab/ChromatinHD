@@ -76,11 +76,16 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
     @classmethod
     def from_transcriptome(cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, **kwargs):
-        import scanpy as sc
+        import pandas as pd
 
-        transcriptome.adata.obs["cluster"] = clustering.labels
-        plotdata_expression = sc.get.obs_df(transcriptome.adata, [gene, "cluster"]).rename(columns={gene: "expression"})
-        plotdata_expression_clusters = plotdata_expression.groupby("cluster")["expression"].mean()
+        gene_ix = transcriptome.var.index.get_loc(gene)
+        plotdata_expression_clusters = (
+            pd.Series(
+                transcriptome.layers[list(transcriptome.layers.keys())[0]][:, gene_ix], index=transcriptome.obs.index
+            )
+            .groupby(clustering.labels)
+            .mean()
+        )
         cluster_info = clustering.cluster_info
 
         return cls(
