@@ -153,6 +153,11 @@ class Dataset:
             result = cache[url]
         else:
             response = requests.get(url)
+            # check response status
+            if response.status_code != 200:
+                raise ValueError(
+                    f"Response status code is {response.status_code} and not 200. Response text: {response.text}"
+                )
             result = pd.read_table(
                 io.StringIO(response.text),
                 sep="\t",

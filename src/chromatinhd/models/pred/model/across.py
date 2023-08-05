@@ -20,7 +20,7 @@ from chromatinhd.models.pred.loader.transcriptome_fragments import (
 from chromatinhd.models.pred.trainer import Trainer2
 from chromatinhd.optim import SparseDenseAdam
 
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 
 from .loss import gene_paircor_loss, paircor, paircor_loss
 
@@ -285,7 +285,7 @@ class Model(torch.nn.Module, HybridModel):
 
             yield expression_predicted, n_fragments
 
-    def train_model(self, fragments, transcriptome, fold, device=default_device):
+    def train_model(self, fragments, transcriptome, fold, device=None):
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
@@ -303,6 +303,9 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
+
+        if device is None:
+            device = get_default_device()
 
         loaders_train = LoaderPool(
             TranscriptomeFragments,
@@ -353,7 +356,7 @@ class Model(torch.nn.Module, HybridModel):
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device=default_device,
+        device=None,
         return_raw=False,
     ):
         """
@@ -374,6 +377,9 @@ class Model(torch.nn.Module, HybridModel):
             gene_ixs = fragments.var.loc[genes]["ix"].values
         if genes is None:
             genes = fragments.var.index[gene_ixs]
+
+        if device is None:
+            device = get_default_device()
 
         minibatches = Minibatcher(
             cell_ixs,
@@ -475,7 +481,7 @@ class Model(torch.nn.Module, HybridModel):
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device=default_device,
+        device=None,
     ):
         """
         Returns the prediction of multiple censored dataset
@@ -495,6 +501,9 @@ class Model(torch.nn.Module, HybridModel):
             gene_ixs = fragments.var.loc[genes]["ix"].values
         if genes is None:
             genes = fragments.var.index[gene_ixs]
+
+        if device is None:
+            device = get_default_device()
 
         minibatcher = Minibatcher(
             cell_ixs,
@@ -565,7 +574,7 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(self, fragments, transcriptome, folds, device=default_device):
+    def train_models(self, fragments, transcriptome, folds, device=None):
         self.n_models = len(folds)
         for fold_ix, fold in [(fold_ix, fold) for fold_ix, fold in enumerate(folds)]:
             desired_outputs = [self.models_path / ("model_" + str(fold_ix) + ".pkl")]
@@ -594,10 +603,14 @@ class Models(Flow):
         for ix in range(len(self)):
             yield self[ix]
 
-    def get_gene_cors(self, fragments, transcriptome, folds, device=default_device):
+    def get_gene_cors(self, fragments, transcriptome, folds, device=None):
         cor_predicted = np.zeros((len(fragments.var.index), len(folds)))
         cor_n_fragments = np.zeros((len(fragments.var.index), len(folds)))
         n_fragments = np.zeros((len(fragments.var.index), len(folds)))
+
+        if device is None:
+            device = get_default_device()
+
         for model_ix, (model, fold) in enumerate(zip(self, folds)):
             prediction = model.get_prediction(fragments, transcriptome, cell_ixs=fold["cells_test"], device=device)
 

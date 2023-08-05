@@ -5,7 +5,7 @@ import xarray as xr
 import pickle
 import scipy.stats
 import tqdm.auto as tqdm
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 
 
 def fdr(p_vals):
@@ -42,7 +42,7 @@ class GeneMultiWindow(chd.flow.Flow):
         genes,
         censorer,
         force=False,
-        device=default_device,
+        device=None,
     ):
         force_ = force
         design = censorer.design.iloc[1:].copy()

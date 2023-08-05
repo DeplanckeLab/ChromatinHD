@@ -8,7 +8,7 @@ import tqdm.auto as tqdm
 import xarray as xr
 
 import chromatinhd as chd
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 from chromatinhd.data.folds import Folds
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.transcriptome import Transcriptome
@@ -52,7 +52,7 @@ class GenePairWindow(chd.flow.Flow):
         censorer,
         genes: Optional[List] = None,
         force=False,
-        device=default_device,
+        device=None,
     ):
         """
         Score the models
@@ -73,6 +73,9 @@ class GenePairWindow(chd.flow.Flow):
         force_ = force
         design = censorer.design.iloc[1:].copy()
         self.design = design
+
+        if device is None:
+            device = get_default_device()
 
         if genes is None:
             genes = transcriptome.var.index

@@ -199,50 +199,40 @@ class StoredDataFrame(Stored):
     A pandas dataframe stored on disk
     """
 
+    def __init__(self, index_name=None, name=None):
+        super().__init__(name=name)
+        self.index_name = index_name
 
-class StoredTorchInt64(Stored):
-    """
-    A pytorch int64 tensor stored on disk
-    """
+    def __set__(self, obj, value):
+        if self.index_name is not None:
+            value.index.name = self.index_name
+        super().__set__(obj, value)
+
+
+class StoredTensor(Stored):
+    def __init__(self, dtype=None, name=None):
+        super().__init__(name=name)
+        self.dtype = dtype
 
     def __get__(self, obj, type=None):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
-                if x.dtype is not torch.int64:
-                    x = x.to(torch.int64)
+                if not torch.is_tensor(x):
+                    raise ValueError(f"File {self.get_path(obj.path)} is not a tensor")
+                elif x.dtype is not self.dtype:
+                    x = x.to(self.dtype)
                 if not x.is_contiguous():
                     x = x.contiguous()
                 setattr(obj, name, x)
             return getattr(obj, name)
 
     def __set__(self, obj, value):
-        value = value.to(torch.int64).contiguous()
-        name = "_" + self.name
-        pickle.dump(value, self.get_path(obj.path).open("wb"))
-        setattr(obj, name, value)
-
-
-class StoredTorchInt32(Stored):
-    """
-    A pytorch int64 tensor stored on disk
-    """
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                x = pickle.load(self.get_path(obj.path).open("rb"))
-                if x.dtype is not torch.int32:
-                    x = x.to(torch.int32)
-                if not x.is_contiguous():
-                    x = x.contiguous()
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        value = value.to(torch.int32).contiguous()
+        if not torch.is_tensor(value):
+            raise ValueError("Value is not a tensor")
+        elif self.dtype is not None:
+            value = value.to(self.dtype).contiguous()
         name = "_" + self.name
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         setattr(obj, name, value)
@@ -383,3 +373,6 @@ class StoredDictInstance:
     def items(self):
         for k in self.dict:
             yield k, self[k]
+
+    def keys(self):
+        return self.dict.keys()

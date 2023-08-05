@@ -55,6 +55,7 @@ dev = [
     "mike",
     "cairosvg",  # for mkdocs social
     "pillow",  # for mkdocs social
+    "mkdocs-awesome-pages-plugin",
     "setuptools_scm",
     # "faiss-cpu",
     "Cython",
@@ -89,4 +90,4 @@ include = ['src/**/*.py']
 [tool.black]
 line-length = 120
 target-version = ['py37', 'py38']
-
+force-exclude = ['scripts/*']

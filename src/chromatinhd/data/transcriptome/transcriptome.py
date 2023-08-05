@@ -58,10 +58,10 @@ class Transcriptome(Flow):
         self.X = X
 
     X = Stored()
-    "Raw counts for each gene in each cell."
+    "The main transcriptome data, typically normalized counts."
 
     @classmethod
-    def from_adata(cls, adata, path: Union[pathlib.Path, str]):
+    def from_adata(cls, adata, path: Union[pathlib.Path, str] = None):
         """
         Create a Transcriptome object from an AnnData object.
 
@@ -73,7 +73,10 @@ class Transcriptome(Flow):
         """
         transcriptome = cls(path=path)
         transcriptome.adata = adata
-        transcriptome.layers["X"] = adata.X
+
+        for k, v in adata.layers.items():
+            transcriptome.layers[k] = v
+        transcriptome.X = adata.X
         transcriptome.var = adata.var
         transcriptome.obs = adata.obs
         return transcriptome
@@ -96,13 +99,28 @@ class Transcriptome(Flow):
         layers = {}
         for k, v in self.layers.items():
             layers[k] = v[:, gene_ixs]
+        X = self.X[:, gene_ixs]
 
         return Transcriptome.create(
             var=self.var.loc[genes],
             obs=self.obs,
+            X=X,
             layers=layers,
             path=path,
         )
+
+    def get_X(self, gene_ids):
+        """
+        Get the counts for a given set of genes.
+        """
+        gene_ixs = self.var.index.get_loc(gene_ids)
+        value = self.X[:, gene_ixs]
+
+        if sparse.is_scipysparse(value):
+            value = np.array(value.todense())
+            if isinstance(gene_ids, str):
+                value = value[:, 0]
+        return value
 
 
 class ClusterTranscriptome(Flow):

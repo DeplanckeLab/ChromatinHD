@@ -4,9 +4,11 @@ repos:
     rev: v0.0.282
     hooks:
       - id: ruff
-        args: [src/, --fix, --exit-non-zero-on-fix ]
+        args: [., --fix, --exit-non-zero-on-fix ]
+        exclude: ^scripts/
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
     - id: black
       language_version: python3
+      exclude: ^scripts/

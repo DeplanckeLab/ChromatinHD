@@ -16,10 +16,10 @@ from chromatinhd.models.diff.loader.clustering_cuts import ClusteringCuts
 from chromatinhd.models.diff.loader.minibatches import Minibatcher
 from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.optim import SparseDenseAdam
-from chromatinhd import default_device
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.clustering import Clustering
 from chromatinhd.utils import crossing
+from chromatinhd import get_default_device
 from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
 
@@ -271,10 +271,13 @@ class Model(torch.nn.Module, HybridModel):
             localcellxgene_ix=data.cuts.localcellxgene_ix,
         )
 
-    def train_model(self, fragments, clustering, fold, device=default_device, n_epochs=30, lr=1e-2):
+    def train_model(self, fragments, clustering, fold, device=None, n_epochs=30, lr=1e-2):
         """
         Trains the model
         """
+
+        if device is None:
+            device = get_default_device()
 
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
@@ -345,7 +348,7 @@ class Model(torch.nn.Module, HybridModel):
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device: str = default_device,
+        device: str = None,
     ):
         """
         Returns the prediction of a dataset
@@ -468,7 +471,7 @@ class Model(torch.nn.Module, HybridModel):
         clustering=None,
         gene_oi=None,
         gene_ix=None,
-        device=default_device,
+        device=None,
     ):
         from chromatinhd.models.diff.loader.clustering import Result as ClusteringResult
         from chromatinhd.models.diff.loader.clustering_cuts import (
@@ -536,7 +539,7 @@ class Model(torch.nn.Module, HybridModel):
         self,
         window: np.ndarray,
         n_latent: int,
-        device: torch.DeviceObjType = default_device,
+        device: torch.DeviceObjType = None,
         how: str = "probs_diff_masked",
         prob_cutoff: float = None,
     ) -> np.ndarray:
@@ -629,7 +632,7 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(self, fragments, clustering, folds, device=default_device, n_epochs=30, **kwargs):
+    def train_models(self, fragments, clustering, folds, device=None, n_epochs=30, **kwargs):
         """
         Trains the models
 

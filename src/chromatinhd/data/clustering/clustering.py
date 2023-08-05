@@ -7,14 +7,16 @@ class Clustering(Flow):
     labels = Stored()
     "Labels for each cell."
 
-    cluster_info = StoredDataFrame("cluster_info")
+    cluster_info = StoredDataFrame(index_name="cluster")
     "Dataframe containing information for each cluster, such as a label."
 
     @classmethod
-    def from_labels(cls, labels, path):
+    def from_labels(cls, labels, path=None):
         clustering = cls(path)
         if not isinstance(labels, pd.Series):
             labels = pd.Series(labels).astype("category")
+        elif not labels.dtype.name == "category":
+            labels = labels.astype("category")
         clustering.labels = labels
         clustering.cluster_info = (
             pd.DataFrame(

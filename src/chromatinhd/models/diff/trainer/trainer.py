@@ -1,7 +1,7 @@
 import tqdm.auto as tqdm
 import torch
 from chromatinhd.train import Trace
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 
 import logging
 
@@ -19,7 +19,7 @@ class Trainer:
         optim,
         hooks_checkpoint=None,
         hooks_checkpoint2=None,
-        device=default_device,
+        device=None,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=1,
@@ -52,6 +52,9 @@ class Trainer:
 
         gc.collect()
         torch.cuda.empty_cache()
+
+        if self.device is None:
+            self.device = get_default_device()
 
         self.model = self.model.to(self.device)
 

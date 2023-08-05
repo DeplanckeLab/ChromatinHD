@@ -30,6 +30,9 @@ class ClusteringCuts:
         fragments: chromatinhd.data.fragments.Fragments,
         cellxgene_batch_size: int,
     ):
+        # ensure that the order of clustering and fragment.obs is the same
+        if not all(clustering.labels.index == fragments.obs.index):
+            raise ValueError("Clustering and fragments should have the same obs index. ")
         self.clustering = Clustering(clustering)
         self.cuts = Cuts(fragments, cellxgene_batch_size=cellxgene_batch_size)
 

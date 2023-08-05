@@ -42,6 +42,7 @@ plugins:
         remove_all_outputs_tags:
           - hide_output
   - social
+  - awesome-pages
 extra:
   version:
     provider: mike

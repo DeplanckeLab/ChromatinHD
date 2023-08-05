@@ -27,6 +27,10 @@ class TranscriptomeFragments:
         cellxgene_batch_size: int,
         layer: str = "X",
     ):
+        # ensure that transcriptome and fragments have the same var
+        if not all(transcriptome.var.index == fragments.var.index):
+            raise ValueError("Transcriptome and fragments should have the same var index. ")
+
         self.fragments = Fragments(fragments, cellxgene_batch_size=cellxgene_batch_size)
         self.transcriptome = Transcriptome(transcriptome, layer=layer)
 

@@ -5,7 +5,7 @@ import xarray as xr
 import pickle
 import tqdm.auto as tqdm
 import torch
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 from chromatinhd.data.clustering import Clustering
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.models.diff.model.cutnf import Models
@@ -33,9 +33,9 @@ class GenePositional(chd.flow.Flow):
         fragments: Fragments,
         clustering: Clustering,
         models: Models,
-        genes=None,
-        force=False,
-        device=default_device,
+        genes: list = None,
+        force: bool = False,
+        device: str = None,
     ):
         """
         Main scoring function
@@ -63,8 +63,10 @@ class GenePositional(chd.flow.Flow):
 
         window = fragments.regions.window
 
+        if device is None:
+            device = get_default_device()
+
         for gene in pbar:
-            print(gene)
             pbar.set_description(gene)
             probs_file = self.get_scoring_path(gene) / "probs.pkl"
 
@@ -129,7 +131,7 @@ class GenePositional(chd.flow.Flow):
 
                 self.genes = self.genes | {gene}
 
-    def get_plotdata(self, gene) -> (pd.DataFrame, pd.DataFrame):
+    def get_plotdata(self, gene: str) -> (pd.DataFrame, pd.DataFrame):
         """
         Returns average and differential probabilities for a particular gene.
 
@@ -166,7 +168,7 @@ class GenePositional(chd.flow.Flow):
 
         return plotdata, plotdata_mean
 
-    def get_scoring_path(self, gene):
+    def get_scoring_path(self, gene: str):
         path = self.path / f"{gene}"
         path.mkdir(parents=True, exist_ok=True)
         return path

@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 import tqdm.auto as tqdm
 
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 from chromatinhd.data.regions import Regions
 from chromatinhd.flow import (
     CompressedNumpyFloat64,
@@ -47,7 +47,7 @@ class Motifscan(Flow):
     n_motifs = Stored()
     "Number of motifs"
 
-    motifs = StoredDataFrame("motifs")
+    motifs = StoredDataFrame()
     "Dataframe storing auxilliary information for each motif"
 
     @classmethod
@@ -60,7 +60,7 @@ class Motifscan(Flow):
         cutoffs: Union[int, float, pd.Series] = None,
         cutoff_col: str = None,
         motifs: pd.DataFrame = None,
-        device=default_device,
+        device=None,
         batch_size: int = 5000000,
     ):
         """
@@ -86,6 +86,9 @@ class Motifscan(Flow):
             batch_size:
                 The batch size to use for scanning. Lower batch size if the GPU runs out of memory
         """
+
+        if device is None:
+            device = get_default_device()
 
         self = cls(path)
 
