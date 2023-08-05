@@ -4,8 +4,9 @@
 
 .doc-class>.doc-heading {
     margin-top: 0.5em;
-    border-top: 2px #33333333 solid;
-    padding-top: 0.5em;
+    border-top: 3px #33333333 solid;
+    background-color: var(--md-code-bg-color);
+    /* padding-top: 0.5em; */
 }
 
 
@@ -57,4 +58,15 @@
 
 .doc-function code:first-child {
     font-weight: bold;
+}
+
+.doc .md-typeset__table,
+.doc .md-typeset__table table {
+    display: table !important;
+    width: inherit;
+}
+
+.md-typeset table:not([class]) th {
+    padding-top: 0;
+    padding-bottom: 0;
 }

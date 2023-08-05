@@ -4,7 +4,7 @@ from chromatinhd.flow import Flow, Stored, StoredDataFrame
 
 
 class Clustering(Flow):
-    labels = Stored("labels")
+    labels = Stored()
     "Labels for each cell."
 
     cluster_info = StoredDataFrame("cluster_info")

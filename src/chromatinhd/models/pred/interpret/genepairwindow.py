@@ -39,9 +39,9 @@ class GenePairWindow(chd.flow.Flow):
     the decrease in predictivity per cell between pairs of windows
     """
 
-    design = chd.flow.Stored("design")
+    design = chd.flow.Stored()
 
-    genes = chd.flow.Stored("genes", default=set)
+    genes = chd.flow.Stored(default=set)
 
     def score(
         self,

@@ -188,8 +188,8 @@ class COOMatrix(Sparse):
 
     def __getitem__(self, ix):
         x = self.__class__.from_scipy_csr(self.to_scipy_csr()[:, ix[1]])
-        x.populate_mapping()
-        x.populate_row_switch()
+        # x.populate_mapping()
+        # x.populate_row_switch()
         return x
 
     def __repr__(self):

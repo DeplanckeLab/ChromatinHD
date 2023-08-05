@@ -74,3 +74,7 @@ clipboard-copy:hover {
 .md-tabs__link--active {
     background-color: #F8F8F8;
 }
+
+.md-nav--secondary {
+    border-left: 2px solid #33333333 !important;
+}

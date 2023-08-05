@@ -586,7 +586,7 @@ class Model(torch.nn.Module, HybridModel):
 
 
 class Models(Flow):
-    n_models = Stored("n_models")
+    n_models = Stored()
 
     @property
     def models_path(self):

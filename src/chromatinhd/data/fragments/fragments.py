@@ -1,6 +1,5 @@
+from __future__ import annotations
 import math
-import pathlib
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -8,14 +7,9 @@ import torch
 import tqdm.auto as tqdm
 
 from chromatinhd.data.regions import Regions
-from chromatinhd.flow import (
-    TSV,
-    Flow,
-    Linked,
-    Stored,
-    StoredTorchInt32,
-    StoredTorchInt64,
-)
+from chromatinhd.flow import TSV, Flow, Linked, Stored, StoredTorchInt32, StoredTorchInt64, PathLike
+
+import pathlib
 
 
 class RawFragments:
@@ -26,20 +20,17 @@ class RawFragments:
 class Fragments(Flow):
     """Fragments centered around a gene window"""
 
-    regions = Linked("regions")
-    """Regions in which fragments are stored"""
+    regions: Regions = Linked()
+    """The regions where we stored fragments"""
 
-    coordinates: torch.Tensor = StoredTorchInt64("coordinates")
+    coordinates: torch.Tensor = StoredTorchInt64()
     """Coordinates of the two cut sites."""
 
-    mapping: torch.Tensor = StoredTorchInt64("mapping")
+    mapping: torch.Tensor = StoredTorchInt64()
     """Mapping of a fragment to a gene and a cell"""
 
-    cellxgene_indptr: torch.Tensor = StoredTorchInt64("cellxgene_indptr")
+    cellxgene_indptr: torch.Tensor = StoredTorchInt64()
     """Index pointers for each cellxgene combination"""
-
-    regions: pd.DataFrame = Linked("regions")
-    """Dataframe containing chromosome, start, end and strand of each region"""
 
     def create_cellxgene_indptr(self):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
@@ -72,10 +63,10 @@ class Fragments(Flow):
             self._cellmapping = self.mapping[:, 0].contiguous()
         return self._cellmapping
 
-    var = TSV("var")
+    var = TSV()
     """DataFrame containing information about regions."""
 
-    obs = TSV("obs")
+    obs = TSV()
     """DataFrame containing information about cells."""
 
     _n_genes = None
@@ -125,13 +116,13 @@ class Fragments(Flow):
     @classmethod
     def from_fragments_tsv(
         cls,
-        fragments_file: Union[pathlib.Path, str],
+        fragments_file: PathLike,
         regions: Regions,
         obs: pd.DataFrame,
-        path: Union[pathlib.Path, str],
+        path: PathLike,
         cell_column: str = None,
         overwrite: bool = True,
-    ):
+    ) -> Fragments:
         """
         Create a Fragments object from a fragments tsv file
 
@@ -151,6 +142,8 @@ class Fragments(Flow):
                 If not specified, the index of the `obs` DataFrame is used.
             overwrite (optional):
                 Whether to overwrite the data if it already exists
+        Returns:
+            A new Fragments object
         """
 
         if isinstance(fragments_file, str):
@@ -231,14 +224,42 @@ class Fragments(Flow):
             obs=obs,
         )
 
+    def filter_genes(self, regions: Regions, path: PathLike = None) -> Fragments:
+        """
+        Filter based on new regions
+
+        Parameters:
+            regions:
+                Regions to filter.
+        Returns:
+            A new Fragments object
+        """
+
+        # test if new regions are a subset of the existing ones
+        if not regions.coordinates.index.isin(self.regions.coordinates.index).all():
+            raise ValueError("New regions should be a subset of the existing ones")
+
+        # filter genes
+        self.regions.coordinates["ix"] = np.arange(self.regions.coordinates.shape[0])
+        regions.coordinates["ix"] = self.regions.coordinates["ix"].loc[regions.coordinates.index]
+        fragments_oi = np.isin(self.mapping[:, 1].numpy(), regions.coordinates["ix"])
+
+        mapping = self.mapping[fragments_oi]
+        coordinates = self.coordinates[fragments_oi]
+        var = self.var.loc[regions.coordinates.index]
+
+        return Fragments.create(
+            coordinates=coordinates, mapping=mapping, regions=regions, var=var, obs=self.obs, path=path
+        )
+
 
 class ChunkedFragments(Flow):
-    chunk_size = Stored("chunk_size")
-    chunkcoords = StoredTorchInt64("chunkcoords")
-    chunkcoords_indptr = StoredTorchInt32("chunkcoords_indptr")
-    clusters = StoredTorchInt32("clusters")
-    relcoords = StoredTorchInt32("relcoords")
+    chunk_size = Stored()
+    chunkcoords = StoredTorchInt64()
+    chunkcoords_indptr = StoredTorchInt32()
+    clusters = StoredTorchInt32()
+    relcoords = StoredTorchInt32()
 
-    clusters = Stored("clusters")
-    clusters_info = Stored("clusters_info")
-    chromosomes = Stored("chromosomes")
+    clusters = Stored()
+    clusters_info = Stored()
+    chromosomes = Stored()

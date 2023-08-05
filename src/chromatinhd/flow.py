@@ -6,9 +6,34 @@ import gzip
 import json
 import importlib
 import shutil
+from typing import Union
+
+PathLike = Union[str, pathlib.Path]
 
 
-class Flow:
+class Obj:
+    name = None
+
+    def __init__(self, name=None):
+        self.name = name
+
+
+def is_obj(x):
+    return isinstance(x, Obj)
+
+
+class Flowable(type):
+    def __init__(cls, name, bases, attrs):
+        super().__init__(name, bases, attrs)
+
+        # compile objects
+        for attr_id, attr in cls.__dict__.items():
+            if is_obj(attr):
+                assert isinstance(attr_id, str)
+                attr.name = attr_id
+
+
+class Flow(metaclass=Flowable):
     """
     A folder on disk that can contain other folders or objects
     """
@@ -17,12 +42,20 @@ class Flow:
     default_name = None
 
     def __init__(self, path=None, folder=None, name=None, reset=False):
-        if not isinstance(path, pathlib.Path):
+        if isinstance(path, str):
             path = pathlib.Path(path)
         if path is None:
             if folder is None:
-                raise ValueError("Either path or folder must be specified")
-            if name is None:
+                # make temporary
+                try:
+                    import pathlibfs
+                except ImportError:
+                    raise ImportError("To create a temporary flow, install pathlibfs")
+                from uuid import uuid4
+
+                name = str(uuid4())
+                folder = pathlibfs.Path("memory://")
+            elif name is None:
                 if self.default_name is None:
                     raise ValueError("Cannot create Flow without name, and no default_name specified")
                 name = self.default_name
@@ -41,7 +74,8 @@ class Flow:
 
     @classmethod
     def create(cls, path, **kwargs):
-        path = pathlib.Path(path)
+        if isinstance(path, str):
+            path = pathlib.Path(path)
         self = cls(path=path)
 
         for key, value in kwargs.items():
@@ -86,13 +120,10 @@ class Flow:
         return self.__class__.__dict__[k]
 
 
-class Linked:
+class Linked(Obj):
     """
     A link to another flow on disk
     """
-
-    def __init__(self, name):
-        self.name = name
 
     def __get__(self, obj, type=None):
         if obj is not None:
@@ -119,24 +150,29 @@ class Linked:
                 raise FileExistsError(f"File {path} already exists")
             else:
                 path.unlink()
-        path.symlink_to(value.path.resolve())
+        if not str(value.path).startswith("memory"):
+            print(value.path.name)
+            path.symlink_to(value.path.resolve())
         setattr(obj, name, value)
 
 
-class Stored:
+class Stored(Obj):
     """
     A python object that is stored on disk using pickle
     """
 
-    def __init__(self, name, default=None):
-        self.name = name
+    def __init__(self, default=None, name=None):
         self.default = default
+        self.name = name
 
     def get_path(self, folder):
         return folder / (self.name + ".pkl")
 
     def __get__(self, obj, type=None):
         if obj is not None:
+            if self.name is None:
+                print(obj)
+                raise ValueError(obj)
             name = "_" + self.name
             if not hasattr(obj, name):
                 path = self.get_path(obj.path)
@@ -275,8 +311,8 @@ class TSV(Stored):
     A pandas object stored on disk in tsv format
     """
 
-    def __init__(self, name, columns=None, index_name=None):
-        super().__init__(name)
+    def __init__(self, columns=None, index_name=None, name=None):
+        super().__init__(name=name)
         self.columns = columns
         self.index_name = index_name
 
@@ -299,20 +335,25 @@ class TSV(Stored):
             folder = obj.path
         if self.index_name is not None:
             value.index.name = self.index_name
-        value.to_csv(self.get_path(folder), sep="\t")
+        value.to_csv(self.get_path(folder).open("w"), sep="\t")
         setattr(obj, name, value)
 
 
-class StoredDict:
-    def __init__(self, name, cls):
-        self.name = name
+class StoredDict(Obj):
+    def __init__(self, cls, name=None):
+        super().__init__(name=name)
         self.cls = cls
 
     def get_path(self, folder):
         return folder / self.name
 
     def __get__(self, obj, type=None):
-        return StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+        if obj is not None:
+            name = "_" + self.name
+            if not hasattr(obj, name):
+                x = StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+                setattr(obj, name, x)
+            return getattr(obj, name)
 
 
 class StoredDictInstance:
@@ -329,7 +370,7 @@ class StoredDictInstance:
                 raise ValueError(f"Folder {file} in {self.obj.path} is not allowed")
             # key is file name without extension
             key = file.name.split(".")[0]
-            self.dict[key] = self.cls(key)
+            self.dict[key] = self.cls(name=key)
 
     def __getitem__(self, key):
         return self.dict[key].__get__(self)
@@ -338,3 +379,7 @@ class StoredDictInstance:
         if key not in self.dict:
             self.dict[key] = self.cls(key)
         self.dict[key].__set__(self, value)
+
+    def items(self):
+        for k in self.dict:
+            yield k, self[k]

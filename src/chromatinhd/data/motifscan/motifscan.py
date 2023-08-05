@@ -24,27 +24,27 @@ class Motifscan(Flow):
     A sprase representation of locations of different motifs in regions of the genome
     """
 
-    regions = Linked("regions")
+    regions = Linked()
     "The regions"
 
-    indptr = CompressedNumpyInt64("indptr")
+    indptr = CompressedNumpyInt64()
     "The index pointers for each position in the regions"
 
-    position = CompressedNumpyInt64("position")
+    position = CompressedNumpyInt64()
     "Position associated to each site"
 
-    indices = CompressedNumpyInt64("indices")
+    indices = CompressedNumpyInt64()
     "Motif index associated to each site"
 
-    scores = CompressedNumpyFloat64("scores")
+    scores = CompressedNumpyFloat64()
     "Scores associated with each detected site"
 
-    strands = CompressedNumpyFloat64("strands")
+    strands = CompressedNumpyFloat64()
     "Strand associated with each detected site"
 
-    shape = Stored("shape")
+    shape = Stored()
 
-    n_motifs = Stored("n_motifs")
+    n_motifs = Stored()
     "Number of motifs"
 
     motifs = StoredDataFrame("motifs")

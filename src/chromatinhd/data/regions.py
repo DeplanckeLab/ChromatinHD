@@ -9,8 +9,8 @@ class Regions(Flow):
     Regions, typically centered around a transcription start site
     """
 
-    coordinates = TSV("coordinates", columns=["chrom", "start", "end"])
-    window = Stored("window")
+    coordinates = TSV(columns=["chrom", "start", "end"])
+    window = Stored()
 
     @classmethod
     def from_canonical_transcripts(cls, canonical_transcripts: pd.DataFrame, window: np.ndarray, path: pathlib.Path):
@@ -45,3 +45,14 @@ class Regions(Flow):
             coordinates=regions[["chrom", "start", "end", "tss", "strand", "ensembl_transcript_id"]],
             window=window,
         )
+
+    def filter_genes(self, genes, path=None):
+        """
+        Filter genes to those in the regions
+
+        Parameters:
+            genes:
+                Genes to filter. Should be a pandas Series with the index being the ensembl transcript ids.
+        """
+
+        return Regions.create(coordinates=self.coordinates.loc[genes], window=self.window, path=path)

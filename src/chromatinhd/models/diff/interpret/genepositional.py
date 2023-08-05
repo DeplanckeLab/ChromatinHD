@@ -26,7 +26,7 @@ class GenePositional(chd.flow.Flow):
     Positional interpretation of *diff* models
     """
 
-    genes = chd.flow.Stored("genes", default=set)
+    genes = chd.flow.Stored(default=set)
 
     def score(
         self,
@@ -129,9 +129,9 @@ class GenePositional(chd.flow.Flow):
 
                 self.genes = self.genes | {gene}
 
-    def get_plotdata(self, gene):
+    def get_plotdata(self, gene) -> (pd.DataFrame, pd.DataFrame):
         """
-        Returns the plotdata for a given gene
+        Returns average and differential probabilities for a particular gene.
 
         Parameters:
             gene:

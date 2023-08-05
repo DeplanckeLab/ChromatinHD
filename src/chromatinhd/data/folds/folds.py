@@ -14,7 +14,7 @@ class Folds(Flow):
     Folds of multiple cell and gene combinations
     """
 
-    folds: dict = Stored("folds")
+    folds: dict = Stored()
     """The folds"""
 
     def sample_cells(
@@ -47,16 +47,12 @@ class Folds(Flow):
 
             cells_all = generator.permutation(fragments.n_cells)
 
-            cell_bins = np.floor(
-                (np.arange(len(cells_all)) / (len(cells_all) / n_folds))
-            )
+            cell_bins = np.floor((np.arange(len(cells_all)) / (len(cells_all) / n_folds)))
 
             for i in range(n_folds):
                 cells_train = cells_all[cell_bins != i]
                 cells_validation_test = cells_all[cell_bins == i]
-                cells_validation = cells_validation_test[
-                    : (len(cells_validation_test) // 2)
-                ]
+                cells_validation = cells_validation_test[: (len(cells_validation_test) // 2)]
                 cells_test = cells_validation_test[(len(cells_validation_test) // 2) :]
 
                 folds.append(
@@ -99,33 +95,23 @@ class Folds(Flow):
 
             cells_all = generator.permutation(fragments.n_cells)
 
-            cell_bins = np.floor(
-                (np.arange(len(cells_all)) / (len(cells_all) / n_folds))
-            )
+            cell_bins = np.floor((np.arange(len(cells_all)) / (len(cells_all) / n_folds)))
 
             genes_all = np.arange(fragments.n_genes)
 
-            chr_order = generator.permutation(
-                fragments.regions.coordinates["chr"].unique()
-            )
-            gene_chrs = pd.Categorical(
-                fragments.regions.coordinates["chr"].astype(str), categories=chr_order
-            ).codes
+            chr_order = generator.permutation(fragments.regions.coordinates["chr"].unique())
+            gene_chrs = pd.Categorical(fragments.regions.coordinates["chr"].astype(str), categories=chr_order).codes
             gene_bins = np.floor((gene_chrs / (len(chr_order) / n_folds))).astype(int)
 
             for i in range(n_folds):
                 cells_train = cells_all[cell_bins != i]
                 cells_validation_test = cells_all[cell_bins == i]
-                cells_validation = cells_validation_test[
-                    : (len(cells_validation_test) // 2)
-                ]
+                cells_validation = cells_validation_test[: (len(cells_validation_test) // 2)]
                 cells_test = cells_validation_test[(len(cells_validation_test) // 2) :]
 
                 genes_train = genes_all[gene_bins != i]
                 genes_validation_test = genes_all[gene_bins == i]
-                genes_validation = genes_validation_test[
-                    : (len(genes_validation_test) // 2)
-                ]
+                genes_validation = genes_validation_test[: (len(genes_validation_test) // 2)]
                 genes_test = genes_validation_test[(len(genes_validation_test) // 2) :]
 
                 folds.append(

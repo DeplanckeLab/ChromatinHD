@@ -11,6 +11,9 @@ theme:
     - navigation.tracking
     - navigation.tabs
     - navigation.footer
+    - navigation.sections
+    - toc.follow
+    - toc.integrate
 
 site_url: "https://chromatinhd.eu/"
 repo_url: https://github.com/DeplanckeLab/ChromatinHD
@@ -21,12 +24,14 @@ plugins:
         python:
           import:
           - https://docs.python-requests.org/en/master/objects.inv
+          - https://installer.readthedocs.io/en/latest/objects.inv
           options:
             docstring_style: google
             heading_level: 2
             inheritance_diagram: True
             show_root_heading: True
             show_symbol_type_heading: True
+            docstring_section_style: table
   - mike
   - search
   - mkdocs-jupyter:

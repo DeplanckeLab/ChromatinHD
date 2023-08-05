@@ -4,4 +4,4 @@
   </a>
 </p>
 
-Documentation is available at <https://chromatinhd.eu>
+For a full quickstart, see <https://chromatinhd.eu/quickstart/0_install>

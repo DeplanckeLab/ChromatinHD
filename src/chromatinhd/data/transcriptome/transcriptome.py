@@ -12,10 +12,10 @@ class Transcriptome(Flow):
     A transcriptome containing counts for each gene in each cell.
     """
 
-    var = TSV("var", index_name="gene")
-    obs = TSV("obs", index_name="cell")
+    var = TSV(index_name="gene")
+    obs = TSV(index_name="cell")
 
-    adata = Stored("adata")
+    adata = Stored()
     "Anndata object containing the transcriptome data."
 
     def gene_id(self, symbol, column="symbol"):
@@ -57,7 +57,7 @@ class Transcriptome(Flow):
 
         self.X = X
 
-    X = Stored("X")
+    X = Stored()
     "Raw counts for each gene in each cell."
 
     @classmethod
@@ -78,15 +78,38 @@ class Transcriptome(Flow):
         transcriptome.obs = adata.obs
         return transcriptome
 
-    layers = StoredDict("layers", Stored)
+    layers = StoredDict(Stored)
     "Dictionary of layers, such as raw, normalized and imputed data."
+
+    def filter_genes(self, genes, path=None):
+        """
+        Filter genes
+
+        Parameters:
+            genes:
+                Genes to filter. Should be a pandas Series with the index being the ensembl transcript ids.
+        """
+
+        self.var["ix"] = np.arange(self.var.shape[0])
+        gene_ixs = self.var["ix"].loc[genes]
+
+        layers = {}
+        for k, v in self.layers.items():
+            layers[k] = v[:, gene_ixs]
+
+        return Transcriptome.create(
+            var=self.var.loc[genes],
+            obs=self.obs,
+            layers=layers,
+            path=path,
+        )
 
 
 class ClusterTranscriptome(Flow):
-    var = Stored("var")
-    obs = Stored("obs")
-    adata = Stored("adata")
-    X = Stored("X")
+    var = Stored()
+    obs = Stored()
+    adata = Stored()
+    X = Stored()
 
     def gene_id(self, symbol):
         assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
@@ -109,10 +132,10 @@ class ClusterTranscriptome(Flow):
 
 
 class ClusteredTranscriptome(Flow):
-    donors_info = Stored("donors_info")
-    clusters_info = Stored("clusters_info")
-    var = Stored("var")
-    X = Stored("X")
+    donors_info = Stored()
+    clusters_info = Stored()
+    var = Stored()
+    X = Stored()
 
     def gene_id(self, symbol):
         assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
