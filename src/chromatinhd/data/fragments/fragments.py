@@ -22,7 +22,7 @@ class Fragments(Flow):
     """Fragments centered around a gene window"""
 
     regions: Regions = Linked()
-    """The regions where we stored fragments"""
+    """The regions in which (part of) the fragments are located and centered"""
 
     coordinates: torch.Tensor = StoredTensor(torch.int64)
     """Coordinates of the two cut sites."""

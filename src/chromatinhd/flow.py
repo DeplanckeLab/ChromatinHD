@@ -73,7 +73,7 @@ class Flow(metaclass=Flowable):
             self._store_info()
 
     @classmethod
-    def create(cls, path, **kwargs):
+    def create(cls, path=None, **kwargs):
         if isinstance(path, str):
             path = pathlib.Path(path)
         self = cls(path=path)

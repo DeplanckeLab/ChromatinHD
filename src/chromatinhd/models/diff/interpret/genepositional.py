@@ -36,6 +36,8 @@ class GenePositional(chd.flow.Flow):
         genes: list = None,
         force: bool = False,
         device: str = None,
+        step: int = 25,
+        batch_size: int = 5000,
     ):
         """
         Main scoring function
@@ -81,11 +83,12 @@ class GenePositional(chd.flow.Flow):
                     "category"
                 )
                 design_clustering.index = clustering.cluster_info.index
-                design_coord = pd.DataFrame({"coord": np.arange(window[0], window[1] + 1, step=25)}).astype("category")
+                design_coord = pd.DataFrame({"coord": np.arange(window[0], window[1] + 1, step=step)}).astype(
+                    "category"
+                )
                 design_coord.index = design_coord["coord"]
                 design = chd.utils.crossing(design_gene, design_clustering, design_coord)
 
-                batch_size = 5000
                 design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
 
                 probs = []

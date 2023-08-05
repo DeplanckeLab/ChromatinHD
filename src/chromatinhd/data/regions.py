@@ -18,16 +18,18 @@ class Regions(Flow):
     @classmethod
     def from_transcripts(cls, transcripts: pd.DataFrame, window: [list, np.ndarray], path: pathlib.Path) -> Regions:
         """
-        Create regions from a Dataframe of canonical transcripts,
+        Create regions from a dataframe of transcripts,
         using a specified window around each transcription start site.
 
         Parameters:
             transcripts:
-                Dataframe of canonical transcripts, with columns chrom, start, end, strand, ensembl_transcript_id
+                Dataframe of transcripts, with columns chrom, start, end, strand, ensembl_transcript_id
             window:
                 Window around each transcription start site. Should be a 2-element array, e.g. [-10000, 10000]
             path:
                 Folder in which the regions data will be stored
+        Returns:
+            Regions
         """
         transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (
             transcripts["strand"] == -1
