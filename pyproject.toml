@@ -86,8 +86,9 @@ line-length = 120
 ignore-init-module-imports = true
 ignore = ['F401']
 include = ['src/**/*.py']
+exclude = ['scripts/*']
 
 [tool.black]
 line-length = 120
 target-version = ['py37', 'py38']
-force-exclude = ['scripts/*']
+exclude = ['scripts/*']
