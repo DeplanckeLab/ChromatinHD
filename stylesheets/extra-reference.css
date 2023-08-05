@@ -9,6 +9,19 @@
     /* padding-top: 0.5em; */
 }
 
+.doc-class {
+    margin-bottom: 1em;
+    border-bottom: 1px #33333333 solid;
+}
+
+
+.doc-function>.doc-heading {
+    margin-top: 0.5em;
+    border-left: 3px #33333333 solid;
+    background-color: var(--md-code-bg-color);
+    /* padding-top: 0.5em; */
+}
+
 
 .doc-attribute>h3,
 .doc-function>h3 {
@@ -27,6 +40,7 @@
 /* attributes, functions, ... */
 
 .doc-attribute-tag {
+    margin-left: 5px;
     font-size: 0.6em;
     font-style: italic;
     padding: 0.1em;
@@ -35,6 +49,7 @@
 }
 
 .doc-function-tag {
+    margin-left: 5px;
     font-size: 0.6em;
     font-style: italic;
     padding: 0.1em;
@@ -44,6 +59,7 @@
 }
 
 .doc-class-tag {
+    margin-left: 5px;
     font-size: 0.6em;
     font-style: italic;
     padding: 0.1em;

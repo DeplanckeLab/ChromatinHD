@@ -6,6 +6,21 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://chromatinhd.eu/benchmark/</loc>
+         <lastmod>2023-08-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://chromatinhd.eu/benchmark/diff/1-model/</loc>
+         <lastmod>2023-08-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://chromatinhd.eu/benchmark/diff/timing/</loc>
+         <lastmod>2023-08-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://chromatinhd.eu/quickstart/0_install/</loc>
          <lastmod>2023-08-05</lastmod>
          <changefreq>daily</changefreq>
