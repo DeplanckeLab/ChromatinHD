@@ -26,6 +26,7 @@ def center(coords, region):
 def get_genes_plotdata(region, genome="GRCh38"):
     biomart_dataset = chd.biomart.Dataset.from_genome(genome)
     if "chrom" not in region.index:
+        region = region.copy()
         region["chrom"] = region["chr"]
     canonical_transcripts = chd.biomart.get_canonical_transcripts(
         biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"]

@@ -12,8 +12,8 @@ class Transcriptome(Flow):
     A transcriptome containing counts for each gene in each cell.
     """
 
-    var = TSV(index_name="gene")
-    obs = TSV(index_name="cell")
+    var: pd.DataFrame = TSV(index_name="gene")
+    obs: pd.DataFrame = TSV(index_name="cell")
 
     adata = Stored()
     "Anndata object containing the transcriptome data."
