@@ -151,7 +151,6 @@ class Linked(Obj):
             else:
                 path.unlink()
         if not str(value.path).startswith("memory"):
-            print(value.path.name)
             path.symlink_to(value.path.resolve())
         setattr(obj, name, value)
 
@@ -171,7 +170,6 @@ class Stored(Obj):
     def __get__(self, obj, type=None):
         if obj is not None:
             if self.name is None:
-                print(obj)
                 raise ValueError(obj)
             name = "_" + self.name
             if not hasattr(obj, name):

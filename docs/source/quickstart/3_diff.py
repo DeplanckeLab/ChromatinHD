@@ -52,7 +52,7 @@ clustering = chd.data.Clustering(dataset_folder / "clustering")
 models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset=True)
 
 # %% tags=["hide_output"]
-models.train_models(fragments, clustering, folds, device="cuda", n_epochs=10, nbins=(256, 128, 64, 32))
+models.train_models(fragments, clustering, folds)
 
 # %% [markdown]
 # ## Interpret positionally

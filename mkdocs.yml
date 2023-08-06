@@ -49,6 +49,9 @@ extra:
   analytics:
     provider: google
     property: G-2EDCBPY71H
+  social:
+    - icon: fontawesome/brands/github 
+      link: https://github.com/DeplanckeLab/ChromatinHD
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -61,3 +64,4 @@ extra_css:
   - stylesheets/extra-reference.css
 extra_javascript:
   - javascripts/reference.js
+copyright: Copyright &copy; 2022 - 2023 Wouter Saelens
