@@ -202,31 +202,17 @@ class QuadraticSplineStack(torch.nn.Module):
 
 
 class DifferentialQuadraticSplineStack(torch.nn.Module):
-    def __init__(self, nbins, n_genes, local_gene_ix=None, x=None):
+    def __init__(self, nbins, n_genes):
         self.nbins = nbins
 
         super().__init__()
-        unnormalized_heights = []
-        unnormalized_widths = []
         splits_heights = []
         splits_widths = []
-        transforms = []
         split_deltas = []
         for n in nbins:
             n_heights = n
             n_widths = n - 1
 
-            if x is not None:
-                unnormalized_heights_, unnormalized_widths_ = initialize_from_previous(
-                    x, n, local_gene_ix, n_genes, transforms=transforms
-                )
-                unnormalized_heights.append(unnormalized_heights_)
-                unnormalized_widths.append(unnormalized_widths_)
-
-                assert unnormalized_heights_.shape[-1] == n_heights
-                assert unnormalized_widths_.shape[-1] == n_widths
-
-                transforms.append(QuadraticSplineTransform(unnormalized_widths_, unnormalized_heights_))
             splits_heights.append(n_heights)
             splits_widths.append(n_widths)
             split_deltas.append(n_heights)
@@ -235,14 +221,8 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
 
         self.unnormalized_widths = EmbeddingTensor(n_genes, (sum(splits_widths),), sparse=True)
 
-        if x is not None:
-            unnormalized_heights = torch.cat(unnormalized_heights, -1)
-            unnormalized_widths = torch.cat(unnormalized_widths, -1)
-            self.unnormalized_heights.data = unnormalized_heights
-            self.unnormalized_widths.data = unnormalized_widths
-        else:
-            self.unnormalized_heights.data[:] = 0.0
-            self.unnormalized_widths.data[:] = 0.0
+        self.unnormalized_heights.data[:] = 0.0
+        self.unnormalized_widths.data[:] = 0.0
 
         self.splits_heights = splits_heights
         self.splits_widths = splits_widths
@@ -251,7 +231,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
     def _split_parameters(self, x, splits):
         return x.split(splits, -1)
 
-    def transform_forward(self, x, genes_oi, local_gene_ix, delta, inverse=False):
+    def transform(self, x, genes_oi, local_gene_ix, delta, inverse=False):
         assert x.shape == local_gene_ix.shape
 
         logabsdet = None
@@ -266,9 +246,11 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             self._split_parameters(unnormalized_widths, self.splits_widths)[::stride],
             self._split_parameters(delta, self.split_deltas)[::stride],
         ):
+            # calculate widths for all genes as they do not depend on the cell
             widths = splines.quadratic.calculate_widths(unnormalized_widths)
             bin_locations = splines.quadratic.calculate_bin_locations(widths)
 
+            # select and calculate widths for each cut site (i.e. cellxgene)
             # use index_select here as it is much faster in backwards than regular indexing
             widths = widths.index_select(0, local_gene_ix)
             bin_locations = bin_locations.index_select(0, local_gene_ix)
@@ -291,8 +273,11 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 logabsdet = logabsdet + logabsdet_
         return outputs, logabsdet
 
+    def transform_forward(self, x, genes_oi, local_gene_ix, delta):
+        return self.transform(x, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=delta, inverse=False)
+
     def transform_inverse(self, y, genes_oi, local_gene_ix, delta):
-        return self.transform_forward(y, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=delta, inverse=True)
+        return self.transform(y, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=delta, inverse=True)
 
     def parameters_sparse(self):
         return [self.unnormalized_heights.weight, self.unnormalized_widths.weight]
