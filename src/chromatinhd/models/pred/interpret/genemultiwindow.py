@@ -5,7 +5,7 @@ import xarray as xr
 import pickle
 import scipy.stats
 import tqdm.auto as tqdm
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 
 
 def fdr(p_vals):
@@ -23,12 +23,12 @@ class GeneMultiWindow(chd.flow.Flow):
     Interpret a *pred* model positionally by censoring windows of across multiple window sizes.
     """
 
-    design = chd.flow.Stored("design")
+    design = chd.flow.Stored()
     """
     The design of the censoring windows.
     """
 
-    genes = chd.flow.Stored("genes", default=set)
+    genes = chd.flow.Stored(default=set)
     """
     The genes that have been scored.
     """
@@ -42,7 +42,7 @@ class GeneMultiWindow(chd.flow.Flow):
         genes,
         censorer,
         force=False,
-        device=default_device,
+        device=None,
     ):
         force_ = force
         design = censorer.design.iloc[1:].copy()
@@ -67,9 +67,7 @@ class GeneMultiWindow(chd.flow.Flow):
                         fragments,
                         transcriptome,
                         censorer,
-                        cell_ixs=np.concatenate(
-                            [fold["cells_validation"], fold["cells_test"]]
-                        ),
+                        cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         genes=[gene],
                         device=device,
                     )
@@ -150,9 +148,7 @@ class GeneMultiWindow(chd.flow.Flow):
                 x = scores["deltacor"].values
                 scores_statistical = []
                 for i in range(x.shape[1]):
-                    scores_statistical.append(
-                        scipy.stats.ttest_1samp(x[:, i], 0, alternative="less").pvalue
-                    )
+                    scores_statistical.append(scipy.stats.ttest_1samp(x[:, i], 0, alternative="less").pvalue)
                 scores_statistical = pd.DataFrame({"pvalue": scores_statistical})
                 scores_statistical["qval"] = fdr(scores_statistical["pvalue"])
 
@@ -161,9 +157,9 @@ class GeneMultiWindow(chd.flow.Flow):
 
                 plotdata["qval"] = scores_statistical["qval"].values
 
-                window_sizes_info = pd.DataFrame(
-                    {"window_size": self.design["window_size"].unique()}
-                ).set_index("window_size")
+                window_sizes_info = pd.DataFrame({"window_size": self.design["window_size"].unique()}).set_index(
+                    "window_size"
+                )
                 window_sizes_info["ix"] = np.arange(len(window_sizes_info))
 
                 # interpolate
@@ -172,15 +168,9 @@ class GeneMultiWindow(chd.flow.Flow):
                     self.design["window_end"].max() + 1,
                 )
 
-                deltacor_interpolated = np.zeros(
-                    (len(window_sizes_info), len(positions_oi))
-                )
-                lost_interpolated = np.zeros(
-                    (len(window_sizes_info), len(positions_oi))
-                )
-                effect_interpolated = np.zeros(
-                    (len(window_sizes_info), len(positions_oi))
-                )
+                deltacor_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
+                lost_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
+                effect_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
                 for window_size, window_size_info in window_sizes_info.iterrows():
                     plotdata_oi = plotdata.query("window_size == @window_size")
                     x = plotdata_oi["window_mid"].values.copy()
@@ -192,16 +182,10 @@ class GeneMultiWindow(chd.flow.Flow):
                         0,
                         # np.inf,
                     )
-                    deltacor_interpolated[
-                        window_size_info["ix"], :
-                    ] = deltacor_interpolated_
+                    deltacor_interpolated[window_size_info["ix"], :] = deltacor_interpolated_
 
                     lost_interpolated_ = (
-                        np.interp(
-                            positions_oi, plotdata_oi["window_mid"], plotdata_oi["lost"]
-                        )
-                        / window_size
-                        * 1000
+                        np.interp(positions_oi, plotdata_oi["window_mid"], plotdata_oi["lost"]) / window_size * 1000
                     )
                     lost_interpolated[window_size_info["ix"], :] = lost_interpolated_
 
@@ -214,9 +198,7 @@ class GeneMultiWindow(chd.flow.Flow):
                         / window_size
                         * 1000
                     )
-                    effect_interpolated[
-                        window_size_info["ix"], :
-                    ] = effect_interpolated_
+                    effect_interpolated[window_size_info["ix"], :] = effect_interpolated_
 
                 deltacor = xr.DataArray(
                     deltacor_interpolated.mean(0),
@@ -239,9 +221,7 @@ class GeneMultiWindow(chd.flow.Flow):
                 )
 
                 # save
-                interpolated = xr.Dataset(
-                    {"deltacor": deltacor, "lost": lost, "effect": effect}
-                )
+                interpolated = xr.Dataset({"deltacor": deltacor, "lost": lost, "effect": effect})
                 pickle.dump(
                     interpolated,
                     interpolate_file.open("wb"),

@@ -17,9 +17,12 @@ class Transcriptome:
     def __init__(
         self,
         transcriptome: chromatinhd.data.transcriptome.Transcriptome,
-        layer: str = "X",
+        layer: str = None,
     ):
-        X = transcriptome.layers[layer]
+        if layer is None:
+            X = transcriptome.X
+        else:
+            X = transcriptome.layers[layer]
         if chromatinhd.sparse.is_sparse(X):
             self.X = X.dense()
         elif torch.is_tensor(X):

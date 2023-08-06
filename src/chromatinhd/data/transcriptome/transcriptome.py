@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-import pickle
 import pathlib
 from typing import Union
 
 from chromatinhd.flow import Flow, Stored, StoredDict, TSV
 from chromatinhd import sparse
-from chromatinhd.utils import Unpickler
 
 
 class Transcriptome(Flow):
@@ -14,10 +12,10 @@ class Transcriptome(Flow):
     A transcriptome containing counts for each gene in each cell.
     """
 
-    var = TSV("var", index_name="gene")
-    obs = TSV("obs", index_name="cell")
+    var: pd.DataFrame = TSV(index_name="gene")
+    obs: pd.DataFrame = TSV(index_name="cell")
 
-    adata = Stored("adata")
+    adata = Stored()
     "Anndata object containing the transcriptome data."
 
     def gene_id(self, symbol, column="symbol"):
@@ -59,11 +57,11 @@ class Transcriptome(Flow):
 
         self.X = X
 
-    X = Stored("X")
-    "Raw counts for each gene in each cell."
+    X = Stored()
+    "The main transcriptome data, typically normalized counts."
 
     @classmethod
-    def from_adata(cls, adata, path: Union[pathlib.Path, str]):
+    def from_adata(cls, adata, path: Union[pathlib.Path, str] = None):
         """
         Create a Transcriptome object from an AnnData object.
 
@@ -75,20 +73,61 @@ class Transcriptome(Flow):
         """
         transcriptome = cls(path=path)
         transcriptome.adata = adata
-        transcriptome.layers["X"] = adata.X
+
+        for k, v in adata.layers.items():
+            transcriptome.layers[k] = v
+        transcriptome.X = adata.X
         transcriptome.var = adata.var
         transcriptome.obs = adata.obs
         return transcriptome
 
-    layers = StoredDict("layers", Stored)
+    layers = StoredDict(Stored)
     "Dictionary of layers, such as raw, normalized and imputed data."
+
+    def filter_genes(self, genes, path=None):
+        """
+        Filter genes
+
+        Parameters:
+            genes:
+                Genes to filter. Should be a pandas Series with the index being the ensembl transcript ids.
+        """
+
+        self.var["ix"] = np.arange(self.var.shape[0])
+        gene_ixs = self.var["ix"].loc[genes]
+
+        layers = {}
+        for k, v in self.layers.items():
+            layers[k] = v[:, gene_ixs]
+        X = self.X[:, gene_ixs]
+
+        return Transcriptome.create(
+            var=self.var.loc[genes],
+            obs=self.obs,
+            X=X,
+            layers=layers,
+            path=path,
+        )
+
+    def get_X(self, gene_ids):
+        """
+        Get the counts for a given set of genes.
+        """
+        gene_ixs = self.var.index.get_loc(gene_ids)
+        value = self.X[:, gene_ixs]
+
+        if sparse.is_scipysparse(value):
+            value = np.array(value.todense())
+            if isinstance(gene_ids, str):
+                value = value[:, 0]
+        return value
 
 
 class ClusterTranscriptome(Flow):
-    var = Stored("var")
-    obs = Stored("obs")
-    adata = Stored("adata")
-    X = Stored("X")
+    var = Stored()
+    obs = Stored()
+    adata = Stored()
+    X = Stored()
 
     def gene_id(self, symbol):
         assert all(pd.Series(symbol).isin(self.var["symbol"])), set(
@@ -111,10 +150,10 @@ class ClusterTranscriptome(Flow):
 
 
 class ClusteredTranscriptome(Flow):
-    donors_info = Stored("donors_info")
-    clusters_info = Stored("clusters_info")
-    var = Stored("var")
-    X = Stored("X")
+    donors_info = Stored()
+    clusters_info = Stored()
+    var = Stored()
+    X = Stored()
 
     def gene_id(self, symbol):
         assert all(pd.Series(symbol).isin(self.var["symbol"])), set(

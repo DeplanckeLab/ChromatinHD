@@ -1,6 +1,6 @@
 import chromatinhd.grid
 import matplotlib as mpl
-from chromatinhd.grid.broken import Broken, Panel
+from chromatinhd.grid.broken import Broken
 import numpy as np
 
 
@@ -89,8 +89,7 @@ class Predictivity(chromatinhd.grid.Panel):
             ax2.tick_params(axis="y", colors="tomato")
             ax2.set_ylim(
                 0,
-                plotdata["lost"].max()
-                / (plotdata["deltacor"].min() / ax.get_ylim()[1]),
+                plotdata["lost"].max() / (plotdata["deltacor"].min() / ax.get_ylim()[1]),
             )
 
         # change vertical alignment of last y tick to bottom
@@ -102,9 +101,7 @@ class Predictivity(chromatinhd.grid.Panel):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_genemultiwindow(
-        cls, genemultiwindow, gene, width, show_accessibility=False
-    ):
+    def from_genemultiwindow(cls, genemultiwindow, gene, width, show_accessibility=False):
         """
         Plot predictivity of a specific gene using a GeneMultiWindow object
         """
@@ -163,9 +160,7 @@ class Pileup(chromatinhd.grid.Panel):
 
 
 class PredictivityBroken(Broken):
-    def __init__(
-        self, plotdata, regions, width, *args, gap=1, break_size=4, height=0.5, **kwargs
-    ):
+    def __init__(self, plotdata, regions, width, *args, gap=1, break_size=4, height=0.5, **kwargs):
         super().__init__(
             regions=regions,
             height=height,
@@ -177,12 +172,9 @@ class PredictivityBroken(Broken):
 
         ylim = plotdata["deltacor"].min() * 1.05
 
-        for (region, region_info), (panel, ax) in zip(
-            regions.iterrows(), self.elements[0]
-        ):
+        for (region, region_info), (panel, ax) in zip(regions.iterrows(), self.elements[0]):
             plotdata_region = plotdata[
-                (plotdata["position"] >= region_info["start"])
-                & (plotdata["position"] <= region_info["end"])
+                (plotdata["position"] >= region_info["start"]) & (plotdata["position"] <= region_info["end"])
             ]
 
             ax.plot(
@@ -192,10 +184,7 @@ class PredictivityBroken(Broken):
                 lw=1,
             )
 
-            c = [
-                "tomato" if effect > 0 else "#333"
-                for effect in plotdata_region["effect"]
-            ]
+            c = ["tomato" if effect > 0 else "#333" for effect in plotdata_region["effect"]]
             ax.scatter(
                 plotdata_region["position"],
                 plotdata_region["deltacor"],
@@ -221,9 +210,7 @@ class LabelBroken(Broken):
 
         assert len(self.elements[0]) == len(regions)
 
-        for (region, region_info), (panel, ax) in zip(
-            regions.iterrows(), self.elements[0]
-        ):
+        for (region, region_info), (panel, ax) in zip(regions.iterrows(), self.elements[0]):
             ax.set_xlim(region_info["start"], region_info["end"])
             ax.set_xticks([])
             ax.set_ylim(0, 0.1)
@@ -234,12 +221,7 @@ class LabelBroken(Broken):
 
             # plot mean position
             if panel.dim[0] > 0.1:
-                ax.set_xticks(
-                    [
-                        region_info["start"]
-                        + (region_info["end"] - region_info["start"]) / 2
-                    ]
-                )
+                ax.set_xticks([region_info["start"] + (region_info["end"] - region_info["start"]) / 2])
                 ax.tick_params(
                     axis="x",
                     rotation=90,
@@ -254,13 +236,9 @@ class LabelBroken(Broken):
                 )
                 ax.xaxis.set_major_formatter(
                     mpl.ticker.FuncFormatter(
-                        lambda x, pos: f"{x / 1000:+.0f}kb"
-                        if x % 1000 == 0
-                        else f"{x / 1000:+.1f}kb"
+                        lambda x, pos: f"{x / 1000:+.0f}kb" if x % 1000 == 0 else f"{x / 1000:+.1f}kb"
                     )
                 )
             # set region boundaries
-            ax.xaxis.set_minor_locator(
-                mpl.ticker.FixedLocator([region_info["start"], region_info["end"]])
-            )
+            ax.xaxis.set_minor_locator(mpl.ticker.FixedLocator([region_info["start"], region_info["end"]]))
             ax.tick_params(axis="x", which="minor", top=True, bottom=False)

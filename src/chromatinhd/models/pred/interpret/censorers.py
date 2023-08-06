@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import torch
 
 
 def select_cutwindow(coordinates, window_start, window_end):
@@ -40,15 +39,11 @@ class WindowCensorer:
         return len(self.design)
 
     def __call__(self, data):
-        for window_start, window_end in zip(
-            self.design["window_start"], self.design["window_end"]
-        ):
+        for window_start, window_end in zip(self.design["window_start"], self.design["window_end"]):
             if np.isnan(window_start):
                 fragments_oi = None
             else:
-                fragments_oi = select_cutwindow(
-                    data.fragments.coordinates, window_start, window_end
-                )
+                fragments_oi = select_cutwindow(data.fragments.coordinates, window_start, window_end)
             yield fragments_oi
 
 
@@ -81,13 +76,9 @@ class MultiWindowCensorer:
         return len(self.design)
 
     def __call__(self, data):
-        for window_start, window_end in zip(
-            self.design["window_start"], self.design["window_end"]
-        ):
+        for window_start, window_end in zip(self.design["window_start"], self.design["window_end"]):
             if np.isnan(window_start):
                 fragments_oi = None
             else:
-                fragments_oi = select_cutwindow(
-                    data.fragments.coordinates, window_start, window_end
-                )
+                fragments_oi = select_cutwindow(data.fragments.coordinates, window_start, window_end)
             yield fragments_oi

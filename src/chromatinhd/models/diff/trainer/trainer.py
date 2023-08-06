@@ -1,13 +1,11 @@
 import tqdm.auto as tqdm
 import torch
-import numpy as np
 from chromatinhd.train import Trace
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 class Trainer:
@@ -21,7 +19,7 @@ class Trainer:
         optim,
         hooks_checkpoint=None,
         hooks_checkpoint2=None,
-        device=default_device,
+        device=None,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=1,
@@ -47,15 +45,16 @@ class Trainer:
         self.minibatcher_validation = minibatcher_validation
 
         self.hooks_checkpoint = hooks_checkpoint if hooks_checkpoint is not None else []
-        self.hooks_checkpoint2 = (
-            hooks_checkpoint2 if hooks_checkpoint2 is not None else []
-        )
+        self.hooks_checkpoint2 = hooks_checkpoint2 if hooks_checkpoint2 is not None else []
 
     def train(self):
         import gc
 
         gc.collect()
         torch.cuda.empty_cache()
+
+        if self.device is None:
+            self.device = get_default_device()
 
         self.model = self.model.to(self.device)
 
@@ -81,9 +80,7 @@ class Trainer:
 
                         loss = self.model(data_validation).sum()
 
-                        self.trace.append(
-                            loss.item(), self.epoch, self.step_ix, "validation"
-                        )
+                        self.trace.append(loss.item(), self.epoch, self.step_ix, "validation")
 
                         for hook in self.hooks_checkpoint:
                             hook.run_individual(self.model, data_validation)

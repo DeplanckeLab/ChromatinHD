@@ -1,6 +1,5 @@
+from __future__ import annotations
 import math
-import pathlib
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -8,14 +7,10 @@ import torch
 import tqdm.auto as tqdm
 
 from chromatinhd.data.regions import Regions
-from chromatinhd.flow import (
-    TSV,
-    Flow,
-    Linked,
-    Stored,
-    StoredTorchInt32,
-    StoredTorchInt64,
-)
+from chromatinhd.flow import TSV, Flow, Linked, Stored, StoredTensor, PathLike
+from chromatinhd.utils import class_or_instancemethod
+
+import pathlib
 
 
 class RawFragments:
@@ -26,28 +21,23 @@ class RawFragments:
 class Fragments(Flow):
     """Fragments centered around a gene window"""
 
-    regions = Linked("regions")
-    """Regions in which fragments are stored"""
+    regions: Regions = Linked()
+    """The regions in which (part of) the fragments are located and centered"""
 
-    coordinates: torch.Tensor = StoredTorchInt64("coordinates")
+    coordinates: torch.Tensor = StoredTensor(torch.int64)
     """Coordinates of the two cut sites."""
 
-    mapping: torch.Tensor = StoredTorchInt64("mapping")
+    mapping: torch.Tensor = StoredTensor(torch.int64)
     """Mapping of a fragment to a gene and a cell"""
 
-    cellxgene_indptr: torch.Tensor = StoredTorchInt64("cellxgene_indptr")
+    cellxgene_indptr: torch.Tensor = StoredTensor(torch.int64)
     """Index pointers for each cellxgene combination"""
-
-    regions: pd.DataFrame = Linked("regions")
-    """Dataframe containing chromosome, start, end and strand of each region"""
 
     def create_cellxgene_indptr(self):
         cellxgene = self.mapping[:, 0] * self.n_genes + self.mapping[:, 1]
 
         if not (cellxgene.diff() >= 0).all():
-            raise ValueError(
-                "Fragments should be ordered by cell then gene (ascending)"
-            )
+            raise ValueError("Fragments should be ordered by cell then gene (ascending)")
 
         n_cellxgene = self.n_genes * self.n_cells
         cellxgene_indptr = torch.nn.functional.pad(
@@ -55,9 +45,7 @@ class Fragments(Flow):
         )
         assert self.coordinates.shape[0] == cellxgene_indptr[-1]
         if not (cellxgene_indptr.diff() >= 0).all():
-            raise ValueError(
-                "Fragments should be ordered by cell then gene (ascending)"
-            )
+            raise ValueError("Fragments should be ordered by cell then gene (ascending)")
         self.cellxgene_indptr = cellxgene_indptr
 
     _genemapping = None
@@ -76,10 +64,10 @@ class Fragments(Flow):
             self._cellmapping = self.mapping[:, 0].contiguous()
         return self._cellmapping
 
-    var = TSV("var")
+    var = TSV()
     """DataFrame containing information about regions."""
 
-    obs = TSV("obs")
+    obs = TSV()
     """DataFrame containing information about cells."""
 
     _n_genes = None
@@ -126,32 +114,37 @@ class Fragments(Flow):
     def cells_oi_torch(self):
         return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
 
-    @classmethod
+    @class_or_instancemethod
     def from_fragments_tsv(
         cls,
-        fragments_file: Union[pathlib.Path, str],
+        fragments_file: PathLike,
         regions: Regions,
         obs: pd.DataFrame,
-        path: Union[pathlib.Path, str],
         cell_column: str = None,
+        path: PathLike = None,
         overwrite: bool = True,
-    ):
+    ) -> Fragments:
         """
         Create a Fragments object from a fragments tsv file
 
         Parameters:
             fragments_file:
-                Location of the `fragments.tsv` file created by e.g. CellRanger or sinto
+                Location of the fragments tab-separate file created by e.g. CellRanger or sinto
             obs:
-                DataFrame containing information about cells. The index should be the cell names as present in the fragments file. If not, you can specify the column name using the `cell_column` argument.
-            path:
-                Folder in which the fragments data will be stored
+                DataFrame containing information about cells.
+                The index should be the cell names as present in the fragments file.
+                Alternatively, the column containing cell ids can be specified using the `cell_column` argument.
             regions:
-                Regions object
-            cell_column (optional):
-                Column name in the `obs` DataFrame containing the cell names. If not specified, the index of the `obs` DataFrame is used.
-            overwrite (optional):
-                Whether to overwrite the data if it already exists
+                Regions from which the fragments will be extracted.
+            cell_column:
+                Column name in the `obs` DataFrame containing the cell names.
+                If not specified, the index of the `obs` DataFrame is used.
+            path:
+                Folder in which the fragments data will be stored.
+            overwrite:
+                Whether to overwrite the data if it already exists.
+        Returns:
+            A new Fragments object
         """
 
         if isinstance(fragments_file, str):
@@ -169,6 +162,7 @@ class Fragments(Flow):
         var["ix"] = np.arange(var.shape[0])
 
         # cell information
+        obs = obs.copy()
         obs["ix"] = np.arange(obs.shape[0])
         if cell_column is None:
             cell_to_cell_ix = obs["ix"].to_dict()
@@ -199,6 +193,9 @@ class Fragments(Flow):
                 parser=pysam.asTuple(),
             )
 
+            tss = promoter_info["tss"]
+            strand = promoter_info["strand"]
+
             for fragment in fragments_promoter:
                 cell = fragment[3]
 
@@ -207,11 +204,9 @@ class Fragments(Flow):
                     # add raw data of fragment relative to tss
                     coordinates_raw.append(
                         [
-                            (int(fragment[1]) - promoter_info["tss"])
-                            * promoter_info["strand"],
-                            (int(fragment[2]) - promoter_info["tss"])
-                            * promoter_info["strand"],
-                        ][:: promoter_info["strand"]]
+                            (int(fragment[1]) - tss) * strand,
+                            (int(fragment[2]) - tss) * strand,
+                        ][::strand]
                     )
 
                     # add mapping of cell/gene
@@ -234,14 +229,51 @@ class Fragments(Flow):
             obs=obs,
         )
 
+    def filter_genes(self, regions: Regions, path: PathLike = None) -> Fragments:
+        """
+        Filter based on new regions
+
+        Parameters:
+            regions:
+                Regions to filter.
+        Returns:
+            A new Fragments object
+        """
+
+        # test if new regions are a subset of the existing ones
+        if not regions.coordinates.index.isin(self.regions.coordinates.index).all():
+            raise ValueError("New regions should be a subset of the existing ones")
+
+        # filter genes
+        self.regions.coordinates["ix"] = np.arange(self.regions.coordinates.shape[0])
+        regions.coordinates["ix"] = self.regions.coordinates["ix"].loc[regions.coordinates.index]
+        fragments_oi = np.isin(self.mapping[:, 1].numpy(), regions.coordinates["ix"])
+
+        mapping = self.mapping[fragments_oi]
+        coordinates = self.coordinates[fragments_oi]
+        var = self.regions.coordinates.copy()
+        var["original_ix"] = np.arange(var.shape[0])
+        var = var.loc[regions.coordinates.index].copy()
+        var["ix"] = np.arange(var.shape[0])
+        mapping[:, 1] = torch.from_numpy(var.set_index("original_ix").loc[mapping[:, 1].cpu().numpy(), "ix"].values)
+
+        # Sort `coordinates` and `mapping` according to `mapping`
+        sorted_idx = torch.argsort((mapping[:, 0] * var.shape[0] + mapping[:, 1]))
+        mapping = mapping[sorted_idx]
+        coordinates = coordinates[sorted_idx]
+
+        return Fragments.create(
+            coordinates=coordinates, mapping=mapping, regions=regions, var=var, obs=self.obs, path=path
+        )
+
 
 class ChunkedFragments(Flow):
-    chunk_size = Stored("chunk_size")
-    chunkcoords = StoredTorchInt64("chunkcoords")
-    chunkcoords_indptr = StoredTorchInt32("chunkcoords_indptr")
-    clusters = StoredTorchInt32("clusters")
-    relcoords = StoredTorchInt32("relcoords")
+    chunk_size = Stored()
+    chunkcoords = StoredTensor(dtype=torch.int64)
+    chunkcoords_indptr = StoredTensor(dtype=torch.int32)
+    clusters = StoredTensor(dtype=torch.int32)
+    relcoords = StoredTensor(dtype=torch.int32)
 
-    clusters = Stored("clusters")
-    clusters_info = Stored("clusters_info")
-    chromosomes = Stored("chromosomes")
+    clusters = Stored()
+    clusters_info = Stored()
+    chromosomes = Stored()

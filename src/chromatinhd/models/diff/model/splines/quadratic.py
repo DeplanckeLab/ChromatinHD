@@ -1,5 +1,3 @@
-import math
-
 import torch
 from torch.nn import functional as F
 
@@ -36,15 +34,11 @@ def unconstrained_quadratic_spline(
 
 def calculate_widths(unnormalized_widths, min_bin_width=DEFAULT_MIN_BIN_WIDTH):
     widths = F.softmax(unnormalized_widths, dim=-1)
-    widths = (
-        min_bin_width + (1 - min_bin_width * unnormalized_widths.shape[-1]) * widths
-    )
+    widths = min_bin_width + (1 - min_bin_width * unnormalized_widths.shape[-1]) * widths
     return widths
 
 
-def calculate_heights(
-    unnormalized_heights, widths, min_bin_height=DEFAULT_MIN_BIN_HEIGHT, local=True
-):
+def calculate_heights(unnormalized_heights, widths, min_bin_height=DEFAULT_MIN_BIN_HEIGHT, local=True):
     unnorm_heights_exp = torch.exp(unnormalized_heights)
 
     min_bin_height = 1e-3
@@ -78,9 +72,7 @@ def calculate_heights(
 
 
 def calculate_bin_left_cdf(heights, widths):
-    bin_left_cdf = torch.cumsum(
-        ((heights[..., :-1] + heights[..., 1:]) / 2) * widths, dim=-1
-    )
+    bin_left_cdf = torch.cumsum(((heights[..., :-1] + heights[..., 1:]) / 2) * widths, dim=-1)
     bin_left_cdf[..., -1] = 1.0
     bin_left_cdf = F.pad(bin_left_cdf, pad=(1, 0), mode="constant", value=0.0)
     return bin_left_cdf
@@ -128,9 +120,7 @@ def quadratic_spline(
     if inverse:
         bin_idx = torch.searchsorted(bin_left_cdf, inputs.unsqueeze(-1)).squeeze(-1) - 1
     else:
-        bin_idx = (
-            torch.searchsorted(bin_locations, inputs.unsqueeze(-1)).squeeze(-1) - 1
-        )
+        bin_idx = torch.searchsorted(bin_locations, inputs.unsqueeze(-1)).squeeze(-1) - 1
 
     bin_idx = torch.clamp(bin_idx, 0, num_bins - 1)
 
@@ -162,18 +152,14 @@ def quadratic_spline(
         alpha[alpha.isnan()] = 0.0
 
         outputs = alpha * input_bin_widths + input_bin_locations
-        logabsdet = -torch.log(
-            (alpha * (input_right_heights - input_left_heights) + input_left_heights)
-        )
+        logabsdet = -torch.log((alpha * (input_right_heights - input_left_heights) + input_left_heights))
     else:
         # due to numerical imprecision, alpha can sometimes fall outside of 0 and 1
         alpha = torch.clamp((inputs - input_bin_locations) / input_bin_widths, 0, 1)
 
         outputs = a * alpha.pow(2) + b * alpha + c
 
-        logabsdet = torch.log(
-            (alpha * (input_right_heights - input_left_heights) + input_left_heights)
-        )
+        logabsdet = torch.log((alpha * (input_right_heights - input_left_heights) + input_left_heights))
 
     outputs = torch.clamp(outputs, 0, 1)
 

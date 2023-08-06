@@ -1,10 +1,8 @@
 import numpy as np
-import pandas as pd
 import matplotlib as mpl
 
 
 def matshow45(ax, series, radius=None, cmap=None, norm=None):
-
     """
     fig, ax = plt.subplots()
     plotdata = pd.DataFrame(

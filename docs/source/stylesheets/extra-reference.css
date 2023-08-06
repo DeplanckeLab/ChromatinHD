@@ -4,8 +4,22 @@
 
 .doc-class>.doc-heading {
     margin-top: 0.5em;
-    border-top: 2px #33333333 solid;
-    padding-top: 0.5em;
+    border-top: 3px #33333333 solid;
+    background-color: var(--md-code-bg-color);
+    /* padding-top: 0.5em; */
+}
+
+.doc-class {
+    margin-bottom: 1em;
+    border-bottom: 1px #33333333 solid;
+}
+
+
+.doc-function>.doc-heading {
+    margin-top: 0.5em;
+    border-left: 3px #33333333 solid;
+    background-color: var(--md-code-bg-color);
+    /* padding-top: 0.5em; */
 }
 
 
@@ -26,6 +40,7 @@
 /* attributes, functions, ... */
 
 .doc-attribute-tag {
+    margin-left: 5px;
     font-size: 0.6em;
     font-style: italic;
     padding: 0.1em;
@@ -34,6 +49,7 @@
 }
 
 .doc-function-tag {
+    margin-left: 5px;
     font-size: 0.6em;
     font-style: italic;
     padding: 0.1em;
@@ -43,6 +59,7 @@
 }
 
 .doc-class-tag {
+    margin-left: 5px;
     font-size: 0.6em;
     font-style: italic;
     padding: 0.1em;
@@ -57,4 +74,15 @@
 
 .doc-function code:first-child {
     font-weight: bold;
+}
+
+.doc .md-typeset__table,
+.doc .md-typeset__table table {
+    display: table !important;
+    width: inherit;
+}
+
+.md-typeset table:not([class]) th {
+    padding-top: 0;
+    padding-bottom: 0;
 }

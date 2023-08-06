@@ -31,20 +31,16 @@ import matplotlib.pyplot as plt
 # ChromatinHD-<i>pred</i> uses accessibility fragments to predict gene expression. As such, it can detect features such as broad or narrow positioning of fragments, or fragment sizes, that are predictive for gene expression.
 
 # %% [markdown]
-# We first load in all the input data:
+# We first load in all the input data which was created in the [data preparation tutorial](../1_data).
 
 # %%
 import pathlib
+
 dataset_folder = pathlib.Path("example")
 fragments = chd.data.Fragments(dataset_folder / "fragments")
 transcriptome = chd.data.Transcriptome(dataset_folder / "transcriptome")
 folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1")
 clustering = chd.data.Clustering(dataset_folder / "clustering")
-
-# %%
-cluster_info = clustering.cluster_info
-cluster_info.index.name = "cluster"
-clustering.cluster_info = cluster_info
 
 # %% [markdown]
 # ## Train the models
@@ -53,22 +49,22 @@ clustering.cluster_info = cluster_info
 # The basic ChromatinHD-*diff* model
 
 # %%
-import chromatinhd.models.diff.model.cutnf
-
-# %%
-models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset = True)
+models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset=True)
 
 # %% tags=["hide_output"]
-models.train_models(fragments, clustering, folds, device = "cuda", n_epochs = 10, nbins = (256, 128, 64, 32))
+models.train_models(fragments, clustering, folds)
 
 # %% [markdown]
 # ## Interpret positionally
 
 # %% [markdown]
-# Currently, the model is a purely positional model, and as such we can only interpret it positionally.
+# Currently, the ChromatinHD-model is purely positional, i.e. it only looks whether Tn5 insertion sites increase or decrease within a region. As such, we can only interpret it positionally:
 
 # %%
 import chromatinhd.models.diff.interpret.genepositional
+
+# %%
+clustering.cluster_info.index.name = "cluster"
 
 # %%
 genepositional = chromatinhd.models.diff.interpret.genepositional.GenePositional(
@@ -78,19 +74,11 @@ genepositional.score(
     fragments,
     clustering,
     models,
-    folds,
-    genes=transcriptome.gene_id(
-        [
-            "CCL4",
-            "IL1B",
-            "EBF1",
-        ]
-    ),
     force=True,
 )
 
 # %%
-symbol = "CCL4"
+symbol = "EBF1"
 
 fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05, padding_width=0.05))
 width = 10
@@ -101,14 +89,14 @@ fig.main.add_under(panel_genes)
 
 plotdata, plotdata_mean = genepositional.get_plotdata(transcriptome.gene_id(symbol))
 panel_differential = chd.models.diff.plot.Differential(
-    plotdata, plotdata_mean, cluster_info = clustering.cluster_info, panel_height = 0.5, width=width
+    plotdata, plotdata_mean, cluster_info=clustering.cluster_info, panel_height=0.5, width=width
 )
 fig.main.add_under(panel_differential)
 
 panel_expression = chd.models.diff.plot.DifferentialExpression.from_transcriptome(
-    transcriptome = transcriptome, clustering = clustering, gene = transcriptome.gene_id(symbol), panel_height = 0.5
+    transcriptome=transcriptome, clustering=clustering, gene=transcriptome.gene_id(symbol), panel_height=0.5
 )
-fig.main.add_right(panel_expression, row = panel_differential)
+fig.main.add_right(panel_expression, row=panel_differential)
 
 fig.plot()
 

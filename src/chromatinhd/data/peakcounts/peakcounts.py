@@ -61,9 +61,7 @@ class PeakCounts(Flow):
         i = [k[0] for k in counts.keys()]
         j = [k[1] for k in counts.keys()]
         v = [v for v in counts.values()]
-        counts_csr = scipy.sparse.csr_matrix(
-            (v, (i, j)), shape=(len(barcode_idxs), len(peak_idxs))
-        )
+        counts_csr = scipy.sparse.csr_matrix((v, (i, j)), shape=(len(barcode_idxs), len(peak_idxs)))
 
         if counts_csr.sum() == 0:
             raise ValueError("Something went wrong with counting")
@@ -71,9 +69,7 @@ class PeakCounts(Flow):
         self.counts = counts_csr
 
         # create obs
-        obs = pd.DataFrame(
-            {"cell": list(barcode_idxs.keys()), "ix": list(barcode_idxs.values())}
-        ).set_index("cell")
+        obs = pd.DataFrame({"cell": list(barcode_idxs.keys()), "ix": list(barcode_idxs.values())}).set_index("cell")
         self.obs = obs.copy()
 
         # create var
@@ -184,9 +180,7 @@ class HalfPeak(PeakCounts):
         )
 
         peaks = []
-        for peak_id, peak in tqdm.tqdm(
-            original_peak_annot.iterrows(), total=original_peak_annot.shape[0]
-        ):
+        for peak_id, peak in tqdm.tqdm(original_peak_annot.iterrows(), total=original_peak_annot.shape[0]):
             peak1 = peak.copy()
             peak1["end"] = int(peak["start"] + int(peak["end"] - peak["start"]) / 2)
             peak1["original_peak"] = peak_id
@@ -197,13 +191,9 @@ class HalfPeak(PeakCounts):
             peaks.append(peak2)
 
         peaks = pd.DataFrame(peaks)
-        peaks.index = pd.Index(
-            peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str)
-        )
+        peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str))
         peaks = peaks.groupby(level=0).first()
-        peaks.index = pd.Index(
-            peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str)
-        )
+        peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str))
 
         self.peaks = peaks
 
@@ -238,13 +228,9 @@ class ThirdPeak(PeakCounts):
             peaks.append(peak2)
 
         peaks = pd.DataFrame(peaks)
-        peaks.index = pd.Index(
-            peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str)
-        )
+        peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str))
         peaks = peaks.groupby(level=0).first()
-        peaks.index = pd.Index(
-            peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str)
-        )
+        peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str))
 
         self.peaks = peaks
 
@@ -267,96 +253,8 @@ class BroaderPeak(PeakCounts):
         peaks["start"] = np.maximum(1, peaks["start"] - 5000)
         peaks["end"] = peaks["end"] + 5000
 
-        peaks.index = pd.Index(
-            peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str)
-        )
+        peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str))
         peaks = peaks.groupby(level=0).first()
-        peaks.index = pd.Index(
-            peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str)
-        )
+        peaks.index = pd.Index(peaks.chrom + ":" + peaks.start.astype(str) + "-" + peaks.end.astype(str))
 
         self.peaks = peaks
-
-
-class FragmentPeak(FullPeak):
-    default_name = "fragment_peak"
-
-    def count_peaks(self, fragments_location, cell_ids, tabix_location="tabix"):
-        # add ix to peaks
-        peaks = self.peaks
-        peaks["ix"] = np.arange(peaks.shape[0])
-
-        # create peaks file for tabix
-        peaks_bed = peaks[["chrom", "start", "end"]]
-        self.peaks_bed = peaks_bed
-
-        # count
-        fragments = []
-
-        peak_idxs = peaks["ix"].to_dict()
-        barcode_idxs = {barcode: ix for ix, barcode in enumerate(cell_ids)}
-
-        fragment_cutoffs = (125, 250, 400)
-
-        process = sp.Popen(
-            [
-                tabix_location,
-                fragments_location,
-                "-R",
-                peaks_bed_path,
-                "--separate-regions",
-            ],
-            stdout=sp.PIPE,
-        )
-        counter = tqdm.tqdm(total=self.peaks.shape[0], smoothing=0)
-        for line in process.stdout:
-            line = line.decode("utf-8")
-            if line.startswith("#"):
-                peak = line.rstrip("\n").lstrip("#")
-                peak_idx = peak_idxs[peak]
-                counter.update(1)
-            else:
-                fragment = line.split("\t")
-                barcode = fragment[3]
-                if barcode in barcode_idxs:
-                    length = int(fragment[2]) - int(fragment[1])
-                    for i, cutoff in enumerate(fragment_cutoffs):
-                        if length < cutoff:
-                            fragments.append((barcode_idxs[barcode], peak_idx, i))
-                            break
-                    else:
-                        fragments.append((barcode_idxs[barcode], peak_idx, i))
-
-            # if counter.n > 1000:
-            #     break
-
-        # count individual fragments
-        counts = collections.defaultdict(int)
-        for k in fragments:
-            counts[(k[0], k[1] * (len(fragment_cutoffs) + 1) + k[2])] += 1
-
-        # convert to sparse
-        import scipy.sparse
-
-        i = [k[0] for k in counts.keys()]
-        j = [k[1] for k in counts.keys()]
-        v = [v for v in counts.values()]
-        counts_csr = scipy.sparse.csr_matrix(
-            (v, (i, j)),
-            shape=(len(barcode_idxs), len(peak_idxs) * (len(fragment_cutoffs) + 1)),
-        )
-
-        self.store("counts", counts_csr)
-
-        # create obs
-        obs = pd.DataFrame(
-            {"cell": list(barcode_idxs.keys()), "ix": list(barcode_idxs.values())}
-        ).set_index("cell")
-        self.store("obs", obs)
-
-        # create var
-        var = peaks.loc[peaks.index.repeat(len(fragment_cutoffs) + 1)].copy()
-        var["fragment_bin"] = (list(fragment_cutoffs) + ["inf"]) * peaks.shape[0]
-        var.index = var.index + "_" + var["fragment_bin"].astype(str)
-
-        self.var = var

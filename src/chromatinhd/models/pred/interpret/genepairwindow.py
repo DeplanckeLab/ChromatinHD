@@ -8,7 +8,7 @@ import tqdm.auto as tqdm
 import xarray as xr
 
 import chromatinhd as chd
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 from chromatinhd.data.folds import Folds
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.transcriptome import Transcriptome
@@ -35,12 +35,13 @@ def fdr(p_vals):
 
 class GenePairWindow(chd.flow.Flow):
     """
-    Interpret a *pred* model positionally by censoring windows and comparing the decrease in predictivity per cell between pairs of windows
+    Interpret a *pred* model positionally by censoring windows and comparing
+    the decrease in predictivity per cell between pairs of windows
     """
 
-    design = chd.flow.Stored("design")
+    design = chd.flow.Stored()
 
-    genes = chd.flow.Stored("genes", default=set)
+    genes = chd.flow.Stored(default=set)
 
     def score(
         self,
@@ -51,7 +52,7 @@ class GenePairWindow(chd.flow.Flow):
         censorer,
         genes: Optional[List] = None,
         force=False,
-        device=default_device,
+        device=None,
     ):
         """
         Score the models
@@ -72,6 +73,9 @@ class GenePairWindow(chd.flow.Flow):
         force_ = force
         design = censorer.design.iloc[1:].copy()
         self.design = design
+
+        if device is None:
+            device = get_default_device()
 
         if genes is None:
             genes = transcriptome.var.index
@@ -96,9 +100,7 @@ class GenePairWindow(chd.flow.Flow):
                         fragments,
                         transcriptome,
                         censorer,
-                        cell_ixs=np.concatenate(
-                            [fold["cells_validation"], fold["cells_test"]]
-                        ),
+                        cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         genes=[gene],
                         device=device,
                     )
@@ -113,15 +115,13 @@ class GenePairWindow(chd.flow.Flow):
                     predicted_censored = predicted[1:]
                     predicted_full = predicted[0][None, ...]
                     predicted_full_norm = zscore(predicted_full, 1)
-                    predicted_censored_norm = zscore_relative(
-                        predicted_censored, predicted_full, 1
-                    )
+                    predicted_censored_norm = zscore_relative(predicted_censored, predicted_full, 1)
 
                     expected_norm = zscore(expected[None, ...], 1)
 
-                    celldeltacor = -np.abs(
-                        predicted_censored_norm - expected_norm
-                    ) - -np.abs(predicted_full_norm - expected_norm)
+                    celldeltacor = -np.abs(predicted_censored_norm - expected_norm) - -np.abs(
+                        predicted_full_norm - expected_norm
+                    )
                     with np.errstate(divide="ignore", invalid="ignore"):
                         copredictivity = np.corrcoef(celldeltacor)
                     copredictivity[np.isnan(copredictivity)] = 0.0
@@ -199,12 +199,8 @@ class GenePairWindow(chd.flow.Flow):
             .join(plotdata.set_index(["window1", "window2"]))
         )
         plotdata = plotdata.reset_index().fillna({"cor": 0.0})
-        plotdata["window_mid1"] = self.design.loc[plotdata["window1"]][
-            "window_mid"
-        ].values
-        plotdata["window_mid2"] = self.design.loc[plotdata["window2"]][
-            "window_mid"
-        ].values
+        plotdata["window_mid1"] = self.design.loc[plotdata["window1"]]["window_mid"].values
+        plotdata["window_mid2"] = self.design.loc[plotdata["window2"]]["window_mid"].values
         plotdata["dist"] = np.abs(plotdata["window_mid1"] - plotdata["window_mid2"])
         plotdata = plotdata.query("(window_mid1 < window_mid2)")
         # plotdata = plotdata.query("dist > 1000")

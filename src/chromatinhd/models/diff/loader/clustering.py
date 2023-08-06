@@ -21,16 +21,14 @@ class Clustering:
         self,
         clustering: chromatinhd.data.clustering.Clustering,
     ):
-        assert (
-            clustering.labels.cat.categories == clustering.cluster_info.index
-        ).all(), (
+        assert (clustering.labels.cat.categories == clustering.cluster_info.index).all(), (
             clustering.labels.cat.categories,
             clustering.cluster_info.index,
         )
         self.onehot = torch.nn.functional.one_hot(
             torch.from_numpy(clustering.labels.cat.codes.values.copy()).to(torch.int64),
             clustering.n_clusters,
-        )
+        ).to(torch.float)
 
     def load(self, minibatch):
         onehot = self.onehot[minibatch.cells_oi, :]

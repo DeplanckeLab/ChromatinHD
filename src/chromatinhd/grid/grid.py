@@ -21,8 +21,10 @@ class Element:
     def height(self):
         return self.dim[1]
 
+
 TITLE_HEIGHT = 0.3
 AXIS_WIDTH = AXIS_HEIGHT = 0.0
+
 
 class Ax(Element):
     ax2 = None
@@ -92,14 +94,8 @@ class Ax(Element):
             inset.position(
                 fig,
                 pos=(
-                    x
-                    + (width - inset.dim[0]) * inset_anchor[0]
-                    + (width) * inset_position[0]
-                    + inset_offset[0],
-                    y
-                    + (height - inset.dim[1]) * inset_anchor[1]
-                    + (height) * inset_position[1]
-                    + inset_offset[1],
+                    x + (width - inset.dim[0]) * inset_anchor[0] + (width) * inset_position[0] + inset_offset[0],
+                    y + (height - inset.dim[1]) * inset_anchor[1] + (height) * inset_position[1] + inset_offset[1],
                 ),
             )
 
@@ -156,9 +152,7 @@ class Wrap(Element):
     ):
         self.ncol = ncol
         self.padding_width = padding_width
-        self.padding_height = (
-            padding_height if padding_height is not None else padding_width
-        )
+        self.padding_height = padding_height if padding_height is not None else padding_width
         self.margin_width = margin_width
         self.margin_height = margin_height
         self.elements = []
@@ -298,9 +292,7 @@ class Grid(Element):
         margin_width=0.5,
     ):
         self.padding_width = padding_width
-        self.padding_height = (
-            padding_height if padding_height is not None else padding_width
-        )
+        self.padding_height = padding_height if padding_height is not None else padding_width
         self.margin_width = margin_width
         self.margin_height = margin_height
         self.elements = [[None for _ in range(ncol)] for _ in range(nrow)]
@@ -420,13 +412,9 @@ class Grid(Element):
         # get column index if column is a panel
         if "grid.Element" in column.__class__.__mro__.__repr__():
             try:
-                column = (
-                    np.array(self.elements).flatten().tolist().index(column) % self.ncol
-                )
+                column = np.array(self.elements).flatten().tolist().index(column) % self.ncol
             except ValueError as e:
-                raise ValueError(
-                    "The panel specified as column was not found in the grid"
-                ) from e
+                raise ValueError("The panel specified as column was not found in the grid") from e
         self[row, column] = el
         if padding is not None:
             self.paddings_height[row] = padding
@@ -443,9 +431,7 @@ class Grid(Element):
             try:
                 row = np.array(self.elements).flatten().tolist().index(row) // self.ncol
             except ValueError as e:
-                raise ValueError(
-                    "The panel specified as row was not found in the grid"
-                ) from e
+                raise ValueError("The panel specified as row was not found in the grid") from e
 
         self[row, column] = el
         if padding is not None:
@@ -481,7 +467,7 @@ class _Figure(mpl.figure.Figure):
         """
         new_bounds = self.get_tightbbox().extents
         current_size = self.get_size_inches()
-        new_size = new_bounds[2] - new_bounds[0], new_bounds[3] - new_bounds[1]
+        new_bounds[2] - new_bounds[0], new_bounds[3] - new_bounds[1]
 
         self.set_figwidth(new_bounds[2] - new_bounds[0])
         self.set_figheight(new_bounds[3] - new_bounds[1])

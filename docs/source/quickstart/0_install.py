@@ -25,14 +25,14 @@ if IPython.get_ipython() is not None:
 
 # %% [markdown]
 # <pre class="bash">
-# # from github
-# <b>pip install git+https://github.com/DeplanckeLab/ChromatinHD</b>
-#
-# # (soon) using pip
+# # using pip
 # pip install chromatinhd
 #
 # # (soon) using conda
 # conda install -c bioconda chromatinhd
+#
+# # from github
+# pip install git+https://github.com/DeplanckeLab/ChromatinHD
 # </pre>
 
 # %% [markdown]
@@ -52,3 +52,9 @@ torch.cuda.device_count()  # should be >= 1
 
 # %% tags=["hide_output"]
 import chromatinhd as chd
+
+# %% [markdown]
+# ## Frequently asked questions
+
+# %% [markdown]
+#

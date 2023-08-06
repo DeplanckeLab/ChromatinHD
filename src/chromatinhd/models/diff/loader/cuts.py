@@ -13,7 +13,7 @@ except ImportError:
         reload_support=True,
         language_level=3,
         setup_args=dict(include_dirs=[np.get_include()]),
-        build_in_temp=False,
+        build_in_temp=False,  # ensures that the c code is put in the same directory as the pyx file
     )
     from . import fragments_helpers  # pylint: disable=C0413,E0611
 
@@ -40,9 +40,7 @@ class Result:
     def to(self, device):
         for field_name, field in self.__dataclass_fields__.items():
             if field.type is torch.Tensor:
-                self.__setattr__(
-                    field_name, self.__getattribute__(field_name).to(device)
-                )
+                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
         return self
 
 
@@ -95,9 +93,7 @@ class Cuts:
         self.out_coordinates = torch.from_numpy(
             np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
         )  # .pin_memory()
-        self.out_genemapping = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
+        self.out_genemapping = torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64))  # .pin_memory()
         self.out_local_cellxgene_ix = torch.from_numpy(
             np.zeros(self.fragment_buffer_size, dtype=np.int64)
         )  # .pin_memory()
@@ -108,9 +104,7 @@ class Cuts:
         if not self.preloaded:
             self.preload()
 
-        minibatch.cellxgene_oi = cell_gene_to_cellxgene(
-            minibatch.cells_oi, minibatch.genes_oi, self.n_genes
-        )
+        minibatch.cellxgene_oi = cell_gene_to_cellxgene(minibatch.cells_oi, minibatch.genes_oi, self.n_genes)
 
         assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size, (
             len(minibatch.cellxgene_oi),
@@ -136,22 +130,15 @@ class Cuts:
 
         # convert to cut data
         cut_coordinates = self.out_coordinates.flatten()
-        cut_coordinates = (cut_coordinates - self.window[0]) / (
-            self.window[1] - self.window[0]
-        )
+        cut_coordinates = (cut_coordinates - self.window[0]) / (self.window[1] - self.window[0])
         keep_cuts = (cut_coordinates >= 0) & (cut_coordinates <= 1)
         cut_coordinates = cut_coordinates[keep_cuts]
 
         local_cellxgene_ix = self.out_local_cellxgene_ix
 
         local_cellxgene_ix = local_cellxgene_ix.expand(2, -1).T.flatten()[keep_cuts]
-        local_cell_ix = torch.div(
-            local_cellxgene_ix, self.n_genes, rounding_mode="floor"
-        )
-        localcellxgene_ix = (
-            local_cell_ix * self.n_genes
-            + self.out_genemapping.expand(2, -1).T.flatten()[keep_cuts]
-        )
+        local_cell_ix = torch.div(local_cellxgene_ix, self.n_genes, rounding_mode="floor")
+        localcellxgene_ix = local_cell_ix * self.n_genes + self.out_genemapping.expand(2, -1).T.flatten()[keep_cuts]
 
         return Result(
             coordinates=cut_coordinates,

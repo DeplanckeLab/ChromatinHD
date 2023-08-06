@@ -10,16 +10,16 @@ import pandas as pd
 
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.flow import Flow, Stored
-from chromatinhd.loaders import LoaderPool2
+from chromatinhd.loaders import LoaderPool
 from chromatinhd.models import HybridModel
 from chromatinhd.models.diff.loader.clustering_cuts import ClusteringCuts
 from chromatinhd.models.diff.loader.minibatches import Minibatcher
 from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.optim import SparseDenseAdam
-from chromatinhd import default_device
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.clustering import Clustering
 from chromatinhd.utils import crossing
+from chromatinhd import get_default_device
 from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
 
@@ -37,11 +37,7 @@ class Decoder(torch.nn.Module):
 
         layers = []
         for i in range(n_layers):
-            layers.append(
-                torch.nn.Linear(
-                    n_hidden_dimensions if i > 0 else n_latent, n_hidden_dimensions
-                )
-            )
+            layers.append(torch.nn.Linear(n_hidden_dimensions if i > 0 else n_latent, n_hidden_dimensions))
             layers.append(torch.nn.BatchNorm1d(n_hidden_dimensions))
             layers.append(torch.nn.ReLU())
             if dropout_rate > 0.0:
@@ -60,9 +56,7 @@ class Decoder(torch.nn.Module):
         # self.logit_weight.weight.data.uniform_(-stdv, stdv)
         self.logit_weight.weight.data.zero_()
 
-        self.rho_weight = EmbeddingTensor(
-            n_genes, (n_hidden_dimensions if n_layers > 0 else n_latent,), sparse=True
-        )
+        self.rho_weight = EmbeddingTensor(n_genes, (n_hidden_dimensions if n_layers > 0 else n_latent,), sparse=True)
         stdv = 1.0 / math.sqrt(self.rho_weight.weight.size(1))
         self.rho_weight.weight.data.uniform_(-stdv, stdv)
 
@@ -74,9 +68,7 @@ class Decoder(torch.nn.Module):
         nn_output = self.nn(latent)
 
         # nn_output is broadcasted across genes and across components
-        logit = torch.matmul(nn_output.unsqueeze(1).unsqueeze(2), logit_weight).squeeze(
-            -2
-        )
+        logit = torch.matmul(nn_output.unsqueeze(1).unsqueeze(2), logit_weight).squeeze(-2)
 
         # nn_output has to be broadcasted across genes
         rho = torch.matmul(nn_output.unsqueeze(1), rho_weight.T).squeeze(-2)
@@ -91,18 +83,12 @@ class Decoder(torch.nn.Module):
 
 
 class BaselineDecoder(torch.nn.Module):
-    def __init__(
-        self, n_latent, n_genes, n_output_components, n_layers=1, n_hidden_dimensions=32
-    ):
+    def __init__(self, n_latent, n_genes, n_output_components, n_layers=1, n_hidden_dimensions=32):
         super().__init__()
 
         layers = []
         for i in range(n_layers):
-            layers.append(
-                torch.nn.Linear(
-                    n_hidden_dimensions if i > 0 else n_latent, n_hidden_dimensions
-                )
-            )
+            layers.append(torch.nn.Linear(n_hidden_dimensions if i > 0 else n_latent, n_hidden_dimensions))
             layers.append(torch.nn.BatchNorm1d(n_hidden_dimensions))
             layers.append(torch.nn.ReLU())
             layers.append(torch.nn.Dropout(0.2))
@@ -111,9 +97,7 @@ class BaselineDecoder(torch.nn.Module):
         self.n_hidden_dimensions = n_hidden_dimensions
         self.n_output_components = n_output_components
 
-        self.rho_weight = EmbeddingTensor(
-            n_genes, (n_hidden_dimensions if n_layers > 0 else n_latent,), sparse=True
-        )
+        self.rho_weight = EmbeddingTensor(n_genes, (n_hidden_dimensions if n_layers > 0 else n_latent,), sparse=True)
         stdv = 1.0 / math.sqrt(self.rho_weight.weight.size(1)) / 100
         self.rho_weight.weight.data.uniform_(-stdv, stdv)
 
@@ -153,9 +137,11 @@ class Model(torch.nn.Module, HybridModel):
         ),
         decoder_n_layers=0,
         baseline=False,
-        mixture_delta_p_scale_free=False,
         scale_likelihood=False,
+        rho_delta_regularization=True,
         rho_delta_p_scale_free=False,
+        mixture_delta_regularization=True,
+        mixture_delta_p_scale_free=False,
         mixture_delta_p_scale_dist="normal",
         mixture_delta_p_scale=1.0,
     ):
@@ -201,25 +187,28 @@ class Model(torch.nn.Module, HybridModel):
 
         self.track = {}
 
-        if mixture_delta_p_scale_free:
-            self.mixture_delta_p_scale = torch.nn.Parameter(
-                torch.tensor(math.log(mixture_delta_p_scale), requires_grad=True)
-            )
-        else:
-            self.register_buffer(
-                "mixture_delta_p_scale", torch.tensor(math.log(mixture_delta_p_scale))
-            )
+        self.mixture_delta_regularization = mixture_delta_regularization
+        if self.mixture_delta_regularization:
+            if mixture_delta_p_scale_free:
+                self.mixture_delta_p_scale = torch.nn.Parameter(
+                    torch.tensor(math.log(mixture_delta_p_scale), requires_grad=True)
+                )
+            else:
+                self.register_buffer(
+                    "mixture_delta_p_scale",
+                    torch.tensor(math.log(mixture_delta_p_scale)),
+                )
 
         self.n_total_cells = fragments.n_cells
 
         self.scale_likelihood = scale_likelihood
 
-        if rho_delta_p_scale_free:
-            self.rho_delta_p_scale = torch.nn.Parameter(
-                torch.log(torch.tensor(0.1, requires_grad=True))
-            )
-        else:
-            self.register_buffer("rho_delta_p_scale", torch.tensor(math.log(1.0)))
+        self.rho_delta_regularization = rho_delta_regularization
+        if self.rho_delta_regularization:
+            if rho_delta_p_scale_free:
+                self.rho_delta_p_scale = torch.nn.Parameter(torch.log(torch.tensor(0.1, requires_grad=True)))
+            else:
+                self.register_buffer("rho_delta_p_scale", torch.tensor(math.log(1.0)))
 
         self.mixture_delta_p_scale_dist = mixture_delta_p_scale_dist
 
@@ -233,46 +222,41 @@ class Model(torch.nn.Module, HybridModel):
         local_gene_ix,
     ):
         # decode
-        mixture_delta, rho_delta = self.decoder(clustering.to(torch.float), genes_oi)
+        mixture_delta, rho_delta = self.decoder(clustering, genes_oi)
 
         # rho
         rho = torch.nn.functional.softmax(torch.log(self.rho_bias) + rho_delta, -1)
         rho_cuts = rho.flatten()[localcellxgene_ix]
 
-        # rho delta kl
-        rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
-        rho_delta_kl = rho_delta_p.log_prob(self.decoder.rho_weight(genes_oi))
-
         # fragment counts
-        mixture_delta_cellxgene = mixture_delta.view(
-            np.prod(mixture_delta.shape[:2]), mixture_delta.shape[-1]
-        )
+        mixture_delta_cellxgene = mixture_delta.view(np.prod(mixture_delta.shape[:2]), mixture_delta.shape[-1])
         mixture_delta = mixture_delta_cellxgene[local_cellxgene_ix]
 
         self.track["likelihood_mixture"] = likelihood_mixture = self.mixture.log_prob(
             coordinates, genes_oi, local_gene_ix, mixture_delta
         )
 
-        self.track["likelihood_overall"] = likelihood_overall = torch.log(
-            rho_cuts
-        ) + math.log(self.n_total_genes)
+        self.track["likelihood_overall"] = likelihood_overall = torch.log(rho_cuts) + math.log(self.n_total_genes)
 
-        # overall likelihood
+        # likelihood
         likelihood = self.track["likelihood"] = likelihood_mixture + likelihood_overall
-        likelihood_scale = 1.0
 
-        # mixture kl
-        mixture_delta_p = torch.distributions.Normal(
-            0.0, torch.exp(self.mixture_delta_p_scale)
-        )
-        mixture_delta_kl = mixture_delta_p.log_prob(self.decoder.logit_weight(genes_oi))
+        elbo = -likelihood.sum()
 
-        # ELBO
-        elbo = (
-            -likelihood.sum() * likelihood_scale
-            - mixture_delta_kl.sum()
-            - rho_delta_kl.sum()
-        )
+        # regularization
+        # mixture
+        if self.mixture_delta_regularization:
+            mixture_delta_p = torch.distributions.Normal(0.0, torch.exp(self.mixture_delta_p_scale))
+            mixture_delta_kl = mixture_delta_p.log_prob(self.decoder.logit_weight(genes_oi))
+
+            elbo -= mixture_delta_kl.sum()
+
+        # rho delta
+        if self.rho_delta_regularization:
+            rho_delta_p = torch.distributions.Normal(0.0, torch.exp(self.rho_delta_p_scale))
+            rho_delta_kl = rho_delta_p.log_prob(self.decoder.rho_weight(genes_oi))
+
+            elbo -= rho_delta_kl.sum()
 
         return elbo
 
@@ -286,12 +270,13 @@ class Model(torch.nn.Module, HybridModel):
             localcellxgene_ix=data.cuts.localcellxgene_ix,
         )
 
-    def train_model(
-        self, fragments, clustering, fold, device=default_device, n_epochs=30
-    ):
+    def train_model(self, fragments, clustering, fold, device=None, n_epochs=30, lr=1e-2):
         """
         Trains the model
         """
+
+        if device is None:
+            device = get_default_device()
 
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
@@ -309,7 +294,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_genes=False,
         )
 
-        loaders_train = LoaderPool2(
+        loaders_train = LoaderPool(
             ClusteringCuts,
             dict(
                 clustering=clustering,
@@ -318,7 +303,7 @@ class Model(torch.nn.Module, HybridModel):
             ),
             n_workers=10,
         )
-        loaders_validation = LoaderPool2(
+        loaders_validation = LoaderPool(
             ClusteringCuts,
             dict(
                 clustering=clustering,
@@ -337,7 +322,7 @@ class Model(torch.nn.Module, HybridModel):
             SparseDenseAdam(
                 self.parameters_sparse(),
                 self.parameters_dense(),
-                lr=1e-2,
+                lr=lr,
                 weight_decay=1e-5,
             ),
             n_epochs=n_epochs,
@@ -345,15 +330,14 @@ class Model(torch.nn.Module, HybridModel):
             optimize_every_step=1,
             device=device,
         )
+        self.trace = trainer.trace
 
         trainer.train()
 
-    def _get_likelihood_cell_gene(
-        self, likelihood, local_cellxgene_ix, n_cells, n_genes
-    ):
-        return torch_scatter.segment_sum_coo(
-            likelihood, local_cellxgene_ix, dim_size=n_cells * n_genes
-        ).reshape((n_cells, n_genes))
+    def _get_likelihood_cell_gene(self, likelihood, local_cellxgene_ix, n_cells, n_genes):
+        return torch_scatter.segment_sum_coo(likelihood, local_cellxgene_ix, dim_size=n_cells * n_genes).reshape(
+            (n_cells, n_genes)
+        )
 
     def get_prediction(
         self,
@@ -363,7 +347,7 @@ class Model(torch.nn.Module, HybridModel):
         cell_ixs=None,
         genes=None,
         gene_ixs=None,
-        device: str = default_device,
+        device: str = None,
     ):
         """
         Returns the prediction of a dataset
@@ -403,7 +387,7 @@ class Model(torch.nn.Module, HybridModel):
             permute_cells=False,
             permute_genes=False,
         )
-        loaders = LoaderPool2(
+        loaders = LoaderPool(
             ClusteringCuts,
             dict(
                 clustering=clustering,
@@ -480,7 +464,14 @@ class Model(torch.nn.Module, HybridModel):
         )
         return result
 
-    def evaluate_pseudo(self, coordinates, clustering=None, gene_oi=None, gene_ix=None):
+    def evaluate_pseudo(
+        self,
+        coordinates,
+        clustering=None,
+        gene_oi=None,
+        gene_ix=None,
+        device=None,
+    ):
         from chromatinhd.models.diff.loader.clustering import Result as ClusteringResult
         from chromatinhd.models.diff.loader.clustering_cuts import (
             Result as ClusteringCutsResult,
@@ -488,11 +479,10 @@ class Model(torch.nn.Module, HybridModel):
         from chromatinhd.models.diff.loader.cuts import Result as CutsResult
         from chromatinhd.models.diff.loader.minibatches import Minibatch
 
-        device = coordinates.device
         if not torch.is_tensor(clustering):
             if clustering is None:
                 clustering = 0.0
-            clustering = torch.ones((1, self.n_clusters), device=device) * clustering
+            clustering = torch.ones((1, self.n_clusters)) * clustering
 
             print(clustering)
 
@@ -502,7 +492,7 @@ class Model(torch.nn.Module, HybridModel):
         if gene_ix is None:
             if gene_oi is None:
                 gene_oi = 0
-            genes_oi = torch.tensor([gene_oi], device=device, dtype=torch.long)
+            genes_oi = torch.tensor([gene_oi], dtype=torch.long)
             local_gene_ix = torch.zeros_like(coordinates).to(torch.long)
             local_cellxgene_ix = torch.zeros_like(coordinates).to(torch.long)
             localcellxgene_ix = torch.ones_like(coordinates).to(torch.long) * gene_oi
@@ -510,17 +500,11 @@ class Model(torch.nn.Module, HybridModel):
             assert len(gene_ix) == len(coordinates)
             genes_oi = torch.unique(gene_ix)
 
-            local_gene_mapping = torch.zeros(
-                genes_oi.max() + 1, device=device, dtype=torch.long
-            )
-            local_gene_mapping.index_add_(
-                0, genes_oi, torch.arange(len(genes_oi), device=device)
-            )
+            local_gene_mapping = torch.zeros(genes_oi.max() + 1, dtype=torch.long)
+            local_gene_mapping.index_add_(0, genes_oi, torch.arange(len(genes_oi)))
 
             local_gene_ix = local_gene_mapping[gene_ix]
-            local_cell_ix = torch.arange(
-                clustering.shape[0], device=local_gene_ix.device
-            )
+            local_cell_ix = torch.arange(clustering.shape[0])
             local_cellxgene_ix = local_cell_ix * len(genes_oi) + local_gene_ix
             localcellxgene_ix = local_cell_ix * self.n_total_genes + gene_ix
 
@@ -535,13 +519,17 @@ class Model(torch.nn.Module, HybridModel):
                 onehot=clustering,
             ),
             minibatch=Minibatch(
-                cells_oi=cells_oi.numpy(),
-                genes_oi=genes_oi.numpy(),
+                cells_oi=cells_oi.cpu().numpy(),
+                genes_oi=genes_oi.cpu().numpy(),
             ),
-        )
+        ).to(device)
+
+        self = self.to(device).eval()
 
         with torch.no_grad():
             self.forward(data)
+
+        self = self.to("cpu")
 
         prob = self.track["likelihood"].detach().cpu()
         return prob.detach().cpu()
@@ -550,7 +538,7 @@ class Model(torch.nn.Module, HybridModel):
         self,
         window: np.ndarray,
         n_latent: int,
-        device: torch.DeviceObjType = default_device,
+        device: torch.DeviceObjType = None,
         how: str = "probs_diff_masked",
         prob_cutoff: float = None,
     ) -> np.ndarray:
@@ -561,9 +549,7 @@ class Model(torch.nn.Module, HybridModel):
         # create design for inference
         design_gene = pd.DataFrame({"gene_ix": np.arange(n_genes)})
         design_latent = pd.DataFrame({"active_latent": np.arange(n_latent)})
-        design_coord = pd.DataFrame(
-            {"coord": np.arange(window[0], window[1] + 1, step=25)}
-        )
+        design_coord = pd.DataFrame({"coord": np.arange(window[0], window[1] + 1, step=25)})
         design = crossing(design_gene, design_latent, design_coord)
         batch_size = 100000
         design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
@@ -571,12 +557,8 @@ class Model(torch.nn.Module, HybridModel):
         # infer
         probs = []
         for _, design_subset in tqdm.tqdm(design.groupby("batch")):
-            pseudocoordinates = torch.from_numpy(design_subset["coord"].values).to(
-                device
-            )
-            pseudocoordinates = (pseudocoordinates - window[0]) / (
-                window[1] - window[0]
-            )
+            pseudocoordinates = torch.from_numpy(design_subset["coord"].values).to(device)
+            pseudocoordinates = (pseudocoordinates - window[0]) / (window[1] - window[0])
             pseudolatent = torch.nn.functional.one_hot(
                 torch.from_numpy(design_subset["active_latent"].values).to(device),
                 n_latent,
@@ -592,11 +574,10 @@ class Model(torch.nn.Module, HybridModel):
             probs.append(prob)
         probs = np.hstack(probs)
 
-        probs = probs.reshape(
-            (design_gene.shape[0], design_latent.shape[0], design_coord.shape[0])
-        )
+        probs = probs.reshape((design_gene.shape[0], design_latent.shape[0], design_coord.shape[0]))
 
-        # calculate the score we're gonna use: how much does the likelihood of a cut in a window change compared to the "mean"?
+        # calculate the score we're gonna use: how much does the likelihood of
+        # a cut in a window change compared to the "mean"?
         probs_diff = probs - probs.mean(-2, keepdims=True)
 
         # apply a mask to regions with very low likelihood of a cut
@@ -609,20 +590,15 @@ class Model(torch.nn.Module, HybridModel):
 
         ## Single base-pair resolution
         # interpolate the scoring from above but now at single base pairs
-        # we may have to smooth this in the future, particularly for very detailed models that already look at base pair resolution
-        x = (design["coord"].values).reshape(
-            (design_gene.shape[0], design_latent.shape[0], design_coord.shape[0])
-        )
+        # we may have to smooth this in the future,
+        # particularly for very detailed models that already look at base pair resolution
+        x = (design["coord"].values).reshape((design_gene.shape[0], design_latent.shape[0], design_coord.shape[0]))
 
-        def interpolate(
-            x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor
-        ) -> torch.Tensor:
+        def interpolate(x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor) -> torch.Tensor:
             a = (fp[..., 1:] - fp[..., :-1]) / (xp[..., 1:] - xp[..., :-1])
             b = fp[..., :-1] - (a.mul(xp[..., :-1]))
 
-            indices = (
-                torch.searchsorted(xp.contiguous(), x.contiguous(), right=False) - 1
-            )
+            indices = torch.searchsorted(xp.contiguous(), x.contiguous(), right=False) - 1
             indices = torch.clamp(indices, 0, a.shape[-1] - 1)
             slope = a.index_select(a.ndim - 1, indices)
             intercept = b.index_select(a.ndim - 1, indices)
@@ -633,9 +609,7 @@ class Model(torch.nn.Module, HybridModel):
         probs_diff_interpolated = interpolate(
             desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs_diff)
         ).numpy()
-        probs_interpolated = interpolate(
-            desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs)
-        ).numpy()
+        probs_interpolated = interpolate(desired_x, torch.from_numpy(x)[0][0], torch.from_numpy(probs)).numpy()
 
         if how == "probs_diff_masked":
             # again apply a mask
@@ -649,7 +623,7 @@ class Model(torch.nn.Module, HybridModel):
 
 
 class Models(Flow):
-    n_models = Stored("n_models")
+    n_models = Stored()
 
     @property
     def models_path(self):
@@ -657,9 +631,7 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(
-        self, fragments, clustering, folds, device=default_device, n_epochs=30, **kwargs
-    ):
+    def train_models(self, fragments, clustering, folds, device=None, n_epochs=30, **kwargs):
         """
         Trains the models
 
@@ -676,9 +648,7 @@ class Models(Flow):
 
             if force:
                 model = Model(fragments, clustering, **kwargs)
-                model.train_model(
-                    fragments, clustering, fold, device=device, n_epochs=n_epochs
-                )
+                model.train_model(fragments, clustering, fold, device=device, n_epochs=n_epochs)
 
                 model = model.to("cpu")
 
@@ -688,9 +658,7 @@ class Models(Flow):
                 )
 
     def __getitem__(self, ix):
-        return pickle.load(
-            (self.models_path / ("model_" + str(ix) + ".pkl")).open("rb")
-        )
+        return pickle.load((self.models_path / ("model_" + str(ix) + ".pkl")).open("rb"))
 
     def __len__(self):
         return self.n_models

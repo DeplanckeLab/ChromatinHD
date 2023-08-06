@@ -68,9 +68,13 @@ clipboard-copy:hover {
 }
 
 .md-tabs__item>a:hover {
-    background-color: #EEE;
+    background-color: var(--md-code-bg-color);
 }
 
 .md-tabs__link--active {
-    background-color: #F8F8F8;
+    background-color: var(--md-code-bg-color);
+}
+
+.md-nav--secondary {
+    border-left: 2px solid #33333333 !important;
 }

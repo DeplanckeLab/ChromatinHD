@@ -4,27 +4,22 @@ import numpy as np
 import torch
 import tqdm.auto as tqdm
 
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 from chromatinhd.train import Trace
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 
 def paircor(x, y, dim=0, eps=0.1):
     divisor = (y.std(dim) * x.std(dim)) + eps
-    cor = ((x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))).mean(
-        dim
-    ) / divisor
+    cor = ((x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))).mean(dim) / divisor
     return cor
 
 
 def filter_minibatch_sets(minibatch_sets, improved):
     new_minibatch_sets = []
     for minibatch_set in minibatch_sets:
-        tasks = [
-            minibatch.filter_genes(improved) for minibatch in minibatch_set["tasks"]
-        ]
+        tasks = [minibatch.filter_genes(improved) for minibatch in minibatch_set["tasks"]]
         tasks = [minibatch for minibatch in tasks if len(minibatch.genes_oi) > 0]
         new_minibatch_sets.append({"tasks": tasks})
     return new_minibatch_sets
@@ -39,7 +34,7 @@ class Trainer:
         minibatcher_train,
         minibatcher_validation,
         optim,
-        device=default_device,
+        device=None,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=10,
@@ -62,7 +57,7 @@ class Trainer:
         self.minibatcher_train = minibatcher_train
         self.minibatcher_validation = minibatcher_validation
 
-        self.device = device
+        self.device = device if device is not None else get_default_device()
 
     def train(self):
         self.model = self.model.to(self.device)
@@ -86,12 +81,7 @@ class Trainer:
                     for data_validation in self.loaders_validation:
                         data_validation = data_validation.to(self.device)
 
-                        gene_loss_mb = (
-                            self.model.forward_gene_loss(data_validation)
-                            .cpu()
-                            .detach()
-                            .numpy()
-                        )
+                        gene_loss_mb = self.model.forward_gene_loss(data_validation).cpu().detach().numpy()
 
                         gene_loss[data_validation.minibatch.genes_oi] = (
                             gene_loss[data_validation.minibatch.genes_oi] + gene_loss_mb
@@ -120,9 +110,7 @@ class Trainer:
                     if improved.mean() < 0.001:
                         break
 
-                    self.minibatcher_train.genes = np.arange(
-                        self.minibatcher_train.n_genes
-                    )[improved]
+                    self.minibatcher_train.genes = np.arange(self.minibatcher_train.n_genes)[improved]
 
                 prev_gene_loss = gene_loss.copy()
 
@@ -159,7 +147,7 @@ class Trainer2:
         minibatcher_train,
         minibatcher_validation,
         optim,
-        device=default_device,
+        device=None,
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=10,
@@ -182,7 +170,7 @@ class Trainer2:
         self.minibatcher_train = minibatcher_train
         self.minibatcher_validation = minibatcher_validation
 
-        self.device = device
+        self.device = device if device is not None else get_default_device()
 
     def train(self):
         self.model = self.model.to(self.device)
@@ -203,16 +191,7 @@ class Trainer2:
                     for data_validation in self.loaders_validation:
                         data_validation = data_validation.to(self.device)
 
-                        loss_mb = (
-                            (
-                                self.model.forward_loss(data_validation)
-                                .cpu()
-                                .detach()
-                                .numpy()
-                            )
-                            .mean()
-                            .item()
-                        )
+                        loss_mb = (self.model.forward_loss(data_validation).cpu().detach().numpy()).mean().item()
                         losses.append(loss_mb)
                     loss = np.mean(losses)
 

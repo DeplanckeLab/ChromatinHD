@@ -4,7 +4,7 @@ import math
 from chromatinhd.models.diff.model import splines
 from chromatinhd.embedding import EmbeddingTensor
 
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 
 
 class TransformedDistribution(torch.nn.Module):
@@ -83,9 +83,7 @@ def prioritize(x, n, k=2):
     return chosen
 
 
-def initialize_from_previous(
-    x, n, local_gene_ix, n_genes, transforms, device=default_device
-):
+def initialize_from_previous(x, n, local_gene_ix, n_genes, transforms, device=None):
     q2_orig = torch.linspace(0, 1, n).expand(n_genes, -1)
     # q2_orig = prioritize(x, n).expand(n_genes, -1)
     q2 = q2_orig
@@ -95,9 +93,7 @@ def initialize_from_previous(
         q2 = (
             transform.transform_forward(
                 q2.flatten(),
-                local_gene_ix=torch.repeat_interleave(
-                    torch.ones(n_genes, dtype=int) * n
-                ),
+                local_gene_ix=torch.repeat_interleave(torch.ones(n_genes, dtype=int) * n),
             )[0]
             .detach()
             .reshape(q2.shape)
@@ -132,28 +128,22 @@ def initialize_from_previous(
             x2 = transform.transform_forward(x2, local_gene_ix2)[0].detach()
 
         digitized = torch.clamp(
-            torch.searchsorted(
-                q2[local_gene_ix2], x2.unsqueeze(-1), right=True
-            ).squeeze(-1),
+            torch.searchsorted(q2[local_gene_ix2], x2.unsqueeze(-1), right=True).squeeze(-1),
             0,
             n - 1,
         )
         bincount += (
-            torch.bincount((digitized + local_gene_ix2 * n), minlength=n * n_genes)
-            .reshape((n_genes, n))[:, 1:]
-            .cpu()
+            torch.bincount((digitized + local_gene_ix2 * n), minlength=n * n_genes).reshape((n_genes, n))[:, 1:].cpu()
         )
 
     q2 = q2.to("cpu")
     transforms = [transform.to("cpu") for transform in transforms]
 
     # calculate the initial bin height (=pdf) by taking the average bincount around each knot
-    aroundcounts = torch.nn.functional.pad(
-        bincount / q2.diff(), (1, 0)
-    ) + torch.nn.functional.pad(bincount / q2.diff(), (0, 1))
-    unnormalized_heights = torch.log(
-        aroundcounts + 1e-2
-    )  # small pseudocount for those bins without a single count
+    aroundcounts = torch.nn.functional.pad(bincount / q2.diff(), (1, 0)) + torch.nn.functional.pad(
+        bincount / q2.diff(), (0, 1)
+    )
+    unnormalized_heights = torch.log(aroundcounts + 1e-2)  # small pseudocount for those bins without a single count
 
     if unnormalized_heights.isnan().any():
         raise ValueError("NaNs in initialized pdf")
@@ -172,12 +162,8 @@ class QuadraticSplineStack(torch.nn.Module):
                 x, n, local_gene_ix, n_genes, transforms=transforms
             )
             unnormalized.extend([unnormalized_heights, unnormalized_widths])
-            splits.extend(
-                [unnormalized_heights.shape[-1], unnormalized_widths.shape[-1]]
-            )
-            transforms.append(
-                QuadraticSplineTransform(unnormalized_widths, unnormalized_heights)
-            )
+            splits.extend([unnormalized_heights.shape[-1], unnormalized_widths.shape[-1]])
+            transforms.append(QuadraticSplineTransform(unnormalized_widths, unnormalized_heights))
         self.unnormalized = torch.nn.Parameter(torch.cat(unnormalized, -1))
         self.splits = splits
 
@@ -190,9 +176,7 @@ class QuadraticSplineStack(torch.nn.Module):
 
         logabsdet = None
         outputs = x
-        for unnormalized_heights, unnormalized_widths in self._split_parameters(
-            self.unnormalized
-        ):
+        for unnormalized_heights, unnormalized_widths in self._split_parameters(self.unnormalized):
             widths = splines.quadratic.calculate_widths(unnormalized_widths)
             bin_locations = splines.quadratic.calculate_bin_locations(widths)
 
@@ -242,22 +226,14 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 assert unnormalized_heights_.shape[-1] == n_heights
                 assert unnormalized_widths_.shape[-1] == n_widths
 
-                transforms.append(
-                    QuadraticSplineTransform(
-                        unnormalized_widths_, unnormalized_heights_
-                    )
-                )
+                transforms.append(QuadraticSplineTransform(unnormalized_widths_, unnormalized_heights_))
             splits_heights.append(n_heights)
             splits_widths.append(n_widths)
             split_deltas.append(n_heights)
 
-        self.unnormalized_heights = EmbeddingTensor(
-            n_genes, (sum(splits_heights),), sparse=True
-        )
+        self.unnormalized_heights = EmbeddingTensor(n_genes, (sum(splits_heights),), sparse=True)
 
-        self.unnormalized_widths = EmbeddingTensor(
-            n_genes, (sum(splits_widths),), sparse=True
-        )
+        self.unnormalized_widths = EmbeddingTensor(n_genes, (sum(splits_widths),), sparse=True)
 
         if x is not None:
             unnormalized_heights = torch.cat(unnormalized_heights, -1)
@@ -297,9 +273,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             widths = widths.index_select(0, local_gene_ix)
             bin_locations = bin_locations.index_select(0, local_gene_ix)
 
-            unnormalized_heights = (
-                unnormalized_heights.index_select(0, local_gene_ix) + delta_heights
-            )
+            unnormalized_heights = unnormalized_heights.index_select(0, local_gene_ix) + delta_heights
             heights = splines.quadratic.calculate_heights(unnormalized_heights, widths)
             bin_left_cdf = splines.quadratic.calculate_bin_left_cdf(heights, widths)
 
@@ -318,9 +292,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         return outputs, logabsdet
 
     def transform_inverse(self, y, genes_oi, local_gene_ix, delta):
-        return self.transform_forward(
-            y, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=delta, inverse=True
-        )
+        return self.transform_forward(y, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=delta, inverse=True)
 
     def parameters_sparse(self):
         return [self.unnormalized_heights.weight, self.unnormalized_widths.weight]

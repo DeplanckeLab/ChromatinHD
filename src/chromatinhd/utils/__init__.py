@@ -63,20 +63,14 @@ def paircor(x, y, dim=-2):
         y_ = y.values
         divisor = y_.std(dim) * x_.std(dim)
         divisor[np.isclose(divisor, 0)] = 1.0
-        cor = (
-            (x_ - x_.mean(dim, keepdims=True)) * (y_ - y_.mean(dim, keepdims=True))
-        ).mean(dim) / divisor
+        cor = ((x_ - x_.mean(dim, keepdims=True)) * (y_ - y_.mean(dim, keepdims=True))).mean(dim) / divisor
         cor = pd.Series(cor, x.index if dim == 1 else x.columns)
     elif torch.is_tensor(x):
-        cor = ((x - x.mean(dim, keepdim=True)) * (y - y.mean(dim, keepdim=True))).mean(
-            dim
-        ) / (y.std(dim) * x.std(dim))
+        cor = ((x - x.mean(dim, keepdim=True)) * (y - y.mean(dim, keepdim=True))).mean(dim) / (y.std(dim) * x.std(dim))
     else:
         divisor = y.std(dim) * x.std(dim)
         divisor[np.isclose(divisor, 0)] = 1.0
-        cor = (
-            (x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))
-        ).mean(dim) / divisor
+        cor = ((x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))).mean(dim) / divisor
     return cor
 
 
@@ -85,9 +79,7 @@ def paircorr(x, y, dim=-2):
 
     divisor = y.std(dim, keepdims=True) * x.std(dim, keepdims=True)
     divisor[np.isclose(divisor, 0)] = 1.0
-    cor = (x - x.mean(dim, keepdims=True)) * (
-        y - y.mean(dim, keepdims=True)
-    )  # / divisor
+    cor = (x - x.mean(dim, keepdims=True)) * (y - y.mean(dim, keepdims=True))  # / divisor
     return cor
 
 
@@ -106,9 +98,7 @@ def paircos(x, y, dim=0):
         cos = dot / divisor
         cos = pd.Series(cos, x.index if dim == 1 else x.columns)
     elif torch.is_tensor(x):
-        cos = (x * y).sum(dim) / (
-            torch.sqrt((y**2).sum(dim)) * torch.sqrt((x**2).sum(dim))
-        )
+        cos = (x * y).sum(dim) / (torch.sqrt((y**2).sum(dim)) * torch.sqrt((x**2).sum(dim)))
     else:
         divisor = np.sqrt((y**2).sum(dim)) * np.sqrt((x**2).sum(dim))
         divisor[divisor == 0] = 1.0
@@ -129,9 +119,7 @@ def fix_class(obj):
 
 class Pickler(pickle.Pickler):
     def reducer_override(self, obj):
-        if any(
-            obj.__class__.__module__.startswith(module) for module in ["chromatinhd."]
-        ):
+        if any(obj.__class__.__module__.startswith(module) for module in ["chromatinhd."]):
             fix_class(obj)
         else:
             # For any other object, fallback to usual reduction
@@ -168,3 +156,9 @@ class Unpickler(pickle.Unpickler):
 
 def load(file):
     return Unpickler(file).load()
+
+
+class class_or_instancemethod(classmethod):
+    def __get__(self, instance, type_):
+        descr_get = super().__get__ if instance is None else self.__func__.__get__
+        return descr_get(instance, type_)

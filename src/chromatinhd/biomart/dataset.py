@@ -6,14 +6,14 @@ import xml.etree.cElementTree as ET
 
 
 def get_datasets(
-    mart:str="ENSEMBL_MART_ENSEMBL", baseurl:str="http://www.ensembl.org/biomart/martservice?"
+    mart: str = "ENSEMBL_MART_ENSEMBL", baseurl: str = "http://www.ensembl.org/biomart/martservice?"
 ) -> pd.DataFrame:
     """
     List all datasets available within a mart and baseurl
     """
     url = f"{baseurl}type=datasets&requestid=biomaRt&mart={mart}"
     if url in cache:
-        attributes = cache[url]
+        cache[url]
     else:
         response = requests.get(url)
         datasets = pd.read_table(
@@ -153,6 +153,11 @@ class Dataset:
             result = cache[url]
         else:
             response = requests.get(url)
+            # check response status
+            if response.status_code != 200:
+                raise ValueError(
+                    f"Response status code is {response.status_code} and not 200. Response text: {response.text}"
+                )
             result = pd.read_table(
                 io.StringIO(response.text),
                 sep="\t",

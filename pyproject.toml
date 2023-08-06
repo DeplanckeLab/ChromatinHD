@@ -55,12 +55,14 @@ dev = [
     "mike",
     "cairosvg",  # for mkdocs social
     "pillow",  # for mkdocs social
+    "mkdocs-awesome-pages-plugin",
     "setuptools_scm",
     # "faiss-cpu",
     "Cython",
 ]
 test = [
     "pytest",
+    "ruff",
 ]
 
 [tool.setuptools_scm]
@@ -78,3 +80,18 @@ disable = [
     "redefined-builtin",
     "redefined-outer-name",
 ]
+
+[tool.ruff]
+line-length = 120
+ignore-init-module-imports = true
+ignore = ['F401']
+include = ['src/**/*.py']
+exclude = ['scripts/*']
+
+[tool.black]
+line-length = 120
+target-version = ['py37', 'py38']
+exclude = ['scripts/*']
+
+[tool.jupytext]
+formats = "ipynb,py:percent"

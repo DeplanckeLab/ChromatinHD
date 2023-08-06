@@ -8,6 +8,5 @@ from .clustering import Clustering
 from .motifscan import Motifscan, Motiftrack
 from .regions import Regions
 from . import folds
-from . import motifscan
 
 __all__ = ["Fragments", "Transcriptome", "Regions", "folds", "motifscan"]

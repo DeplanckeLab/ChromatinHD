@@ -3,13 +3,37 @@ import torch
 import pickle
 import numpy as np
 import gzip
-import copy
 import json
 import importlib
 import shutil
+from typing import Union
+
+PathLike = Union[str, pathlib.Path]
 
 
-class Flow:
+class Obj:
+    name = None
+
+    def __init__(self, name=None):
+        self.name = name
+
+
+def is_obj(x):
+    return isinstance(x, Obj)
+
+
+class Flowable(type):
+    def __init__(cls, name, bases, attrs):
+        super().__init__(name, bases, attrs)
+
+        # compile objects
+        for attr_id, attr in cls.__dict__.items():
+            if is_obj(attr):
+                assert isinstance(attr_id, str)
+                attr.name = attr_id
+
+
+class Flow(metaclass=Flowable):
     """
     A folder on disk that can contain other folders or objects
     """
@@ -18,16 +42,22 @@ class Flow:
     default_name = None
 
     def __init__(self, path=None, folder=None, name=None, reset=False):
-        if not isinstance(path, pathlib.Path):
+        if isinstance(path, str):
             path = pathlib.Path(path)
         if path is None:
             if folder is None:
-                raise ValueError("Either path or folder must be specified")
-            if name is None:
+                # make temporary
+                try:
+                    import pathlibfs
+                except ImportError:
+                    raise ImportError("To create a temporary flow, install pathlibfs")
+                from uuid import uuid4
+
+                name = str(uuid4())
+                folder = pathlibfs.Path("memory://")
+            elif name is None:
                 if self.default_name is None:
-                    raise ValueError(
-                        "Cannot create Flow without name, and no default_name specified"
-                    )
+                    raise ValueError("Cannot create Flow without name, and no default_name specified")
                 name = self.default_name
 
             path = folder / name
@@ -43,8 +73,9 @@ class Flow:
             self._store_info()
 
     @classmethod
-    def create(cls, path, **kwargs):
-        path = pathlib.Path(path)
+    def create(cls, path=None, **kwargs):
+        if isinstance(path, str):
+            path = pathlib.Path(path)
         self = cls(path=path)
 
         for key, value in kwargs.items():
@@ -89,13 +120,10 @@ class Flow:
         return self.__class__.__dict__[k]
 
 
-class Linked:
+class Linked(Obj):
     """
     A link to another flow on disk
     """
-
-    def __init__(self, name):
-        self.name = name
 
     def __get__(self, obj, type=None):
         if obj is not None:
@@ -122,24 +150,27 @@ class Linked:
                 raise FileExistsError(f"File {path} already exists")
             else:
                 path.unlink()
-        path.symlink_to(value.path.resolve())
+        if not str(value.path).startswith("memory"):
+            path.symlink_to(value.path.resolve())
         setattr(obj, name, value)
 
 
-class Stored:
+class Stored(Obj):
     """
     A python object that is stored on disk using pickle
     """
 
-    def __init__(self, name, default=None):
-        self.name = name
+    def __init__(self, default=None, name=None):
         self.default = default
+        self.name = name
 
     def get_path(self, folder):
         return folder / (self.name + ".pkl")
 
     def __get__(self, obj, type=None):
         if obj is not None:
+            if self.name is None:
+                raise ValueError(obj)
             name = "_" + self.name
             if not hasattr(obj, name):
                 path = self.get_path(obj.path)
@@ -166,50 +197,40 @@ class StoredDataFrame(Stored):
     A pandas dataframe stored on disk
     """
 
+    def __init__(self, index_name=None, name=None):
+        super().__init__(name=name)
+        self.index_name = index_name
 
-class StoredTorchInt64(Stored):
-    """
-    A pytorch int64 tensor stored on disk
-    """
+    def __set__(self, obj, value):
+        if self.index_name is not None:
+            value.index.name = self.index_name
+        super().__set__(obj, value)
+
+
+class StoredTensor(Stored):
+    def __init__(self, dtype=None, name=None):
+        super().__init__(name=name)
+        self.dtype = dtype
 
     def __get__(self, obj, type=None):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not x.dtype is torch.int64:
-                    x = x.to(torch.int64)
+                if not torch.is_tensor(x):
+                    raise ValueError(f"File {self.get_path(obj.path)} is not a tensor")
+                elif x.dtype is not self.dtype:
+                    x = x.to(self.dtype)
                 if not x.is_contiguous():
                     x = x.contiguous()
                 setattr(obj, name, x)
             return getattr(obj, name)
 
     def __set__(self, obj, value):
-        value = value.to(torch.int64).contiguous()
-        name = "_" + self.name
-        pickle.dump(value, self.get_path(obj.path).open("wb"))
-        setattr(obj, name, value)
-
-
-class StoredTorchInt32(Stored):
-    """
-    A pytorch int64 tensor stored on disk
-    """
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not x.dtype is torch.int32:
-                    x = x.to(torch.int32)
-                if not x.is_contiguous():
-                    x = x.contiguous()
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        value = value.to(torch.int32).contiguous()
+        if not torch.is_tensor(value):
+            raise ValueError("Value is not a tensor")
+        elif self.dtype is not None:
+            value = value.to(self.dtype).contiguous()
         name = "_" + self.name
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         setattr(obj, name, value)
@@ -225,7 +246,7 @@ class StoredNumpyInt64(Stored):
             name = "_" + self.name
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not x.dtype is np.int64:
+                if x.dtype is not np.int64:
                     x = x.astype(np.int64)
                 if not x.flags["C_CONTIGUOUS"]:
                     x = np.ascontiguousarray(x)
@@ -250,10 +271,8 @@ class CompressedNumpy(Stored):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
-                x = pickle.load(
-                    gzip.GzipFile(self.get_path(obj.path), "rb", compresslevel=3)
-                )
-                if not x.dtype is self.dtype:
+                x = pickle.load(gzip.GzipFile(self.get_path(obj.path), "rb", compresslevel=3))
+                if x.dtype is not self.dtype:
                     x = x.astype(self.dtype)
                 if not x.flags["C_CONTIGUOUS"]:
                     x = np.ascontiguousarray(x)
@@ -263,9 +282,7 @@ class CompressedNumpy(Stored):
     def __set__(self, obj, value):
         value = np.ascontiguousarray(value.astype(self.dtype))
         name = "_" + self.name
-        pickle.dump(
-            value, gzip.GzipFile(self.get_path(obj.path), "wb", compresslevel=3)
-        )
+        pickle.dump(value, gzip.GzipFile(self.get_path(obj.path), "wb", compresslevel=3))
         setattr(obj, name, value)
 
 
@@ -282,8 +299,8 @@ class TSV(Stored):
     A pandas object stored on disk in tsv format
     """
 
-    def __init__(self, name, columns=None, index_name=None):
-        super().__init__(name)
+    def __init__(self, columns=None, index_name=None, name=None):
+        super().__init__(name=name)
         self.columns = columns
         self.index_name = index_name
 
@@ -306,20 +323,25 @@ class TSV(Stored):
             folder = obj.path
         if self.index_name is not None:
             value.index.name = self.index_name
-        value.to_csv(self.get_path(folder), sep="\t")
+        value.to_csv(self.get_path(folder).open("w"), sep="\t")
         setattr(obj, name, value)
 
 
-class StoredDict:
-    def __init__(self, name, cls):
-        self.name = name
+class StoredDict(Obj):
+    def __init__(self, cls, name=None):
+        super().__init__(name=name)
         self.cls = cls
 
     def get_path(self, folder):
         return folder / self.name
 
     def __get__(self, obj, type=None):
-        return StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+        if obj is not None:
+            name = "_" + self.name
+            if not hasattr(obj, name):
+                x = StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+                setattr(obj, name, x)
+            return getattr(obj, name)
 
 
 class StoredDictInstance:
@@ -336,12 +358,19 @@ class StoredDictInstance:
                 raise ValueError(f"Folder {file} in {self.obj.path} is not allowed")
             # key is file name without extension
             key = file.name.split(".")[0]
-            self.dict[key] = self.cls(key)
+            self.dict[key] = self.cls(name=key)
 
     def __getitem__(self, key):
         return self.dict[key].__get__(self)
 
     def __setitem__(self, key, value):
         if key not in self.dict:
-            self.dict[key] = self.cls(key)
+            self.dict[key] = self.cls(name=key)
         self.dict[key].__set__(self, value)
+
+    def items(self):
+        for k in self.dict:
+            yield k, self[k]
+
+    def keys(self):
+        return self.dict.keys()

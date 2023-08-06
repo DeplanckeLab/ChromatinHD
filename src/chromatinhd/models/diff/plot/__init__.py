@@ -4,7 +4,7 @@ import matplotlib as mpl
 import seaborn as sns
 import numpy as np
 import pandas as pd
-
+import io
 from .differential import Differential
 from .differential_expression import DifferentialExpression
 
@@ -20,9 +20,7 @@ class MotifsLegend(chromatinhd.grid.Wrap):
             self.add(ax)
             ax = ax.ax
 
-            motifs_oi_cluster = motifs_oi.loc[
-                [cluster in clusters for clusters in motifs_oi["clusters"]]
-            ]
+            motifs_oi_cluster = motifs_oi.loc[[cluster in clusters for clusters in motifs_oi["clusters"]]]
 
             n = len(motifs_oi_cluster)
             ax.axis("off")
@@ -30,13 +28,9 @@ class MotifsLegend(chromatinhd.grid.Wrap):
             ax.set_ylim((n + 4) / 2 - 4, (n + 4) / 2)
 
             for i, (motif, motif_info) in enumerate(
-                motifs_oi_cluster.loc[
-                    motifs_oi_cluster.index.difference(motifs_shown)
-                ].iterrows()
+                motifs_oi_cluster.loc[motifs_oi_cluster.index.difference(motifs_shown)].iterrows()
             ):
-                ax.scatter(
-                    [0], [i], color=motif_info["color"], marker="|", clip_on=False
-                )
+                ax.scatter([0], [i], color=motif_info["color"], marker="|", clip_on=False)
                 ax.text(
                     0.1,
                     i,
@@ -57,13 +51,8 @@ class MotifsHighlighting:
             ax = ax.ax
 
             # motifs
-            motifs_oi_cluster = motifs_oi.loc[
-                [cluster in clusters for clusters in motifs_oi["clusters"]]
-            ]
-            motifdata_cluster = motifdata.loc[
-                motifdata["motif"].isin(motifs_oi_cluster.index)
-            ]
-            texts = []
+            motifs_oi_cluster = motifs_oi.loc[[cluster in clusters for clusters in motifs_oi["clusters"]]]
+            motifdata_cluster = motifdata.loc[motifdata["motif"].isin(motifs_oi_cluster.index)]
             for _, z in motifdata_cluster.iterrows():
                 ax.axvline(
                     z["position"],
@@ -121,9 +110,7 @@ class Peaks(chromatinhd.grid.Ax):
 
             if len(peaks_peakcaller) == 0:
                 continue
-            if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(
-                peaks_peakcaller["cluster"]
-            ).all():
+            if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(peaks_peakcaller["cluster"]).all():
                 for _, peak in peaks_peakcaller.iterrows():
                     rect = mpl.patches.Rectangle(
                         (peak["start"], y),
@@ -226,9 +213,7 @@ class GC(chromatinhd.grid.Ax):
 
 
 def find_runs(x):
-    return np.where((np.diff(np.concatenate([[False], x, [False]])) != 0))[0].reshape(
-        (-1, 2)
-    )
+    return np.where((np.diff(np.concatenate([[False], x, [False]])) != 0))[0].reshape((-1, 2))
 
 
 class CommonUnique:
@@ -242,12 +227,8 @@ class CommonUnique:
         method_info,
     ):
         # add region and peak unique spans
-        trans = mpl.transforms.blended_transform_factory(
-            y_transform=ax.transAxes, x_transform=ax.transData
-        )
-        for start, end in find_runs(
-            peak_position_chosen_oi & ~region_position_chosen_oi
-        ):
+        trans = mpl.transforms.blended_transform_factory(y_transform=ax.transAxes, x_transform=ax.transData)
+        for start, end in find_runs(peak_position_chosen_oi & ~region_position_chosen_oi):
             start = start + expanded_slice_oi["start"] + window[0]
             end = end + expanded_slice_oi["start"] + window[0]
 
@@ -270,9 +251,7 @@ class CommonUnique:
                 lw=0,
             )
             ax.add_patch(rect)
-        for start, end in find_runs(
-            peak_position_chosen_oi & region_position_chosen_oi
-        ):
+        for start, end in find_runs(peak_position_chosen_oi & region_position_chosen_oi):
             color = method_info.loc["common", "color"]
 
             start = start + expanded_slice_oi["start"] + window[0]
@@ -294,9 +273,7 @@ class CommonUnique:
                 lw=0,
             )
             ax.add_patch(rect)
-        for start, end in find_runs(
-            ~peak_position_chosen_oi & region_position_chosen_oi
-        ):
+        for start, end in find_runs(~peak_position_chosen_oi & region_position_chosen_oi):
             color = method_info.loc["region", "color"]
 
             start = start + expanded_slice_oi["start"] + window[0]
@@ -345,9 +322,7 @@ class LabelSlice:
             ]
         )
 
-        trans = mpl.transforms.blended_transform_factory(
-            y_transform=ax.transAxes, x_transform=ax.transData
-        )
+        trans = mpl.transforms.blended_transform_factory(y_transform=ax.transAxes, x_transform=ax.transData)
         text = ax.annotate(
             f"{start:+}",
             (start, 1),
@@ -391,8 +366,6 @@ class LegendResolution:
         pass
 
 
-import io
-
 chromstate_info = pd.read_table(
     io.StringIO(
         """ix	mnemomic	description	color_name	color_code
@@ -414,9 +387,7 @@ chromstate_info = pd.read_table(
 """
     )
 ).set_index("mnemomic")
-chromstate_info["color"] = [
-    np.array(c.split(","), dtype=float) / 255 for c in chromstate_info["color_code"]
-]
+chromstate_info["color"] = [np.array(c.split(","), dtype=float) / 255 for c in chromstate_info["color_code"]]
 
 
 class Annot(chromatinhd.grid.Ax):
@@ -433,9 +404,7 @@ class Annot(chromatinhd.grid.Ax):
             y = cluster_info.loc[cluster, "ix"]
             for _, annot in plotdata_cluster.iterrows():
                 color = chromstate_info.loc[annot["name"], "color"]
-                patch = mpl.patches.Rectangle(
-                    (annot["start"], y), annot["end"] - annot["start"], 1, fc=color
-                )
+                patch = mpl.patches.Rectangle((annot["start"], y), annot["end"] - annot["start"], 1, fc=color)
                 ax.add_patch(patch)
 
         ax.set_ylim(0, len(cluster_info))

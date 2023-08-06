@@ -5,7 +5,7 @@ import xarray as xr
 import pickle
 import tqdm.auto as tqdm
 import torch
-from chromatinhd import default_device
+from chromatinhd import get_default_device
 from chromatinhd.data.clustering import Clustering
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.models.diff.model.cutnf import Models
@@ -26,16 +26,18 @@ class GenePositional(chd.flow.Flow):
     Positional interpretation of *diff* models
     """
 
-    genes = chd.flow.Stored("genes", default=set)
+    genes = chd.flow.Stored(default=set)
 
     def score(
         self,
         fragments: Fragments,
         clustering: Clustering,
         models: Models,
-        genes=None,
-        force=False,
-        device=default_device,
+        genes: list = None,
+        force: bool = False,
+        device: str = None,
+        step: int = 25,
+        batch_size: int = 5000,
     ):
         """
         Main scoring function
@@ -63,6 +65,9 @@ class GenePositional(chd.flow.Flow):
 
         window = fragments.regions.window
 
+        if device is None:
+            device = get_default_device()
+
         for gene in pbar:
             pbar.set_description(gene)
             probs_file = self.get_scoring_path(gene) / "probs.pkl"
@@ -72,46 +77,31 @@ class GenePositional(chd.flow.Flow):
                 force = True
 
             if force:
-                design_gene = pd.DataFrame(
-                    {"gene_ix": [fragments.var.index.get_loc(gene)]}
-                ).astype("category")
+                design_gene = pd.DataFrame({"gene_ix": [fragments.var.index.get_loc(gene)]}).astype("category")
                 design_gene.index = pd.Series([gene], name="gene")
-                design_clustering = pd.DataFrame(
-                    {"active_cluster": np.arange(clustering.n_clusters)}
-                ).astype("category")
-                design_clustering.index = clustering.cluster_info.index
-                design_coord = pd.DataFrame(
-                    {"coord": np.arange(window[0], window[1] + 1, step=25)}
-                ).astype("category")
-                design_coord.index = design_coord["coord"]
-                design = chd.utils.crossing(
-                    design_gene, design_clustering, design_coord
+                design_clustering = pd.DataFrame({"active_cluster": np.arange(clustering.n_clusters)}).astype(
+                    "category"
                 )
+                design_clustering.index = clustering.cluster_info.index
+                design_coord = pd.DataFrame({"coord": np.arange(window[0], window[1] + 1, step=step)}).astype(
+                    "category"
+                )
+                design_coord.index = design_coord["coord"]
+                design = chd.utils.crossing(design_gene, design_clustering, design_coord)
 
-                batch_size = 5000
-                design["batch"] = np.floor(
-                    np.arange(design.shape[0]) / batch_size
-                ).astype(int)
+                design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
 
                 probs = []
                 for model in models:
                     probs_model = []
                     for _, design_subset in design.groupby("batch"):
-                        pseudocoordinates = torch.from_numpy(
-                            design_subset["coord"].values.astype(int)
-                        )
-                        pseudocoordinates = (pseudocoordinates - window[0]) / (
-                            window[1] - window[0]
-                        )
+                        pseudocoordinates = torch.from_numpy(design_subset["coord"].values.astype(int))
+                        pseudocoordinates = (pseudocoordinates - window[0]) / (window[1] - window[0])
                         pseudocluster = torch.nn.functional.one_hot(
-                            torch.from_numpy(
-                                design_subset["active_cluster"].values.astype(int)
-                            ),
+                            torch.from_numpy(design_subset["active_cluster"].values.astype(int)),
                             clustering.n_clusters,
                         ).to(torch.float)
-                        gene_ix = torch.from_numpy(
-                            design_subset["gene_ix"].values.astype(int)
-                        )
+                        gene_ix = torch.from_numpy(design_subset["gene_ix"].values.astype(int))
 
                         prob = model.evaluate_pseudo(
                             pseudocoordinates,
@@ -144,9 +134,9 @@ class GenePositional(chd.flow.Flow):
 
                 self.genes = self.genes | {gene}
 
-    def get_plotdata(self, gene):
+    def get_plotdata(self, gene: str) -> (pd.DataFrame, pd.DataFrame):
         """
-        Returns the plotdata for a given gene
+        Returns average and differential probabilities for a particular gene.
 
         Parameters:
             gene:
@@ -181,7 +171,7 @@ class GenePositional(chd.flow.Flow):
 
         return plotdata, plotdata_mean
 
-    def get_scoring_path(self, gene):
+    def get_scoring_path(self, gene: str):
         path = self.path / f"{gene}"
         path.mkdir(parents=True, exist_ok=True)
         return path
