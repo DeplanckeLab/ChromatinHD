@@ -1,17 +1,32 @@
+from __future__ import annotations
 import pandas as pd
 
 from chromatinhd.flow import Flow, Stored, StoredDataFrame
 
 
 class Clustering(Flow):
-    labels = Stored()
+    labels: pd.DataFrame = Stored()
     "Labels for each cell."
 
-    cluster_info = StoredDataFrame(index_name="cluster")
+    cluster_info: pd.DataFrame = StoredDataFrame(index_name="cluster")
     "Dataframe containing information for each cluster, such as a label."
 
     @classmethod
-    def from_labels(cls, labels, path=None):
+    def from_labels(cls, labels: pd.Series, path=None) -> Clustering:
+        """
+        Create a Clustering object from a series of labels.
+
+        Parameters:
+            labels:
+                Series of labels for each cell, with index corresponding to cell
+                names.
+            path:
+                Path to save the Clustering object to.
+
+        Returns:
+            Clustering object.
+
+        """
         clustering = cls(path)
         if not isinstance(labels, pd.Series):
             labels = pd.Series(labels).astype("category")

@@ -82,7 +82,7 @@ disable = [
 ]
 
 [tool.ruff]
-line-length = 120
+line-length = 500
 ignore-init-module-imports = true
 ignore = ['F401']
 include = ['src/**/*.py']
@@ -92,6 +92,7 @@ exclude = ['scripts/*']
 line-length = 120
 target-version = ['py37', 'py38']
 exclude = ['scripts/*']
+
 
 [tool.jupytext]
 formats = "ipynb,py:percent"
