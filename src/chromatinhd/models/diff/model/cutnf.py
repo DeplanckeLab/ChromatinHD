@@ -222,7 +222,7 @@ class Model(torch.nn.Module, HybridModel):
         local_gene_ix,
     ):
         # decode
-        mixture_delta, rho_delta = self.decoder(clustering.to(torch.float), genes_oi)
+        mixture_delta, rho_delta = self.decoder(clustering, genes_oi)
 
         # rho
         rho = torch.nn.functional.softmax(torch.log(self.rho_bias) + rho_delta, -1)
@@ -238,11 +238,10 @@ class Model(torch.nn.Module, HybridModel):
 
         self.track["likelihood_overall"] = likelihood_overall = torch.log(rho_cuts) + math.log(self.n_total_genes)
 
-        # overall likelihood
+        # likelihood
         likelihood = self.track["likelihood"] = likelihood_mixture + likelihood_overall
-        likelihood_scale = 1.0
 
-        elbo = -likelihood.sum() * likelihood_scale
+        elbo = -likelihood.sum()
 
         # regularization
         # mixture
