@@ -12,4 +12,6 @@ regardless of whether they occur in a narrow or broad region. It also enables a 
 
 [Manuscript](https://www.biorxiv.org/content/10.1101/2023.07.21.549899v1)
 
-[Full quickstart](https://chromatinhd.eu/quickstart/0_install)
+[Documentation](https://chromatinhd.eu)
+
+[Quick start](https://chromatinhd.eu/quickstart/0_install)
