@@ -32,6 +32,9 @@ class Flowable(type):
                 assert isinstance(attr_id, str)
                 attr.name = attr_id
 
+    def __setattr__(cls, key, value):
+        super().__setattr__(key, value)
+
 
 class Flow(metaclass=Flowable):
     """

@@ -12,11 +12,13 @@ class TransformedDistribution(torch.nn.Module):
         super().__init__()
         self.transform = transform
 
-    def log_prob(self, x, *args, **kwargs):
+    def log_prob(self, x, return_transformed=False, **kwargs):
         log_prob = torch.zeros_like(x)
         x_ = x
-        x_, logabsdet = self.transform.transform_forward(x_, *args, **kwargs)
+        x_, logabsdet = self.transform.transform_forward(x_, **kwargs)
         log_prob = log_prob + logabsdet
+        if return_transformed:
+            return log_prob, x_
         return log_prob
 
     def sample(self, *args, sample_shape=torch.Size(), device=None, **kwargs):

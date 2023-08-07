@@ -46,7 +46,7 @@ def sample(w, dists):
     i = np.random.rand(n)
     indices = np.argmax(i[:, None] < np.cumsum(w, 1), 1)
     samples = samples[np.arange(n), indices]
-    return samples
+    return samples, indices
 
 
 class Simulation:
@@ -82,18 +82,21 @@ class Simulation:
 
         self.clustering = Clustering.from_labels(self.obs["celltype"])
 
-    def create_fragments(self):
+    def create_fragments(self, mean_fragment_size=200, n_peaks_per_gene=5, min_peaks_per_gene=3):
         # peaks
-        n_peaks = self.n_genes * 50
+        n_peaks = self.n_genes * n_peaks_per_gene
         self.peaks = pd.DataFrame(
             {
                 "center": np.random.choice(np.arange(*self.window), n_peaks, replace=True),
                 # "scale": 100,
-                "scale": np.exp(np.random.normal(size=n_peaks, scale=5) + np.log(50)),
-                "gene": np.random.choice(self.n_genes, n_peaks, replace=True),
+                "scale": np.random.choice([10, 100, 500], replace=True, size=n_peaks),
+                "gene": list(np.repeat(np.arange(self.n_genes), min_peaks_per_gene))
+                + list(np.random.choice(self.n_genes, size=n_peaks - self.n_genes * min_peaks_per_gene, replace=True)),
                 "height": np.random.normal(size=n_peaks, scale=0.1) + 1,
             }
         )
+        self.peaks["size_scale"] = np.random.choice([10, 100, 200, 300], replace=True, size=n_peaks)
+        # self.peaks["size_scale"] = np.array([100, 500])[(self.peaks["center"] > 0).astype(int)]
         self.peaks["ix"] = np.arange(self.peaks.shape[0])
         self.peaks["dist"] = [
             Dist(loc, scale, self.window[0], self.window[1])
@@ -105,6 +108,8 @@ class Simulation:
             [(self.obs["celltype"] == celltype_).values.astype(float) for celltype_ in self.celltypes.index],
         ).T
         self.n_cell_components = self.cell_latent_space.shape[-1]
+
+        # calculate coefficients
         w_coef = np.random.normal(size=(n_peaks, self.n_cell_components)) * 2
 
         # lib
@@ -129,18 +134,29 @@ class Simulation:
             w = peaks_oi["height"].values + (self.cell_latent_space[cell_indices_gene] @ w_coef[peaks_oi["ix"]].T)
             w = np.exp(w) / np.exp(w).sum(1, keepdims=True)
 
-            coordinates1 = sample(w, peaks_oi["dist"].values)
+            coordinate_mid, peak_indices = sample(w, peaks_oi["dist"].values)
 
             # sample coordinates 2
-            rate = 0.1
+            size_scale = peaks_oi["size_scale"].iloc[peak_indices]
+            # size_scale = np.take_along_axis(
+            #     np.exp(self.cell_latent_space[cell_indices_gene] @ size_logscale_coef[peaks_oi["ix"]].T),
+            #     peak_indices[:, None],
+            #     1,
+            # ).squeeze()
 
-            def distance_weight(dist):
-                return rate * np.exp(-rate * dist)
+            def lognorm_loc(desired_loc, desired_scale):
+                return np.log(desired_loc) - 0.5 * np.log(1 + desired_scale**2 / desired_loc**2)
 
-            w2 = w * distance_weight(np.abs(coordinates1[:, None] - peaks_oi["center"].values[None, :]))
+            def lognorm_scale(desired_loc, desired_scale):
+                return np.sqrt(np.log(1 + desired_scale**2 / desired_loc**2))
 
-            coordinates2 = sample(w2, peaks_oi["dist"].values)
-
+            size = np.exp(
+                np.random.normal(
+                    size=coordinate_mid.shape, loc=lognorm_loc(size_scale, 10), scale=lognorm_scale(size_scale, 20)
+                )
+            )
+            coordinates1 = coordinate_mid - size / 2
+            coordinates2 = coordinate_mid + size / 2
             # coordinates
             coordinates_gene = np.stack(
                 [
@@ -163,6 +179,11 @@ class Simulation:
         sorted_idx = torch.argsort((self.mapping[:, 0] * var.shape[0] + self.mapping[:, 1]))
         self.mapping = self.mapping[sorted_idx]
         self.coordinates = self.coordinates[sorted_idx]
+
+        # filter on outside of window
+        inside_window = (self.coordinates[:, 0] >= self.window[0]) & (self.coordinates[:, 1] <= self.window[1])
+        self.coordinates = self.coordinates[inside_window]
+        self.mapping = self.mapping[inside_window]
 
         # create fragments
         self.fragments = Fragments.create(

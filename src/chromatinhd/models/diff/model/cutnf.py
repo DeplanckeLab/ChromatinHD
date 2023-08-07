@@ -230,7 +230,7 @@ class Model(torch.nn.Module, HybridModel):
         mixture_delta = mixture_delta_cellxgene[local_cellxgene_ix]
 
         self.track["likelihood_mixture"] = likelihood_mixture = self.mixture.log_prob(
-            coordinates, genes_oi, local_gene_ix, mixture_delta
+            coordinates, genes_oi=genes_oi, local_gene_ix=local_gene_ix, delta=mixture_delta
         )
 
         self.track["likelihood_overall"] = likelihood_overall = torch.log(rho_cuts) + math.log(self.n_total_genes)

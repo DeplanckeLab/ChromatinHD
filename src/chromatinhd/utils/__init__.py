@@ -134,8 +134,9 @@ def save(obj, fh, pickler=None, **kwargs):
     return pickler(fh).dump(obj)
 
 
-def crossing(*dfs):
+def crossing(*dfs, **kwargs):
     dfs = [df.copy() if isinstance(df, pd.DataFrame) else df.to_frame() for df in dfs]
+    dfs.extend(pd.DataFrame({k: v}) for k, v in kwargs.items())
     for df in dfs:
         df["___key"] = 0
     if len(dfs) == 0:

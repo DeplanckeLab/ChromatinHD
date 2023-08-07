@@ -26,6 +26,7 @@ import chromatinhd.data.fragments
 class Result:
     coordinates: torch.Tensor
     local_cellxgene_ix: torch.Tensor
+    localcellxgene_ix: torch.Tensor
     genemapping: torch.Tensor
     n_fragments: int
     cells_oi: np.ndarray
@@ -44,9 +45,7 @@ class Result:
     def to(self, device):
         for field_name, field in self.__dataclass_fields__.items():
             if field.type is torch.Tensor:
-                self.__setattr__(
-                    field_name, self.__getattribute__(field_name).to(device)
-                )
+                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
         return self
 
     @property
@@ -56,14 +55,6 @@ class Result:
     @property
     def local_cell_ix(self):
         return torch.div(self.local_cellxgene_ix, self.n_genes, rounding_mode="floor")
-
-    @property
-    def genes_oi_torch(self):
-        return torch.from_numpy(self.genes_oi).to(self.coordinates.device)
-
-    @property
-    def cells_oi_torch(self):
-        return torch.from_numpy(self.cells_oi).to(self.coordinates.device)
 
     def filter_fragments(self, fragments_oi):
         assert len(fragments_oi) == self.n_fragments
@@ -124,9 +115,7 @@ class Fragments:
         self.out_coordinates = torch.from_numpy(
             np.zeros((self.fragment_buffer_size, 2), dtype=np.int64)
         )  # .pin_memory()
-        self.out_genemapping = torch.from_numpy(
-            np.zeros(self.fragment_buffer_size, dtype=np.int64)
-        )  # .pin_memory()
+        self.out_genemapping = torch.from_numpy(np.zeros(self.fragment_buffer_size, dtype=np.int64))  # .pin_memory()
         self.out_local_cellxgene_ix = torch.from_numpy(
             np.zeros(self.fragment_buffer_size, dtype=np.int64)
         )  # .pin_memory()
@@ -137,9 +126,7 @@ class Fragments:
         if not self.preloaded:
             self.preload()
 
-        minibatch.cellxgene_oi = cell_gene_to_cellxgene(
-            minibatch.cells_oi, minibatch.genes_oi, self.n_genes
-        )
+        minibatch.cellxgene_oi = cell_gene_to_cellxgene(minibatch.cells_oi, minibatch.genes_oi, self.n_genes)
 
         assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size, (
             len(minibatch.cellxgene_oi),
@@ -163,12 +150,17 @@ class Fragments:
         self.out_genemapping.resize_((n_fragments))
         self.out_local_cellxgene_ix.resize_((n_fragments))
 
+        local_cell_ix = torch.div(self.out_local_cellxgene_ix, self.n_genes, rounding_mode="floor")
+        localcellxgene_ix = local_cell_ix * self.n_genes + self.out_genemapping
+
         return Result(
-            local_cellxgene_ix=self.out_local_cellxgene_ix,
             coordinates=self.out_coordinates,
+            local_cellxgene_ix=self.out_local_cellxgene_ix,
+            localcellxgene_ix=localcellxgene_ix,
             n_fragments=n_fragments,
             genemapping=self.out_genemapping,
             window=self.window,
             n_total_genes=self.n_genes,
-            **minibatch.items(),
+            cells_oi=minibatch.cells_oi,
+            genes_oi=minibatch.genes_oi,
         )

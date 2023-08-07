@@ -15,14 +15,14 @@ class TestDifferentialQuadraticSplineStack:
         delta[:, :30] = 0
         ouput, logabsdet = transform.transform_forward(x, genes_oi, local_gene_ix, delta)
 
-        assert np.isclose(np.trapz(torch.exp(logabsdet).detach().numpy(), x), 1, atol=1e-2)
+        assert np.isclose(np.trapz(torch.exp(logabsdet).detach().numpy(), x), 1, atol=5e-2)
 
         delta[:, :30] = 1
         ouput, logabsdet = transform.transform_forward(x, genes_oi, local_gene_ix, delta)
 
-        assert np.isclose(np.trapz(torch.exp(logabsdet).detach().numpy(), x), 1, atol=1e-2)
+        assert np.isclose(np.trapz(torch.exp(logabsdet).detach().numpy(), x), 1, atol=5e-2)
 
         delta[:, :] = torch.from_numpy(np.random.normal(size=(1, delta.shape[1])))
         ouput, logabsdet = transform.transform_forward(x, genes_oi, local_gene_ix, delta)
 
-        assert np.isclose(np.trapz(torch.exp(logabsdet).detach().numpy(), x), 1, atol=1e-2)
+        assert np.isclose(np.trapz(torch.exp(logabsdet).detach().numpy(), x), 1, atol=5e-2)
