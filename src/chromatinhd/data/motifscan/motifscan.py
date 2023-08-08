@@ -17,6 +17,7 @@ from chromatinhd.flow import (
     StoredDataFrame,
 )
 from chromatinhd.utils.torch import ind2ptr
+from chromatinhd.utils.numpy import ind2ptr as ind2ptr_numpy
 
 
 class Motifscan(Flow):
@@ -30,7 +31,7 @@ class Motifscan(Flow):
     indptr = CompressedNumpyInt64()
     "The index pointers for each position in the regions"
 
-    position = CompressedNumpyInt64()
+    positions = CompressedNumpyInt64()
     "Position associated to each site"
 
     indices = CompressedNumpyInt64()
@@ -181,15 +182,46 @@ class Motifscan(Flow):
         strands = strands[sorted_idx]
 
         # calculate indptr
-        indptr = ind2ptr(positions, region_size * len(region_coordinates))
+        # indptr = ind2ptr(positions, region_size * len(region_coordinates))
 
         # store
         self.positions = positions.cpu().numpy()
-        self.indptr = indptr.cpu().numpy()
         self.indices = indices.cpu().numpy()
         self.scores = scores.cpu().numpy()
         self.strands = strands.cpu().numpy()
         self.motifs = motifs
+        self.regions = regions
+
+        self.create_indptr()
+
+        return self
+
+    def create_indptr(self):
+        """
+        Create the indptr from the positions
+        """
+        self.indptr = ind2ptr_numpy(
+            self.positions, (self.regions.window[1] - self.regions.window[0]) * len(self.regions.coordinates)
+        )
+
+    @classmethod
+    def from_positions(cls, positions, indices, scores, strands, regions, motifs, path=None):
+        """
+        Create a motifscan object from positions, indices, scores, strands, regions and motifs
+        """
+        self = cls(path=path)
+
+        # sort the positions
+        sorted_idx = np.argsort(positions)
+
+        self.positions = positions[sorted_idx]
+        self.indices = indices[sorted_idx]
+        self.scores = scores[sorted_idx]
+        self.strands = strands[sorted_idx]
+        self.regions = regions
+        self.motifs = motifs
+
+        self.create_indptr()
 
         return self
 

@@ -5,20 +5,13 @@ import torch
 
 
 def test_digitize_sequence():
-    assert (
-        chd.data.motifscan.motifscan.digitize_sequence("ACGTN")
-        == np.array([0, 1, 2, 3, 4])
-    ).all()
+    assert (chd.data.motifscan.motifscan.digitize_sequence("ACGTN") == np.array([0, 1, 2, 3, 4])).all()
 
 
 def test_create_onehot():
     assert (
-        chd.data.motifscan.motifscan.create_onehot(
-            chd.data.motifscan.motifscan.digitize_sequence("ACGTN")
-        )
-        == torch.tensor(
-            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]]
-        )
+        chd.data.motifscan.motifscan.create_onehot(chd.data.motifscan.motifscan.digitize_sequence("ACGTN"))
+        == torch.tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]])
     ).all()
 
 
@@ -67,9 +60,7 @@ def test_scan():
         )[None, ...]
         pwm = test["pwm"]
 
-        scores, positions, strands = chd.data.motifscan.motifscan.scan(
-            onehot, pwm, cutoff=1.5
-        )
+        scores, positions, strands = chd.data.motifscan.motifscan.scan(onehot, pwm, cutoff=1.5)
 
         assert torch.equal(scores, test["expected_scores"]), (test["sequence"], scores)
         assert torch.equal(positions, test["expected_positions"].to(torch.int))
@@ -106,6 +97,7 @@ class TestMotifscan:
         regions = chd.data.regions.Regions.create(
             path=f"{tmp_path}/regions",
             coordinates=region_coordinates,
+            window=(0, region_size),
         )
 
         motifscan = chd.data.motifscan.Motifscan(f"{tmp_path}/motifscan")
