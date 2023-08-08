@@ -127,10 +127,10 @@
           <aside class="md-banner md-banner--warning">
             <div class="md-banner__inner md-grid md-typeset">
               
-  You're not viewing the latest version.
-  <a href="../../../../.."> 
-    <strong>Click here to go to latest.</strong>
-  </a>
+You're not viewing the latest version.
+<a href="../../../../..">
+  <strong>Click here to go to latest.</strong>
+</a>
 
             </div>
             <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
@@ -1043,9 +1043,7 @@
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">126</span>
 <span class="normal">127</span>
 <span class="normal">128</span>
 <span class="normal">129</span>
@@ -1455,94 +1453,7 @@
 <span class="normal">533</span>
 <span class="normal">534</span>
 <span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span>
-<span class="normal">548</span>
-<span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span>
-<span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span>
-<span class="normal">610</span>
-<span class="normal">611</span>
-<span class="normal">612</span>
-<span class="normal">613</span>
-<span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span>
-<span class="normal">617</span>
-<span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">HybridModel</span><span class="p">):</span>
+<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">HybridModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A ChromatinHD-diff model that models the probability density of observing a cut site between clusterings</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1594,7 +1505,9 @@
                 <span class="n">n_layers</span><span class="o">=</span><span class="n">decoder_n_layers</span><span class="p">,</span>
             <span class="p">)</span>
 
+        <span class="c1"># calculate libsizes and rho bias</span>
         <span class="n">libsize</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">mapping</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span><span class="p">)</span>
+
         <span class="n">rho_bias</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">torch</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">mapping</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_genes</span><span class="p">)</span>
             <span class="o">/</span> <span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span>
@@ -1602,8 +1515,6 @@
         <span class="p">)</span>
         <span class="n">min_rho_bias</span> <span class="o">=</span> <span class="mf">1e-5</span>
         <span class="n">rho_bias</span> <span class="o">=</span> <span class="n">min_rho_bias</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">min_rho_bias</span><span class="p">)</span> <span class="o">*</span> <span class="n">rho_bias</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;libsize&quot;</span><span class="p">,</span> <span class="n">libsize</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;rho_bias&quot;</span><span class="p">,</span> <span class="n">rho_bias</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">track</span> <span class="o">=</span> <span class="p">{}</span>
@@ -1619,10 +1530,7 @@
                     <span class="s2">&quot;mixture_delta_p_scale&quot;</span><span class="p">,</span>
                     <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">mixture_delta_p_scale</span><span class="p">)),</span>
                 <span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">n_total_cells</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">scale_likelihood</span> <span class="o">=</span> <span class="n">scale_likelihood</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mixture_delta_p_scale_dist</span> <span class="o">=</span> <span class="n">mixture_delta_p_scale_dist</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">rho_delta_regularization</span> <span class="o">=</span> <span class="n">rho_delta_regularization</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_delta_regularization</span><span class="p">:</span>
@@ -1630,8 +1538,6 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">rho_delta_p_scale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;rho_delta_p_scale&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)))</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">mixture_delta_p_scale_dist</span> <span class="o">=</span> <span class="n">mixture_delta_p_scale_dist</span>
 
     <span class="k">def</span> <span class="nf">forward_</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1643,7 +1549,7 @@
         <span class="n">local_gene_ix</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="c1"># decode</span>
-        <span class="n">mixture_delta</span><span class="p">,</span> <span class="n">rho_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">clustering</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">),</span> <span class="n">genes_oi</span><span class="p">)</span>
+        <span class="n">mixture_delta</span><span class="p">,</span> <span class="n">rho_delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">clustering</span><span class="p">,</span> <span class="n">genes_oi</span><span class="p">)</span>
 
         <span class="c1"># rho</span>
         <span class="n">rho</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rho_bias</span><span class="p">)</span> <span class="o">+</span> <span class="n">rho_delta</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
@@ -1654,16 +1560,15 @@
         <span class="n">mixture_delta</span> <span class="o">=</span> <span class="n">mixture_delta_cellxgene</span><span class="p">[</span><span class="n">local_cellxgene_ix</span><span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">[</span><span class="s2">&quot;likelihood_mixture&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">likelihood_mixture</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mixture</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span>
-            <span class="n">coordinates</span><span class="p">,</span> <span class="n">genes_oi</span><span class="p">,</span> <span class="n">local_gene_ix</span><span class="p">,</span> <span class="n">mixture_delta</span>
+            <span class="n">coordinates</span><span class="p">,</span> <span class="n">genes_oi</span><span class="o">=</span><span class="n">genes_oi</span><span class="p">,</span> <span class="n">local_gene_ix</span><span class="o">=</span><span class="n">local_gene_ix</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="n">mixture_delta</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">[</span><span class="s2">&quot;likelihood_overall&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">likelihood_overall</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">rho_cuts</span><span class="p">)</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_total_genes</span><span class="p">)</span>
 
-        <span class="c1"># overall likelihood</span>
+        <span class="c1"># likelihood</span>
         <span class="n">likelihood</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">[</span><span class="s2">&quot;likelihood&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">likelihood_mixture</span> <span class="o">+</span> <span class="n">likelihood_overall</span>
-        <span class="n">likelihood_scale</span> <span class="o">=</span> <span class="mf">1.0</span>
 
-        <span class="n">elbo</span> <span class="o">=</span> <span class="o">-</span><span class="n">likelihood</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">*</span> <span class="n">likelihood_scale</span>
+        <span class="n">elbo</span> <span class="o">=</span> <span class="o">-</span><span class="n">likelihood</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 
         <span class="c1"># regularization</span>
         <span class="c1"># mixture</span>
@@ -1765,14 +1670,14 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
         <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
-        <span class="n">cells</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">cell_ixs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">gene_ixs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">cells</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cell_ixs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">genes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">gene_ixs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">):</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the prediction of a dataset</span>
+<span class="sd">        Returns the likelihoods of the observed cut sites for each cell and gene</span>
 
 <span class="sd">        Parameters:</span>
 <span class="sd">            fragments: Fragments object</span>
@@ -1782,7 +1687,11 @@
 <span class="sd">            genes: Genes to predict</span>
 <span class="sd">            gene_ixs: Gene indices to predict</span>
 <span class="sd">            device: Device to use</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            **likelihood_mixture**, likelihood of the observing a cut site at the particular genomic location, conditioned on the gene region. **likelihood_overall**, likelihood of observing a cut site in the gene region</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="k">if</span> <span class="n">cell_ixs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">cells</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">cells</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">obs</span><span class="o">.</span><span class="n">index</span>
@@ -1955,93 +1864,6 @@
 
         <span class="n">prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">track</span><span class="p">[</span><span class="s2">&quot;likelihood&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">prob</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">rank</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">window</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-        <span class="n">n_latent</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">DeviceObjType</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">how</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;probs_diff_masked&quot;</span><span class="p">,</span>
-        <span class="n">prob_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-        <span class="n">n_genes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_bias</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-        <span class="bp">self</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-
-        <span class="c1"># create design for inference</span>
-        <span class="n">design_gene</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;gene_ix&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_genes</span><span class="p">)})</span>
-        <span class="n">design_latent</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;active_latent&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_latent</span><span class="p">)})</span>
-        <span class="n">design_coord</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;coord&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">25</span><span class="p">)})</span>
-        <span class="n">design</span> <span class="o">=</span> <span class="n">crossing</span><span class="p">(</span><span class="n">design_gene</span><span class="p">,</span> <span class="n">design_latent</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
-        <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">100000</span>
-        <span class="n">design</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
-
-        <span class="c1"># infer</span>
-        <span class="n">probs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">design_subset</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="o">.</span><span class="n">tqdm</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;batch&quot;</span><span class="p">)):</span>
-            <span class="n">pseudocoordinates</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-            <span class="n">pseudocoordinates</span> <span class="o">=</span> <span class="p">(</span><span class="n">pseudocoordinates</span> <span class="o">-</span> <span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-            <span class="n">pseudolatent</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">one_hot</span><span class="p">(</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;active_latent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span>
-                <span class="n">n_latent</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
-            <span class="n">gene_ix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;gene_ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-
-            <span class="n">prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluate_pseudo</span><span class="p">(</span>
-                <span class="n">pseudocoordinates</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span>
-                <span class="n">latent</span><span class="o">=</span><span class="n">pseudolatent</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span>
-                <span class="n">gene_ix</span><span class="o">=</span><span class="n">gene_ix</span><span class="p">,</span>
-            <span class="p">)</span>
-
-            <span class="n">probs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prob</span><span class="p">)</span>
-        <span class="n">probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">probs</span><span class="p">)</span>
-
-        <span class="n">probs</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">design_gene</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">design_latent</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">design_coord</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-
-        <span class="c1"># calculate the score we&#39;re gonna use: how much does the likelihood of</span>
-        <span class="c1"># a cut in a window change compared to the &quot;mean&quot;?</span>
-        <span class="n">probs_diff</span> <span class="o">=</span> <span class="n">probs</span> <span class="o">-</span> <span class="n">probs</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-        <span class="c1"># apply a mask to regions with very low likelihood of a cut</span>
-        <span class="k">if</span> <span class="n">prob_cutoff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">prob_cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">probs</span> <span class="o">&gt;=</span> <span class="n">prob_cutoff</span>
-
-        <span class="n">probs_diff_masked</span> <span class="o">=</span> <span class="n">probs_diff</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">probs_diff_masked</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
-
-        <span class="c1">## Single base-pair resolution</span>
-        <span class="c1"># interpolate the scoring from above but now at single base pairs</span>
-        <span class="c1"># we may have to smooth this in the future,</span>
-        <span class="c1"># particularly for very detailed models that already look at base pair resolution</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">design</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">design_gene</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">design_latent</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">design_coord</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-
-        <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">xp</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">fp</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-            <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">fp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">fp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">xp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">xp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-            <span class="n">b</span> <span class="o">=</span> <span class="n">fp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">mul</span><span class="p">(</span><span class="n">xp</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
-
-            <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">xp</span><span class="o">.</span><span class="n">contiguous</span><span class="p">(),</span> <span class="n">x</span><span class="o">.</span><span class="n">contiguous</span><span class="p">(),</span> <span class="n">right</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
-            <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">slope</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
-            <span class="n">intercept</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">index_select</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">slope</span> <span class="o">+</span> <span class="n">intercept</span>
-
-        <span class="n">desired_x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">*</span><span class="n">window</span><span class="p">)</span>
-
-        <span class="n">probs_diff_interpolated</span> <span class="o">=</span> <span class="n">interpolate</span><span class="p">(</span>
-            <span class="n">desired_x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">probs_diff</span><span class="p">)</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-        <span class="n">probs_interpolated</span> <span class="o">=</span> <span class="n">interpolate</span><span class="p">(</span><span class="n">desired_x</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">probs</span><span class="p">))</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="n">how</span> <span class="o">==</span> <span class="s2">&quot;probs_diff_masked&quot;</span><span class="p">:</span>
-            <span class="c1"># again apply a mask</span>
-            <span class="n">probs_diff_interpolated_masked</span> <span class="o">=</span> <span class="n">probs_diff_interpolated</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-            <span class="n">mask_interpolated</span> <span class="o">=</span> <span class="n">probs_interpolated</span> <span class="o">&gt;=</span> <span class="n">prob_cutoff</span>
-            <span class="n">probs_diff_interpolated_masked</span><span class="p">[</span><span class="o">~</span><span class="n">mask_interpolated</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
-
-            <span class="k">return</span> <span class="n">probs_diff_interpolated_masked</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -2069,7 +1891,7 @@
 
   <div class="doc doc-contents ">
   
-      <p>Returns the prediction of a dataset</p>
+      <p>Returns the likelihoods of the observed cut sites for each cell and gene</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -2113,6 +1935,7 @@
         <tr>
           <td><code>cells</code></td>
           <td>
+                <code><span title="typing.List">List</span>[str]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2126,6 +1949,7 @@
         <tr>
           <td><code>cell_ixs</code></td>
           <td>
+                <code><span title="typing.List">List</span>[int]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2139,6 +1963,7 @@
         <tr>
           <td><code>genes</code></td>
           <td>
+                <code><span title="typing.List">List</span>[str]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2152,6 +1977,7 @@
         <tr>
           <td><code>gene_ixs</code></td>
           <td>
+                <code><span title="typing.List">List</span>[int]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2179,9 +2005,35 @@
     </tbody>
   </table>
 
+  <p><strong>Returns:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td>
+                <code><span title="xarray">xr</span>.<span title="xarray.Dataset">Dataset</span></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p><strong>likelihood_mixture</strong>, likelihood of the observing a cut site at the particular genomic location, conditioned on the gene region. <strong>likelihood_overall</strong>, likelihood of observing a cut site in the gene region</p>
+            </div>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">343</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
 <span class="normal">346</span>
@@ -2308,14 +2160,14 @@
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
-    <span class="n">cells</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">cell_ixs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">gene_ixs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">cells</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cell_ixs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">genes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">gene_ixs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">):</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the prediction of a dataset</span>
+<span class="sd">    Returns the likelihoods of the observed cut sites for each cell and gene</span>
 
 <span class="sd">    Parameters:</span>
 <span class="sd">        fragments: Fragments object</span>
@@ -2325,7 +2177,11 @@
 <span class="sd">        genes: Genes to predict</span>
 <span class="sd">        gene_ixs: Gene indices to predict</span>
 <span class="sd">        device: Device to use</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        **likelihood_mixture**, likelihood of the observing a cut site at the particular genomic location, conditioned on the gene region. **likelihood_overall**, likelihood of observing a cut site in the gene region</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">if</span> <span class="n">cell_ixs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">cells</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">cells</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">obs</span><span class="o">.</span><span class="n">index</span>
@@ -2450,7 +2306,11 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">274</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
 <span class="normal">275</span>
 <span class="normal">276</span>
 <span class="normal">277</span>
@@ -2508,11 +2368,7 @@
 <span class="normal">329</span>
 <span class="normal">330</span>
 <span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span>
-<span class="normal">336</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">fold</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
+<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">fold</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Trains the model</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -2608,50 +2464,50 @@
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">626</span>
-<span class="normal">627</span>
-<span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
-<span class="normal">631</span>
-<span class="normal">632</span>
-<span class="normal">633</span>
-<span class="normal">634</span>
-<span class="normal">635</span>
-<span class="normal">636</span>
-<span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span>
-<span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span>
-<span class="normal">662</span>
-<span class="normal">663</span>
-<span class="normal">664</span>
-<span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span>
-<span class="normal">669</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Models</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Models</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
     <span class="n">n_models</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">()</span>
 
     <span class="nd">@property</span>
@@ -2753,31 +2609,31 @@
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">635</span>
-<span class="normal">636</span>
-<span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span>
-<span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Trains the models</span>
 
@@ -2830,46 +2686,47 @@
         </div>
         
       </main>
-      
-        <footer class="md-footer">
+      <footer class="md-footer">
   
+  
+  
+  <nav class="md-footer__inner md-grid" aria-label="Footer" >
     
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../interpret/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interpret" rel="prev">
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                Interpret
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../plot/" class="md-footer__link md-footer__link--next" aria-label="Next: Plot" rel="next">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Plot
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
+    <a href="../interpret/" class="md-footer__link md-footer__link--prev"
+      aria-label="Previous: Interpret" rel="prev">
+      <div class="md-footer__button md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </div>
+      <div class="md-footer__title">
+        <span class="md-footer__direction">
+          Previous
+        </span>
+        <div class="md-ellipsis">
+          Interpret
+        </div>
+      </div>
+    </a>
+    
+    
+    
+    <a href="../plot/" class="md-footer__link md-footer__link--next"
+      aria-label="Next: Plot" rel="next">
+      <div class="md-footer__title">
+        <span class="md-footer__direction">
+          Next
+        </span>
+        <div class="md-ellipsis">
+          Plot
+        </div>
+      </div>
+      <div class="md-footer__button md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+      </div>
+    </a>
+    
+  </nav>
+  
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2887,7 +2744,7 @@
   
 </div>
       
-        <div class="md-social">
+      <div class="md-social">
   
     
     
@@ -2905,7 +2762,7 @@
     </div>
   </div>
 </footer>
-      
+
     </div>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>

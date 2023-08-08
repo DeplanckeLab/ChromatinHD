@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 
 # %%
 import pathlib
+
 dataset_folder = pathlib.Path("example")
 fragments = chd.data.Fragments(dataset_folder / "fragments")
 transcriptome = chd.data.Transcriptome(dataset_folder / "transcriptome")
@@ -48,7 +49,7 @@ clustering = chd.data.Clustering(dataset_folder / "clustering")
 # The basic ChromatinHD-*diff* model
 
 # %%
-models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset = True)
+models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset=True)
 
 # %% tags=["hide_output"]
 models.train_models(fragments, clustering, folds)
@@ -88,14 +89,14 @@ fig.main.add_under(panel_genes)
 
 plotdata, plotdata_mean = genepositional.get_plotdata(transcriptome.gene_id(symbol))
 panel_differential = chd.models.diff.plot.Differential(
-    plotdata, plotdata_mean, cluster_info = clustering.cluster_info, panel_height = 0.5, width=width
+    plotdata, plotdata_mean, cluster_info=clustering.cluster_info, panel_height=0.5, width=width
 )
 fig.main.add_under(panel_differential)
 
 panel_expression = chd.models.diff.plot.DifferentialExpression.from_transcriptome(
-    transcriptome = transcriptome, clustering = clustering, gene = transcriptome.gene_id(symbol), panel_height = 0.5
+    transcriptome=transcriptome, clustering=clustering, gene=transcriptome.gene_id(symbol), panel_height=0.5
 )
-fig.main.add_right(panel_expression, row = panel_differential)
+fig.main.add_right(panel_expression, row=panel_differential)
 
 fig.plot()
 

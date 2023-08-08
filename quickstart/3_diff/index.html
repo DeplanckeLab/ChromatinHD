@@ -127,10 +127,10 @@
           <aside class="md-banner md-banner--warning">
             <div class="md-banner__inner md-grid md-typeset">
               
-  You're not viewing the latest version.
-  <a href="../../.."> 
-    <strong>Click here to go to latest.</strong>
-  </a>
+You're not viewing the latest version.
+<a href="../../..">
+  <strong>Click here to go to latest.</strong>
+</a>
 
             </div>
             <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
@@ -2105,6 +2105,7 @@ import matplotlib.pyplot as plt</div>
                 </clipboard-copy>
             </div>
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="kn">import</span> <span class="nn">pathlib</span>
+
 <span class="n">dataset_folder</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;example&quot;</span><span class="p">)</span>
 <span class="n">fragments</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Fragments</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;fragments&quot;</span><span class="p">)</span>
 <span class="n">transcriptome</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Transcriptome</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;transcriptome&quot;</span><span class="p">)</span>
@@ -2112,6 +2113,7 @@ import matplotlib.pyplot as plt</div>
 <span class="n">clustering</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Clustering</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;clustering&quot;</span><span class="p">)</span>
 </pre></div>
 <div id="cell-2" class="clipboard-copy-txt">import pathlib
+
 dataset_folder = pathlib.Path("example")
 fragments = chd.data.Fragments(dataset_folder / "fragments")
 transcriptome = chd.data.Transcriptome(dataset_folder / "transcriptome")
@@ -2169,9 +2171,9 @@ clustering = chd.data.Clustering(dataset_folder / "clustering")</div>
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">models</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">diff</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">cutnf</span><span class="o">.</span><span class="n">Models</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;models&quot;</span> <span class="o">/</span> <span class="s2">&quot;cutnf&quot;</span><span class="p">,</span> <span class="n">reset</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">models</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">diff</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">cutnf</span><span class="o">.</span><span class="n">Models</span><span class="p">(</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;models&quot;</span> <span class="o">/</span> <span class="s2">&quot;cutnf&quot;</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
-<div id="cell-3" class="clipboard-copy-txt">models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset = True)</div>
+<div id="cell-3" class="clipboard-copy-txt">models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset=True)</div>
         
         </div>
     </div>
@@ -2412,14 +2414,14 @@ genepositional.score(
 
 <span class="n">plotdata</span><span class="p">,</span> <span class="n">plotdata_mean</span> <span class="o">=</span> <span class="n">genepositional</span><span class="o">.</span><span class="n">get_plotdata</span><span class="p">(</span><span class="n">transcriptome</span><span class="o">.</span><span class="n">gene_id</span><span class="p">(</span><span class="n">symbol</span><span class="p">))</span>
 <span class="n">panel_differential</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">diff</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">Differential</span><span class="p">(</span>
-    <span class="n">plotdata</span><span class="p">,</span> <span class="n">plotdata_mean</span><span class="p">,</span> <span class="n">cluster_info</span> <span class="o">=</span> <span class="n">clustering</span><span class="o">.</span><span class="n">cluster_info</span><span class="p">,</span> <span class="n">panel_height</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span>
+    <span class="n">plotdata</span><span class="p">,</span> <span class="n">plotdata_mean</span><span class="p">,</span> <span class="n">cluster_info</span><span class="o">=</span><span class="n">clustering</span><span class="o">.</span><span class="n">cluster_info</span><span class="p">,</span> <span class="n">panel_height</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span>
 <span class="p">)</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="n">add_under</span><span class="p">(</span><span class="n">panel_differential</span><span class="p">)</span>
 
 <span class="n">panel_expression</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">diff</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">DifferentialExpression</span><span class="o">.</span><span class="n">from_transcriptome</span><span class="p">(</span>
-    <span class="n">transcriptome</span> <span class="o">=</span> <span class="n">transcriptome</span><span class="p">,</span> <span class="n">clustering</span> <span class="o">=</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">gene</span> <span class="o">=</span> <span class="n">transcriptome</span><span class="o">.</span><span class="n">gene_id</span><span class="p">(</span><span class="n">symbol</span><span class="p">),</span> <span class="n">panel_height</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">transcriptome</span><span class="o">=</span><span class="n">transcriptome</span><span class="p">,</span> <span class="n">clustering</span><span class="o">=</span><span class="n">clustering</span><span class="p">,</span> <span class="n">gene</span><span class="o">=</span><span class="n">transcriptome</span><span class="o">.</span><span class="n">gene_id</span><span class="p">(</span><span class="n">symbol</span><span class="p">),</span> <span class="n">panel_height</span><span class="o">=</span><span class="mf">0.5</span>
 <span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="n">add_right</span><span class="p">(</span><span class="n">panel_expression</span><span class="p">,</span> <span class="n">row</span> <span class="o">=</span> <span class="n">panel_differential</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="n">add_right</span><span class="p">(</span><span class="n">panel_expression</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="n">panel_differential</span><span class="p">)</span>
 
 <span class="n">fig</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
 </pre></div>
@@ -2434,14 +2436,14 @@ fig.main.add_under(panel_genes)
 
 plotdata, plotdata_mean = genepositional.get_plotdata(transcriptome.gene_id(symbol))
 panel_differential = chd.models.diff.plot.Differential(
-    plotdata, plotdata_mean, cluster_info = clustering.cluster_info, panel_height = 0.5, width=width
+    plotdata, plotdata_mean, cluster_info=clustering.cluster_info, panel_height=0.5, width=width
 )
 fig.main.add_under(panel_differential)
 
 panel_expression = chd.models.diff.plot.DifferentialExpression.from_transcriptome(
-    transcriptome = transcriptome, clustering = clustering, gene = transcriptome.gene_id(symbol), panel_height = 0.5
+    transcriptome=transcriptome, clustering=clustering, gene=transcriptome.gene_id(symbol), panel_height=0.5
 )
-fig.main.add_right(panel_expression, row = panel_differential)
+fig.main.add_right(panel_expression, row=panel_differential)
 
 fig.plot()</div>
         
@@ -2529,46 +2531,47 @@ class="
         </div>
         
       </main>
-      
-        <footer class="md-footer">
+      <footer class="md-footer">
   
+  
+  
+  <nav class="md-footer__inner md-grid" aria-label="Footer" >
     
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../2_pred/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ChromatinHD-pred" rel="prev">
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                ChromatinHD-pred
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../../reference/" class="md-footer__link md-footer__link--next" aria-label="Next: Index" rel="next">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Index
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
+    <a href="../2_pred/" class="md-footer__link md-footer__link--prev"
+      aria-label="Previous: ChromatinHD-pred" rel="prev">
+      <div class="md-footer__button md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </div>
+      <div class="md-footer__title">
+        <span class="md-footer__direction">
+          Previous
+        </span>
+        <div class="md-ellipsis">
+          ChromatinHD-pred
+        </div>
+      </div>
+    </a>
+    
+    
+    
+    <a href="../../reference/" class="md-footer__link md-footer__link--next"
+      aria-label="Next: Index" rel="next">
+      <div class="md-footer__title">
+        <span class="md-footer__direction">
+          Next
+        </span>
+        <div class="md-ellipsis">
+          Index
+        </div>
+      </div>
+      <div class="md-footer__button md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+      </div>
+    </a>
+    
+  </nav>
+  
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -2586,7 +2589,7 @@ class="
   
 </div>
       
-        <div class="md-social">
+      <div class="md-social">
   
     
     
@@ -2604,7 +2607,7 @@ class="
     </div>
   </div>
 </footer>
-      
+
     </div>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>

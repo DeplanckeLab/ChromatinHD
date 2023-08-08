@@ -2,112 +2,112 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://chromatinhd.eu/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/benchmark/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/benchmark/diff/models/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/benchmark/diff/simulated/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/benchmark/diff/timing/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/quickstart/0_install/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/quickstart/1_data/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/quickstart/2_pred/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/quickstart/3_diff/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/data/clustering/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/data/folds/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/data/fragments/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/data/motifscan/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/data/regions/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/data/transcriptome/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/diff/interpret/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/diff/model/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/diff/plot/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/pred/interpret/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/pred/model/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://chromatinhd.eu/reference/models/pred/plot/</loc>
-         <lastmod>2023-08-06</lastmod>
+         <lastmod>2023-08-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>

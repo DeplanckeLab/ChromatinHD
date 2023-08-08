@@ -127,10 +127,10 @@
           <aside class="md-banner md-banner--warning">
             <div class="md-banner__inner md-grid md-typeset">
               
-  You're not viewing the latest version.
-  <a href="../../.."> 
-    <strong>Click here to go to latest.</strong>
-  </a>
+You're not viewing the latest version.
+<a href="../../..">
+  <strong>Click here to go to latest.</strong>
+</a>
 
             </div>
             <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
@@ -2992,13 +2992,9 @@ adata.pkl  obs.tsv  var.tsv  X.pkl
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">clustering</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Clustering</span><span class="o">.</span><span class="n">from_labels</span><span class="p">(</span>
-    <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;celltype&quot;</span><span class="p">],</span> <span class="n">path</span><span class="o">=</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;clustering&quot;</span>
-<span class="p">)</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">clustering</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Clustering</span><span class="o">.</span><span class="n">from_labels</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;celltype&quot;</span><span class="p">],</span> <span class="n">path</span><span class="o">=</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;clustering&quot;</span><span class="p">)</span>
 </pre></div>
-<div id="cell-16" class="clipboard-copy-txt">clustering = chd.data.Clustering.from_labels(
-    adata.obs["celltype"], path=dataset_folder / "clustering"
-)</div>
+<div id="cell-16" class="clipboard-copy-txt">clustering = chd.data.Clustering.from_labels(adata.obs["celltype"], path=dataset_folder / "clustering")</div>
         
         </div>
     </div>
@@ -3394,12 +3390,14 @@ motifs = motifs.join(annot)</div>
                 </clipboard-copy>
             </div>
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="kn">import</span> <span class="nn">genomepy</span>
-<span class="n">genomepy</span><span class="o">.</span><span class="n">install_genome</span><span class="p">(</span><span class="s2">&quot;GRCh38&quot;</span><span class="p">,</span> <span class="n">genomes_dir</span> <span class="o">=</span> <span class="s2">&quot;/data/genome/&quot;</span><span class="p">)</span>
+
+<span class="n">genomepy</span><span class="o">.</span><span class="n">install_genome</span><span class="p">(</span><span class="s2">&quot;GRCh38&quot;</span><span class="p">,</span> <span class="n">genomes_dir</span><span class="o">=</span><span class="s2">&quot;/data/genome/&quot;</span><span class="p">)</span>
 
 <span class="n">fasta_file</span> <span class="o">=</span> <span class="s2">&quot;/data/genome/GRCh38/GRCh38.fa&quot;</span>
 </pre></div>
 <div id="cell-22" class="clipboard-copy-txt">import genomepy
-genomepy.install_genome("GRCh38", genomes_dir = "/data/genome/")
+
+genomepy.install_genome("GRCh38", genomes_dir="/data/genome/")
 
 fasta_file = "/data/genome/GRCh38/GRCh38.fa"</div>
         
@@ -3444,11 +3442,23 @@ fasta_file = "/data/genome/GRCh38/GRCh38.fa"</div>
                 </clipboard-copy>
             </div>
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="n">motifscan</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Motifscan</span><span class="o">.</span><span class="n">from_pwms</span><span class="p">(</span>
-    <span class="n">pwms</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span> <span class="n">motifs</span> <span class="o">=</span> <span class="n">motifs</span><span class="p">,</span> <span class="n">cutoff_col</span> <span class="o">=</span> <span class="s2">&quot;cutoff_0001&quot;</span><span class="p">,</span> <span class="n">fasta_file</span> <span class="o">=</span> <span class="n">fasta_file</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;motifscan&quot;</span><span class="p">,</span> <span class="n">device</span> <span class="o">=</span> <span class="s2">&quot;cuda&quot;</span><span class="p">,</span>
+    <span class="n">pwms</span><span class="p">,</span>
+    <span class="n">regions</span><span class="p">,</span>
+    <span class="n">motifs</span><span class="o">=</span><span class="n">motifs</span><span class="p">,</span>
+    <span class="n">cutoff_col</span><span class="o">=</span><span class="s2">&quot;cutoff_0001&quot;</span><span class="p">,</span>
+    <span class="n">fasta_file</span><span class="o">=</span><span class="n">fasta_file</span><span class="p">,</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">dataset_folder</span> <span class="o">/</span> <span class="s2">&quot;motifscan&quot;</span><span class="p">,</span>
+    <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 <div id="cell-23" class="clipboard-copy-txt">motifscan = chd.data.Motifscan.from_pwms(
-    pwms, regions, motifs = motifs, cutoff_col = "cutoff_0001", fasta_file = fasta_file, path=dataset_folder / "motifscan", device = "cuda",
+    pwms,
+    regions,
+    motifs=motifs,
+    cutoff_col="cutoff_0001",
+    fasta_file=fasta_file,
+    path=dataset_folder / "motifscan",
+    device="cuda",
 )</div>
         
         </div>
@@ -3553,46 +3563,47 @@ fasta_file = "/data/genome/GRCh38/GRCh38.fa"</div>
         </div>
         
       </main>
-      
-        <footer class="md-footer">
+      <footer class="md-footer">
   
+  
+  
+  <nav class="md-footer__inner md-grid" aria-label="Footer" >
     
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../0_install/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Installation" rel="prev">
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                Installation
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../2_pred/" class="md-footer__link md-footer__link--next" aria-label="Next: ChromatinHD-pred" rel="next">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                ChromatinHD-pred
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
+    <a href="../0_install/" class="md-footer__link md-footer__link--prev"
+      aria-label="Previous: Installation" rel="prev">
+      <div class="md-footer__button md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </div>
+      <div class="md-footer__title">
+        <span class="md-footer__direction">
+          Previous
+        </span>
+        <div class="md-ellipsis">
+          Installation
+        </div>
+      </div>
+    </a>
+    
+    
+    
+    <a href="../2_pred/" class="md-footer__link md-footer__link--next"
+      aria-label="Next: ChromatinHD-pred" rel="next">
+      <div class="md-footer__title">
+        <span class="md-footer__direction">
+          Next
+        </span>
+        <div class="md-ellipsis">
+          ChromatinHD-pred
+        </div>
+      </div>
+      <div class="md-footer__button md-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+      </div>
+    </a>
+    
+  </nav>
+  
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -3610,7 +3621,7 @@ fasta_file = "/data/genome/GRCh38/GRCh38.fa"</div>
   
 </div>
       
-        <div class="md-social">
+      <div class="md-social">
   
     
     
@@ -3628,7 +3639,7 @@ fasta_file = "/data/genome/GRCh38/GRCh38.fa"</div>
     </div>
   </div>
 </footer>
-      
+
     </div>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>

@@ -182,9 +182,7 @@ folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(frag
 # Although only needed for some models, e.g. ChromatinHD-diff, for interpretation it can be helpful to store some clustering.
 
 # %%
-clustering = chd.data.Clustering.from_labels(
-    adata.obs["celltype"], path=dataset_folder / "clustering"
-)
+clustering = chd.data.Clustering.from_labels(adata.obs["celltype"], path=dataset_folder / "clustering")
 
 # %%
 # !ls {clustering.path}
@@ -252,7 +250,8 @@ motifs = motifs.join(annot)
 
 # %%
 import genomepy
-genomepy.install_genome("GRCh38", genomes_dir = "/data/genome/")
+
+genomepy.install_genome("GRCh38", genomes_dir="/data/genome/")
 
 fasta_file = "/data/genome/GRCh38/GRCh38.fa"
 
@@ -261,7 +260,13 @@ fasta_file = "/data/genome/GRCh38/GRCh38.fa"
 
 # %%
 motifscan = chd.data.Motifscan.from_pwms(
-    pwms, regions, motifs = motifs, cutoff_col = "cutoff_0001", fasta_file = fasta_file, path=dataset_folder / "motifscan", device = "cuda",
+    pwms,
+    regions,
+    motifs=motifs,
+    cutoff_col="cutoff_0001",
+    fasta_file=fasta_file,
+    path=dataset_folder / "motifscan",
+    device="cuda",
 )
 
 # %%
