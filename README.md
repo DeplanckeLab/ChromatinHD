@@ -15,13 +15,6 @@ As we show in [our paper](https://www.biorxiv.org/content/10.1101/2023.07.21.549
 - ChromatinHD models can capture long-range interactions by considering fragments co-occuring within the same cell ([Figure 4](https://www.biorxiv.org/content/10.1101/2023.07.21.549899v1)).
 - ChromatinHD models can also capture changes in fragment size that are related to gene expression changes, likely driven by dense direct and indirect binding of transcription factors ([Figure 5](https://www.biorxiv.org/content/10.1101/2023.07.21.549899v1)).
 
-[Manuscript](https://www.biorxiv.org/content/10.1101/2023.07.21.549899v1)
-
-[Documentation](https://chromatinhd.eu)
-
-[Quick start](https://chromatinhd.eu/quickstart/0_install)
-
-
 [📜 Manuscript](https://www.biorxiv.org/content/10.1101/2023.07.21.549899v1)
 
 [❔ Documentation](https://chromatinhd.eu)
