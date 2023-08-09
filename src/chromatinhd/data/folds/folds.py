@@ -70,6 +70,7 @@ class Folds(Flow):
         fragments: Fragments,
         n_folds: int,
         n_repeats: int = 1,
+        stratify_by_chromosome=True,
         overwrite: bool = False,
     ):
         """
@@ -99,9 +100,12 @@ class Folds(Flow):
 
             genes_all = np.arange(fragments.n_genes)
 
-            chr_order = generator.permutation(fragments.regions.coordinates["chr"].unique())
-            gene_chrs = pd.Categorical(fragments.regions.coordinates["chr"].astype(str), categories=chr_order).codes
-            gene_bins = np.floor((gene_chrs / (len(chr_order) / n_folds))).astype(int)
+            if stratify_by_chromosome:
+                chr_order = generator.permutation(fragments.regions.coordinates["chr"].unique())
+                gene_chrs = pd.Categorical(fragments.regions.coordinates["chr"].astype(str), categories=chr_order).codes
+                gene_bins = np.floor((gene_chrs / (len(chr_order) / n_folds))).astype(int)
+            else:
+                gene_bins = np.floor((np.arange(len(genes_all)) / (len(genes_all) / n_folds)))
 
             for i in range(n_folds):
                 cells_train = cells_all[cell_bins != i]
