@@ -26,13 +26,13 @@ import chromatinhd.data.fragments
 class Result:
     coordinates: torch.Tensor
     local_cellxgene_ix: torch.Tensor
-    localcellxgene_ix: torch.Tensor
-    genemapping: torch.Tensor
     n_fragments: int
-    cells_oi: np.ndarray
-    genes_oi: np.ndarray
-    window: np.ndarray
-    n_total_genes: int
+    genemapping: torch.Tensor
+    cells_oi: np.ndarray = None
+    genes_oi: np.ndarray = None
+    window: np.ndarray = None
+    n_total_genes: int = None
+    localcellxgene_ix: torch.Tensor = None
 
     @property
     def n_cells(self):
@@ -45,7 +45,8 @@ class Result:
     def to(self, device):
         for field_name, field in self.__dataclass_fields__.items():
             if field.type is torch.Tensor:
-                self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
+                if self.__getattribute__(field_name) is not None:
+                    self.__setattr__(field_name, self.__getattribute__(field_name).to(device))
         return self
 
     @property
