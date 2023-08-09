@@ -57,12 +57,12 @@ class Motifscan(Flow):
         pwms: dict,
         regions: Regions,
         fasta_file: Union[str, pathlib.Path],
-        path: Union[str, pathlib.Path],
         cutoffs: Union[int, float, pd.Series] = None,
         cutoff_col: str = None,
         motifs: pd.DataFrame = None,
         device=None,
         batch_size: int = 5000000,
+        path: Union[str, pathlib.Path] = None,
     ):
         """
         Create a motifscan object from a set of pwms and a set of regions
