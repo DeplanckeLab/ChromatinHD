@@ -1,12 +1,8 @@
-# %%
-import chromatinhd as chd
 import pytest
-
-# %%
 import pathlib
+import chromatinhd as chd
 
 
-# %%
 @pytest.fixture(scope="session")
 def example_dataset_folder(tmp_path_factory):
     example_dataset_folder = tmp_path_factory.mktemp("example")
@@ -22,7 +18,6 @@ def example_dataset_folder(tmp_path_factory):
     return example_dataset_folder
 
 
-# %%
 @pytest.fixture(scope="session")
 def example_transcriptome(example_dataset_folder):
     import scanpy as sc
@@ -32,7 +27,6 @@ def example_transcriptome(example_dataset_folder):
     return transcriptome
 
 
-# %%
 @pytest.fixture(scope="session")
 def example_clustering(example_dataset_folder, example_transcriptome):
     clustering = chd.data.Clustering.from_labels(
@@ -42,7 +36,6 @@ def example_clustering(example_dataset_folder, example_transcriptome):
     return clustering
 
 
-# %%
 @pytest.fixture(scope="session")
 def example_regions(example_dataset_folder, example_transcriptome):
     biomart_dataset = chd.biomart.Dataset.from_genome("GRCh38")
@@ -55,7 +48,6 @@ def example_regions(example_dataset_folder, example_transcriptome):
     return regions
 
 
-# %%
 @pytest.fixture(scope="session")
 def example_fragments(example_dataset_folder, example_transcriptome, example_regions):
     fragments = chd.data.Fragments.from_fragments_tsv(
@@ -68,7 +60,6 @@ def example_fragments(example_dataset_folder, example_transcriptome, example_reg
     return fragments
 
 
-# %%
 @pytest.fixture(scope="session")
 def example_folds(example_dataset_folder, example_fragments):
     folds = chd.data.folds.Folds(example_dataset_folder / "random_5fold")
