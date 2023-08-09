@@ -377,6 +377,8 @@ class Grid(Element):
                     el.position(fig, pos)
 
     def __getitem__(self, index):
+        if not isinstance(index, tuple):
+            raise TypeError("index must be a tuple, not " + str(index))
         return self.elements[index[0]][index[1]]
 
     def __setitem__(self, index, v):
@@ -412,6 +414,7 @@ class Grid(Element):
         # get column index if column is a panel
         if "grid.Element" in column.__class__.__mro__.__repr__():
             try:
+                print(row)
                 column = np.array(self.elements).flatten().tolist().index(column) % self.ncol
             except ValueError as e:
                 raise ValueError("The panel specified as column was not found in the grid") from e
