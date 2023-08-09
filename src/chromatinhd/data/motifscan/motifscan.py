@@ -76,8 +76,6 @@ class Motifscan(Flow):
                 The location of the fasta file containing the genome
             motifs:
                 A dataframe containing auxilliary information for each motif
-            path:
-                The folder where the motifscan data will be stored.
             cutoffs:
                 A dictionary containing the cutoffs for each motif.
             cutoff_col:
@@ -86,6 +84,8 @@ class Motifscan(Flow):
                 The device to use for the scanning
             batch_size:
                 The batch size to use for scanning. Lower batch size if the GPU runs out of memory
+            path:
+                The folder where the motifscan data will be stored.
         """
 
         if device is None:

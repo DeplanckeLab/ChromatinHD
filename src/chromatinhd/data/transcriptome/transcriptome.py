@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import pathlib
@@ -5,6 +7,10 @@ from typing import Union
 
 from chromatinhd.flow import Flow, Stored, StoredDict, TSV
 from chromatinhd import sparse
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import scanpy as sc
 
 
 class Transcriptome(Flow):
@@ -61,7 +67,7 @@ class Transcriptome(Flow):
     "The main transcriptome data, typically normalized counts."
 
     @classmethod
-    def from_adata(cls, adata, path: Union[pathlib.Path, str] = None):
+    def from_adata(cls, adata: sc.AnnData, path: Union[pathlib.Path, str] = None):
         """
         Create a Transcriptome object from an AnnData object.
 
@@ -71,6 +77,7 @@ class Transcriptome(Flow):
             path:
                 Folder in which the transcriptome data will be stored.
         """
+
         transcriptome = cls(path=path)
         transcriptome.adata = adata
 
