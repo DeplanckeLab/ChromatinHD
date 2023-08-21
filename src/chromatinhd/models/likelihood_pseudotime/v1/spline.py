@@ -13,11 +13,14 @@ class TransformedDistribution(torch.nn.Module):
         print("---  TransformedDistribution.log_prob()  ---")
         # uniform distribution [0, 1] has likelihood of 1 everywhere
         # so that means it has log_prob of 0
+        # x = cut_coordinates
         log_prob = torch.zeros_like(x)
 
         # apply transform and update logprob with log abs determinant jacobian
         x_, logabsdet = self.transform.transform_forward(x, *args, **kwargs)
+
         log_prob = log_prob + logabsdet
+
         return log_prob
 
     def sample(self, sample_shape=torch.Size(), *args, device=None, **kwargs):
@@ -45,6 +48,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         self.splits_heights = splits_heights
         self.splits_widths = splits_widths
         self.split_deltas = split_deltas
+
         # set up the baseline height and width
         self.unnormalized_heights = EmbeddingTensor(n_genes, (sum(splits_heights),), sparse=True)
         self.unnormalized_widths = EmbeddingTensor(n_genes, (sum(splits_widths),), sparse=True)
@@ -75,26 +79,15 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
             widths = splines.quadratic.calculate_widths(unnormalized_widths)
             bin_locations = splines.quadratic.calculate_bin_locations(widths)
 
-            # print("widths", widths.shape)
-            # print("bin_locations", bin_locations.shape)
-            # print("local_gene_ix", local_gene_ix)
-
             # use index_select here as it is much faster in backwards than regular indexing
             # get widths and bin_locations for each cut
             widths = widths.index_select(0, local_gene_ix)
             bin_locations = bin_locations.index_select(0, local_gene_ix)
-
-            # print("widths", widths.shape)
-            # print("bin_locations", bin_locations.shape)
-
             # get heights and bin_left_cdf for each cut
             unnormalized_heights = (unnormalized_heights.index_select(0, local_gene_ix) + delta_heights)
+
             heights = splines.quadratic.calculate_heights(unnormalized_heights, widths)
             bin_left_cdf = splines.quadratic.calculate_bin_left_cdf(heights, widths)
-
-            # print("unnormalized_heights", unnormalized_heights.shape)
-            # print("heights", heights.shape)
-            # print("bin_left_cdf", bin_left_cdf.shape)
 
             # apply the spline transformation
             outputs, logabsdet_ = splines.quadratic.quadratic_spline(
@@ -106,15 +99,11 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
                 inverse=inverse,
             )
 
-            # print("outputs", outputs.shape)
-            # print("logabsdet_", logabsdet_.shape)
-
             if logabsdet is None:
                 logabsdet = logabsdet_
             else:
                 logabsdet = logabsdet + logabsdet_
 
-            # print("logabsdet", logabsdet.shape)
         return outputs, logabsdet
 
     def transform_inverse(self, y, local_gene_ix):

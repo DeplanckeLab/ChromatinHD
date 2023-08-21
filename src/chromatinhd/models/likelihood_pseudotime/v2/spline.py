@@ -5,12 +5,12 @@ from chromatinhd.embedding import EmbeddingTensor
 
 class TransformedDistribution(torch.nn.Module):
     def __init__(self, transform):
-        print("---  TransformedDistribution.__init__()  ---")
+        # print("---  TransformedDistribution.__init__()  ---")
         super().__init__()
         self.transform = transform
 
     def log_prob(self, x, *args, **kwargs):
-        print("---  TransformedDistribution.log_prob()  ---")
+        # print("---  TransformedDistribution.log_prob()  ---")
         # uniform distribution [0, 1] has likelihood of 1 everywhere
         # so that means it has log_prob of 0
         log_prob = torch.zeros_like(x)
@@ -21,7 +21,7 @@ class TransformedDistribution(torch.nn.Module):
         return log_prob
 
     def sample(self, sample_shape=torch.Size(), *args, device=None, **kwargs):
-        print("---  TransformedDistribution.sample()  ---")
+        # print("---  TransformedDistribution.sample()  ---")
         y = torch.rand(sample_shape, device=device)
         y, _ = self.transform.transform_inverse(y, *args, **kwargs)
         return y
@@ -35,7 +35,7 @@ class TransformedDistribution(torch.nn.Module):
 
 class DifferentialQuadraticSplineStack(torch.nn.Module):
     def __init__(self, nbins, n_genes):
-        print("---  DifferentialQuadraticSplineStack.__init__()  ---")
+        # print("---  DifferentialQuadraticSplineStack.__init__()  ---")
         super().__init__()
 
         # calculate how many heights, widths and (height_)deltas we will need
@@ -52,11 +52,11 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         self.unnormalized_widths.data.zero_()
 
     def _split_parameters(self, x, splits):
-        print("---  DifferentialQuadraticSplineStack._split_parameters()  ---")
+        # print("---  DifferentialQuadraticSplineStack._split_parameters()  ---")
         return x.split(splits, -1)
 
     def transform_forward(self, x, genes_oi, local_gene_ix, delta, inverse=False):
-        print("---  DifferentialQuadraticSplineStack.transform_forward()  ---")
+        # print("---  DifferentialQuadraticSplineStack.transform_forward()  ---")
         assert x.shape == local_gene_ix.shape
 
         logabsdet = None
@@ -118,7 +118,7 @@ class DifferentialQuadraticSplineStack(torch.nn.Module):
         return outputs, logabsdet
 
     def transform_inverse(self, y, local_gene_ix):
-        print("---  DifferentialQuadraticSplineStack.transform_inverse()  ---")
+        # print("---  DifferentialQuadraticSplineStack.transform_inverse()  ---")
         return self.transform_forward(y, local_gene_ix=local_gene_ix, inverse=True)
 
     def parameters_sparse(self):

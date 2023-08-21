@@ -14,7 +14,7 @@ from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
 class Decoder(torch.nn.Module):
     def __init__(self, n_genes, n_delta_height):
-        print("---  Decoder.__init__()  ---")
+        # print("---  Decoder.__init__()  ---")
         super().__init__()
 
         # the sparse gradient way
@@ -30,11 +30,11 @@ class Decoder(torch.nn.Module):
         # do the same but for the "delta overall" slope
         self.delta_overall_slope = EmbeddingTensor(n_genes, (1,), sparse=True)
         self.delta_overall_slope.weight.data.zero_() 
-        # print(f"{self.delta_overall_slope.weight=}")
+
         # TODO: check this variable
 
     def forward(self, latent, genes_oi):
-        print("---  Decoder.forward()  ---")
+        # print("---  Decoder.forward()  ---")
         # genes oi is only used to get the deltas
         # we extract the overall slope for all genes because we have to do softmax later
         delta_height_slope = self.delta_height_slope(genes_oi)
@@ -78,7 +78,7 @@ class LikelihoodResult():
 class Model(torch.nn.Module, HybridModel):
     def __init__(self, fragments, latent, nbins=(128,), scale_likelihood=False, height_slope_p_scale=1.0):
         super().__init__()
-        print("---  Model.__init__()  ---")
+        # print("---  Model.__init__()  ---")
 
         transform = DifferentialQuadraticSplineStack(nbins=nbins, n_genes=fragments.n_genes)
         n_delta_height = sum(transform.split_deltas)
@@ -91,7 +91,6 @@ class Model(torch.nn.Module, HybridModel):
 
         # calculate library size for each cell
         libsize = torch.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells)
-
         # calculate and store the baseline accessibility for each gene
         # overall_baseline: [genes]
         min_overall_baseline = 1e-5
@@ -105,9 +104,7 @@ class Model(torch.nn.Module, HybridModel):
         self.register_buffer("overall_slope_p_scale", torch.tensor(math.log(1.0)))
 
     def forward_(self, cut_coordinates, latent, genes_oi, cut_local_cellxgene_ix, cut_localcellxgene_ix, cut_local_gene_ix, return_likelihood=False):
-        print("---  Model.forward_()  ---")
-
-        self.track = {}
+        # print("---  Model.forward_()  ---")
 
         # overall_delta: [cells, genes (all)]
         # height_delta: [cells, genes (oi), knots (32+64+128)]
@@ -116,8 +113,10 @@ class Model(torch.nn.Module, HybridModel):
         # overall_cellxgene: [cells, genes (all)]
         # cut_localcellxgene_ix: for each cut, the global cell index x local gene index
         # overall: [cellxgene]
+        overall_delta = overall_delta.squeeze(1).transpose(1, 0)
         overall_baseline = self.overall_baseline.unsqueeze(0)
-        overall_cellxgene = torch.nn.functional.log_softmax(overall_baseline + overall_delta.squeeze(1).transpose(1, 0), -1)
+        overall_baseline_delta = overall_baseline + overall_delta
+        overall_cellxgene = torch.nn.functional.log_softmax(overall_baseline_delta, -1)
         overall_likelihood = overall_cellxgene.flatten()[cut_localcellxgene_ix] + math.log(self.n_total_genes)
 
         # height
@@ -126,11 +125,10 @@ class Model(torch.nn.Module, HybridModel):
         height_delta = height_delta_cellxgene[cut_local_cellxgene_ix]
         height_likelihood = self.nf.log_prob(cut_coordinates, genes_oi, cut_local_gene_ix, height_delta)
 
-        # overall likelihood
-        # TODO: check this variable
-        # print(f"{height_likelihood=}")
-        # print(f"{overall_likelihood=}")
         likelihood = height_likelihood + overall_likelihood
+
+        self.track = {}
+        self.track["likelihood"] = likelihood
 
         # ELBO
         elbo = (-likelihood.sum())
@@ -141,7 +139,7 @@ class Model(torch.nn.Module, HybridModel):
             return elbo
 
     def forward(self, data, return_likelihood=False):
-        print("---  Model.forward()  ---")
+        # print("---  Model.forward()  ---")
         if not hasattr(data, "latent"):
             data.latent = self.latent[data.cells_oi]
         return self.forward_(
@@ -155,7 +153,7 @@ class Model(torch.nn.Module, HybridModel):
         )
     
     def evaluate_pseudo(self, coordinate_oi, latent_oi, gene_oi=None, gene_ix=None):
-        print("---  Model.evaluate_pseudo()  ---")
+        # print("---  Model.evaluate_pseudo()  ---")
 
         index_tensor = torch.arange(len(latent_oi))
         index_tensor_repeat = index_tensor.repeat_interleave(len(coordinate_oi))

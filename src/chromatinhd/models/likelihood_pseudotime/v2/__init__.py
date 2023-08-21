@@ -14,7 +14,7 @@ from .spline import DifferentialQuadraticSplineStack, TransformedDistribution
 
 class Decoder(torch.nn.Module):
     def __init__(self, n_genes, n_delta_height):
-        print("---  Decoder.__init__()  ---")
+        # print("---  Decoder.__init__()  ---")
         super().__init__()
 
         # the sparse gradient way
@@ -26,24 +26,23 @@ class Decoder(torch.nn.Module):
         # a view of a tensor is a tensor which accesses the same data (so the same memory) as the original tensor, without making a copy
         self.delta_height_slope = EmbeddingTensor(n_genes, (n_delta_height,), sparse=True)
         self.delta_height_slope.weight.data.zero_()
-        print(f"{self.delta_height_slope.shape=}")
+        # print(f"{self.delta_height_slope.shape=}")
 
         self.delta_height_scale = EmbeddingTensor(n_genes, (n_delta_height,), sparse=True)
         self.delta_height_scale.weight.data.zero_()
-        print(f"{self.delta_height_scale.shape=}")
+        # print(f"{self.delta_height_scale.shape=}")
 
         self.delta_height_shift = EmbeddingTensor(n_genes, (n_delta_height,), sparse=True)
         self.delta_height_shift.weight.data.zero_()
-        print(f"{self.delta_height_shift.shape=}")
+        # print(f"{self.delta_height_shift.shape=}")
 
         # do the same but for the "delta overall" slope
         self.delta_overall_slope = EmbeddingTensor(n_genes, (1,), sparse=True)
         self.delta_overall_slope.weight.data.zero_()
-        print(f"{self.delta_overall_slope.shape=}")
-        # TODO: check this variable
+        # print(f"{self.delta_overall_slope.shape=}")
 
     def forward(self, latent, genes_oi):
-        print("---  Decoder.forward()  ---")
+        # print("---  Decoder.forward()  ---")
         # genes oi is only used to get the deltas
         # we extract the overall slope for all genes because we have to do softmax later
         delta_height_slope = self.delta_height_slope(genes_oi)
@@ -55,27 +54,27 @@ class Decoder(torch.nn.Module):
         # what we need is for each cell x gene x knot its delta
         # and for each cell x gene its overall
         latent = latent.unsqueeze(0).unsqueeze(0)
-        print(f"{latent.shape=}")
+        # print(f"{latent.shape=}")
 
         delta_overall_slope = delta_overall_slope.unsqueeze(2)
-        print(f"{delta_overall_slope.shape=}")
+        # print(f"{delta_overall_slope.shape=}")
 
         delta_overall = delta_overall_slope * latent
-        print(f"{delta_overall.shape=}")
+        # print(f"{delta_overall.shape=}")
 
         ###
         delta_height_slope = delta_height_slope.unsqueeze(2)
-        print(f"{delta_height_slope.shape=}")
+        # print(f"{delta_height_slope.shape=}")
 
         delta_height_scale = delta_height_scale.unsqueeze(2)
-        print(f"{delta_height_scale.shape=}")
+        # print(f"{delta_height_scale.shape=}")
 
         delta_height_shift = delta_height_shift.unsqueeze(2)
-        print(f"{delta_height_shift.shape=}")
+        # print(f"{delta_height_shift.shape=}")
 
         # https://pytorch.org/docs/stable/special.html#torch.special.expit
         delta_height = delta_height_slope/(1+torch.exp(-torch.exp(delta_height_scale) * latent - delta_height_shift))
-        print(f"{delta_height.shape=}")
+        # print(f"{delta_height.shape=}")
 
         return delta_height, delta_overall
 
@@ -105,7 +104,7 @@ class LikelihoodResult():
 class Model(torch.nn.Module, HybridModel):
     def __init__(self, fragments, latent, nbins=(128,), scale_likelihood=False, height_slope_p_scale=1.0):
         super().__init__()
-        print("---  Model.__init__()  ---")
+        # print("---  Model.__init__()  ---")
 
         transform = DifferentialQuadraticSplineStack(nbins=nbins, n_genes=fragments.n_genes)
         n_delta_height = sum(transform.split_deltas)
@@ -132,7 +131,11 @@ class Model(torch.nn.Module, HybridModel):
         self.register_buffer("overall_slope_p_scale", torch.tensor(math.log(1.0)))
 
     def forward_(self, cut_coordinates, latent, genes_oi, cut_local_cellxgene_ix, cut_localcellxgene_ix, cut_local_gene_ix, return_likelihood=False):
-        print("---  Model.forward_()  ---")
+        # print("---  Model.forward_()  ---")
+
+        # import matplotlib.pyplot as plt
+        # plt.hist(latent)
+        # raise ValueError()
 
         self.track = {}
 
@@ -168,7 +171,7 @@ class Model(torch.nn.Module, HybridModel):
             return elbo
 
     def forward(self, data, return_likelihood=False):
-        print("---  Model.forward()  ---")
+        # print("---  Model.forward()  ---")
         if not hasattr(data, "latent"):
             data.latent = self.latent[data.cells_oi]
         return self.forward_(
@@ -182,7 +185,7 @@ class Model(torch.nn.Module, HybridModel):
         )
     
     def evaluate_pseudo(self, coordinate_oi, latent_oi, gene_oi=None, gene_ix=None):
-        print("---  Model.evaluate_pseudo()  ---")
+        # print("---  Model.evaluate_pseudo()  ---")
 
         index_tensor = torch.arange(len(latent_oi))
         index_tensor_repeat = index_tensor.repeat_interleave(len(coordinate_oi))
