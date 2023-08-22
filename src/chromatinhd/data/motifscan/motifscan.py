@@ -63,6 +63,8 @@ class Motifscan(Flow):
         device=None,
         batch_size: int = 5000000,
         path: Union[str, pathlib.Path] = None,
+        overwrite=True,
+        reuse=False,
     ):
         """
         Create a motifscan object from a set of pwms and a set of regions
@@ -92,6 +94,15 @@ class Motifscan(Flow):
             device = get_default_device()
 
         self = cls(path)
+
+        if ((reuse) or (not overwrite)) and self.get("positions").exists(self):
+            if not reuse:
+                import warnings
+
+                warnings.warn(
+                    "Motifscan already exists. Use overwrite=True to overwrite, reuse=True to ignore this warning."
+                )
+            return self
 
         # check or create cutoffs
         if cutoffs is None:
@@ -130,7 +141,7 @@ class Motifscan(Flow):
 
         fasta = pysam.FastaFile(fasta_file)
 
-        # do the actual counting by looping over the batches, extract the sequences and scan
+        # do the actual counting by looping over the batches, extract the sequences and scanning
         positions = []
         indices = []
         scores = []
@@ -224,6 +235,28 @@ class Motifscan(Flow):
         self.create_indptr()
 
         return self
+
+    def select_motifs(self, motif_ids, path=None):
+        """
+        Select a subset of motifs
+        """
+
+        self.motifs["ix"] = np.arange(len(self.motifs))
+        motif_ixs = self.motifs.loc[motif_ids, "ix"]
+
+        selected_sites = np.isin(self.indices, motif_ixs)
+
+        new = self.__class__(path=path).create(
+            regions=self.regions,
+            positions=self.positions[selected_sites],
+            indices=self.indices[selected_sites],
+            scores=self.scores[selected_sites],
+            strands=self.strands[selected_sites],
+            motifs=self.motifs.loc[motif_ids],
+        )
+
+        new.create_indptr()
+        return new
 
 
 def divide_regions_in_batches(region_coordinates, batch_size=10):
@@ -323,5 +356,6 @@ def digitize_sequence(sequence):
         "c": 1,
         "g": 2,
         "t": 3,
+        "n": 4,
     }  # alphabetic order
     return np.array([translate_table[x] for x in sequence], dtype=np.int8)
