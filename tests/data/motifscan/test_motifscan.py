@@ -135,15 +135,15 @@ class TestMotifscan:
         )
 
         assert np.array_equal(
-            motifscan.positions,
+            motifscan.positions[:],
             np.array([2, 3, 4, 7, 8, 10], dtype=int),
         )
         assert np.array_equal(
-            motifscan.scores,
+            motifscan.scores[:],
             np.array([3.0, 2.0, 3.0, 2.0, 2.0, 2.0]),
         )
         assert np.array_equal(
-            motifscan.strands,
+            motifscan.strands[:],
             np.array([-1, -1, 1, -1, 1, 1], dtype=np.int8),
         )
         assert len(motifscan.indptr) == (region_size * len(region_coordinates) + 1)

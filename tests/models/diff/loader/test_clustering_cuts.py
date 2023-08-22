@@ -10,5 +10,5 @@ class TestClusteringCuts:
             cellxregion_batch_size=10000,
         )
 
-        minibatch = chd.models.diff.loader.Minibatch(cells_oi=np.arange(20), genes_oi=np.arange(5), phase="train")
+        minibatch = chd.models.diff.loader.Minibatch(cells_oi=np.arange(20), regions_oi=np.arange(5), phase="train")
         loader.load(minibatch)

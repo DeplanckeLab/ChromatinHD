@@ -5,7 +5,7 @@ import numpy as np
 
 class TestDifferentialQuadraticSplineStack:
     def test_basic(self):
-        transform = chromatinhd.models.diff.model.spline.DifferentialQuadraticSplineStack(nbins=(128,), n_genes=1)
+        transform = chromatinhd.models.diff.model.spline.DifferentialQuadraticSplineStack(nbins=(128,), n_regions=1)
 
         x = torch.linspace(0, 1, 100)
         genes_oi = torch.tensor([0])
