@@ -36,6 +36,17 @@ class Flowable(type):
         super().__setattr__(key, value)
 
 
+class FlowObjects:
+    def __init__(self, flow):
+        self.flow = flow
+
+    def __getattr__(self, key):
+        if key != "flow":
+            return self.flow.get(key)
+        else:
+            return super().__getattr__(key)
+
+
 class Flow(metaclass=Flowable):
     """
     A folder on disk that can contain other folders or objects
@@ -75,11 +86,17 @@ class Flow(metaclass=Flowable):
         if not self._get_info_path().exists():
             self._store_info()
 
+    def __copy__(self):
+        return self.__class__(path=None)
+
+    def __deepcopy__(self, memo):
+        return self.__class__(path=None)
+
     @classmethod
-    def create(cls, path=None, **kwargs):
+    def create(cls, path=None, reset=False, **kwargs):
         if isinstance(path, str):
             path = pathlib.Path(path)
-        self = cls(path=path)
+        self = cls(path=path, reset=reset)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -122,6 +139,10 @@ class Flow(metaclass=Flowable):
     def get(self, k):
         return self.__class__.__dict__[k]
 
+    @property
+    def o(self):
+        return FlowObjects(self)
+
 
 class Linked(Obj):
     """
@@ -153,7 +174,7 @@ class Linked(Obj):
                 raise FileExistsError(f"File {path} already exists")
             else:
                 path.unlink()
-        if not str(value.path).startswith("memory"):
+        if (not str(obj.path).startswith("memory")) and (not str(value.path).startswith("memory")):
             path.symlink_to(value.path.resolve())
         setattr(obj, name, value)
 
@@ -268,24 +289,26 @@ class CompressedNumpy(Stored):
     A compressed numpy array stored on disk
     """
 
-    dtype = np.float64
+    dtype = None
 
     def __get__(self, obj, type=None):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
-                x = pickle.load(gzip.GzipFile(self.get_path(obj.path), "rb", compresslevel=3))
-                if x.dtype is not self.dtype:
-                    x = x.astype(self.dtype)
+                x = pickle.load(gzip.GzipFile(fileobj=self.get_path(obj.path).open("rb"), mode="r", compresslevel=3))
+                if self.dtype is not None:
+                    if x.dtype is not self.dtype:
+                        x = x.astype(self.dtype)
                 if not x.flags["C_CONTIGUOUS"]:
                     x = np.ascontiguousarray(x)
                 setattr(obj, name, x)
             return getattr(obj, name)
 
     def __set__(self, obj, value):
-        value = np.ascontiguousarray(value.astype(self.dtype))
+        if self.dtype is not None:
+            value = np.ascontiguousarray(value.astype(self.dtype))
         name = "_" + self.name
-        pickle.dump(value, gzip.GzipFile(self.get_path(obj.path), "wb", compresslevel=3))
+        pickle.dump(value, gzip.GzipFile(fileobj=self.get_path(obj.path).open("wb"), mode="w", compresslevel=3))
         setattr(obj, name, value)
 
 

@@ -13,10 +13,14 @@ class Regions(Flow):
     """
 
     coordinates = TSV(columns=["chrom", "start", "end"])
+    "Coordinates dataframe of the regions, with columns chrom, start, end"
+
     window = Stored()
 
     @classmethod
-    def from_transcripts(cls, transcripts: pd.DataFrame, window: [list, np.ndarray], path: pathlib.Path) -> Regions:
+    def from_transcripts(
+        cls, transcripts: pd.DataFrame, window: [list, np.ndarray], path: PathLike = None, max_n_regions=None
+    ) -> Regions:
         """
         Create regions from a dataframe of transcripts,
         using a specified window around each transcription start site.
@@ -28,6 +32,8 @@ class Regions(Flow):
                 Window around each transcription start site. Should be a 2-element array, e.g. [-10000, 10000]
             path:
                 Folder in which the regions data will be stored
+            max_n_regions:
+                Maximum number of region to use. If None, all regions are used.
         Returns:
             Regions
         """
@@ -44,6 +50,9 @@ class Regions(Flow):
 
         regions["start"] = regions["tss"] + window[0] * (regions["strand"] == 1) - window[1] * (regions["strand"] == -1)
         regions["end"] = regions["tss"] + window[1] * (regions["strand"] == -1) - window[0] * (regions["strand"] == 1)
+
+        if max_n_regions is not None:
+            regions = regions.iloc[:max_n_regions]
 
         return cls.create(
             path=path,
@@ -65,6 +74,51 @@ class Regions(Flow):
         """
 
         return Regions.create(coordinates=self.coordinates.loc[genes], window=self.window, path=path)
+
+    @property
+    def window_width(self):
+        return self.window[1] - self.window[0]
+
+    @property
+    def region_width(self):
+        return self.window[1] - self.window[0]
+
+    @classmethod
+    def from_chromosomes_file(
+        cls, chromosomes_file: PathLike, path: PathLike = None, filter_chromosomes=True
+    ) -> Regions:
+        """
+        Create regions based on a chromosomes file, e.g. hg38.chrom.sizes
+
+        Parameters:
+            chromosomes_file:
+                Path to chromosomes file, tab separated, with columns chrom, size
+            path:
+                Folder in which the regions data will be stored
+        Returns:
+            Regions
+        """
+
+        chromosomes = pd.read_csv(chromosomes_file, sep="\t", names=["chrom", "size"])
+        chromosomes["start"] = 0
+        chromosomes["end"] = chromosomes["size"]
+        chromosomes["strand"] = 1
+        chromosomes = chromosomes[["chrom", "start", "end", "strand"]]
+        chromosomes = chromosomes.set_index("chrom", drop=False)
+        chromosomes.index.name = "region"
+
+        if filter_chromosomes:
+            chromosomes = chromosomes.loc[~chromosomes["chrom"].isin(["chrM", "chrMT"])]
+            chromosomes = chromosomes.loc[~chromosomes["chrom"].str.contains("_")]
+            chromosomes = chromosomes.loc[~chromosomes["chrom"].str.contains("\.")]
+
+        chromosomes = chromosomes.sort_values("chrom")
+
+        return cls.create(
+            path=path,
+            coordinates=chromosomes,
+            window=None,
+        )
 
 
 def select_tss_from_fragments(

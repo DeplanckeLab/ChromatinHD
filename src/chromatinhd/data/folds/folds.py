@@ -98,11 +98,14 @@ class Folds(Flow):
 
             cell_bins = np.floor((np.arange(len(cells_all)) / (len(cells_all) / n_folds)))
 
-            genes_all = np.arange(fragments.n_genes)
+            genes_all = np.arange(fragments.n_regions)
 
             if stratify_by_chromosome:
-                chr_order = generator.permutation(fragments.regions.coordinates["chr"].unique())
-                gene_chrs = pd.Categorical(fragments.regions.coordinates["chr"].astype(str), categories=chr_order).codes
+                chr_column = "chr" if "chr" in fragments.regions.coordinates.columns else "chrom"
+                chr_order = generator.permutation(fragments.regions.coordinates[chr_column].unique())
+                gene_chrs = pd.Categorical(
+                    fragments.regions.coordinates[chr_column].astype(str), categories=chr_order
+                ).codes
                 gene_bins = np.floor((gene_chrs / (len(chr_order) / n_folds))).astype(int)
             else:
                 gene_bins = np.floor((np.arange(len(genes_all)) / (len(genes_all) / n_folds)))
@@ -114,7 +117,7 @@ class Folds(Flow):
                 cells_test = cells_validation_test[(len(cells_validation_test) // 2) :]
 
                 genes_train = genes_all[gene_bins != i]
-                genes_validation_test = genes_all[gene_bins == i]
+                genes_validation_test = generator.permutation(genes_all[gene_bins == i])
                 genes_validation = genes_validation_test[: (len(genes_validation_test) // 2)]
                 genes_test = genes_validation_test[(len(genes_validation_test) // 2) :]
 

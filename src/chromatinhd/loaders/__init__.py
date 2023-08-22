@@ -1,5 +1,5 @@
 from .pool import LoaderPool
-from . import minibatching
+from . import minibatches
 
 from .fragments import Fragments
 from .transcriptome import Transcriptome

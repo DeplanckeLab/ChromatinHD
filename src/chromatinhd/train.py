@@ -82,13 +82,18 @@ class Trace:
     def plot(self):
         import matplotlib.pyplot as plt
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(2, 2))
         plotdata_validation = pd.DataFrame(self.validation_steps).groupby("checkpoint").mean().reset_index()
         plotdata_train = pd.DataFrame(self.train_steps).groupby("checkpoint").mean().reset_index()
-        ax.plot(
-            plotdata_validation["checkpoint"],
-            plotdata_validation["loss"],
-            label="validation",
-        )
-        ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label="train")
-        ax.legend()
+        ax.plot(plotdata_train["checkpoint"], plotdata_train["loss"], label="train", color="#0074D9")
+        # color y axis
+        ax.spines["left"].set_color("#0074D9")
+        ax.set_ylabel("train\nloss", color="#0074D9", rotation=0, va="center", ha="right")
+
+        ax2 = ax.twinx()
+        ax2.spines["left"].set_color("#0074D9")
+        ax2.spines["right"].set_color("orange")
+        ax2.plot(plotdata_validation["checkpoint"], plotdata_validation["loss"], label="validation", color="orange")
+        ax2.plot(plotdata_validation["checkpoint"], plotdata_validation["loss"], label="validation", color="orange")
+        ax2.set_ylabel("validation\nloss", color="orange", rotation=0, va="center", ha="left")
+        return fig

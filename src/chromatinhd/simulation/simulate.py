@@ -5,6 +5,7 @@ import tqdm.auto as tqdm
 from chromatinhd.data.regions import Regions
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.clustering import Clustering
+from chromatinhd.data.motifscan import Motifscan
 import torch
 
 
@@ -82,12 +83,13 @@ class Simulation:
 
         self.clustering = Clustering.from_labels(self.obs["celltype"])
 
-    def create_fragments(self, mean_fragment_size=200, n_peaks_per_gene=5, min_peaks_per_gene=3):
+    def create_fragments(self, mean_fragmentprob_size=200, n_peaks_per_gene=5, min_peaks_per_gene=3):
         # peaks
         n_peaks = self.n_genes * n_peaks_per_gene
         self.peaks = pd.DataFrame(
             {
                 "center": np.random.choice(np.arange(*self.window), n_peaks, replace=True),
+                # "center": np.random.choice([-5000, -6000], n_peaks, replace=True),
                 # "scale": 100,
                 "scale": np.random.choice([10, 100, 500], replace=True, size=n_peaks),
                 "gene": list(np.repeat(np.arange(self.n_genes), min_peaks_per_gene))
@@ -95,8 +97,8 @@ class Simulation:
                 "height": np.random.normal(size=n_peaks, scale=0.1) + 1,
             }
         )
-        self.peaks["size_scale"] = np.random.choice([10, 100, 200, 300], replace=True, size=n_peaks)
-        # self.peaks["size_scale"] = np.array([100, 500])[(self.peaks["center"] > 0).astype(int)]
+        self.peaks["size_mean"] = np.random.choice([10, 100, 200, 300], replace=True, size=n_peaks)
+        self.peaks["size_scale"] = np.random.choice([20, 50], replace=True, size=n_peaks)
         self.peaks["ix"] = np.arange(self.peaks.shape[0])
         self.peaks["dist"] = [
             Dist(loc, scale, self.window[0], self.window[1])
@@ -110,7 +112,7 @@ class Simulation:
         self.n_cell_components = self.cell_latent_space.shape[-1]
 
         # calculate coefficients
-        w_coef = np.random.normal(size=(n_peaks, self.n_cell_components)) * 2
+        self.peak_celltype_weights = np.random.normal(size=(n_peaks, self.n_cell_components)) * 0.5
 
         # lib
         sensitivity = 10.0
@@ -131,14 +133,17 @@ class Simulation:
 
             peaks_oi = self.peaks.loc[self.peaks["gene"] == gene_ix]
 
-            w = peaks_oi["height"].values + (self.cell_latent_space[cell_indices_gene] @ w_coef[peaks_oi["ix"]].T)
+            w = peaks_oi["height"].values + (
+                self.cell_latent_space[cell_indices_gene] @ self.peak_celltype_weights[peaks_oi["ix"]].T
+            )
             w = np.exp(w) / np.exp(w).sum(1, keepdims=True)
 
             coordinate_mid, peak_indices = sample(w, peaks_oi["dist"].values)
 
             # sample coordinates 2
+            size_mean = peaks_oi["size_mean"].iloc[peak_indices]
             size_scale = peaks_oi["size_scale"].iloc[peak_indices]
-            # size_scale = np.take_along_axis(
+            # size_mean = np.take_along_axis(
             #     np.exp(self.cell_latent_space[cell_indices_gene] @ size_logscale_coef[peaks_oi["ix"]].T),
             #     peak_indices[:, None],
             #     1,
@@ -152,9 +157,12 @@ class Simulation:
 
             size = np.exp(
                 np.random.normal(
-                    size=coordinate_mid.shape, loc=lognorm_loc(size_scale, 10), scale=lognorm_scale(size_scale, 20)
+                    size=coordinate_mid.shape,
+                    loc=lognorm_loc(size_mean, size_scale),
+                    scale=lognorm_scale(size_mean, size_scale),
                 )
             )
+            size = np.clip(size, 1, 1000)
             coordinates1 = coordinate_mid - size / 2
             coordinates2 = coordinate_mid + size / 2
             # coordinates
@@ -192,4 +200,52 @@ class Simulation:
             regions=self.regions,
             obs=self.obs,
             var=var,
+        )
+
+    def create_motifscan(self, n_motifs=10, n_sites_per_gene=10):
+        motifs = pd.DataFrame(
+            {
+                "motif": ["M" + str(i) for i in np.arange(n_motifs)],
+            }
+        ).set_index("motif")
+
+        motif_celltype_weights = np.random.choice([0, 1], size=(n_motifs, self.n_cell_components))
+
+        positions = []
+        indices = []
+        strands = []
+        scores = []
+
+        for gene_ix in tqdm.tqdm(range(self.n_genes)):
+            n_sites_gene = n_motifs * n_sites_per_gene
+
+            # n_fragments_gene = sample_nb(self.n_cells, *transform_nb2(n_fragments_gene_mean, 1.0))
+            # cell_indices_gene = np.repeat(np.arange(self.n_cells), n_fragments_gene)
+
+            peaks_oi = self.peaks.loc[self.peaks["gene"] == gene_ix]
+
+            motif_peak_oi_weight = peaks_oi["height"].values + (
+                motif_celltype_weights @ self.peak_celltype_weights[peaks_oi["ix"]].T
+            )
+            motif_peak_oi_weight = np.exp(motif_peak_oi_weight) / np.exp(motif_peak_oi_weight).sum(1, keepdims=True)
+
+            # first sample the chosen indices
+            motif_indices_gene = np.random.choice(np.arange(n_motifs), size=n_sites_gene, replace=True)
+
+            site_peak_oi_weights = motif_peak_oi_weight[motif_indices_gene]
+
+            positions_gene, peak_indices = sample(site_peak_oi_weights, peaks_oi["dist"].values)
+
+            positions.append(positions_gene.astype(int) - self.window[0] + (self.window[1] - self.window[0]) * gene_ix)
+            indices.append(motif_indices_gene)
+            strands.append(np.random.choice([-1, 1], size=positions_gene.shape))
+            scores.append(np.random.normal(size=positions_gene.shape))
+
+        self.motifscan = Motifscan.from_positions(
+            regions=self.regions,
+            motifs=motifs,
+            positions=np.hstack(positions),
+            indices=np.hstack(indices),
+            strands=np.hstack(strands),
+            scores=np.hstack(scores),
         )
