@@ -44,6 +44,10 @@ class Minibatch:
     def n_regions(self):
         return len(self.regions_oi)
 
+    @property
+    def genes_oi(self):
+        return self.regions_oi
+
 
 class Minibatcher:
     """

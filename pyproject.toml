@@ -28,6 +28,7 @@ dependencies = [
     "appdirs",
     "xarray",
     "pysam",
+    "tensorstore",
     "requests",
 ]
 dynamic = ["version", "readme"]

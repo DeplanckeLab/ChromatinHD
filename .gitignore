@@ -188,7 +188,6 @@ docs/source/quickstart/restats
 *.zarr/*
 *.hdf5
 restats
-src/chromatinhd/loaders/fragments.py
 docs/source/overview.aux
 docs/source/overview.fdb_latexmk
 docs/source/overview.fls
