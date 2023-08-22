@@ -56,7 +56,7 @@ def example_fragments(example_dataset_folder, example_transcriptome, example_reg
         obs=example_transcriptome.obs,
         path=example_dataset_folder / "fragments",
     )
-    fragments.create_cellxgene_indptr()
+    fragments.create_regionxcell_indptr()
     return fragments
 
 
