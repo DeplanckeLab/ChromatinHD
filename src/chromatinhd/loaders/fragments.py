@@ -1,7 +1,9 @@
 from __future__ import annotations
-import torch
-import numpy as np
+
 from typing import Union
+
+import numpy as np
+import torch
 
 # try to load the shared library
 # typically, this will be installed as a python extension
@@ -19,23 +21,40 @@ except ImportError:
     )
     from . import fragments_helpers  # pylint: disable=C0413,E0611
 
-
 import dataclasses
 
 import chromatinhd.data.fragments
+from chromatinhd.data.minibatches import Minibatch
 
 
 @dataclasses.dataclass
-class Result:
+class FragmentsResult:
     coordinates: torch.Tensor
+    "Coordinates of the left and right cut site for each fragment"
+
     local_cellxregion_ix: torch.Tensor
+    "Local cell x region index"
+
     n_fragments: int
+    "Number of fragments"
+
     regionmapping: torch.Tensor
+    "Mapping from local cell x region index to region index"
+
     cells_oi: np.ndarray = None
+    "Cells of interest"
+
     regions_oi: np.ndarray = None
+    "Regions of interest"
+
     window: np.ndarray = None
+    "Window of the region"
+
     n_total_regions: int = None
+    "Total number of regions"
+
     localcellxregion_ix: torch.Tensor = None
+    "Local cell x region index, in the same order as cells_oi and regions_oi"
 
     @property
     def n_cells(self):
@@ -61,7 +80,7 @@ class Result:
 
     def filter_fragments(self, fragments_oi):
         assert len(fragments_oi) == self.n_fragments
-        return Result(
+        return FragmentsResult(
             coordinates=self.coordinates[fragments_oi],
             local_cellxregion_ix=self.local_cellxregion_ix[fragments_oi],
             regionmapping=self.regionmapping[fragments_oi],
@@ -103,6 +122,12 @@ class Fragments:
         cellxregion_batch_size: int,
         n_fragment_per_cellxregion: int = None,
     ):
+        """
+        Parameters:
+            fragments: Fragments object
+            cellxregion_batch_size: maximum number of cell x region combinations that will be loaded
+            n_fragment_per_cellxregion: estimated number of the number of fragments per cell x region combination, used for preallocation
+        """
         self.cellxregion_batch_size = cellxregion_batch_size
 
         # store auxilliary information
@@ -159,7 +184,16 @@ class Fragments:
 
         self.preloaded = True
 
-    def load(self, minibatch):
+    def load(self, minibatch: Minibatch) -> FragmentsResult:
+        """
+        Load a minibatch of fragments.
+
+        Parameters:
+            minibatch: Minibatch object
+
+        Returns:
+            The loaded fragments
+        """
         if not self.preloaded:
             self.preload()
 
@@ -207,7 +241,7 @@ class Fragments:
             local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
             regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
 
-        return Result(
+        return FragmentsResult(
             coordinates=torch.from_numpy(coordinates),
             local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
             n_fragments=n_fragments,
@@ -244,7 +278,16 @@ class CutsResult:
 
 
 class Cuts(Fragments):
-    def load(self, minibatch):
+    def load(self, minibatch: Minibatch) -> CutsResult:
+        """
+        Load a minibatch of cuts.
+
+        Parameters:
+            minibatch: Minibatch object
+
+        Returns:
+            The loaded cut sites
+        """
         result = super().load(minibatch)
 
         cut_coordinates = result.coordinates.flatten()

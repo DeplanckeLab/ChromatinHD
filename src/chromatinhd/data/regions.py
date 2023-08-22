@@ -9,7 +9,7 @@ from chromatinhd.flow import PathLike
 
 class Regions(Flow):
     """
-    Regions, typically centered around a transcription start site
+    Regions in the genome
     """
 
     coordinates = TSV(columns=["chrom", "start", "end"])
@@ -60,20 +60,20 @@ class Regions(Flow):
             window=window,
         )
 
-    def filter_genes(self, genes, path=None) -> Regions:
+    def filter(self, region_ids, path=None) -> Regions:
         """
-        Filter genes to those in the regions
+        Select a subset of regions
 
         Parameters:
-            genes:
+            region_ids:
                 Genes to filter. Should be a pandas Series with the index being the ensembl transcript ids.
             path:
                 Path to store the filtered regions
         Returns:
-            Regions with only the specified genes
+            Regions with only the specified region_ids
         """
 
-        return Regions.create(coordinates=self.coordinates.loc[genes], window=self.window, path=path)
+        return Regions.create(coordinates=self.coordinates.loc[region_ids], window=self.window, path=path)
 
     @property
     def window_width(self):
@@ -82,6 +82,8 @@ class Regions(Flow):
         return self.window[1] - self.window[0]
 
     region_width = window_width
+    width = window_width
+    "Width of the regions, None if regions do not have a fixed width"
 
     @classmethod
     def from_chromosomes_file(

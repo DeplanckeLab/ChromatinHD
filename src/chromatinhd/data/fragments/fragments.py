@@ -58,7 +58,7 @@ class Fragments(Flow):
     """
     Fragments positioned within regions. Fragments are sorted by the region, position within the region (left cut site) and cell.
 
-    The object can also store several precalculated tensors that are used for efficient loading of fragments. See Fragments.create_cellxregion_indptr for more information.
+    The object can also store several precalculated tensors that are used for efficient loading of fragments. See create_cellxregion_indptr for more information.
     """
 
     regions: Regions = Linked()
