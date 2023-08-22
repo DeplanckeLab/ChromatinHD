@@ -55,12 +55,19 @@ class Tensorstore(Obj):
         spec_create: dict = default_spec_create,
         spec_write: dict = default_spec_write,
         spec_read: dict = default_spec_read,
+        dtype=None,
         name=None,
     ):
         self.name = name
-        self.spec_create = spec_create
-        self.spec_write = spec_write
-        self.spec_read = spec_read
+        self.spec_create = copy.deepcopy(spec_create)
+        self.spec_write = copy.deepcopy(spec_write)
+        self.spec_read = copy.deepcopy(spec_read)
+
+        if dtype is not None:
+            self.spec_create["metadata"]["dtype"] = dtype
+
+        if "dtype" not in self.spec_create["metadata"]:
+            raise ValueError("dtype must be specified")
 
     def get_path(self, folder):
         return folder / (self.name + ".zarr")
@@ -78,7 +85,7 @@ class Tensorstore(Obj):
             return getattr(obj, name)
 
     def __set__(self, obj, value):
-        raise ValueError("Cannot set tensorstore, use .open_writer() instead")
+        self.__get__(obj)[:] = value
 
     def exists(self, obj):
         return self.__get__(obj).exists()
