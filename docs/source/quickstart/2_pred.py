@@ -51,7 +51,7 @@ folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1")
 models = chd.models.pred.model.additive.Models(dataset_folder / "models" / "additive", reset=True)
 
 # %% tags=["hide_output"]
-models.train_models(fragments, transcriptome, folds, device="cuda")
+models.train_models(fragments, transcriptome, folds)
 
 # %% [markdown]
 # ## Some quality checks
@@ -60,7 +60,7 @@ models.train_models(fragments, transcriptome, folds, device="cuda")
 # We will first check whether the model learned something, by comparing the predictive performance with a baseline
 
 # %%
-gene_cors = models.get_gene_cors(fragments, transcriptome, folds, device="cuda")
+gene_cors = models.get_gene_cors(fragments, transcriptome, folds)
 gene_cors["symbol"] = gene_cors.index.map(transcriptome.symbol)
 
 # %%
