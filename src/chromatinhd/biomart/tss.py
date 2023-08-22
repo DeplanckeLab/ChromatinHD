@@ -79,6 +79,9 @@ def get_transcripts(
         transcripts = transcripts.loc[~transcripts["chrom"].str.contains("_")]
         transcripts = transcripts.loc[~transcripts["chrom"].str.contains("\.")]
 
+    # sort by gene_ids
+    transcripts["ensembl_gene_id"] = pd.Categorical(transcripts["ensembl_gene_id"], categories=gene_ids, ordered=True)
+
     return transcripts
 
 
