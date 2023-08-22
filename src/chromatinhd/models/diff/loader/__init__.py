@@ -1,4 +1,2 @@
-from .minibatches import Minibatcher, Minibatch
-from .cuts import Cuts
-from .clustering import Clustering
+from chromatinhd.loaders.minibatches import Minibatcher, Minibatch
 from .clustering_cuts import ClusteringCuts

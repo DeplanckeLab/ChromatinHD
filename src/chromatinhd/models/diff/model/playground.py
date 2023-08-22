@@ -19,7 +19,7 @@ from chromatinhd.models import HybridModel
 from chromatinhd.models.diff.loader.clustering_fragments import (
     ClusteringFragments,
 )
-from chromatinhd.models.diff.loader.minibatches import Minibatcher
+from chromatinhd.loaders.minibatches import Minibatcher
 from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.optim import SparseDenseAdam
 from chromatinhd.utils import crossing
@@ -31,7 +31,7 @@ class Decoder(torch.nn.Module):
     def __init__(
         self,
         n_latent,
-        n_genes,
+        n_regions,
         n_output_components,
     ):
         super().__init__()
@@ -39,7 +39,7 @@ class Decoder(torch.nn.Module):
         self.n_output_components = n_output_components
 
         self.delta_height_weight = EmbeddingTensor(
-            n_genes,
+            n_regions,
             (
                 n_latent,
                 n_output_components,
@@ -50,20 +50,20 @@ class Decoder(torch.nn.Module):
         # self.delta_height_weight.weight.data.uniform_(-stdv, stdv)
         self.delta_height_weight.weight.data.zero_()
 
-        self.delta_baseline_weight = torch.nn.Parameter(torch.zeros((n_genes, n_latent)))
+        self.delta_baseline_weight = torch.nn.Parameter(torch.zeros((n_regions, n_latent)))
         stdv = 1.0 / math.sqrt(self.delta_baseline_weight.size(1))
         self.delta_baseline_weight.data.uniform_(-stdv, stdv)
 
-    def forward(self, latent, genes_oi):
-        # genes oi is only used to get the delta_heights
-        # we calculate the delta_baseline for all genes because we pool using softmax later
-        delta_height_weight = self.delta_height_weight(genes_oi)
+    def forward(self, latent, regions_oi):
+        # regions oi is only used to get the delta_heights
+        # we calculate the delta_baseline for all regions because we pool using softmax later
+        delta_height_weight = self.delta_height_weight(regions_oi)
         delta_baseline_weight = self.delta_baseline_weight
 
-        # nn_output is broadcasted across genes and across components
+        # nn_output is broadcasted across regions and across components
         delta_height = torch.matmul(latent.unsqueeze(1).unsqueeze(2), delta_height_weight).squeeze(-2)
 
-        # nn_output has to be broadcasted across genes
+        # nn_output has to be broadcasted across regions
         delta_baseline = torch.matmul(latent.unsqueeze(1), delta_baseline_weight.T).squeeze(-2)
 
         return delta_height, delta_baseline
@@ -100,7 +100,7 @@ class CutEmbedderSine(torch.nn.Module):
 
     def __init__(
         self,
-        n_genes,
+        n_regions,
         n_frequencies=10,
         n_embedding_dimensions=20,
         n_output_dimensions=1,
@@ -138,14 +138,14 @@ class CutEmbedderSine(torch.nn.Module):
                 layers.append(torch.nn.ReLU())
 
         self.bias1 = EmbeddingTensor(
-            n_genes,
+            n_regions,
             (self.n_output_dimensions,),
             sparse=True,
         )
         self.bias1.data.zero_()
 
         self.weight1 = EmbeddingTensor(
-            n_genes,
+            n_regions,
             (
                 self.n_embedding_dimensions if n_layers > 0 else self.sine_encoding.n_embedding_dimensions,
                 self.n_output_dimensions,
@@ -156,10 +156,10 @@ class CutEmbedderSine(torch.nn.Module):
 
         self.nn = torch.nn.Sequential(*layers)
 
-    def forward(self, coordinates, gene_ix):
+    def forward(self, coordinates, region_ix):
         embedding = self.sine_encoding(coordinates)
         embedding = self.nn(embedding)
-        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(gene_ix))  # + self.bias1(gene_ix)
+        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(region_ix))  # + self.bias1(region_ix)
 
         return embedding
 
@@ -172,7 +172,7 @@ class CutEmbedderDummy(torch.nn.Module):
 
     def __init__(
         self,
-        n_genes,
+        n_regions,
         n_frequencies=10,
         n_embedding_dimensions=20,
         n_output_dimensions=1,
@@ -187,7 +187,7 @@ class CutEmbedderDummy(torch.nn.Module):
 
         self.nn = torch.nn.Sequential(torch.nn.Linear(1, self.n_output_dimensions))
 
-    def forward(self, coordinates, gene_ix):
+    def forward(self, coordinates, region_ix):
         embedding = self.nn(coordinates.float() / 20000)
 
         return embedding
@@ -198,7 +198,7 @@ class CutEmbedderDirect(torch.nn.Module):
 
     def __init__(
         self,
-        n_genes,
+        n_regions,
         n_frequencies=10,
         n_embedding_dimensions=20,
         n_output_dimensions=1,
@@ -230,14 +230,14 @@ class CutEmbedderDirect(torch.nn.Module):
         # layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_output_dimensions))
 
         self.bias1 = EmbeddingTensor(
-            n_genes,
+            n_regions,
             (self.n_output_dimensions,),
             sparse=True,
         )
         self.bias1.data.zero_()
 
         self.weight1 = EmbeddingTensor(
-            n_genes,
+            n_regions,
             (
                 self.n_embedding_dimensions if n_layers > 0 else self.sine_encoding.n_embedding_dimensions,
                 self.n_output_dimensions,
@@ -248,9 +248,9 @@ class CutEmbedderDirect(torch.nn.Module):
 
         self.nn = torch.nn.Sequential(*layers)
 
-    def forward(self, coordinates, gene_ix):
+    def forward(self, coordinates, region_ix):
         embedding = self.nn(coordinates / 20000)
-        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(gene_ix)) + self.bias1(gene_ix)
+        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(region_ix)) + self.bias1(region_ix)
 
         return embedding
 
@@ -283,28 +283,28 @@ class Model(torch.nn.Module, HybridModel):
     ):
         super().__init__()
 
-        self.n_total_genes = fragments.n_genes
+        self.n_total_regions = fragments.n_regions
 
         self.n_clusters = clustering.n_clusters
 
         transform = DifferentialQuadraticSplineStack(
             nbins=nbins,
-            n_genes=fragments.n_genes,
+            n_regions=fragments.n_regions,
         )
         self.mixture = TransformedDistribution(transform)
         n_delta_mixture_components = sum(transform.split_deltas)
 
         self.decoder = Decoder(
             self.n_clusters,
-            fragments.n_genes,
+            fragments.n_regions,
             n_delta_mixture_components,
         )
 
         # calculate baseline bias and libsizes
-        libsize = torch.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells)
+        libsize = torch.from_numpy(np.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells))
 
         baseline_bias = (
-            torch.bincount(fragments.mapping[:, 1], minlength=fragments.n_genes)
+            torch.from_numpy(np.bincount(fragments.mapping[:, 1], minlength=fragments.n_regions))
             / fragments.n_cells
             / libsize.to(torch.float).mean()
         )
@@ -342,7 +342,7 @@ class Model(torch.nn.Module, HybridModel):
 
         if cut_embedder == "sine":
             self.right_scale_nn = CutEmbedderSine(
-                n_genes=len(fragments.var),
+                n_regions=len(fragments.var),
                 n_layers=3,
                 n_embedding_dimensions=20,
                 n_frequencies=20,
@@ -351,28 +351,28 @@ class Model(torch.nn.Module, HybridModel):
             )
         elif cut_embedder == "direct":
             self.right_scale_nn = CutEmbedderDirect(
-                n_genes=len(fragments.var),
+                n_regions=len(fragments.var),
                 n_layers=3,
                 n_embedding_dimensions=20,
                 n_output_dimensions=2,
             )
         elif cut_embedder == "dummy":
             self.right_scale_nn = CutEmbedderDummy(
-                n_genes=len(fragments.var),
+                n_regions=len(fragments.var),
                 n_output_dimensions=2,
             )
 
     def forward(self, data, shuffle_leftright=False):
         # decode
-        delta_height, delta_baseline = self.decoder(data.clustering.onehot, data.minibatch.genes_oi_torch)
+        delta_height, delta_baseline = self.decoder(data.clustering.onehot, data.minibatch.regions_oi_torch)
 
         # baseline
         baseline = torch.nn.functional.softmax(torch.log(self.baseline_bias) + delta_baseline, -1)
-        baseline_cuts = baseline.flatten()[data.fragments.localcellxgene_ix]
+        baseline_cuts = baseline.flatten()[data.fragments.localcellxregion_ix]
 
         # fragment counts
-        delta_height_cellxgene = delta_height.view(np.prod(delta_height.shape[:2]), delta_height.shape[-1])
-        delta_height = delta_height_cellxgene[data.fragments.local_cellxgene_ix]
+        delta_height_cellxregion = delta_height.view(np.prod(delta_height.shape[:2]), delta_height.shape[-1])
+        delta_height = delta_height_cellxregion[data.fragments.local_cellxregion_ix]
 
         # randomly select first or second column of coordinates
         if shuffle_leftright:
@@ -397,8 +397,8 @@ class Model(torch.nn.Module, HybridModel):
 
         likelihood_position_left, out_left = self.mixture.log_prob(
             coordinates_left,
-            genes_oi=data.minibatch.genes_oi_torch,
-            local_gene_ix=data.fragments.local_gene_ix,
+            regions_oi=data.minibatch.regions_oi_torch,
+            local_region_ix=data.fragments.local_region_ix,
             delta=delta_height,
             return_transformed=True,
         )
@@ -409,9 +409,9 @@ class Model(torch.nn.Module, HybridModel):
         # output, likelihood_position_right = apply_trunc_normal(coordinates_right, coordinates_left, self.right_scale)
 
         likelihood_position_right = torch.zeros_like(likelihood_position_left)
-        nn_output = self.right_scale_nn(coordinates_left_unscaled[:, None], gene_ix=data.fragments.genemapping).squeeze(
-            -1
-        )
+        nn_output = self.right_scale_nn(
+            coordinates_left_unscaled[:, None], region_ix=data.fragments.regionmapping
+        ).squeeze(-1)
         right_scale = torch.exp(self.right_scale + nn_output[:, 0] * 0.01) * self.right_normalize
         right_loc = (self.right_loc + nn_output[:, 1]) * self.right_normalize
         output, logabsdet = apply_normal(coordinates_right - coordinates_left, right_loc, right_scale)
@@ -422,7 +422,7 @@ class Model(torch.nn.Module, HybridModel):
         self.track["likelihood_position"] = likelihood_position = likelihood_position_left + likelihood_position_right
 
         # for region
-        self.track["likelihood_region"] = likelihood_region = torch.log(baseline_cuts) + math.log(self.n_total_genes)
+        self.track["likelihood_region"] = likelihood_region = torch.log(baseline_cuts) + math.log(self.n_total_regions)
 
         # likelihood
         likelihood = self.track["likelihood"] = likelihood_position + likelihood_region
@@ -433,7 +433,7 @@ class Model(torch.nn.Module, HybridModel):
         # mixture
         if self.delta_height_regularization:
             delta_height_p = torch.distributions.Normal(0.0, torch.exp(self.delta_height_p_scale))
-            delta_height_kl = delta_height_p.log_prob(self.decoder.delta_height_weight(data.minibatch.genes_oi_torch))
+            delta_height_kl = delta_height_p.log_prob(self.decoder.delta_height_weight(data.minibatch.regions_oi_torch))
 
             elbo -= delta_height_kl.sum()
 
@@ -467,7 +467,7 @@ class Model(torch.nn.Module, HybridModel):
             n_regions_step=10,
             n_cells_step=10000,
             permute_cells=False,
-            permute_genes=False,
+            permute_regions=False,
         )
 
         loaders_train = LoaderPool(
@@ -510,9 +510,9 @@ class Model(torch.nn.Module, HybridModel):
 
         trainer.train()
 
-    def _get_likelihood_cell_gene(self, likelihood, local_cellxgene_ix, n_cells, n_genes):
-        return torch_scatter.segment_sum_coo(likelihood, local_cellxgene_ix, dim_size=n_cells * n_genes).reshape(
-            (n_cells, n_genes)
+    def _get_likelihood_cell_region(self, likelihood, local_cellxregion_ix, n_cells, n_regions):
+        return torch_scatter.segment_sum_coo(likelihood, local_cellxregion_ix, dim_size=n_cells * n_regions).reshape(
+            (n_cells, n_regions)
         )
 
     def get_prediction(
@@ -521,24 +521,24 @@ class Model(torch.nn.Module, HybridModel):
         clustering: Clustering,
         cells: List[str] = None,
         cell_ixs: List[int] = None,
-        genes: List[str] = None,
-        gene_ixs: List[int] = None,
+        regions: List[str] = None,
+        region_ixs: List[int] = None,
         device: str = None,
     ) -> xr.Dataset:
         """
-        Returns the likelihoods of the observed cut sites for each cell and gene
+        Returns the likelihoods of the observed cut sites for each cell and region
 
         Parameters:
             fragments: Fragments object
             clustering: Clustering object
             cells: Cells to predict
             cell_ixs: Cell indices to predict
-            genes: Genes to predict
-            gene_ixs: Gene indices to predict
+            regions: Genes to predict
+            region_ixs: Gene indices to predict
             device: Device to use
 
         Returns:
-            **likelihood_position**, likelihood of the observing a cut site at the particular genomic location, conditioned on the gene region. **likelihood_region**, likelihood of observing a cut site in the gene region
+            **likelihood_position**, likelihood of the observing a cut site at the particular genomic location, conditioned on the region region. **likelihood_region**, likelihood of observing a cut site in the region region
         """
 
         if cell_ixs is None:
@@ -549,23 +549,23 @@ class Model(torch.nn.Module, HybridModel):
         if cells is None:
             cells = fragments.obs.index[cell_ixs]
 
-        if gene_ixs is None:
-            if genes is None:
-                genes = fragments.var.index
+        if region_ixs is None:
+            if regions is None:
+                regions = fragments.var.index
             fragments.var["ix"] = np.arange(len(fragments.var))
-            gene_ixs = fragments.var.loc[genes]["ix"].values
-        if genes is None:
-            genes = fragments.var.index[gene_ixs]
+            region_ixs = fragments.var.loc[regions]["ix"].values
+        if regions is None:
+            regions = fragments.var.index[region_ixs]
 
         minibatches = Minibatcher(
             cell_ixs,
-            gene_ixs,
+            region_ixs,
             n_regions_step=500,
             n_cells_step=200,
             use_all_cells=True,
-            use_all_genes=True,
+            use_all_regions=True,
             permute_cells=False,
-            permute_genes=False,
+            permute_regions=False,
         )
         loaders = LoaderPool(
             ClusteringFragments,
@@ -578,15 +578,15 @@ class Model(torch.nn.Module, HybridModel):
         )
         loaders.initialize(minibatches)
 
-        likelihood_position = np.zeros((len(cell_ixs), len(gene_ixs)))
-        likelihood_region = np.zeros((len(cell_ixs), len(gene_ixs)))
-        likelihood = np.zeros((len(cell_ixs), len(gene_ixs)))
+        likelihood_position = np.zeros((len(cell_ixs), len(region_ixs)))
+        likelihood_region = np.zeros((len(cell_ixs), len(region_ixs)))
+        likelihood = np.zeros((len(cell_ixs), len(region_ixs)))
 
         cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
         cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
 
-        gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
-        gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
+        region_mapping = np.zeros(fragments.n_regions, dtype=np.int64)
+        region_mapping[region_ixs] = np.arange(len(region_ixs))
 
         self.eval()
         self = self.to(device)
@@ -599,14 +599,14 @@ class Model(torch.nn.Module, HybridModel):
             likelihood_position[
                 np.ix_(
                     cell_mapping[data.minibatch.cells_oi],
-                    gene_mapping[data.minibatch.genes_oi],
+                    region_mapping[data.minibatch.regions_oi],
                 )
             ] += (
-                self._get_likelihood_cell_gene(
+                self._get_likelihood_cell_region(
                     self.track["likelihood_position"],
-                    data.fragments.local_cellxgene_ix,
+                    data.fragments.local_cellxregion_ix,
                     data.minibatch.n_cells,
-                    data.minibatch.n_genes,
+                    data.minibatch.n_regions,
                 )
                 .cpu()
                 .numpy()
@@ -614,14 +614,14 @@ class Model(torch.nn.Module, HybridModel):
             likelihood_region[
                 np.ix_(
                     cell_mapping[data.minibatch.cells_oi],
-                    gene_mapping[data.minibatch.genes_oi],
+                    region_mapping[data.minibatch.regions_oi],
                 )
             ] += (
-                self._get_likelihood_cell_gene(
+                self._get_likelihood_cell_region(
                     self.track["likelihood_region"],
-                    data.fragments.local_cellxgene_ix,
+                    data.fragments.local_cellxregion_ix,
                     data.minibatch.n_cells,
-                    data.minibatch.n_genes,
+                    data.minibatch.n_regions,
                 )
                 .cpu()
                 .numpy()
@@ -629,14 +629,14 @@ class Model(torch.nn.Module, HybridModel):
             likelihood[
                 np.ix_(
                     cell_mapping[data.minibatch.cells_oi],
-                    gene_mapping[data.minibatch.genes_oi],
+                    region_mapping[data.minibatch.regions_oi],
                 )
             ] += (
-                self._get_likelihood_cell_gene(
+                self._get_likelihood_cell_region(
                     self.track["likelihood"],
-                    data.fragments.local_cellxgene_ix,
+                    data.fragments.local_cellxregion_ix,
                     data.minibatch.n_cells,
-                    data.minibatch.n_genes,
+                    data.minibatch.n_regions,
                 )
                 .cpu()
                 .numpy()
@@ -648,18 +648,18 @@ class Model(torch.nn.Module, HybridModel):
             {
                 "likelihood_position": xr.DataArray(
                     likelihood_position,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={"cell": cells, "region": fragments.var.index},
                 ),
                 "likelihood_region": xr.DataArray(
                     likelihood_region,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={"cell": cells, "region": fragments.var.index},
                 ),
                 "likelihood": xr.DataArray(
                     likelihood,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": fragments.var.index},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={"cell": cells, "region": fragments.var.index},
                 ),
             }
         )
@@ -670,7 +670,7 @@ class Model(torch.nn.Module, HybridModel):
         coordinates,
         coordinates2,
         window,
-        gene_ix=None,
+        region_ix=None,
         cluster_ix=None,
         clustering=None,
         device=None,
@@ -680,7 +680,7 @@ class Model(torch.nn.Module, HybridModel):
             Result as ClusteringFragmentsResult,
         )
         from chromatinhd.loaders.fragments import Result as FragmentsResult
-        from chromatinhd.models.diff.loader.minibatches import Minibatch
+        from chromatinhd.loaders.minibatches import Minibatch
 
         if not torch.is_tensor(clustering):
             if cluster_ix is not None:
@@ -692,19 +692,19 @@ class Model(torch.nn.Module, HybridModel):
 
         cells_oi = torch.arange(coordinates.shape[0])
 
-        local_cellxgene_ix = torch.tensor([], dtype=torch.long)
-        assert len(gene_ix) == len(coordinates)
-        genes_oi = torch.unique(gene_ix)
+        local_cellxregion_ix = torch.tensor([], dtype=torch.long)
+        assert len(region_ix) == len(coordinates)
+        regions_oi = torch.unique(region_ix)
 
-        local_gene_mapping = torch.zeros(genes_oi.max() + 1, dtype=torch.long)
-        local_gene_mapping.index_add_(0, genes_oi, torch.arange(len(genes_oi)))
+        local_region_mapping = torch.zeros(regions_oi.max() + 1, dtype=torch.long)
+        local_region_mapping.index_add_(0, regions_oi, torch.arange(len(regions_oi)))
 
-        local_gene_ix = local_gene_mapping[gene_ix]
+        local_region_ix = local_region_mapping[region_ix]
         local_cell_ix = torch.arange(clustering.shape[0])
-        local_cellxgene_ix = local_cell_ix * len(genes_oi) + local_gene_ix
-        localcellxgene_ix = local_cell_ix * self.n_total_genes + gene_ix
+        local_cellxregion_ix = local_cell_ix * len(regions_oi) + local_region_ix
+        localcellxregion_ix = local_cell_ix * self.n_total_regions + region_ix
 
-        genemapping = genes_oi[local_gene_ix]
+        regionmapping = regions_oi[local_region_ix]
 
         coordinates = torch.stack([coordinates, coordinates2], -1)
 
@@ -714,21 +714,21 @@ class Model(torch.nn.Module, HybridModel):
         data = ClusteringFragmentsResult(
             fragments=FragmentsResult(
                 coordinates=coordinates,
-                local_cellxgene_ix=local_cellxgene_ix,
-                localcellxgene_ix=localcellxgene_ix,
-                genemapping=genemapping,
+                local_cellxregion_ix=local_cellxregion_ix,
+                localcellxregion_ix=localcellxregion_ix,
+                regionmapping=regionmapping,
                 n_fragments=coordinates.shape[0],
                 cells_oi=cells_oi,
-                genes_oi=genes_oi,
+                regions_oi=regions_oi,
                 window=window,
-                n_total_genes=self.n_total_genes,
+                n_total_regions=self.n_total_regions,
             ),
             clustering=ClusteringResult(
                 onehot=clustering,
             ),
             minibatch=Minibatch(
                 cells_oi=cells_oi.cpu().numpy(),
-                genes_oi=genes_oi.cpu().numpy(),
+                regions_oi=regions_oi.cpu().numpy(),
             ),
         ).to(device)
 

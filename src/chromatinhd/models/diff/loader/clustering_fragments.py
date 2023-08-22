@@ -1,9 +1,9 @@
 import chromatinhd.data.fragments
 import dataclasses
 
-from chromatinhd.models.pred.loader import Fragments
-from .minibatches import Minibatch
-from .clustering import Clustering
+from chromatinhd.loaders.fragments import Fragments
+from chromatinhd.loaders.clustering import Clustering
+from chromatinhd.loaders.minibatches import Minibatch
 
 
 @dataclasses.dataclass
