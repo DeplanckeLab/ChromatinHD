@@ -28,13 +28,13 @@ class ClusteringFragments:
         self,
         clustering: chromatinhd.data.clustering.Clustering,
         fragments: chromatinhd.data.fragments.Fragments,
-        cellxgene_batch_size: int,
+        cellxregion_batch_size: int,
     ):
         # ensure that the order of clustering and fragment.obs is the same
         if not all(clustering.labels.index == fragments.obs.index):
             raise ValueError("Clustering and fragments should have the same obs index. ")
         self.clustering = Clustering(clustering)
-        self.fragments = Fragments(fragments, cellxgene_batch_size=cellxgene_batch_size)
+        self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size)
 
     def load(self, minibatch):
         return Result(

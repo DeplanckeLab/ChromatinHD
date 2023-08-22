@@ -355,7 +355,7 @@ class Model(torch.nn.Module, HybridModel):
             dict(
                 transcriptome=transcriptome,
                 fragments=fragments,
-                cellxgene_batch_size=minibatcher_train.cellxgene_batch_size,
+                cellxregion_batch_size=minibatcher_train.cellxregion_batch_size,
             ),
             n_workers=10,
         )
@@ -364,7 +364,7 @@ class Model(torch.nn.Module, HybridModel):
             dict(
                 transcriptome=transcriptome,
                 fragments=fragments,
-                cellxgene_batch_size=minibatcher_validation.cellxgene_batch_size,
+                cellxregion_batch_size=minibatcher_validation.cellxregion_batch_size,
             ),
             n_workers=5,
         )
@@ -438,7 +438,7 @@ class Model(torch.nn.Module, HybridModel):
             dict(
                 transcriptome=transcriptome,
                 fragments=fragments,
-                cellxgene_batch_size=minibatches.cellxgene_batch_size,
+                cellxregion_batch_size=minibatches.cellxregion_batch_size,
             ),
             n_workers=5,
         )
@@ -549,7 +549,7 @@ class Model(torch.nn.Module, HybridModel):
             dict(
                 transcriptome=transcriptome,
                 fragments=fragments,
-                cellxgene_batch_size=minibatcher.cellxgene_batch_size,
+                cellxregion_batch_size=minibatcher.cellxregion_batch_size,
             ),
             n_workers=10,
         )

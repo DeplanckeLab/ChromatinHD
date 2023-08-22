@@ -102,10 +102,10 @@ class MotifCountsFragments:
         self,
         motifcounts,
         fragments: chromatinhd.data.fragments.Fragments,
-        cellxgene_batch_size: int,
+        cellxregion_batch_size: int,
     ):
         # ensure that the order of motifs and fragment.obs is the same
-        self.fragments = Fragments(fragments, cellxgene_batch_size=cellxgene_batch_size, fully_contained=True)
+        self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size, fully_contained=True)
         self.motifcounts = BinnedMotifCounts(motifcounts)
 
     def load(self, minibatch):

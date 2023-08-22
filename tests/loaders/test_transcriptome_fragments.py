@@ -7,7 +7,7 @@ class TestTranscriptomeFragments:
         loader = chd.models.pred.loader.TranscriptomeFragments(
             fragments=example_fragments,
             transcriptome=example_transcriptome,
-            cellxgene_batch_size=10000,
+            cellxregion_batch_size=10000,
         )
 
         minibatch = chd.models.pred.loader.Minibatch(cells_oi=np.arange(20), regions_oi=np.arange(5), phase="train")

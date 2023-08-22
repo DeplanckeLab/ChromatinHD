@@ -30,10 +30,10 @@ class MotifsFragments:
         self,
         motifscan: chromatinhd.data.motifscan.Motifscan,
         fragments: chromatinhd.data.fragments.Fragments,
-        cellxgene_batch_size: int,
+        cellxregion_batch_size: int,
     ):
         self.motifs = Motifs(motifscan)
-        self.fragments = Fragments(fragments, cellxgene_batch_size=cellxgene_batch_size)
+        self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size)
 
     def load(self, minibatch):
         return Result(

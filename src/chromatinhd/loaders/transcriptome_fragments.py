@@ -24,14 +24,14 @@ class TranscriptomeFragments:
         self,
         fragments: chromatinhd.data.fragments.Fragments,
         transcriptome: chromatinhd.data.transcriptome.Transcriptome,
-        cellxgene_batch_size: int,
+        cellxregion_batch_size: int,
         layer: str = None,
     ):
         # ensure that transcriptome and fragments have the same var
         if not all(transcriptome.var.index == fragments.var.index):
             raise ValueError("Transcriptome and fragments should have the same var index. ")
 
-        self.fragments = Fragments(fragments, cellxgene_batch_size=cellxgene_batch_size)
+        self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size)
         self.transcriptome = Transcriptome(transcriptome, layer=layer)
 
     def load(self, minibatch):

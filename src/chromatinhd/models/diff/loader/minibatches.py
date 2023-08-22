@@ -70,7 +70,7 @@ class Minibatcher:
         self.use_all_cells = use_all_cells or len(cells) < n_cells_step
         self.use_all_genes = use_all_genes or len(genes) < n_regions_step
 
-        self.cellxgene_batch_size = n_cells_step * n_regions_step
+        self.cellxregion_batch_size = n_cells_step * n_regions_step
 
         # calculate length
         n_cells = len(cells)

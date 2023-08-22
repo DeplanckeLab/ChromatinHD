@@ -7,10 +7,8 @@ class TestClusteringCuts:
         loader = chd.models.diff.loader.ClusteringCuts(
             fragments=example_fragments,
             clustering=example_clustering,
-            cellxgene_batch_size=10000,
+            cellxregion_batch_size=10000,
         )
 
-        minibatch = chd.models.diff.loader.Minibatch(
-            cells_oi=np.arange(20), genes_oi=np.arange(5), phase="train"
-        )
-        result = loader.load(minibatch)
+        minibatch = chd.models.diff.loader.Minibatch(cells_oi=np.arange(20), genes_oi=np.arange(5), phase="train")
+        loader.load(minibatch)

@@ -70,7 +70,7 @@ minibatcher = chd.models.diff.loader.Minibatcher(np.arange(len(fragments.obs)), 
 import chromatinhd.models.diff.loader.clustering_fragments
 
 loader = chromatinhd.models.diff.loader.clustering_fragments.ClusteringFragments(
-    clustering, fragments, minibatcher.cellxgene_batch_size
+    clustering, fragments, minibatcher.cellxregion_batch_size
 )
 data = loader.load(next(iter(minibatcher)))
 

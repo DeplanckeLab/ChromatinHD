@@ -35,10 +35,10 @@ class MotifCountsFragmentsClustering:
         motifcounts,
         fragments: chromatinhd.data.fragments.Fragments,
         clustering: chromatinhd.data.clustering.Clustering,
-        cellxgene_batch_size: int,
+        cellxregion_batch_size: int,
     ):
         # ensure that the order of motifs and fragment.obs is the same
-        self.fragments = FragmentsLoader(fragments, cellxgene_batch_size=cellxgene_batch_size, fully_contained=True)
+        self.fragments = FragmentsLoader(fragments, cellxregion_batch_size=cellxregion_batch_size, fully_contained=True)
         self.motifcounts = BinnedMotifCountsLoader(motifcounts)
         self.clustering = ClusteringLoader(clustering)
 

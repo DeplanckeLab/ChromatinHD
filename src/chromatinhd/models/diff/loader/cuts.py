@@ -53,7 +53,7 @@ class Cuts:
     Provides cuts data for a minibatch.
     """
 
-    cellxgene_batch_size: int
+    cellxregion_batch_size: int
 
     preloaded = False
 
@@ -66,10 +66,10 @@ class Cuts:
     def __init__(
         self,
         fragments: chromatinhd.data.fragments.Fragments,
-        cellxgene_batch_size: int,
+        cellxregion_batch_size: int,
         n_fragment_per_cellxgene: int = None,
     ):
-        self.cellxgene_batch_size = cellxgene_batch_size
+        self.cellxregion_batch_size = cellxregion_batch_size
 
         # store auxilliary information
         window = fragments.regions.window
@@ -84,7 +84,7 @@ class Cuts:
         # create buffers for coordinates
         if n_fragment_per_cellxgene is None:
             n_fragment_per_cellxgene = fragments.estimate_fragment_per_cellxgene()
-        fragment_buffer_size = n_fragment_per_cellxgene * cellxgene_batch_size
+        fragment_buffer_size = n_fragment_per_cellxgene * cellxregion_batch_size
         self.fragment_buffer_size = fragment_buffer_size
 
         self.n_genes = fragments.n_genes
@@ -106,9 +106,9 @@ class Cuts:
 
         minibatch.cellxgene_oi = cell_gene_to_cellxgene(minibatch.cells_oi, minibatch.genes_oi, self.n_genes)
 
-        assert len(minibatch.cellxgene_oi) <= self.cellxgene_batch_size, (
+        assert len(minibatch.cellxgene_oi) <= self.cellxregion_batch_size, (
             len(minibatch.cellxgene_oi),
-            self.cellxgene_batch_size,
+            self.cellxregion_batch_size,
         )
         n_fragments = fragments_helpers.extract_fragments(
             minibatch.cellxgene_oi,
