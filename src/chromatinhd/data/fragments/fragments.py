@@ -38,10 +38,20 @@ coordinates_spec = {
         "shape": [0, 2],
         "chunks": [100000, 2],
     },
-    "create": True,
-    "delete_existing": True,
 }
 mapping_spec = coordinates_spec
+regionxcell_indptr_spec = {
+    "driver": "zarr",
+    "kvstore": {
+        "driver": "file",
+    },
+    "metadata": {
+        "compressor": compression,
+        "dtype": ">i8",
+        "shape": [0],
+        "chunks": [100000],
+    },
+}
 
 
 class Fragments(Flow):
@@ -60,7 +70,7 @@ class Fragments(Flow):
     mapping: TensorstoreInstance = Tensorstore(mapping_spec)
     """Mapping of a fragment to a cell (first column) and a region (second column)"""
 
-    regionxcell_indptr: np.ndarray = Stored()
+    regionxcell_indptr: np.ndarray = Tensorstore(regionxcell_indptr_spec)
     """Index pointers to the regionxcell fragment positions"""
 
     def create_regionxcell_indptr(self):
@@ -74,7 +84,7 @@ class Fragments(Flow):
         assert self.coordinates.shape[0] == regionxcell_indptr[-1]
         if not (np.diff(regionxcell_indptr) >= 0).all():
             raise ValueError("Fragments should be ordered by regionxcell (ascending)")
-        self.regionxcell_indptr = regionxcell_indptr
+        self.regionxcell_indptr[:] = regionxcell_indptr
 
         return self
 
@@ -218,7 +228,7 @@ class Fragments(Flow):
                 parser=pysam.asTuple(),
             )
 
-            for fragment in tqdm.tqdm(fetched, leave=False, desc=f"Processing fragments for {region_id}"):
+            for fragment in fetched:
                 cell = fragment[3]
 
                 # only store the fragment if the cell is actually of interest

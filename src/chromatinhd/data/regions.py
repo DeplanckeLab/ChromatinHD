@@ -77,11 +77,11 @@ class Regions(Flow):
 
     @property
     def window_width(self):
+        if self.window is None:
+            return None
         return self.window[1] - self.window[0]
 
-    @property
-    def region_width(self):
-        return self.window[1] - self.window[0]
+    region_width = window_width
 
     @classmethod
     def from_chromosomes_file(

@@ -16,6 +16,7 @@ from chromatinhd.flow import (
     Stored,
     StoredDataFrame,
 )
+from chromatinhd.flow.tensorstore import Tensorstore
 from chromatinhd.utils.torch import ind2ptr
 from chromatinhd.utils.numpy import ind2ptr as ind2ptr_numpy
 
@@ -28,19 +29,19 @@ class Motifscan(Flow):
     regions = Linked()
     "The regions"
 
-    indptr = CompressedNumpyInt64()
+    indptr = Tensorstore(dtype=">i8")
     "The index pointers for each position in the regions"
 
-    positions = CompressedNumpyInt64()
+    positions = Tensorstore(dtype=">i8")
     "Position associated to each site"
 
-    indices = CompressedNumpyInt64()
+    indices = Tensorstore(dtype=">i8")
     "Motif index associated to each site"
 
-    scores = CompressedNumpyFloat64()
+    scores = Tensorstore(dtype=">f4")
     "Scores associated with each detected site"
 
-    strands = CompressedNumpyFloat64()
+    strands = Tensorstore(dtype=">f4")
     "Strand associated with each detected site"
 
     shape = Stored()
@@ -212,7 +213,7 @@ class Motifscan(Flow):
         Create the indptr from the positions
         """
         self.indptr = ind2ptr_numpy(
-            self.positions, (self.regions.window[1] - self.regions.window[0]) * len(self.regions.coordinates)
+            self.positions[:], (self.regions.window[1] - self.regions.window[0]) * len(self.regions.coordinates)
         )
 
     @classmethod

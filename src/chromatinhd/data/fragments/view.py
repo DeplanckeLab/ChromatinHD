@@ -255,7 +255,7 @@ class FragmentsView(Flow):
         """Number of cells"""
         return self.obs.shape[0]
 
-    def estimate_fragment_per_regionxcell(self) -> int:
+    def estimate_fragment_per_cellxregion(self) -> int:
         """
         Estimate the expected number of fragments per regionxcell combination. This is used to estimate the buffer size for loading fragments.
         """
