@@ -6,6 +6,7 @@ import pathlib
 from typing import Union
 
 from chromatinhd.flow import Flow, Stored, StoredDict, TSV
+from chromatinhd.flow.tensorstore import Tensorstore
 from chromatinhd import sparse
 from typing import TYPE_CHECKING
 
@@ -52,20 +53,6 @@ class Transcriptome(Flow):
         )
         return self.var.reset_index("gene").set_index("symbol").loc[symbol]["ix"]
 
-    def create_X(self):
-        X_scipy = self.adata.X
-        if isinstance(X_scipy, np.ndarray):
-            import scipy.sparse
-
-            X_scipy = scipy.sparse.csr_matrix(X_scipy)
-        X = sparse.COOMatrix.from_scipy_csr(X_scipy)
-        X.populate_mapping()
-
-        self.X = X
-
-    X = Stored()
-    "The main transcriptome data, typically normalized counts."
-
     @classmethod
     def from_adata(cls, adata: sc.AnnData, path: Union[pathlib.Path, str] = None):
         """
@@ -88,7 +75,15 @@ class Transcriptome(Flow):
         transcriptome.obs = adata.obs
         return transcriptome
 
-    layers = StoredDict(Stored)
+    @property
+    def X(self):
+        return self.layers[list(self.layers.keys())[0]]
+
+    @X.setter
+    def X(self, value):
+        self.layers["X"] = value
+
+    layers = StoredDict(Tensorstore, kwargs=dict(dtype=">f4"))
     "Dictionary of layers, such as raw, normalized and imputed data."
 
     def filter_genes(self, genes, path=None):

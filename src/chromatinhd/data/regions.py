@@ -129,13 +129,13 @@ def select_tss_from_fragments(
 
     Parameters:
         transcripts:
-            Dataframe of transcripts, with columns chrom, tss, ensembl_gene_id
+            Dataframe of transcripts, with columns chrom, tss, ensembl_gene_id.
         fragments_file:
             Path to fragments file
         window:
             Window around the TSS to count fragments
     Returns:
-        Dataframe of transcripts, with columns chrom, tss, ensembl_gene_id, n_fragments
+        Dataframe of transcripts, with columns chrom, tss and n_fragments, with index being the gene id
     """
     if not ([col in transcripts.columns for col in ["chrom", "tss", "ensembl_gene_id"]]):
         raise ValueError("Transcripts should have columns chrom, tss, ensembl_gene_id. ")

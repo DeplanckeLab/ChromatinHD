@@ -86,7 +86,7 @@ class Motifscan(Flow):
             device:
                 The device to use for the scanning
             batch_size:
-                The batch size to use for scanning. Lower batch size if the GPU runs out of memory
+                The batch size to use for scanning. Decrease this if the GPU runs out of memory
             path:
                 The folder where the motifscan data will be stored.
         """
@@ -94,7 +94,7 @@ class Motifscan(Flow):
         if device is None:
             device = get_default_device()
 
-        self = cls(path)
+        self = cls(path, reset=overwrite)
 
         if ((reuse) or (not overwrite)) and self.get("positions").exists(self):
             if not reuse:
