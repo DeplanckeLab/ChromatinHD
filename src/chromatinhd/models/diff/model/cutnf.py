@@ -278,14 +278,14 @@ class Model(torch.nn.Module, HybridModel):
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
-            range(fragments.n_genes),
-            n_genes_step=500,
+            range(fragments.n_regions),
+            n_regions_step=500,
             n_cells_step=200,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
-            range(fragments.n_genes),
-            n_genes_step=10,
+            range(fragments.n_regions),
+            n_regions_step=10,
             n_cells_step=10000,
             permute_cells=False,
             permute_genes=False,
@@ -381,7 +381,7 @@ class Model(torch.nn.Module, HybridModel):
         minibatches = Minibatcher(
             cell_ixs,
             gene_ixs,
-            n_genes_step=500,
+            n_regions_step=500,
             n_cells_step=200,
             use_all_cells=True,
             use_all_genes=True,

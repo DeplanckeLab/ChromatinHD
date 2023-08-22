@@ -6,6 +6,7 @@ from chromatinhd import get_default_device
 import logging
 
 logger = logging.getLogger(__name__)
+logger.propagate = False
 
 
 class Trainer:
@@ -23,6 +24,8 @@ class Trainer:
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=1,
+        premature_termination=True,
+        premature_termination_epochs=1,
     ):
         self.model = model
         self.loaders_train = loaders_train
@@ -48,10 +51,10 @@ class Trainer:
         self.hooks_checkpoint2 = hooks_checkpoint2 if hooks_checkpoint2 is not None else []
 
     def train(self):
-        import gc
+        # import gc
 
-        gc.collect()
-        torch.cuda.empty_cache()
+        # gc.collect()
+        # torch.cuda.empty_cache()
 
         if self.device is None:
             self.device = get_default_device()
@@ -66,6 +69,8 @@ class Trainer:
         n_steps_total = self.n_epochs * len(self.loaders_train)
         pbar = tqdm.tqdm(total=n_steps_total, leave=False)
 
+        prev_validation_loss = None
+
         while (self.epoch < self.n_epochs) and (continue_training):
             pbar.set_description(f"epoch {self.epoch}")
 
@@ -75,6 +80,7 @@ class Trainer:
                     hook.start()
 
                 with torch.no_grad():
+                    losses = []
                     for data_validation in self.loaders_validation:
                         data_validation = data_validation.to(self.device)
 
@@ -84,6 +90,12 @@ class Trainer:
 
                         for hook in self.hooks_checkpoint:
                             hook.run_individual(self.model, data_validation)
+                        losses.append(loss.item())
+                    if prev_validation_loss is not None:
+                        if sum(losses) >= prev_validation_loss:
+                            continue_training = False
+                            logger.info("early stopping")
+                    prev_validation_loss = sum(losses)
 
                 logger.info(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
                 self.trace.checkpoint(logger)

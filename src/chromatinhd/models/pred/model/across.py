@@ -14,7 +14,7 @@ from chromatinhd.flow import Flow, Stored
 from chromatinhd.loaders import LoaderPool
 from chromatinhd.models import HybridModel
 from chromatinhd.models.pred.loader.minibatches import Minibatcher
-from chromatinhd.models.pred.loader.transcriptome_fragments import (
+from chromatinhd.loaders.transcriptome_fragments import (
     TranscriptomeFragments,
 )
 from chromatinhd.models.pred.trainer import Trainer2
@@ -290,7 +290,7 @@ class Model(torch.nn.Module, HybridModel):
         minibatcher_train = Minibatcher(
             fold["cells_train"],
             fold["genes_train"],
-            n_genes_step=500,
+            n_regions_step=500,
             n_cells_step=500,
             permute_cells=True,
             permute_genes=True,
@@ -298,7 +298,7 @@ class Model(torch.nn.Module, HybridModel):
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
             fold["genes_validation"],
-            n_genes_step=500,
+            n_regions_step=500,
             n_cells_step=500,
             permute_cells=False,
             permute_genes=False,
@@ -384,7 +384,7 @@ class Model(torch.nn.Module, HybridModel):
         minibatches = Minibatcher(
             cell_ixs,
             gene_ixs,
-            n_genes_step=500,
+            n_regions_step=500,
             n_cells_step=200,
             use_all_cells=True,
             use_all_genes=True,
@@ -508,7 +508,7 @@ class Model(torch.nn.Module, HybridModel):
         minibatcher = Minibatcher(
             cell_ixs,
             gene_ixs,
-            n_genes_step=500,
+            n_regions_step=500,
             n_cells_step=5000,
             use_all_cells=True,
             use_all_genes=True,

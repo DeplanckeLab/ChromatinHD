@@ -95,7 +95,7 @@ class SineEncoding(torch.nn.Module):
         return embedding
 
 
-class CutEmbedder(torch.nn.Module):
+class CutEmbedderSine(torch.nn.Module):
     dropout_rate = 0.0
 
     def __init__(
@@ -118,6 +118,8 @@ class CutEmbedder(torch.nn.Module):
         self.sine_encoding = SineEncoding(n_frequencies=n_frequencies, n_coordinates=1)
 
         layers = []
+        if self.dropout_rate > 0:
+            layers.append(torch.nn.Dropout(self.dropout_rate))
         for layer_ix in range(n_layers):
             if layer_ix == 0:
                 layers.append(
@@ -128,13 +130,12 @@ class CutEmbedder(torch.nn.Module):
                 )
             else:
                 layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_embedding_dimensions))
+            if (self.dropout_rate > 0) and (layer_ix < n_layers - 1) and (n_layers > 1):
+                layers.append(torch.nn.Dropout(self.dropout_rate))
             if layer_ix == 0:
                 layers.append(torch.nn.Sigmoid())
             else:
                 layers.append(torch.nn.ReLU())
-            if self.dropout_rate > 0:
-                layers.append(torch.nn.Dropout(self.dropout_rate))
-        # layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_output_dimensions))
 
         self.bias1 = EmbeddingTensor(
             n_genes,
@@ -166,95 +167,95 @@ class CutEmbedder(torch.nn.Module):
         return [self.bias1.weight, self.weight1.weight]
 
 
-# class CutEmbedder(torch.nn.Module):
-#     dropout_rate = 0.0
+class CutEmbedderDummy(torch.nn.Module):
+    dropout_rate = 0.0
 
-#     def __init__(
-#         self,
-#         n_genes,
-#         n_frequencies=10,
-#         n_embedding_dimensions=20,
-#         n_output_dimensions=1,
-#         n_layers=1,
-#         dropout_rate=0.0,
-#         **kwargs,
-#     ):
-#         self.n_embedding_dimensions = n_embedding_dimensions
-#         self.n_output_dimensions = n_output_dimensions
+    def __init__(
+        self,
+        n_genes,
+        n_frequencies=10,
+        n_embedding_dimensions=20,
+        n_output_dimensions=1,
+        n_layers=1,
+        dropout_rate=0.0,
+        **kwargs,
+    ):
+        self.n_embedding_dimensions = n_embedding_dimensions
+        self.n_output_dimensions = n_output_dimensions
 
-#         super().__init__(**kwargs)
+        super().__init__(**kwargs)
 
-#         self.nn = torch.nn.Sequential(torch.nn.Linear(1, self.n_output_dimensions))
+        self.nn = torch.nn.Sequential(torch.nn.Linear(1, self.n_output_dimensions))
 
-#     def forward(self, coordinates, gene_ix):
-#         embedding = self.nn(coordinates.float() / 20000)
+    def forward(self, coordinates, gene_ix):
+        embedding = self.nn(coordinates.float() / 20000)
 
-#         return embedding
+        return embedding
 
 
-# class CutEmbedder(torch.nn.Module):
-#     dropout_rate = 0.0
+class CutEmbedderDirect(torch.nn.Module):
+    dropout_rate = 0.0
 
-#     def __init__(
-#         self,
-#         n_genes,
-#         n_frequencies=10,
-#         n_embedding_dimensions=20,
-#         n_output_dimensions=1,
-#         n_layers=1,
-#         dropout_rate=0.0,
-#         **kwargs,
-#     ):
-#         self.n_embedding_dimensions = n_embedding_dimensions
-#         self.n_output_dimensions = n_output_dimensions
+    def __init__(
+        self,
+        n_genes,
+        n_frequencies=10,
+        n_embedding_dimensions=20,
+        n_output_dimensions=1,
+        n_layers=1,
+        dropout_rate=0.2,
+        **kwargs,
+    ):
+        self.n_embedding_dimensions = n_embedding_dimensions
+        self.n_output_dimensions = n_output_dimensions
 
-#         self.dropout_rate = dropout_rate
+        self.dropout_rate = dropout_rate
 
-#         super().__init__(**kwargs)
+        super().__init__(**kwargs)
 
-#         layers = []
-#         for layer_ix in range(n_layers):
-#             if layer_ix == 0:
-#                 layers.append(
-#                     torch.nn.Linear(
-#                         1,
-#                         self.n_embedding_dimensions,
-#                     )
-#                 )
-#             else:
-#                 layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_embedding_dimensions))
-#             layers.append(torch.nn.ReLU())
-#             if self.dropout_rate > 0:
-#                 layers.append(torch.nn.Dropout(self.dropout_rate))
-#         # layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_output_dimensions))
+        layers = []
+        for layer_ix in range(n_layers):
+            if layer_ix == 0:
+                layers.append(
+                    torch.nn.Linear(
+                        1,
+                        self.n_embedding_dimensions,
+                    )
+                )
+            else:
+                layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_embedding_dimensions))
+            layers.append(torch.nn.ReLU())
+            if self.dropout_rate > 0:
+                layers.append(torch.nn.Dropout(self.dropout_rate))
+        # layers.append(torch.nn.Linear(self.n_embedding_dimensions, self.n_output_dimensions))
 
-#         self.bias1 = EmbeddingTensor(
-#             n_genes,
-#             (self.n_output_dimensions,),
-#             sparse=True,
-#         )
-#         self.bias1.data.zero_()
+        self.bias1 = EmbeddingTensor(
+            n_genes,
+            (self.n_output_dimensions,),
+            sparse=True,
+        )
+        self.bias1.data.zero_()
 
-#         self.weight1 = EmbeddingTensor(
-#             n_genes,
-#             (
-#                 self.n_embedding_dimensions if n_layers > 0 else self.sine_encoding.n_embedding_dimensions,
-#                 self.n_output_dimensions,
-#             ),
-#             sparse=True,
-#         )
-#         self.weight1.data.zero_()
+        self.weight1 = EmbeddingTensor(
+            n_genes,
+            (
+                self.n_embedding_dimensions if n_layers > 0 else self.sine_encoding.n_embedding_dimensions,
+                self.n_output_dimensions,
+            ),
+            sparse=True,
+        )
+        self.weight1.data.zero_()
 
-#         self.nn = torch.nn.Sequential(*layers)
+        self.nn = torch.nn.Sequential(*layers)
 
-#     def forward(self, coordinates, gene_ix):
-#         embedding = self.nn(coordinates / 20000)
-#         embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(gene_ix)) + self.bias1(gene_ix)
+    def forward(self, coordinates, gene_ix):
+        embedding = self.nn(coordinates / 20000)
+        embedding = torch.einsum("ab,abc->ac", embedding, self.weight1(gene_ix)) + self.bias1(gene_ix)
 
-#         return embedding
+        return embedding
 
-#     def parameters_sparse(self):
-#         return [self.bias1.weight, self.weight1.weight]
+    def parameters_sparse(self):
+        return [self.bias1.weight, self.weight1.weight]
 
 
 class Model(torch.nn.Module, HybridModel):
@@ -277,6 +278,8 @@ class Model(torch.nn.Module, HybridModel):
         delta_height_p_scale_free=False,
         delta_height_p_scale_dist="normal",
         delta_height_p_scale=1.0,
+        cut_embedder="sine",
+        cut_embedder_dropout_rate=0.1,
     ):
         super().__init__()
 
@@ -337,13 +340,27 @@ class Model(torch.nn.Module, HybridModel):
         )
         self.right_loc = torch.nn.Parameter(torch.tensor(200 / 20000 / self.right_normalize, requires_grad=True))
 
-        self.right_scale_nn = CutEmbedder(
-            n_genes=len(fragments.var),
-            n_layers=3,
-            n_embedding_dimensions=20,
-            n_frequencies=20,
-            n_output_dimensions=2,
-        )
+        if cut_embedder == "sine":
+            self.right_scale_nn = CutEmbedderSine(
+                n_genes=len(fragments.var),
+                n_layers=3,
+                n_embedding_dimensions=20,
+                n_frequencies=20,
+                n_output_dimensions=2,
+                dropout_rate=cut_embedder_dropout_rate,
+            )
+        elif cut_embedder == "direct":
+            self.right_scale_nn = CutEmbedderDirect(
+                n_genes=len(fragments.var),
+                n_layers=3,
+                n_embedding_dimensions=20,
+                n_output_dimensions=2,
+            )
+        elif cut_embedder == "dummy":
+            self.right_scale_nn = CutEmbedderDummy(
+                n_genes=len(fragments.var),
+                n_output_dimensions=2,
+            )
 
     def forward(self, data, shuffle_leftright=False):
         # decode
@@ -440,14 +457,14 @@ class Model(torch.nn.Module, HybridModel):
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
-            range(fragments.n_genes),
-            n_genes_step=500,
+            range(fragments.n_regions),
+            n_regions_step=500,
             n_cells_step=200,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
-            range(fragments.n_genes),
-            n_genes_step=10,
+            range(fragments.n_regions),
+            n_regions_step=10,
             n_cells_step=10000,
             permute_cells=False,
             permute_genes=False,
@@ -543,7 +560,7 @@ class Model(torch.nn.Module, HybridModel):
         minibatches = Minibatcher(
             cell_ixs,
             gene_ixs,
-            n_genes_step=500,
+            n_regions_step=500,
             n_cells_step=200,
             use_all_cells=True,
             use_all_genes=True,
@@ -563,6 +580,7 @@ class Model(torch.nn.Module, HybridModel):
 
         likelihood_position = np.zeros((len(cell_ixs), len(gene_ixs)))
         likelihood_region = np.zeros((len(cell_ixs), len(gene_ixs)))
+        likelihood = np.zeros((len(cell_ixs), len(gene_ixs)))
 
         cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
         cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
@@ -608,6 +626,21 @@ class Model(torch.nn.Module, HybridModel):
                 .cpu()
                 .numpy()
             )
+            likelihood[
+                np.ix_(
+                    cell_mapping[data.minibatch.cells_oi],
+                    gene_mapping[data.minibatch.genes_oi],
+                )
+            ] += (
+                self._get_likelihood_cell_gene(
+                    self.track["likelihood"],
+                    data.fragments.local_cellxgene_ix,
+                    data.minibatch.n_cells,
+                    data.minibatch.n_genes,
+                )
+                .cpu()
+                .numpy()
+            )
 
         self = self.to("cpu")
 
@@ -620,6 +653,11 @@ class Model(torch.nn.Module, HybridModel):
                 ),
                 "likelihood_region": xr.DataArray(
                     likelihood_region,
+                    dims=("cell", "gene"),
+                    coords={"cell": cells, "gene": fragments.var.index},
+                ),
+                "likelihood": xr.DataArray(
+                    likelihood,
                     dims=("cell", "gene"),
                     coords={"cell": cells, "gene": fragments.var.index},
                 ),
@@ -641,7 +679,7 @@ class Model(torch.nn.Module, HybridModel):
         from chromatinhd.models.diff.loader.clustering_fragments import (
             Result as ClusteringFragmentsResult,
         )
-        from chromatinhd.models.pred.loader.fragments import Result as FragmentsResult
+        from chromatinhd.loaders.fragments import Result as FragmentsResult
         from chromatinhd.models.diff.loader.minibatches import Minibatch
 
         if not torch.is_tensor(clustering):
