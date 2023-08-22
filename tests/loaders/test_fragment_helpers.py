@@ -1,4 +1,4 @@
-import chromatinhd.models.pred.loader.fragments_helpers
+import chromatinhd.loaders.fragments_helpers
 import numpy as np
 
 
@@ -8,7 +8,7 @@ def test_multiple_arange():
     ix = np.zeros(100, dtype=np.int64)
     local_cellxregion_ix = np.zeros(100, dtype=np.int64)
 
-    n_fragments = chromatinhd.models.pred.loader.fragments_helpers.multiple_arange(a, b, ix, local_cellxregion_ix)
+    n_fragments = chromatinhd.loaders.fragments_helpers.multiple_arange(a, b, ix, local_cellxregion_ix)
     ix.resize(n_fragments, refcheck=False)
     local_cellxregion_ix.resize(n_fragments, refcheck=False)
 
