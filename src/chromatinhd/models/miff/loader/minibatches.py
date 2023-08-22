@@ -52,9 +52,9 @@ class Minibatcher:
         n_cells_step,
         n_regions_step,
         use_all_cells=False,
-        use_all_genes=True,
+        use_all_regions=True,
         permute_cells=True,
-        permute_genes=False,
+        permute_regions=False,
     ):
         self.cells = cells
         if not isinstance(genes, np.ndarray):
@@ -65,10 +65,10 @@ class Minibatcher:
         self.n_regions_step = n_regions_step
 
         self.permute_cells = permute_cells
-        self.permute_genes = permute_genes
+        self.permute_regions = permute_regions
 
         self.use_all_cells = use_all_cells or len(cells) < n_cells_step
-        self.use_all_genes = use_all_genes or len(genes) < n_regions_step
+        self.use_all_regions = use_all_regions or len(genes) < n_regions_step
 
         self.cellxregion_batch_size = n_cells_step * n_regions_step
 
@@ -79,7 +79,7 @@ class Minibatcher:
             n_cell_bins = math.ceil(n_cells / n_cells_step)
         else:
             n_cell_bins = math.floor(n_cells / n_cells_step)
-        if self.use_all_genes:
+        if self.use_all_regions:
             n_gene_bins = math.ceil(n_genes / n_regions_step)
         else:
             n_gene_bins = math.floor(n_genes / n_regions_step)
@@ -97,13 +97,13 @@ class Minibatcher:
             cells = self.rg.permutation(self.cells)
         else:
             cells = self.cells
-        if self.permute_genes:
+        if self.permute_regions:
             genes = self.rg.permutation(self.genes)
         else:
             genes = self.genes
 
         gene_cuts = [*np.arange(0, len(genes), step=self.n_regions_step)]
-        if self.use_all_genes:
+        if self.use_all_regions:
             gene_cuts.append(len(genes))
         gene_bins = [genes[a:b] for a, b in zip(gene_cuts[:-1], gene_cuts[1:])]
 

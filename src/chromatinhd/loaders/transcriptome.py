@@ -2,6 +2,7 @@ import chromatinhd.data.transcriptome
 import dataclasses
 import torch
 import chromatinhd.sparse
+from chromatinhd.flow.tensorstore import TensorstoreInstance
 
 
 @dataclasses.dataclass
@@ -20,16 +21,18 @@ class Transcriptome:
         layer: str = None,
     ):
         if layer is None:
-            X = transcriptome.X
-        else:
-            X = transcriptome.layers[layer]
+            layer = list(transcriptome.layers.keys())[0]
+
+        X = transcriptome.layers[layer]
         if chromatinhd.sparse.is_sparse(X):
             self.X = X.dense()
         elif torch.is_tensor(X):
             self.X = X
+        elif isinstance(X, TensorstoreInstance):
+            self.X = X.oindex  # open a tensorstore reader with orthogonal indexing
         else:
             self.X = torch.from_numpy(X)
 
     def load(self, minibatch):
-        X = self.X[minibatch.cells_oi, :][:, minibatch.genes_oi]
+        X = torch.from_numpy(self.X[minibatch.cells_oi, minibatch.genes_oi])
         return Result(value=X)

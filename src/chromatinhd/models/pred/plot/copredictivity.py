@@ -43,9 +43,9 @@ class Copredictivity(chromatinhd.grid.Panel):
         panel_copredictivity_legend.ax.yaxis.set_label_position("left")
 
     @classmethod
-    def from_genepairwindow(cls, genepairwindow, gene, width):
+    def from_regionpairwindow(cls, regionpairwindow, gene, width):
         """
-        Plot co-predictivity of a gene using a GenePairWindow object.
+        Plot co-predictivity of a gene using a RegionPairWindow object.
         """
-        plotdata = genepairwindow.get_plotdata(gene).reset_index()
+        plotdata = regionpairwindow.get_plotdata(gene).reset_index()
         return cls(plotdata, width)

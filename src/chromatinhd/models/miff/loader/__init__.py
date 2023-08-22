@@ -1,1 +1,1 @@
-from .minibatches import Minibatcher, Minibatch
+from chromatinhd.loaders.minibatches import Minibatcher, Minibatch

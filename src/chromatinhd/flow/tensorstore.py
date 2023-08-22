@@ -144,3 +144,18 @@ class TensorstoreInstance:
     @property
     def shape(self):
         return self.open_reader().shape
+
+    def __len__(self):
+        return self.shape[0]
+
+    @property
+    def oindex(self):
+        return OIndex(self.open_reader().oindex)
+
+
+class OIndex:
+    def __init__(self, reader):
+        self.reader = reader
+
+    def __getitem__(self, key):
+        return self.reader[key].read().result()

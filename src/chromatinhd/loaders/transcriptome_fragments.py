@@ -2,7 +2,7 @@ import chromatinhd.data.transcriptome
 import dataclasses
 
 from .fragments import Fragments
-from .minibatches import Minibatch
+from chromatinhd.loaders.minibatches import Minibatch
 from .transcriptome import Transcriptome
 
 

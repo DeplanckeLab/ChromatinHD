@@ -18,7 +18,7 @@ from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.flow import Flow, Stored, Linked
 from chromatinhd.loaders import LoaderPool
 from chromatinhd.models import HybridModel
-from chromatinhd.models.diff.loader.minibatches import Minibatcher
+from chromatinhd.loaders.minibatches import Minibatcher
 from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.optim import SparseDenseAdam
 from torch.optim import SGD
@@ -100,7 +100,7 @@ class Model(torch.nn.Module, HybridModel, Flow):
             n_regions_step=1000,
             n_cells_step=1000,
             permute_cells=False,
-            permute_genes=False,
+            permute_regions=False,
         )
 
         loaders_train = LoaderPool(
@@ -191,9 +191,9 @@ class Model(torch.nn.Module, HybridModel, Flow):
             n_regions_step=1000,
             n_cells_step=1000,
             use_all_cells=True,
-            use_all_genes=True,
+            use_all_regions=True,
             permute_cells=False,
-            permute_genes=False,
+            permute_regions=False,
         )
         loaders = LoaderPool(
             MainLoader,
@@ -238,13 +238,13 @@ class Model(torch.nn.Module, HybridModel, Flow):
             {
                 "likelihood_position": xr.DataArray(
                     likelihood_position,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": genes},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={fragments.obs.index.name: cells, fragments.var.index.name: genes},
                 ),
                 "likelihood": xr.DataArray(
                     likelihood,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": genes},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={fragments.obs.index.name: cells, fragments.var.index.name: genes},
                 ),
             }
         )
@@ -265,7 +265,7 @@ class Model(torch.nn.Module, HybridModel, Flow):
         assert "coordinate" in design.columns
         assert "gene_ix" in design.columns
 
-        from chromatinhd.models.diff.loader.minibatches import Minibatch
+        from chromatinhd.loaders.minibatches import Minibatch
         from chromatinhd.models.miff.loader.combinations import MotifCountsFragmentsClusteringResult
         from chromatinhd.models.miff.loader.binnedmotifcounts import BinnedMotifCounts
         from chromatinhd.models.miff.loader.clustering import Result as ClusteringResult

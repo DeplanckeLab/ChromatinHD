@@ -19,8 +19,8 @@ def paircor(x, y, dim=0, eps=0.1):
 def filter_minibatch_sets(minibatch_sets, improved):
     new_minibatch_sets = []
     for minibatch_set in minibatch_sets:
-        tasks = [minibatch.filter_genes(improved) for minibatch in minibatch_set["tasks"]]
-        tasks = [minibatch for minibatch in tasks if len(minibatch.genes_oi) > 0]
+        tasks = [minibatch.filter_regions(improved) for minibatch in minibatch_set["tasks"]]
+        tasks = [minibatch for minibatch in tasks if len(minibatch.regions_oi) > 0]
         new_minibatch_sets.append({"tasks": tasks})
     return new_minibatch_sets
 
@@ -64,7 +64,7 @@ class Trainer:
 
         continue_training = True
 
-        prev_gene_loss = None
+        prev_region_loss = None
         improved = None
 
         self.loaders_train.initialize(self.minibatcher_train)
@@ -77,18 +77,18 @@ class Trainer:
             # checkpoint if necessary
             if (self.epoch % self.checkpoint_every_epoch) == 0:
                 with torch.no_grad():
-                    gene_loss = np.zeros(self.minibatcher_train.n_genes)
+                    region_loss = np.zeros(self.minibatcher_train.n_regions)
                     for data_validation in self.loaders_validation:
                         data_validation = data_validation.to(self.device)
 
-                        gene_loss_mb = self.model.forward_gene_loss(data_validation).cpu().detach().numpy()
+                        region_loss_mb = self.model.forward_region_loss(data_validation).cpu().detach().numpy()
 
-                        gene_loss[data_validation.minibatch.genes_oi] = (
-                            gene_loss[data_validation.minibatch.genes_oi] + gene_loss_mb
+                        region_loss[data_validation.minibatch.regions_oi] = (
+                            region_loss[data_validation.minibatch.regions_oi] + region_loss_mb
                         )
 
                 self.trace.append(
-                    gene_loss.mean().item(),
+                    region_loss.mean().item(),
                     self.epoch,
                     self.step_ix,
                     "validation",
@@ -96,9 +96,9 @@ class Trainer:
                 logger.info(f"{'•'} {self.epoch}/{self.n_epochs} {'step':>15}")
                 self.trace.checkpoint(logger=logger)
 
-                # compare with previous loss per gene
-                if prev_gene_loss is not None:
-                    improvement = gene_loss - prev_gene_loss
+                # compare with previous loss per region
+                if prev_region_loss is not None:
+                    improvement = region_loss - prev_region_loss
 
                     if improved is not None:
                         improved = improved & (improvement < 0)
@@ -106,13 +106,13 @@ class Trainer:
                         improved = improvement < 0
                     logger.info(f"{improved.mean():.1%}")
 
-                    # stop training once less than 1% of genes are still being optimized
+                    # stop training once less than 1% of regions are still being optimized
                     if improved.mean() < 0.001:
                         break
 
-                    self.minibatcher_train.genes = np.arange(self.minibatcher_train.n_genes)[improved]
+                    self.minibatcher_train.regions = np.arange(self.minibatcher_train.n_regions)[improved]
 
-                prev_gene_loss = gene_loss.copy()
+                prev_region_loss = region_loss.copy()
 
             # train
             for data_train in self.loaders_train:

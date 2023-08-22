@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from chromatinhd.models.pred.loader import Fragments
-from .minibatches import Minibatch
+from chromatinhd.loaders.minibatches import Minibatch
 from .motifs import Motifs
 from typing import List
 

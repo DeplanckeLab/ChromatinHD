@@ -53,12 +53,12 @@ class Minibatcher:
     """
     Provides minibatches of cells and regions to load.
 
-    Example:
+    Examples:
         >>> cells = np.arange(100)
         >>> regions = np.arange(100)
         >>> minibatcher = Minibatcher(cells=cells, regions=regions, n_cells_step=10, n_regions_step=10)
         >>> for minibatch in minibatcher:
-        >>>     print(minibatch.cells_oi)
+        >>>     pass
     """
 
     def __init__(

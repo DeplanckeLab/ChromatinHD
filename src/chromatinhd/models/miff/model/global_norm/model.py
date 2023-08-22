@@ -18,7 +18,7 @@ from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.flow import Flow, Stored
 from chromatinhd.loaders import LoaderPool
 from chromatinhd.models import HybridModel
-from chromatinhd.models.diff.loader.minibatches import Minibatcher
+from chromatinhd.loaders.minibatches import Minibatcher
 from chromatinhd.models.diff.trainer import Trainer
 from chromatinhd.optim import SparseDenseAdam
 from chromatinhd.utils import crossing
@@ -50,15 +50,15 @@ class Model(torch.nn.Module, HybridModel):
     def forward(self, data, return_full_likelihood=False):
         self.track = {}
 
-        # p(gene|motifs_gene)
+        # p(region|motifs_region)
         likelihood_count = self.fragment_count_distribution.log_prob(data)
 
-        # p(tile|gene,motifs_tile)
+        # p(tile|region,motifs_tile)
         likelihood_position = self.fragment_position_distribution.log_prob(data)
 
         if not return_full_likelihood:
             elbo = (-likelihood_position.sum() - likelihood_count.sum()) / (
-                data.minibatch.n_cells * data.minibatch.n_genes
+                data.minibatch.n_cells * data.minibatch.n_regions
             )
 
             return elbo
@@ -79,17 +79,17 @@ class Model(torch.nn.Module, HybridModel):
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
-            fold["genes_train"],
+            fold["regions_train"],
             n_regions_step=500,
             n_cells_step=200,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
-            fold["genes_validation"],
+            fold["regions_validation"],
             n_regions_step=1000,
             n_cells_step=1000,
             permute_cells=False,
-            permute_genes=False,
+            permute_regions=False,
         )
 
         loaders_train = LoaderPool(
@@ -132,9 +132,9 @@ class Model(torch.nn.Module, HybridModel):
 
         trainer.train()
 
-    def _get_likelihood_cell_gene(self, likelihood, local_cellxgene_ix, n_cells, n_genes):
-        return torch_scatter.segment_sum_coo(likelihood, local_cellxgene_ix, dim_size=n_cells * n_genes).reshape(
-            (n_cells, n_genes)
+    def _get_likelihood_cell_region(self, likelihood, local_cellxregion_ix, n_cells, n_regions):
+        return torch_scatter.segment_sum_coo(likelihood, local_cellxregion_ix, dim_size=n_cells * n_regions).reshape(
+            (n_cells, n_regions)
         )
 
     def get_prediction(
@@ -143,8 +143,8 @@ class Model(torch.nn.Module, HybridModel):
         motifscan: Motifscan,
         cells: List[str] = None,
         cell_ixs: List[int] = None,
-        genes: List[str] = None,
-        gene_ixs: List[int] = None,
+        regions: List[str] = None,
+        region_ixs: List[int] = None,
         device: str = None,
     ) -> xr.Dataset:
         if cell_ixs is None:
@@ -155,23 +155,23 @@ class Model(torch.nn.Module, HybridModel):
         if cells is None:
             cells = fragments.obs.index[cell_ixs]
 
-        if gene_ixs is None:
-            if genes is None:
-                genes = fragments.var.index
+        if region_ixs is None:
+            if regions is None:
+                regions = fragments.var.index
             fragments.var["ix"] = np.arange(len(fragments.var))
-            gene_ixs = fragments.var.loc[genes]["ix"].values
-        if genes is None:
-            genes = fragments.var.index[gene_ixs]
+            region_ixs = fragments.var.loc[regions]["ix"].values
+        if regions is None:
+            regions = fragments.var.index[region_ixs]
 
         minibatches = Minibatcher(
             cell_ixs,
-            gene_ixs,
+            region_ixs,
             n_regions_step=500,
             n_cells_step=200,
             use_all_cells=True,
-            use_all_genes=True,
+            use_all_regions=True,
             permute_cells=False,
-            permute_genes=False,
+            permute_regions=False,
         )
         loaders = LoaderPool(
             MotifsFragments,
@@ -184,14 +184,14 @@ class Model(torch.nn.Module, HybridModel):
         )
         loaders.initialize(minibatches)
 
-        likelihood_position = np.zeros((len(cell_ixs), len(gene_ixs)))
-        likelihood_count = np.zeros((len(cell_ixs), len(gene_ixs)))
+        likelihood_position = np.zeros((len(cell_ixs), len(region_ixs)))
+        likelihood_count = np.zeros((len(cell_ixs), len(region_ixs)))
 
         cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
         cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
 
-        gene_mapping = np.zeros(fragments.n_genes, dtype=np.int64)
-        gene_mapping[gene_ixs] = np.arange(len(gene_ixs))
+        region_mapping = np.zeros(fragments.n_regions, dtype=np.int64)
+        region_mapping[region_ixs] = np.arange(len(region_ixs))
 
         self.eval()
         self = self.to(device)
@@ -204,14 +204,14 @@ class Model(torch.nn.Module, HybridModel):
             likelihood_position[
                 np.ix_(
                     cell_mapping[data.minibatch.cells_oi],
-                    gene_mapping[data.minibatch.genes_oi],
+                    region_mapping[data.minibatch.regions_oi],
                 )
             ] += (
-                self._get_likelihood_cell_gene(
+                self._get_likelihood_cell_region(
                     full_likelihood["likelihood_position"],
-                    data.fragments.local_cellxgene_ix,
+                    data.fragments.local_cellxregion_ix,
                     data.minibatch.n_cells,
-                    data.minibatch.n_genes,
+                    data.minibatch.n_regions,
                 )
                 .cpu()
                 .numpy()
@@ -219,7 +219,7 @@ class Model(torch.nn.Module, HybridModel):
             likelihood_count[
                 np.ix_(
                     cell_mapping[data.minibatch.cells_oi],
-                    gene_mapping[data.minibatch.genes_oi],
+                    region_mapping[data.minibatch.regions_oi],
                 )
             ] += (
                 full_likelihood["likelihood_count"].cpu().numpy()
@@ -231,18 +231,18 @@ class Model(torch.nn.Module, HybridModel):
             {
                 "likelihood_position": xr.DataArray(
                     likelihood_position,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": genes},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={fragments.obs.index.name: cells, fragments.var.index.name: regions},
                 ),
                 "likelihood_count": xr.DataArray(
                     likelihood_count,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": genes},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={fragments.obs.index.name: cells, fragments.var.index.name: regions},
                 ),
                 "likelihood": xr.DataArray(
                     likelihood_count + likelihood_position,
-                    dims=("cell", "gene"),
-                    coords={"cell": cells, "gene": genes},
+                    dims=(fragments.obs.index.name, fragments.var.index.name),
+                    coords={fragments.obs.index.name: cells, fragments.var.index.name: regions},
                 ),
             }
         )
@@ -255,30 +255,30 @@ class Model(torch.nn.Module, HybridModel):
         device=None,
     ):
         assert "coordinate" in design.columns
-        assert "gene_ix" in design.columns
+        assert "region_ix" in design.columns
 
-        from chromatinhd.models.diff.loader.minibatches import Minibatch
+        from chromatinhd.loaders.minibatches import Minibatch
         from chromatinhd.models.miff.loader.motifs import Motifs
         from chromatinhd.models.miff.loader.motifs_fragments import Result as MotifsFragmentsResult
         from chromatinhd.loaders.fragments import Result as FragmentsResult
 
         coordinates = torch.from_numpy(design["coordinate"].values).to(torch.long)
-        gene_ix = torch.from_numpy(design["gene_ix"].values).to(torch.long)
+        region_ix = torch.from_numpy(design["region_ix"].values).to(torch.long)
 
         cells_oi = torch.arange(coordinates.shape[0])
 
-        local_cellxgene_ix = torch.tensor([], dtype=torch.long)
-        assert len(gene_ix) == len(coordinates)
-        genes_oi = torch.unique(gene_ix)
+        local_cellxregion_ix = torch.tensor([], dtype=torch.long)
+        assert len(region_ix) == len(coordinates)
+        regions_oi = torch.unique(region_ix)
 
-        local_gene_mapping = torch.zeros(genes_oi.max() + 1, dtype=torch.long)
-        local_gene_mapping.index_add_(0, genes_oi, torch.arange(len(genes_oi)))
+        local_region_mapping = torch.zeros(regions_oi.max() + 1, dtype=torch.long)
+        local_region_mapping.index_add_(0, regions_oi, torch.arange(len(regions_oi)))
 
-        local_gene_ix = local_gene_mapping[gene_ix]
+        local_region_ix = local_region_mapping[region_ix]
         local_cell_ix = cells_oi
-        local_cellxgene_ix = local_cell_ix * len(genes_oi) + local_gene_ix
+        local_cellxregion_ix = local_cell_ix * len(regions_oi) + local_region_ix
 
-        genemapping = genes_oi[local_gene_ix]
+        regionmapping = regions_oi[local_region_ix]
 
         coordinates = torch.stack([coordinates, coordinates], -1)
 
@@ -289,16 +289,16 @@ class Model(torch.nn.Module, HybridModel):
 
         fragments = FragmentsResult(
             coordinates=coordinates,
-            local_cellxgene_ix=local_cellxgene_ix,
-            genemapping=genemapping,
+            local_cellxregion_ix=local_cellxregion_ix,
+            regionmapping=regionmapping,
             n_fragments=coordinates.shape[0],
-            genes_oi=genes_oi,
+            regions_oi=regions_oi,
             cells_oi=cells_oi,
         )
 
         minibatch = Minibatch(
             cells_oi=cells_oi.cpu().numpy(),
-            genes_oi=genes_oi.cpu().numpy(),
+            regions_oi=regions_oi.cpu().numpy(),
         )
 
         motif_loader = Motifs(motifscan)

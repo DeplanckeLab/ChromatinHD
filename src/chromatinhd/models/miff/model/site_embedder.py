@@ -14,7 +14,7 @@ from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.models import HybridModel
 from chromatinhd.flow import Flow, Stored
 
-from chromatinhd.models.pred.loader.minibatches import Minibatcher
+from chromatinhd.loaders.minibatches import Minibatcher
 from chromatinhd.loaders.transcriptome_fragments import (
     TranscriptomeFragments,
 )

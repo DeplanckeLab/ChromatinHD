@@ -33,7 +33,7 @@ def fdr(p_vals):
     return qval
 
 
-class GenePairWindow(chd.flow.Flow):
+class RegionPairWindow(chd.flow.Flow):
     """
     Interpret a *pred* model positionally by censoring windows and comparing
     the decrease in predictivity per cell between pairs of windows
@@ -41,7 +41,7 @@ class GenePairWindow(chd.flow.Flow):
 
     design = chd.flow.Stored()
 
-    genes = chd.flow.Stored(default=set)
+    regions = chd.flow.Stored(default=set)
 
     def score(
         self,
@@ -50,7 +50,7 @@ class GenePairWindow(chd.flow.Flow):
         models: Models,
         folds: Folds,
         censorer,
-        genes: Optional[List] = None,
+        regions: Optional[List] = None,
         force=False,
         device=None,
     ):
@@ -66,8 +66,8 @@ class GenePairWindow(chd.flow.Flow):
                 the models
             folds:
                 the folds
-            genes:
-                which genes to score, defaults to all
+            regions:
+                which regions to score, defaults to all
 
         """
         force_ = force
@@ -77,15 +77,15 @@ class GenePairWindow(chd.flow.Flow):
         if device is None:
             device = get_default_device()
 
-        if genes is None:
-            genes = transcriptome.var.index
+        if regions is None:
+            regions = transcriptome.var.index
 
-        pbar = tqdm.tqdm(genes, leave=False)
+        pbar = tqdm.tqdm(regions, leave=False)
 
-        for gene in pbar:
-            pbar.set_description(gene)
-            scores_file = self.get_scoring_path(gene) / "scores.pkl"
-            interaction_file = self.get_scoring_path(gene) / "interaction.pkl"
+        for region in pbar:
+            pbar.set_description(region)
+            scores_file = self.get_scoring_path(region) / "scores.pkl"
+            interaction_file = self.get_scoring_path(region) / "interaction.pkl"
 
             force = force_
             if not all([file.exists() for file in [scores_file, interaction_file]]):
@@ -101,17 +101,17 @@ class GenePairWindow(chd.flow.Flow):
                         transcriptome,
                         censorer,
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
-                        genes=[gene],
+                        regions=[region],
                         device=device,
                     )
 
-                    # select 1st gene, given that we're working with one gene anyway
+                    # select 1st region, given that we're working with one region anyway
                     predicted = predicted[..., 0]
                     expected = expected[..., 0]
                     n_fragments = n_fragments[..., 0]
 
                     # calculate delta cor per cell
-                    # calculate effect per cellxgene combination
+                    # calculate effect per cellxregion combination
                     predicted_censored = predicted[1:]
                     predicted_full = predicted[0][None, ...]
                     predicted_full_norm = zscore(predicted_full, 1)
@@ -173,15 +173,15 @@ class GenePairWindow(chd.flow.Flow):
                 pickle.dump(result, scores_file.open("wb"))
                 pickle.dump(interaction, interaction_file.open("wb"))
 
-                self.genes = self.genes | {gene}
+                self.regions = self.regions | {region}
 
-    def get_plotdata(self, gene):
+    def get_plotdata(self, region):
         """
-        Get plotdata for a gene
+        Get plotdata for a region
         """
         interaction = pickle.load(
             open(
-                self.get_scoring_path(gene) / "interaction.pkl",
+                self.get_scoring_path(region) / "interaction.pkl",
                 "rb",
             )
         )
@@ -221,7 +221,7 @@ class GenePairWindow(chd.flow.Flow):
 
         return plotdata
 
-    def get_scoring_path(self, gene):
-        path = self.path / f"{gene}"
+    def get_scoring_path(self, region):
+        path = self.path / f"{region}"
         path.mkdir(parents=True, exist_ok=True)
         return path

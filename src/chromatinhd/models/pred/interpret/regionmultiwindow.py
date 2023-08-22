@@ -18,7 +18,7 @@ def fdr(p_vals):
     return qval
 
 
-class GeneMultiWindow(chd.flow.Flow):
+class RegionMultiWindow(chd.flow.Flow):
     """
     Interpret a *pred* model positionally by censoring windows of across multiple window sizes.
     """
@@ -28,9 +28,9 @@ class GeneMultiWindow(chd.flow.Flow):
     The design of the censoring windows.
     """
 
-    genes = chd.flow.Stored(default=set)
+    regions = chd.flow.Stored(default=set)
     """
-    The genes that have been scored.
+    The regions that have been scored.
     """
 
     def score(
@@ -39,7 +39,7 @@ class GeneMultiWindow(chd.flow.Flow):
         transcriptome,
         models,
         folds,
-        genes,
+        regions,
         censorer,
         force=False,
         device=None,
@@ -48,11 +48,11 @@ class GeneMultiWindow(chd.flow.Flow):
         design = censorer.design.iloc[1:].copy()
         self.design = design
 
-        pbar = tqdm.tqdm(genes, leave=False)
+        pbar = tqdm.tqdm(regions, leave=False)
 
-        for gene in pbar:
-            pbar.set_description(gene)
-            scores_file = self.get_scoring_path(gene) / "scores.pkl"
+        for region in pbar:
+            pbar.set_description(region)
+            scores_file = self.get_scoring_path(region) / "scores.pkl"
 
             force = force_
             if not scores_file.exists():
@@ -68,11 +68,11 @@ class GeneMultiWindow(chd.flow.Flow):
                         transcriptome,
                         censorer,
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
-                        genes=[gene],
+                        regions=[region],
                         device=device,
                     )
 
-                    # select 1st gene, given that we're working with one gene anyway
+                    # select 1st region, given that we're working with one region anyway
                     predicted = predicted[..., 0]
                     expected = expected[..., 0]
                     n_fragments = n_fragments[..., 0]
@@ -120,24 +120,24 @@ class GeneMultiWindow(chd.flow.Flow):
 
                 pickle.dump(result, scores_file.open("wb"))
 
-                self.genes = self.genes | {gene}
+                self.regions = self.regions | {region}
 
-    def interpolate(self, genes=None, force=False):
+    def interpolate(self, regions=None, force=False):
         force_ = force
 
-        if genes is None:
-            genes = self.genes
+        if regions is None:
+            regions = self.regions
 
-        pbar = tqdm.tqdm(genes, leave=False)
+        pbar = tqdm.tqdm(regions, leave=False)
 
-        for gene in pbar:
-            pbar.set_description(gene)
-            scores_file = self.get_scoring_path(gene) / "scores.pkl"
+        for region in pbar:
+            pbar.set_description(region)
+            scores_file = self.get_scoring_path(region) / "scores.pkl"
 
             if not scores_file.exists():
                 continue
 
-            interpolate_file = self.get_scoring_path(gene) / "interpolated.pkl"
+            interpolate_file = self.get_scoring_path(region) / "interpolated.pkl"
 
             force = force_
             if not interpolate_file.exists():
@@ -227,8 +227,8 @@ class GeneMultiWindow(chd.flow.Flow):
                     interpolate_file.open("wb"),
                 )
 
-    def get_plotdata(self, gene):
-        interpolated_file = self.get_scoring_path(gene) / "interpolated.pkl"
+    def get_plotdata(self, region):
+        interpolated_file = self.get_scoring_path(region) / "interpolated.pkl"
         if not interpolated_file.exists():
             raise FileNotFoundError(f"File {interpolated_file} does not exist")
 
@@ -238,7 +238,7 @@ class GeneMultiWindow(chd.flow.Flow):
 
         return plotdata
 
-    def get_scoring_path(self, gene):
-        path = self.path / f"{gene}"
+    def get_scoring_path(self, region):
+        path = self.path / f"{region}"
         path.mkdir(parents=True, exist_ok=True)
         return path

@@ -354,8 +354,11 @@ class TSV(Stored):
 
 
 class StoredDict(Obj):
-    def __init__(self, cls, name=None):
+    def __init__(self, cls, name=None, kwargs=None):
         super().__init__(name=name)
+        if kwargs is None:
+            kwargs = {}
+        self.kwargs = kwargs
         self.cls = cls
 
     def get_path(self, folder):
@@ -365,18 +368,19 @@ class StoredDict(Obj):
         if obj is not None:
             name = "_" + self.name
             if not hasattr(obj, name):
-                x = StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj)
+                x = StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj, self.kwargs)
                 setattr(obj, name, x)
             return getattr(obj, name)
 
 
 class StoredDictInstance:
-    def __init__(self, name, path, cls, obj):
+    def __init__(self, name, path, cls, obj, kwargs):
         self.dict = {}
         self.cls = cls
         self.obj = obj
         self.name = name
         self.path = path
+        self.kwargs = kwargs
         if not self.path.exists():
             self.path.mkdir(parents=True)
         for file in self.path.iterdir():
@@ -384,14 +388,14 @@ class StoredDictInstance:
                 raise ValueError(f"Folder {file} in {self.obj.path} is not allowed")
             # key is file name without extension
             key = file.name.split(".")[0]
-            self.dict[key] = self.cls(name=key)
+            self.dict[key] = self.cls(name=key, **self.kwargs)
 
     def __getitem__(self, key):
         return self.dict[key].__get__(self)
 
     def __setitem__(self, key, value):
         if key not in self.dict:
-            self.dict[key] = self.cls(name=key)
+            self.dict[key] = self.cls(name=key, **self.kwargs)
         self.dict[key].__set__(self, value)
 
     def items(self):
