@@ -14,6 +14,8 @@ from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.transcriptome import Transcriptome
 from chromatinhd.models.pred.model.additive import Models
 
+from chromatinhd.flow.objects import StoredDict, Dataset, DataArray
+
 
 def zscore(x, dim=0):
     return (x - x.mean(axis=dim, keepdims=True)) / x.std(axis=dim, keepdims=True)
@@ -41,7 +43,8 @@ class RegionPairWindow(chd.flow.Flow):
 
     design = chd.flow.Stored()
 
-    regions = chd.flow.Stored(default=set)
+    scores = StoredDict(Dataset)
+    interaction = StoredDict(DataArray)
 
     def score(
         self,
@@ -84,11 +87,9 @@ class RegionPairWindow(chd.flow.Flow):
 
         for region in pbar:
             pbar.set_description(region)
-            scores_file = self.get_scoring_path(region) / "scores.pkl"
-            interaction_file = self.get_scoring_path(region) / "interaction.pkl"
 
             force = force_
-            if not all([file.exists() for file in [scores_file, interaction_file]]):
+            if region not in self.scores:
                 force = True
 
             if force:
@@ -170,21 +171,17 @@ class RegionPairWindow(chd.flow.Flow):
                     ],
                 )
 
-                pickle.dump(result, scores_file.open("wb"))
-                pickle.dump(interaction, interaction_file.open("wb"))
+                self.scores[region] = result
+                self.interaction[region] = interaction
 
-                self.regions = self.regions | {region}
+        return self
 
     def get_plotdata(self, region):
         """
         Get plotdata for a region
         """
-        interaction = pickle.load(
-            open(
-                self.get_scoring_path(region) / "interaction.pkl",
-                "rb",
-            )
-        )
+
+        interaction = self.interaction[region]
 
         plotdata = interaction.mean("model").to_dataframe("cor").reset_index()
         plotdata["window1"] = plotdata["window1"].astype("category")
@@ -220,8 +217,3 @@ class RegionPairWindow(chd.flow.Flow):
         plotdata.loc[plotdata["dist"] < 1000, "cor"] = 0.0
 
         return plotdata
-
-    def get_scoring_path(self, region):
-        path = self.path / f"{region}"
-        path.mkdir(parents=True, exist_ok=True)
-        return path

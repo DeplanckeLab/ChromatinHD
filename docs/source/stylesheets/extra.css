@@ -87,3 +87,7 @@ clipboard-copy:hover {
 .md-sidebar__inner {
     padding-right: inherit !important;
 }
+
+.md-typeset details > p{
+    margin-top:0.5em;
+}

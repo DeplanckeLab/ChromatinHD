@@ -7,6 +7,8 @@ import scipy.stats
 import tqdm.auto as tqdm
 from chromatinhd import get_default_device
 
+from chromatinhd.flow.objects import StoredDict, Dataset
+
 
 def fdr(p_vals):
     from scipy.stats import rankdata
@@ -33,6 +35,9 @@ class RegionMultiWindow(chd.flow.Flow):
     The regions that have been scored.
     """
 
+    scores = StoredDict(Dataset)
+    interpolated = StoredDict(Dataset)
+
     def score(
         self,
         fragments,
@@ -52,10 +57,9 @@ class RegionMultiWindow(chd.flow.Flow):
 
         for region in pbar:
             pbar.set_description(region)
-            scores_file = self.get_scoring_path(region) / "scores.pkl"
 
             force = force_
-            if not scores_file.exists():
+            if region not in self.scores:
                 force = True
 
             if force:
@@ -118,9 +122,7 @@ class RegionMultiWindow(chd.flow.Flow):
                     }
                 )
 
-                pickle.dump(result, scores_file.open("wb"))
-
-                self.regions = self.regions | {region}
+                self.scores[region] = result
 
         return self
 
@@ -128,25 +130,23 @@ class RegionMultiWindow(chd.flow.Flow):
         force_ = force
 
         if regions is None:
-            regions = self.regions
+            regions = self.scores.keys()
 
         pbar = tqdm.tqdm(regions, leave=False)
 
         for region in pbar:
             pbar.set_description(region)
-            scores_file = self.get_scoring_path(region) / "scores.pkl"
 
-            if not scores_file.exists():
+            if region not in self.scores:
                 continue
 
-            interpolate_file = self.get_scoring_path(region) / "interpolated.pkl"
-
             force = force_
-            if not interpolate_file.exists():
+            if region not in self.interpolated:
                 force = True
 
             if force:
-                scores = pickle.load(scores_file.open("rb"))
+                scores = self.scores[region]
+
                 x = scores["deltacor"].values
                 scores_statistical = []
                 for i in range(x.shape[1]):
@@ -224,21 +224,15 @@ class RegionMultiWindow(chd.flow.Flow):
 
                 # save
                 interpolated = xr.Dataset({"deltacor": deltacor, "lost": lost, "effect": effect})
-                pickle.dump(
-                    interpolated,
-                    interpolate_file.open("wb"),
-                )
+
+                self.interpolated[region] = interpolated
 
         return self
 
     def get_plotdata(self, region):
-        interpolated_file = self.get_scoring_path(region) / "interpolated.pkl"
-        if not interpolated_file.exists():
-            raise FileNotFoundError(f"File {interpolated_file} does not exist")
-
-        interpolated = pickle.load(interpolated_file.open("rb"))
-
-        plotdata = interpolated.to_dataframe()
+        if region not in self.interpolated:
+            raise ValueError(f"Region {region} not in interpolated. Run .interpolate() first.")
+        plotdata = self.interpolated[region].to_dataframe()
 
         return plotdata
 

@@ -167,7 +167,7 @@ class Fragments:
                     }
                 }
             )
-            self.fragmentixs_reader = fragments.fragmentixs.open_reader(
+            self.fragmentixs_reader = fragments.regionxcell_fragmentixs.open_reader(
                 {"context": {"data_copy_concurrency": {"limit": 1}}}
             )
             self.region_centers = fragments.regions.coordinates["tss"].values
@@ -212,14 +212,14 @@ class Fragments:
                 self.out_local_cellxregion_ix,
             )
 
-            fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
+            regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
             local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
 
             # load the actual fragment data
-            fragmentixs = self.fragmentixs_reader[fragmentixs].read().result()
+            regionxcell_fragmentixs = self.fragmentixs_reader[regionxcell_fragmentixs].read().result()
             regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
             coordinates = (
-                self.coordinates_reader[fragmentixs].read().result()
+                self.coordinates_reader[regionxcell_fragmentixs].read().result()
             )  # this is typically the slowest part by far
 
             # center coordinates around region centers, flip based on strandedness
@@ -234,9 +234,9 @@ class Fragments:
                 self.out_fragmentixs,
                 self.out_local_cellxregion_ix,
             )
-            fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
+            regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
             coordinates = (
-                self.coordinates_reader[fragmentixs].read().result()
+                self.coordinates_reader[regionxcell_fragmentixs].read().result()
             )  # this is typically the slowest part by far
             local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
             regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
@@ -261,6 +261,7 @@ class CutsResult:
     n_regions: int
     n_fragments: int
     n_cuts: int
+    window: np.ndarray
 
     @property
     def local_region_ix(self):
@@ -302,4 +303,5 @@ class Cuts(Fragments):
             n_regions=len(minibatch.regions_oi),
             n_fragments=result.n_fragments,
             n_cuts=result.n_fragments * 2,
+            window=self.window,
         )

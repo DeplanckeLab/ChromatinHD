@@ -675,7 +675,7 @@ class Model(torch.nn.Module, HybridModel):
         clustering=None,
         device=None,
     ):
-        from chromatinhd.models.diff.loader.clustering import Result as ClusteringResult
+        from chromatinhd.loaders.clustering import Result as ClusteringResult
         from chromatinhd.models.diff.loader.clustering_fragments import (
             Result as ClusteringFragmentsResult,
         )

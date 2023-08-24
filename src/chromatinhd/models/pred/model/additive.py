@@ -14,7 +14,7 @@ import pickle
 
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.models import HybridModel
-from chromatinhd.flow import Flow, Stored
+from chromatinhd.flow import Flow, Stored, StoredDict
 
 from chromatinhd.loaders.minibatches import Minibatcher
 from chromatinhd.loaders.transcriptome_fragments import (
@@ -595,6 +595,7 @@ class Model(torch.nn.Module, HybridModel):
 
 
 class Models(Flow):
+    models = StoredDict(Stored)
     n_models = Stored()
 
     @property
@@ -619,16 +620,13 @@ class Models(Flow):
 
                 model = model.to("cpu")
 
-                pickle.dump(
-                    model,
-                    open(self.models_path / ("model_" + str(fold_ix) + ".pkl"), "wb"),
-                )
+                self.models[fold_ix] = model
 
     def __getitem__(self, ix):
-        return pickle.load((self.models_path / ("model_" + str(ix) + ".pkl")).open("rb"))
+        return self.models[ix]
 
     def __len__(self):
-        return self.n_models
+        return len(self.models)
 
     def __iter__(self):
         for ix in range(len(self)):

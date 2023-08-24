@@ -271,7 +271,7 @@ class Model(torch.nn.Module, HybridModel):
 
     def forward(self, data):
         return self.forward_(
-            coordinates=data.cuts.coordinates,
+            coordinates=(data.cuts.coordinates - data.cuts.window[0]) / (data.cuts.window[1] - data.cuts.window[0]),
             clustering=data.clustering.onehot,
             regions_oi=data.minibatch.regions_oi_torch,
             local_region_ix=data.cuts.local_region_ix,
@@ -485,11 +485,11 @@ class Model(torch.nn.Module, HybridModel):
         region_ix=None,
         device=None,
     ):
-        from chromatinhd.models.diff.loader.clustering import Result as ClusteringResult
+        from chromatinhd.loaders.clustering import Result as ClusteringResult
         from chromatinhd.models.diff.loader.clustering_cuts import (
             Result as ClusteringCutsResult,
         )
-        from chromatinhd.models.diff.loader.cuts import Result as CutsResult
+        from chromatinhd.loaders.fragments import CutsResult
         from chromatinhd.loaders.minibatches import Minibatch
 
         if not torch.is_tensor(clustering):
@@ -527,6 +527,9 @@ class Model(torch.nn.Module, HybridModel):
                 local_cellxregion_ix=local_cellxregion_ix,
                 localcellxregion_ix=localcellxregion_ix,
                 n_regions=len(regions_oi),
+                n_fragments=len(coordinates),
+                n_cuts=len(coordinates),
+                window=torch.tensor([0, 1]),
             ),
             clustering=ClusteringResult(
                 onehot=clustering,

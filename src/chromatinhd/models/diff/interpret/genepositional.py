@@ -10,6 +10,9 @@ from chromatinhd.data.clustering import Clustering
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.models.diff.model.cutnf import Models
 
+from chromatinhd.flow import Flow
+from chromatinhd.flow.objects import Stored, DataArray, StoredDict
+
 
 def fdr(p_vals):
     from scipy.stats import rankdata
@@ -26,7 +29,7 @@ class GenePositional(chd.flow.Flow):
     Positional interpretation of *diff* models
     """
 
-    genes = chd.flow.Stored(default=set)
+    probs = StoredDict(DataArray)
 
     def score(
         self,
@@ -70,15 +73,14 @@ class GenePositional(chd.flow.Flow):
 
         for gene in pbar:
             pbar.set_description(gene)
-            probs_file = self.get_scoring_path(gene) / "probs.pkl"
 
             force = force_
-            if not probs_file.exists():
+            if gene in self.probs:
                 force = True
 
             if force:
-                design_gene = pd.DataFrame({"gene_ix": [fragments.var.index.get_loc(gene)]}).astype("category")
-                design_gene.index = pd.Series([gene], name="gene")
+                design_region = pd.DataFrame({"region_ix": [fragments.var.index.get_loc(gene)]}).astype("category")
+                design_region.index = pd.Series([gene], name="gene")
                 design_clustering = pd.DataFrame({"active_cluster": np.arange(clustering.n_clusters)}).astype(
                     "category"
                 )
@@ -87,7 +89,7 @@ class GenePositional(chd.flow.Flow):
                     "category"
                 )
                 design_coord.index = design_coord["coord"]
-                design = chd.utils.crossing(design_gene, design_clustering, design_coord)
+                design = chd.utils.crossing(design_region, design_clustering, design_coord)
 
                 design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
 
@@ -101,12 +103,12 @@ class GenePositional(chd.flow.Flow):
                             torch.from_numpy(design_subset["active_cluster"].values.astype(int)),
                             clustering.n_clusters,
                         ).to(torch.float)
-                        gene_ix = torch.from_numpy(design_subset["gene_ix"].values.astype(int))
+                        region_ix = torch.from_numpy(design_subset["region_ix"].values.astype(int))
 
                         prob = model.evaluate_pseudo(
                             pseudocoordinates,
                             clustering=pseudocluster,
-                            gene_ix=gene_ix,
+                            region_ix=region_ix,
                             device=device,
                         )
 
@@ -130,9 +132,9 @@ class GenePositional(chd.flow.Flow):
                     ],
                 )
 
-                pickle.dump(probs, probs_file.open("wb"))
+                self.probs[gene] = probs
 
-                self.genes = self.genes | {gene}
+        return self
 
     def get_plotdata(self, gene: str) -> (pd.DataFrame, pd.DataFrame):
         """
@@ -145,11 +147,8 @@ class GenePositional(chd.flow.Flow):
         Returns:
             Two dataframes, one with the probabilities per cluster, one with the mean
         """
-        probs_file = self.get_scoring_path(gene) / "probs.pkl"
-        if not probs_file.exists():
-            raise FileNotFoundError(f"File {probs_file} does not exist")
+        probs = self.probs[gene]
 
-        probs = pickle.load(probs_file.open("rb"))
         plotdata = probs.to_dataframe("prob")
 
         window = probs.coords["coord"].values[[0, -1]]
@@ -170,8 +169,3 @@ class GenePositional(chd.flow.Flow):
         plotdata_mean = plotdata[["prob"]].groupby("coord").mean()
 
         return plotdata, plotdata_mean
-
-    def get_scoring_path(self, gene: str):
-        path = self.path / f"{gene}"
-        path.mkdir(parents=True, exist_ok=True)
-        return path

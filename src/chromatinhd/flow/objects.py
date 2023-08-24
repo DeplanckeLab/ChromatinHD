@@ -7,6 +7,27 @@ import importlib
 import shutil
 from typing import Union
 import pandas as pd
+import os
+
+
+def format_size(size: int) -> str:
+    for unit in ("Bb", "Kb", "Mb", "Gb", "Tb"):
+        if size < 1024:
+            break
+        size /= 1024
+    return f"{size:.1f}{unit}"
+
+
+def get_size(start_path="."):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+
+    return total_size
 
 
 class Obj:
@@ -29,12 +50,16 @@ class Instance:
         return f"<b>{self.name}</b>"
 
 
+def isinstance2(__obj: object, __class):
+    return all([repr(y) in repr(__obj.__class__.__mro__) for y in __class.__mro__])
+
+
 def is_obj(x):
-    return isinstance(x, Obj)
+    return isinstance2(x, Obj)
 
 
 def is_instance(x):
-    return isinstance(x, Instance)
+    return isinstance2(x, Instance)
 
 
 class Linked(Obj):
@@ -47,7 +72,7 @@ class Linked(Obj):
 
     def __get__(self, obj, type=None):
         if obj is not None:
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 path = self.get_path(obj)
 
@@ -66,7 +91,7 @@ class Linked(Obj):
     def __set__(self, obj, value):
         # symlink to value.path
         path = self.get_path(obj)
-        name = "_" + self.name
+        name = "_" + str(self.name)
         if path.exists():
             if not path.is_symlink():
                 raise FileExistsError(f"File {path} already exists")
@@ -77,7 +102,7 @@ class Linked(Obj):
         setattr(obj, name, value)
 
     def exists(self, obj):
-        return self.get_path(obj).exists() or ("_" + self.name in obj.__dict__)
+        return self.get_path(obj).exists() or ("_" + str(self.name) in obj.__dict__)
 
     def _repr_html_(self, obj=None):
         if obj is not None:
@@ -95,13 +120,13 @@ class Stored(Obj):
         self.name = name
 
     def get_path(self, folder):
-        return folder / (self.name + ".pkl")
+        return folder / (str(self.name) + ".pkl")
 
     def __get__(self, obj, type=None):
         if obj is not None:
             if self.name is None:
                 raise ValueError(obj)
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 path = self.get_path(obj.path)
                 if not path.exists():
@@ -114,7 +139,7 @@ class Stored(Obj):
             return getattr(obj, name)
 
     def __set__(self, obj, value):
-        name = "_" + self.name
+        name = "_" + str(self.name)
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         setattr(obj, name, value)
 
@@ -147,7 +172,7 @@ class StoredTensor(Stored):
 
     def __get__(self, obj, type=None):
         if obj is not None:
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
                 if not torch.is_tensor(x):
@@ -164,7 +189,7 @@ class StoredTensor(Stored):
             raise ValueError("Value is not a tensor")
         elif self.dtype is not None:
             value = value.to(self.dtype).contiguous()
-        name = "_" + self.name
+        name = "_" + str(self.name)
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         setattr(obj, name, value)
 
@@ -176,7 +201,7 @@ class StoredNumpyInt64(Stored):
 
     def __get__(self, obj, type=None):
         if obj is not None:
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 x = pickle.load(self.get_path(obj.path).open("rb"))
                 if x.dtype is not np.int64:
@@ -188,7 +213,7 @@ class StoredNumpyInt64(Stored):
 
     def __set__(self, obj, value):
         value = np.ascontiguousarray(value.astype(np.int64))
-        name = "_" + self.name
+        name = "_" + str(self.name)
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         setattr(obj, name, value)
 
@@ -202,7 +227,7 @@ class CompressedNumpy(Stored):
 
     def __get__(self, obj, type=None):
         if obj is not None:
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 x = pickle.load(gzip.GzipFile(fileobj=self.get_path(obj.path).open("rb"), mode="r", compresslevel=3))
                 if self.dtype is not None:
@@ -216,7 +241,7 @@ class CompressedNumpy(Stored):
     def __set__(self, obj, value):
         if self.dtype is not None:
             value = np.ascontiguousarray(value.astype(self.dtype))
-        name = "_" + self.name
+        name = "_" + str(self.name)
         pickle.dump(value, gzip.GzipFile(fileobj=self.get_path(obj.path).open("wb"), mode="w", compresslevel=3))
         setattr(obj, name, value)
 
@@ -244,14 +269,14 @@ class TSV(Stored):
 
     def __get__(self, obj=None, type=None):
         if obj is not None:
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 x = pd.read_table(self.get_path(obj.path), index_col=0)
                 setattr(obj, name, x)
             return getattr(obj, name)
 
     def __set__(self, obj, value, folder=None):
-        name = "_" + self.name
+        name = "_" + str(self.name)
         if folder is None:
             folder = obj.path
         if self.index_name is not None:
@@ -276,7 +301,7 @@ class StoredDict(Obj):
 
     def __get__(self, obj, type=None):
         if obj is not None:
-            name = "_" + self.name
+            name = "_" + str(self.name)
             if not hasattr(obj, name):
                 x = StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj, self.kwargs)
                 setattr(obj, name, x)
@@ -285,6 +310,9 @@ class StoredDict(Obj):
     def _repr_html_(self, obj=None):
         instance = self.__get__(obj)
         return instance._repr_html_()
+
+    def exists(self, obj):
+        return True
 
 
 class StoredDictInstance(Instance):
@@ -311,6 +339,12 @@ class StoredDictInstance(Instance):
             self.dict[key] = self.cls(name=key, **self.kwargs)
         self.dict[key].__set__(self, value)
 
+    def __contains__(self, key):
+        return key in self.dict
+
+    def __len__(self):
+        return len(self.dict)
+
     def items(self):
         for k in self.dict:
             yield k, self[k]
@@ -322,4 +356,85 @@ class StoredDictInstance(Instance):
         return True
 
     def _repr_html_(self):
-        return f"<span class='iconify' data-icon='mdi-layers'></span> <b>{self.name}</b> ({', '.join([v._repr_html_() for k, v in self.items()])})"
+        # return f"<span class='iconify' data-icon='mdi-layers'></span> <b>{self.name}</b> ({', '.join([getattr(self.obj, k)._repr_html_() for k in self.keys()])})"
+        items = []
+        for i, k in zip(range(3), self.keys()):
+            items.append(self.dict[k]._repr_html_(self))
+        if len(self.keys()) > 3:
+            items.append("...")
+        return f"<span class='iconify' data-icon='mdi-layers'></span> <b>{self.name}</b> ({', '.join(items)})"
+
+
+class DataArray(Obj):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+    def get_path(self, folder):
+        return folder / (self.name + ".zarr")
+
+    def __get__(self, obj, type=None):
+        if obj is not None:
+            if self.name is None:
+                raise ValueError(obj)
+            name = "_" + str(self.name)
+            if not hasattr(obj, name):
+                path = self.get_path(obj.path)
+                if not path.exists():
+                    raise FileNotFoundError(f"File {path} does not exist")
+                import xarray as xr
+
+                setattr(obj, name, xr.open_zarr(self.get_path(obj.path))[self.name])
+            return getattr(obj, name)
+
+    def __set__(self, obj, value):
+        import xarray as xr
+
+        name = "_" + str(self.name)
+        value.to_zarr(self.get_path(obj.path), mode="w")
+        setattr(obj, name, value)
+
+    def exists(self, obj):
+        return self.get_path(obj.path).exists()
+
+    def _repr_html_(self, obj):
+        instance = self.__get__(obj)
+        shape = "[" + ",".join(str(x) for x in instance.shape) + "]"
+        size = format_size(get_size(self.get_path(obj.path)))
+        return f"<span class='iconify' data-icon='mdi-axis-arrow-info'></span> <b>{self.name}</b> {shape}, {size}"
+
+
+class Dataset(Obj):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+    def get_path(self, folder):
+        return folder / (self.name + ".zarr")
+
+    def __get__(self, obj, type=None):
+        if obj is not None:
+            if self.name is None:
+                raise ValueError(obj)
+            name = "_" + str(self.name)
+            if not hasattr(obj, name):
+                path = self.get_path(obj.path)
+                if not path.exists():
+                    raise FileNotFoundError(f"File {path} does not exist")
+                import xarray as xr
+
+                setattr(obj, name, xr.open_zarr(self.get_path(obj.path)))
+            return getattr(obj, name)
+
+    def __set__(self, obj, value):
+        import xarray as xr
+
+        name = "_" + str(self.name)
+        value.to_zarr(self.get_path(obj.path), mode="w")
+        setattr(obj, name, value)
+
+    def exists(self, obj):
+        return self.get_path(obj.path).exists()
+
+    def _repr_html_(self, obj):
+        self.__get__(obj)
+        size = format_size(get_size(self.get_path(obj.path)))
+        return f"<span class='iconify' data-icon='mdi-axis-arrow-info'></span> <b>{self.name}</b> {size}"

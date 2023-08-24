@@ -27,15 +27,15 @@ def get_hocomoco(path, organism="human"):
     # download cutoffs, pwms and annotations
     if not (path / "pwm_cutoffs.txt").exists():
         urllib.request.urlretrieve(
-            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_standard_thresholds_{organism}_mono.txt",
+            f"https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_standard_thresholds_{organism}_mono.txt",
             path / "pwm_cutoffs.txt",
         )
         urllib.request.urlretrieve(
-            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_pwms_{organism}_mono.txt",
+            f"https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_pwms_{organism}_mono.txt",
             path / "pwms.txt",
         )
         urllib.request.urlretrieve(
-            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_annotation_{organism}_mono.tsv",
+            f"https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_annotation_{organism}_mono.tsv",
             path / "annot.txt",
         )
 

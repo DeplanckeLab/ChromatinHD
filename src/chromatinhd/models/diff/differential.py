@@ -4,11 +4,11 @@ import pandas as pd
 
 
 class DifferentialSlices:
-    def __init__(self, positions, gene_ixs, cluster_ixs, window, n_genes, n_clusters, scores=None):
+    def __init__(self, positions, region_ixs, cluster_ixs, window, n_genes, n_clusters, scores=None):
         assert positions.ndim == 2
         assert positions.shape[1] == 2
         self.positions = positions
-        self.gene_ixs = gene_ixs
+        self.region_ixs = region_ixs
         self.cluster_ixs = cluster_ixs
         self.window = window
         self.n_genes = n_genes
@@ -21,7 +21,7 @@ class DifferentialSlices:
                 "start": self.positions[:, 0],
                 "end": self.positions[:, 1],
                 "length": (self.positions[:, 1] - self.positions[:, 0]),
-                "gene_ix": self.gene_ixs,
+                "region_ix": self.region_ixs,
                 "cluster_ix": self.cluster_ixs,
                 "mid": self.positions[:, 0] + (self.positions[:, 1] - self.positions[:, 0]) / 2 + self.window[0],
             }
@@ -31,8 +31,8 @@ class DifferentialSlices:
 
     def get_slicelocations(self, promoters):
         slicelocations = self.get_slicescores().join(
-            promoters[["start", "end", "strand", "chr", "gene_ix"]].set_index("gene_ix"),
-            on="gene_ix",
+            promoters[["start", "end", "strand", "chr", "region_ix"]].set_index("region_ix"),
+            on="region_ix",
             rsuffix="_promoter",
         )
 
@@ -50,12 +50,12 @@ class DifferentialSlices:
 
     def get_randomslicelocations(self, promoters, n_random=10):
         slicescores = self.get_slicescores().copy()
-        gene_ixs = np.random.choice(len(promoters), len(slicescores) * n_random, replace=True)
+        region_ixs = np.random.choice(len(promoters), len(slicescores) * n_random, replace=True)
         slicescores = slicescores.iloc[np.repeat(np.arange(len(slicescores)), n_random)]
-        slicescores["gene_ix"] = gene_ixs
+        slicescores["region_ix"] = region_ixs
         slicelocations = slicescores.join(
-            promoters[["start", "end", "strand", "chr", "gene_ix"]].set_index("gene_ix"),
-            on="gene_ix",
+            promoters[["start", "end", "strand", "chr", "region_ix"]].set_index("region_ix"),
+            on="region_ix",
             rsuffix="_promoter",
         )
 
@@ -82,17 +82,17 @@ class DifferentialSlices:
         slice_average_lfc = []
         slice_max_lfc = []
         slice_summit = []
-        for start, end, gene_ix, cluster_ix in zip(
-            self.positions[:, 0], self.positions[:, 1], self.gene_ixs, self.cluster_ixs
+        for start, end, region_ix, cluster_ix in zip(
+            self.positions[:, 0], self.positions[:, 1], self.region_ixs, self.cluster_ixs
         ):
             prob_oi = probs[
-                gene_ix,
+                region_ix,
                 cluster_ix,
                 (start):(end),
             ]
 
             prob_baseline = probs_baseline[
-                gene_ix,
+                region_ix,
                 (start):(end),
             ]
             slice_average_oi.append(prob_oi.mean())
@@ -144,10 +144,10 @@ class DifferentialSlices:
             # self.n_clusters * self.n_genes * (self.window[1] - self.window[0]),
             dtype=bool,
         )
-        for start, end, gene_ix, cluster_ix in zip(
-            self.positions[:, 0], self.positions[:, 1], self.gene_ixs, self.cluster_ixs
+        for start, end, region_ix, cluster_ix in zip(
+            self.positions[:, 0], self.positions[:, 1], self.region_ixs, self.cluster_ixs
         ):
-            position_chosen[gene_ix, cluster_ix, start:end] = True
+            position_chosen[region_ix, cluster_ix, start:end] = True
         return position_chosen.flatten()
 
     @property
@@ -156,14 +156,14 @@ class DifferentialSlices:
             (self.n_genes, self.n_clusters, (self.window[1] - self.window[0])),
             # self.n_clusters * self.n_genes * (self.window[1] - self.window[0]),
         )
-        for start, end, gene_ix, cluster_ix, score in zip(
+        for start, end, region_ix, cluster_ix, score in zip(
             self.positions[:, 0],
             self.positions[:, 1],
-            self.gene_ixs,
+            self.region_ixs,
             self.cluster_ixs,
             self.scores,
         ):
-            position_chosen[gene_ix, cluster_ix, start:end] = score
+            position_chosen[region_ix, cluster_ix, start:end] = score
         return position_chosen
 
     @property
@@ -176,7 +176,7 @@ class DifferentialSlices:
     def from_positions(
         cls,
         positions,
-        gene_ixs,
+        region_ixs,
         cluster_ixs,
         window,
         n_genes,
@@ -186,15 +186,15 @@ class DifferentialSlices:
         groups = np.hstack(
             [
                 0,
-                np.cumsum((np.diff(cluster_ixs * gene_ixs * ((window[1] - window[0]) + 1) + positions) != 1)),
+                np.cumsum((np.diff(cluster_ixs * region_ixs * ((window[1] - window[0]) + 1) + positions) != 1)),
             ]
         )
         cuts = np.where(np.hstack([True, (np.diff(groups) != 0), True]))[0]
 
         position_slices = np.vstack((positions[cuts[:-1]], positions[cuts[1:] - 1] + 1)).T * resolution
-        gene_ixs = gene_ixs[cuts[:-1]]
+        region_ixs = region_ixs[cuts[:-1]]
         cluster_ixs = cluster_ixs[cuts[:-1]]
-        return cls(position_slices, gene_ixs, cluster_ixs, window, n_genes, n_clusters)
+        return cls(position_slices, region_ixs, cluster_ixs, window, n_genes, n_clusters)
 
     @classmethod
     def from_peakscores(
@@ -217,7 +217,7 @@ class DifferentialSlices:
         import scipy.sparse.csgraph
 
         peakscores_significant_joined = []
-        for (cluster, gene_ix), peakscores_oi in peakscores.query("significant").groupby(["cluster", "gene_ix"]):
+        for (cluster, region_ix), peakscores_oi in peakscores.query("significant").groupby(["cluster", "region_ix"]):
             # only check for overlaps if there are more than 2 signficant peaks
             if len(peakscores_oi) > 1:
                 # calculate peak-wise membership within the gene window
@@ -244,11 +244,11 @@ class DifferentialSlices:
                         "logfoldchanges": "mean",
                     }
                 )
-                peakscores_oi_joined = peakscores_oi_joined.assign(cluster=cluster, gene_ix=gene_ix)
+                peakscores_oi_joined = peakscores_oi_joined.assign(cluster=cluster, region_ix=region_ix)
             else:
                 peakscores_oi_joined = peakscores_oi.reset_index()[
                     [
-                        "gene_ix",
+                        "region_ix",
                         "cluster",
                         "relative_start",
                         "relative_end",
@@ -267,12 +267,12 @@ class DifferentialSlices:
         positions = peakscores_significant[["relative_start", "relative_end"]].values
         scores = peakscores_significant["logfoldchanges"].values
         positions = positions - window[0]
-        gene_ixs = peakscores_significant["gene_ix"].values
+        region_ixs = peakscores_significant["region_ix"].values
         cluster_ixs = peakscores_significant["cluster"].cat.codes
 
         return cls(
             positions,
-            gene_ixs,
+            region_ixs,
             cluster_ixs,
             window,
             n_genes,
@@ -291,11 +291,11 @@ class DifferentialSlices:
 
         basepairs_oi = basepair_ranking > cutoff
 
-        gene_ixs, cluster_ixs, positions = np.where(basepairs_oi)
+        region_ixs, cluster_ixs, positions = np.where(basepairs_oi)
 
         return cls.from_positions(
             positions,
-            gene_ixs,
+            region_ixs,
             cluster_ixs,
             window,
             n_genes,
@@ -314,11 +314,11 @@ class DifferentialSlices:
         dominances = []
         shadows = []
         differentialdominances = []
-        for gene_ix, cluster_ix in itertools.product(range(self.n_genes), range(self.n_clusters)):
-            slices_oi = (self.gene_ixs == gene_ix) & (self.cluster_ixs == cluster_ix)
+        for region_ix, cluster_ix in itertools.product(range(self.n_genes), range(self.n_clusters)):
+            slices_oi = (self.region_ixs == region_ix) & (self.cluster_ixs == cluster_ix)
             position_slices_gene = self.positions[slices_oi]
-            probs_gene = probs[gene_ix, cluster_ix]
-            probs_mean_gene = probs_mean[gene_ix]
+            probs_gene = probs[region_ix, cluster_ix]
+            probs_mean_gene = probs_mean[region_ix]
             x = np.exp(probs_gene)
             peaks = []
             for slice in position_slices_gene:
@@ -404,11 +404,11 @@ class DifferentialSlices:
         probs_diff = probs - probs.mean(1, keepdims=True)
 
         slice_differential = []
-        for start, end, gene_ix, cluster_ix in zip(
-            self.positions[:, 0], self.positions[:, 1], self.gene_ixs, self.cluster_ixs
+        for start, end, region_ix, cluster_ix in zip(
+            self.positions[:, 0], self.positions[:, 1], self.region_ixs, self.cluster_ixs
         ):
             probs_diff_oi = probs_diff[
-                gene_ix,
+                region_ix,
                 cluster_ix,
                 (start):(end),
             ]

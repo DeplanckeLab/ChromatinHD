@@ -1,21 +1,19 @@
-from .objects import Obj
-
-import tensorstore as ts
-import numpy as np
 import copy
 import os
+
+import numpy as np
+import tensorstore as ts
+
+from .objects import Obj
+
+from .objects import format_size, get_size
 
 default_spec_create = {
     "driver": "zarr",
     "kvstore": {
         "driver": "file",
     },
-    "metadata": {
-        # "compressor": compression,
-        # "dtype": ">i4",
-        # "shape": [0, 2],
-        # "chunks": [100000, 2],
-    },
+    "metadata": {},
 }
 
 default_spec_write = {
@@ -33,26 +31,6 @@ default_spec_read = {
     },
     "open": True,
 }
-
-
-def format_size(size: int) -> str:
-    for unit in ("Bb", "Kb", "Mb", "Gb", "Tb"):
-        if size < 1024:
-            break
-        size /= 1024
-    return f"{size:.1f}{unit}"
-
-
-def get_size(start_path="."):
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(start_path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            # skip if it is symbolic link
-            if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
-
-    return total_size
 
 
 def deep_update(mapping, *updating_mappings):
