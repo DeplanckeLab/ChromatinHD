@@ -20,60 +20,32 @@ class RawFragments:
         self.file = file
 
 
-compression = {
-    "id": "blosc",
-    "clevel": 3,
-    "cname": "zstd",
-    "shuffle": 2,
-}
-# compression = None
-coordinates_spec = {
-    "driver": "zarr",
-    "kvstore": {
-        "driver": "file",
-    },
-    "metadata": {
-        "compressor": compression,
-        "dtype": ">i4",
-        "shape": [0, 2],
-        "chunks": [100000, 2],
-    },
-}
-mapping_spec = coordinates_spec
-regionxcell_indptr_spec = {
-    "driver": "zarr",
-    "kvstore": {
-        "driver": "file",
-    },
-    "metadata": {
-        "compressor": compression,
-        "dtype": ">i8",
-        "shape": [0],
-        "chunks": [100000],
-    },
-}
-
-
 class Fragments(Flow):
     """
     Fragments positioned within regions. Fragments are sorted by the region, position within the region (left cut site) and cell.
 
-    The object can also store several precalculated tensors that are used for efficient loading of fragments. See create_cellxregion_indptr for more information.
+    The object can also store several precalculated tensors that are used for efficient loading of fragments. See create_regionxcell_indptr for more information.
     """
 
     regions: Regions = Linked()
     """The regions in which (part of) the fragments are located and centered."""
 
-    coordinates: TensorstoreInstance = Tensorstore(coordinates_spec)
+    coordinates: TensorstoreInstance = Tensorstore(dtype=">i4", chunks=[100000, 2], compression="blosc", shape=[0, 2])
     """Coordinates of the two cut sites."""
 
-    mapping: TensorstoreInstance = Tensorstore(mapping_spec)
+    mapping: TensorstoreInstance = Tensorstore(dtype=">i4", chunks=[100000, 2], compression="blosc", shape=[0, 2])
     """Mapping of a fragment to a cell (first column) and a region (second column)"""
 
-    regionxcell_indptr: np.ndarray = Tensorstore(regionxcell_indptr_spec)
+    regionxcell_indptr: np.ndarray = Tensorstore(dtype=">i8", chunks=[100000], compression="blosc")
     """Index pointers to the regionxcell fragment positions"""
 
     def create_regionxcell_indptr(self):
+        """
+        Creates pointers to each individual region x cell combination from the mapping tensor.
+
+        Returns:
+            self with `regionxcell_indptr` tensor populated
+        """
         regionxcell_ix = self.mapping[:, 1] * self.n_cells + self.mapping[:, 0]
 
         if not (np.diff(regionxcell_ix) >= 0).all():
@@ -87,22 +59,6 @@ class Fragments(Flow):
         self.regionxcell_indptr[:] = regionxcell_indptr
 
         return self
-
-    _regionmapping = None
-
-    @property
-    def regionmapping(self):
-        if self._regionmapping is None:
-            self._regionmapping = self.mapping[:, 1]
-        return self._regionmapping
-
-    _cellmapping = None
-
-    @property
-    def cellmapping(self):
-        if self._cellmapping is None:
-            self._cellmapping = self.mapping[:, 0]
-        return self._cellmapping
 
     var = TSV()
     """DataFrame containing information about regions."""
@@ -122,7 +78,7 @@ class Fragments(Flow):
 
     @property
     def local_cellxregion_ix(self):
-        return self.cellmapping * self.n_regions + self.regionmapping
+        return self.mapping[:, 0] * self.n_regions + self.mapping[:, 1]
 
     def estimate_fragment_per_cellxregion(self):
         return math.ceil(self.coordinates.shape[0] / self.n_cells / self.n_regions * 2)

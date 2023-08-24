@@ -130,16 +130,15 @@ class Model(torch.nn.Module, HybridModel):
 
     def __init__(
         self,
-        fragments,
-        clustering,
-        nbins=(
+        fragments: Fragments,
+        clustering: Clustering,
+        nbins: List[int] = (
             128,
             64,
             32,
         ),
         decoder_n_layers=0,
         baseline=False,
-        scale_likelihood=False,
         rho_delta_regularization=True,
         rho_delta_p_scale_free=False,
         mixture_delta_regularization=True,
@@ -147,6 +146,19 @@ class Model(torch.nn.Module, HybridModel):
         mixture_delta_p_scale_dist="normal",
         mixture_delta_p_scale=1.0,
     ):
+        """
+        Parameters:
+            fragments:
+                Fragments object
+            clustering:
+                Clustering object
+            nbins:
+                Number of bins for the spline
+            decoder_n_layers:
+                Number of layers in the decoder
+            baseline:
+                Whether to use a baseline model
+        """
         super().__init__()
 
         self.n_total_regions = fragments.n_regions

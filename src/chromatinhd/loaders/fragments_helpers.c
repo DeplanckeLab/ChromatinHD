@@ -4,12 +4,12 @@
 {
     "distutils": {
         "depends": [],
-        "name": "chromatinhd.models.pred.loader.fragments_helpers",
+        "name": "chromatinhd.loaders.fragments_helpers",
         "sources": [
-            "/home/wsaelens/projects/chromatinhd/chromatinhd/src/chromatinhd/models/pred/loader/fragments_helpers.pyx"
+            "/home/wsaelens/projects/chromatinhd/chromatinhd/src/chromatinhd/loaders/fragments_helpers.pyx"
         ]
     },
-    "module_name": "chromatinhd.models.pred.loader.fragments_helpers"
+    "module_name": "chromatinhd.loaders.fragments_helpers"
 }
 END: Cython Metadata */
 
@@ -1086,8 +1086,8 @@ static CYTHON_INLINE float __PYX_NAN() {
   #endif
 #endif
 
-#define __PYX_HAVE__chromatinhd__models__pred__loader__fragments_helpers
-#define __PYX_HAVE_API__chromatinhd__models__pred__loader__fragments_helpers
+#define __PYX_HAVE__chromatinhd__loaders__fragments_helpers
+#define __PYX_HAVE_API__chromatinhd__loaders__fragments_helpers
 /* Early includes */
 #include <string.h>
 #include <stdio.h>
@@ -1385,7 +1385,7 @@ static const char *__pyx_filename;
 /* #### Code section: filename_table ### */
 
 static const char *__pyx_f[] = {
-  "src/chromatinhd/models/pred/loader/fragments_helpers.pyx",
+  "src/chromatinhd/loaders/fragments_helpers.pyx",
   "<stringsource>",
   "__init__.cython-30.pxd",
   "type.pxd",
@@ -1722,23 +1722,23 @@ typedef npy_double __pyx_t_5numpy_double_t;
  */
 typedef npy_longdouble __pyx_t_5numpy_longdouble_t;
 
-/* "chromatinhd/models/pred/loader/fragments_helpers.pyx":9
+/* "chromatinhd/loaders/fragments_helpers.pyx":9
  * 
  * INT64 = np.int64
  * ctypedef np.int64_t INT64_t             # <<<<<<<<<<<<<<
  * FLOAT64 = np.float64
  * ctypedef np.float64_t FLOAT64_t
  */
-typedef __pyx_t_5numpy_int64_t __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t;
+typedef __pyx_t_5numpy_int64_t __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t;
 
-/* "chromatinhd/models/pred/loader/fragments_helpers.pyx":11
+/* "chromatinhd/loaders/fragments_helpers.pyx":11
  * ctypedef np.int64_t INT64_t
  * FLOAT64 = np.float64
  * ctypedef np.float64_t FLOAT64_t             # <<<<<<<<<<<<<<
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function
  */
-typedef __pyx_t_5numpy_float64_t __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_FLOAT64_t;
+typedef __pyx_t_5numpy_float64_t __pyx_t_11chromatinhd_7loaders_17fragments_helpers_FLOAT64_t;
 /* #### Code section: complex_type_declarations ### */
 /* Declarations.proto */
 #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
@@ -2756,10 +2756,10 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 PyObject *original_obj);
 
 /* ObjectToMemviewSlice.proto */
-static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(PyObject *, int writable_flag);
+static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(PyObject *, int writable_flag);
 
 /* ObjectToMemviewSlice.proto */
-static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(PyObject *, int writable_flag);
+static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(PyObject *, int writable_flag);
 
 /* RealImag.proto */
 #if CYTHON_CCOMPLEX
@@ -2977,7 +2977,7 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
 /* Module declarations from "numpy" */
 static CYTHON_INLINE int __pyx_f_5numpy_import_array(void); /*proto*/
 
-/* Module declarations from "chromatinhd.models.pred.loader.fragments_helpers" */
+/* Module declarations from "chromatinhd.loaders.fragments_helpers" */
 static PyObject *__pyx_collections_abc_Sequence = 0;
 static PyObject *generic = 0;
 static PyObject *strided = 0;
@@ -3021,13 +3021,13 @@ static void __pyx_memoryview_slice_assign_scalar(__Pyx_memviewslice *, int, size
 static void __pyx_memoryview__slice_assign_scalar(char *, Py_ssize_t *, Py_ssize_t *, int, size_t, void *); /*proto*/
 static PyObject *__pyx_unpickle_Enum__set_state(struct __pyx_MemviewEnum_obj *, PyObject *); /*proto*/
 /* #### Code section: typeinfo ### */
-static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t = { "INT64_t", NULL, sizeof(__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t), 0 };
+static __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t = { "INT64_t", NULL, sizeof(__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t), { 0 }, 0, __PYX_IS_UNSIGNED(__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t) ? 'U' : 'I', __PYX_IS_UNSIGNED(__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t), 0 };
 /* #### Code section: before_global_var ### */
-#define __Pyx_MODULE_NAME "chromatinhd.models.pred.loader.fragments_helpers"
-extern int __pyx_module_is_main_chromatinhd__models__pred__loader__fragments_helpers;
-int __pyx_module_is_main_chromatinhd__models__pred__loader__fragments_helpers = 0;
+#define __Pyx_MODULE_NAME "chromatinhd.loaders.fragments_helpers"
+extern int __pyx_module_is_main_chromatinhd__loaders__fragments_helpers;
+int __pyx_module_is_main_chromatinhd__loaders__fragments_helpers = 0;
 
-/* Implementation of "chromatinhd.models.pred.loader.fragments_helpers" */
+/* Implementation of "chromatinhd.loaders.fragments_helpers" */
 /* #### Code section: global_var ### */
 static PyObject *__pyx_builtin_range;
 static PyObject *__pyx_builtin___import__;
@@ -3179,11 +3179,11 @@ static const char __pyx_k_Indirect_dimensions_not_supporte[] = "Indirect dimensi
 static const char __pyx_k_Invalid_mode_expected_c_or_fortr[] = "Invalid mode, expected 'c' or 'fortran', got ";
 static const char __pyx_k_Out_of_bounds_on_buffer_access_a[] = "Out of bounds on buffer access (axis ";
 static const char __pyx_k_Unable_to_convert_item_to_object[] = "Unable to convert item to object";
-static const char __pyx_k_chromatinhd_models_pred_loader_f[] = "chromatinhd.models.pred.loader.fragments_helpers";
+static const char __pyx_k_chromatinhd_loaders_fragments_he[] = "chromatinhd.loaders.fragments_helpers";
 static const char __pyx_k_got_differing_extents_in_dimensi[] = "got differing extents in dimension ";
 static const char __pyx_k_no_default___reduce___due_to_non[] = "no default __reduce__ due to non-trivial __cinit__";
 static const char __pyx_k_numpy_core_umath_failed_to_impor[] = "numpy.core.umath failed to import";
-static const char __pyx_k_src_chromatinhd_models_pred_load[] = "src/chromatinhd/models/pred/loader/fragments_helpers.pyx";
+static const char __pyx_k_src_chromatinhd_loaders_fragment[] = "src/chromatinhd/loaders/fragments_helpers.pyx";
 static const char __pyx_k_unable_to_allocate_shape_and_str[] = "unable to allocate shape and strides.";
 /* #### Code section: decls ### */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array___cinit__(struct __pyx_array_obj *__pyx_v_self, PyObject *__pyx_v_shape, Py_ssize_t __pyx_v_itemsize, PyObject *__pyx_v_format, PyObject *__pyx_v_mode, int __pyx_v_allocate_buffer); /* proto */
@@ -3227,8 +3227,8 @@ static void __pyx_memoryviewslice___pyx_pf_15View_dot_MemoryView_16_memoryviewsl
 static PyObject *__pyx_pf___pyx_memoryviewslice___reduce_cython__(CYTHON_UNUSED struct __pyx_memoryviewslice_obj *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf___pyx_memoryviewslice_2__setstate_cython__(CYTHON_UNUSED struct __pyx_memoryviewslice_obj *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
 static PyObject *__pyx_pf_15View_dot_MemoryView___pyx_unpickle_Enum(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helpers_extract_fragments(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_cellxgene_oi, __Pyx_memviewslice __pyx_v_cellxgene_indptr, __Pyx_memviewslice __pyx_v_coordinates, __Pyx_memviewslice __pyx_v_genemapping, __Pyx_memviewslice __pyx_v_out_coordinates, __Pyx_memviewslice __pyx_v_out_genemapping, __Pyx_memviewslice __pyx_v_out_local_cellxgene_ix); /* proto */
-static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helpers_2multiple_arange(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_a, __Pyx_memviewslice __pyx_v_b, __Pyx_memviewslice __pyx_v_ixs, __Pyx_memviewslice __pyx_v_local_cellxregion_ix); /* proto */
+static PyObject *__pyx_pf_11chromatinhd_7loaders_17fragments_helpers_extract_fragments(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_cellxgene_oi, __Pyx_memviewslice __pyx_v_cellxgene_indptr, __Pyx_memviewslice __pyx_v_coordinates, __Pyx_memviewslice __pyx_v_genemapping, __Pyx_memviewslice __pyx_v_out_coordinates, __Pyx_memviewslice __pyx_v_out_genemapping, __Pyx_memviewslice __pyx_v_out_local_cellxgene_ix); /* proto */
+static PyObject *__pyx_pf_11chromatinhd_7loaders_17fragments_helpers_2multiple_arange(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_a, __Pyx_memviewslice __pyx_v_b, __Pyx_memviewslice __pyx_v_ixs, __Pyx_memviewslice __pyx_v_local_cellxregion_ix); /* proto */
 static PyObject *__pyx_tp_new_array(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_Enum(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_memoryview(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
@@ -3361,7 +3361,7 @@ typedef struct {
   PyObject *__pyx_n_s_cellxgene_indptr;
   PyObject *__pyx_n_s_cellxgene_ix;
   PyObject *__pyx_n_s_cellxgene_oi;
-  PyObject *__pyx_n_s_chromatinhd_models_pred_loader_f;
+  PyObject *__pyx_n_s_chromatinhd_loaders_fragments_he;
   PyObject *__pyx_n_s_class;
   PyObject *__pyx_n_s_class_getitem;
   PyObject *__pyx_n_s_cline_in_traceback;
@@ -3440,7 +3440,7 @@ typedef struct {
   PyObject *__pyx_n_s_shape;
   PyObject *__pyx_n_s_size;
   PyObject *__pyx_n_s_spec;
-  PyObject *__pyx_kp_s_src_chromatinhd_models_pred_load;
+  PyObject *__pyx_kp_s_src_chromatinhd_loaders_fragment;
   PyObject *__pyx_n_s_start;
   PyObject *__pyx_n_s_step;
   PyObject *__pyx_n_s_stop;
@@ -3600,7 +3600,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_cellxgene_indptr);
   Py_CLEAR(clear_module_state->__pyx_n_s_cellxgene_ix);
   Py_CLEAR(clear_module_state->__pyx_n_s_cellxgene_oi);
-  Py_CLEAR(clear_module_state->__pyx_n_s_chromatinhd_models_pred_loader_f);
+  Py_CLEAR(clear_module_state->__pyx_n_s_chromatinhd_loaders_fragments_he);
   Py_CLEAR(clear_module_state->__pyx_n_s_class);
   Py_CLEAR(clear_module_state->__pyx_n_s_class_getitem);
   Py_CLEAR(clear_module_state->__pyx_n_s_cline_in_traceback);
@@ -3679,7 +3679,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_shape);
   Py_CLEAR(clear_module_state->__pyx_n_s_size);
   Py_CLEAR(clear_module_state->__pyx_n_s_spec);
-  Py_CLEAR(clear_module_state->__pyx_kp_s_src_chromatinhd_models_pred_load);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_src_chromatinhd_loaders_fragment);
   Py_CLEAR(clear_module_state->__pyx_n_s_start);
   Py_CLEAR(clear_module_state->__pyx_n_s_step);
   Py_CLEAR(clear_module_state->__pyx_n_s_stop);
@@ -3817,7 +3817,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_cellxgene_indptr);
   Py_VISIT(traverse_module_state->__pyx_n_s_cellxgene_ix);
   Py_VISIT(traverse_module_state->__pyx_n_s_cellxgene_oi);
-  Py_VISIT(traverse_module_state->__pyx_n_s_chromatinhd_models_pred_loader_f);
+  Py_VISIT(traverse_module_state->__pyx_n_s_chromatinhd_loaders_fragments_he);
   Py_VISIT(traverse_module_state->__pyx_n_s_class);
   Py_VISIT(traverse_module_state->__pyx_n_s_class_getitem);
   Py_VISIT(traverse_module_state->__pyx_n_s_cline_in_traceback);
@@ -3896,7 +3896,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_shape);
   Py_VISIT(traverse_module_state->__pyx_n_s_size);
   Py_VISIT(traverse_module_state->__pyx_n_s_spec);
-  Py_VISIT(traverse_module_state->__pyx_kp_s_src_chromatinhd_models_pred_load);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_src_chromatinhd_loaders_fragment);
   Py_VISIT(traverse_module_state->__pyx_n_s_start);
   Py_VISIT(traverse_module_state->__pyx_n_s_step);
   Py_VISIT(traverse_module_state->__pyx_n_s_stop);
@@ -4068,7 +4068,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_cellxgene_indptr __pyx_mstate_global->__pyx_n_s_cellxgene_indptr
 #define __pyx_n_s_cellxgene_ix __pyx_mstate_global->__pyx_n_s_cellxgene_ix
 #define __pyx_n_s_cellxgene_oi __pyx_mstate_global->__pyx_n_s_cellxgene_oi
-#define __pyx_n_s_chromatinhd_models_pred_loader_f __pyx_mstate_global->__pyx_n_s_chromatinhd_models_pred_loader_f
+#define __pyx_n_s_chromatinhd_loaders_fragments_he __pyx_mstate_global->__pyx_n_s_chromatinhd_loaders_fragments_he
 #define __pyx_n_s_class __pyx_mstate_global->__pyx_n_s_class
 #define __pyx_n_s_class_getitem __pyx_mstate_global->__pyx_n_s_class_getitem
 #define __pyx_n_s_cline_in_traceback __pyx_mstate_global->__pyx_n_s_cline_in_traceback
@@ -4147,7 +4147,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_shape __pyx_mstate_global->__pyx_n_s_shape
 #define __pyx_n_s_size __pyx_mstate_global->__pyx_n_s_size
 #define __pyx_n_s_spec __pyx_mstate_global->__pyx_n_s_spec
-#define __pyx_kp_s_src_chromatinhd_models_pred_load __pyx_mstate_global->__pyx_kp_s_src_chromatinhd_models_pred_load
+#define __pyx_kp_s_src_chromatinhd_loaders_fragment __pyx_mstate_global->__pyx_kp_s_src_chromatinhd_loaders_fragment
 #define __pyx_n_s_start __pyx_mstate_global->__pyx_n_s_start
 #define __pyx_n_s_step __pyx_mstate_global->__pyx_n_s_step
 #define __pyx_n_s_stop __pyx_mstate_global->__pyx_n_s_stop
@@ -18761,7 +18761,7 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   return __pyx_r;
 }
 
-/* "chromatinhd/models/pred/loader/fragments_helpers.pyx":13
+/* "chromatinhd/loaders/fragments_helpers.pyx":13
  * ctypedef np.float64_t FLOAT64_t
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
@@ -18770,15 +18770,15 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_11chromatinhd_6models_4pred_6loader_17fragments_helpers_1extract_fragments(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_11chromatinhd_7loaders_17fragments_helpers_1extract_fragments(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_11chromatinhd_6models_4pred_6loader_17fragments_helpers_1extract_fragments = {"extract_fragments", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_11chromatinhd_6models_4pred_6loader_17fragments_helpers_1extract_fragments, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_11chromatinhd_6models_4pred_6loader_17fragments_helpers_1extract_fragments(PyObject *__pyx_self, 
+static PyMethodDef __pyx_mdef_11chromatinhd_7loaders_17fragments_helpers_1extract_fragments = {"extract_fragments", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_11chromatinhd_7loaders_17fragments_helpers_1extract_fragments, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_11chromatinhd_7loaders_17fragments_helpers_1extract_fragments(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -18889,13 +18889,13 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[5] = __Pyx_Arg_FASTCALL(__pyx_args, 5);
       values[6] = __Pyx_Arg_FASTCALL(__pyx_args, 6);
     }
-    __pyx_v_cellxgene_oi = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cellxgene_oi.memview)) __PYX_ERR(0, 17, __pyx_L3_error)
-    __pyx_v_cellxgene_indptr = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cellxgene_indptr.memview)) __PYX_ERR(0, 18, __pyx_L3_error)
-    __pyx_v_coordinates = __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_coordinates.memview)) __PYX_ERR(0, 19, __pyx_L3_error)
-    __pyx_v_genemapping = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_genemapping.memview)) __PYX_ERR(0, 20, __pyx_L3_error)
-    __pyx_v_out_coordinates = __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[4], PyBUF_WRITABLE); if (unlikely(!__pyx_v_out_coordinates.memview)) __PYX_ERR(0, 21, __pyx_L3_error)
-    __pyx_v_out_genemapping = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[5], PyBUF_WRITABLE); if (unlikely(!__pyx_v_out_genemapping.memview)) __PYX_ERR(0, 22, __pyx_L3_error)
-    __pyx_v_out_local_cellxgene_ix = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[6], PyBUF_WRITABLE); if (unlikely(!__pyx_v_out_local_cellxgene_ix.memview)) __PYX_ERR(0, 23, __pyx_L3_error)
+    __pyx_v_cellxgene_oi = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cellxgene_oi.memview)) __PYX_ERR(0, 17, __pyx_L3_error)
+    __pyx_v_cellxgene_indptr = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cellxgene_indptr.memview)) __PYX_ERR(0, 18, __pyx_L3_error)
+    __pyx_v_coordinates = __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_coordinates.memview)) __PYX_ERR(0, 19, __pyx_L3_error)
+    __pyx_v_genemapping = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_genemapping.memview)) __PYX_ERR(0, 20, __pyx_L3_error)
+    __pyx_v_out_coordinates = __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[4], PyBUF_WRITABLE); if (unlikely(!__pyx_v_out_coordinates.memview)) __PYX_ERR(0, 21, __pyx_L3_error)
+    __pyx_v_out_genemapping = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[5], PyBUF_WRITABLE); if (unlikely(!__pyx_v_out_genemapping.memview)) __PYX_ERR(0, 22, __pyx_L3_error)
+    __pyx_v_out_local_cellxgene_ix = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[6], PyBUF_WRITABLE); if (unlikely(!__pyx_v_out_local_cellxgene_ix.memview)) __PYX_ERR(0, 23, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
@@ -18908,11 +18908,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_out_coordinates, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_out_genemapping, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_out_local_cellxgene_ix, 1);
-  __Pyx_AddTraceback("chromatinhd.models.pred.loader.fragments_helpers.extract_fragments", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("chromatinhd.loaders.fragments_helpers.extract_fragments", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helpers_extract_fragments(__pyx_self, __pyx_v_cellxgene_oi, __pyx_v_cellxgene_indptr, __pyx_v_coordinates, __pyx_v_genemapping, __pyx_v_out_coordinates, __pyx_v_out_genemapping, __pyx_v_out_local_cellxgene_ix);
+  __pyx_r = __pyx_pf_11chromatinhd_7loaders_17fragments_helpers_extract_fragments(__pyx_self, __pyx_v_cellxgene_oi, __pyx_v_cellxgene_indptr, __pyx_v_coordinates, __pyx_v_genemapping, __pyx_v_out_coordinates, __pyx_v_out_genemapping, __pyx_v_out_local_cellxgene_ix);
 
   /* function exit code */
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_cellxgene_oi, 1);
@@ -18926,31 +18926,31 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helpers_extract_fragments(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_cellxgene_oi, __Pyx_memviewslice __pyx_v_cellxgene_indptr, __Pyx_memviewslice __pyx_v_coordinates, __Pyx_memviewslice __pyx_v_genemapping, __Pyx_memviewslice __pyx_v_out_coordinates, __Pyx_memviewslice __pyx_v_out_genemapping, __Pyx_memviewslice __pyx_v_out_local_cellxgene_ix) {
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_out_ix;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_local_cellxgene_ix;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_cellxgene_ix;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_position;
+static PyObject *__pyx_pf_11chromatinhd_7loaders_17fragments_helpers_extract_fragments(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_cellxgene_oi, __Pyx_memviewslice __pyx_v_cellxgene_indptr, __Pyx_memviewslice __pyx_v_coordinates, __Pyx_memviewslice __pyx_v_genemapping, __Pyx_memviewslice __pyx_v_out_coordinates, __Pyx_memviewslice __pyx_v_out_genemapping, __Pyx_memviewslice __pyx_v_out_local_cellxgene_ix) {
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_out_ix;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_local_cellxgene_ix;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_cellxgene_ix;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_position;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   Py_ssize_t __pyx_t_1;
   Py_ssize_t __pyx_t_2;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_3;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_4;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_5;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_6;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_7;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_3;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_4;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_5;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_6;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_7;
   __Pyx_memviewslice __pyx_t_8 = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_t_9 = { 0, 0, { 0 }, { 0 }, { 0 } };
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_10;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_11;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_10;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_11;
   PyObject *__pyx_t_12 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("extract_fragments", 0);
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":26
+  /* "chromatinhd/loaders/fragments_helpers.pyx":26
  * ):
  *     cdef INT64_t out_ix, local_cellxgene_ix, cellxgene_ix, position
  *     out_ix = 0 # will store where in the output array we are currently             # <<<<<<<<<<<<<<
@@ -18959,7 +18959,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  */
   __pyx_v_out_ix = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":27
+  /* "chromatinhd/loaders/fragments_helpers.pyx":27
  *     cdef INT64_t out_ix, local_cellxgene_ix, cellxgene_ix, position
  *     out_ix = 0 # will store where in the output array we are currently
  *     local_cellxgene_ix = 0 # will store the current fragment counting from 0             # <<<<<<<<<<<<<<
@@ -18968,7 +18968,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  */
   __pyx_v_local_cellxgene_ix = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":29
+  /* "chromatinhd/loaders/fragments_helpers.pyx":29
  *     local_cellxgene_ix = 0 # will store the current fragment counting from 0
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -18984,7 +18984,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
       #endif
       /*try:*/ {
 
-        /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":30
+        /* "chromatinhd/loaders/fragments_helpers.pyx":30
  * 
  *     with nogil:
  *         for local_cellxgene_ix in range(cellxgene_oi.shape[0]):             # <<<<<<<<<<<<<<
@@ -18996,7 +18996,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
         for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
           __pyx_v_local_cellxgene_ix = __pyx_t_3;
 
-          /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":31
+          /* "chromatinhd/loaders/fragments_helpers.pyx":31
  *     with nogil:
  *         for local_cellxgene_ix in range(cellxgene_oi.shape[0]):
  *             cellxgene_ix = cellxgene_oi[local_cellxgene_ix]             # <<<<<<<<<<<<<<
@@ -19004,9 +19004,9 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  *                 out_coordinates[out_ix] = coordinates[position]
  */
           __pyx_t_4 = __pyx_v_local_cellxgene_ix;
-          __pyx_v_cellxgene_ix = (*((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_cellxgene_oi.data) + __pyx_t_4)) )));
+          __pyx_v_cellxgene_ix = (*((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_cellxgene_oi.data) + __pyx_t_4)) )));
 
-          /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":32
+          /* "chromatinhd/loaders/fragments_helpers.pyx":32
  *         for local_cellxgene_ix in range(cellxgene_oi.shape[0]):
  *             cellxgene_ix = cellxgene_oi[local_cellxgene_ix]
  *             for position in range(cellxgene_indptr[cellxgene_ix], cellxgene_indptr[cellxgene_ix+1]):             # <<<<<<<<<<<<<<
@@ -19014,13 +19014,13 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  *                 out_genemapping[out_ix] = genemapping[position]
  */
           __pyx_t_4 = (__pyx_v_cellxgene_ix + 1);
-          __pyx_t_5 = (*((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_cellxgene_indptr.data) + __pyx_t_4)) )));
+          __pyx_t_5 = (*((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_cellxgene_indptr.data) + __pyx_t_4)) )));
           __pyx_t_4 = __pyx_v_cellxgene_ix;
           __pyx_t_6 = __pyx_t_5;
-          for (__pyx_t_7 = (*((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_cellxgene_indptr.data) + __pyx_t_4)) ))); __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
+          for (__pyx_t_7 = (*((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_cellxgene_indptr.data) + __pyx_t_4)) ))); __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
             __pyx_v_position = __pyx_t_7;
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":33
+            /* "chromatinhd/loaders/fragments_helpers.pyx":33
  *             cellxgene_ix = cellxgene_oi[local_cellxgene_ix]
  *             for position in range(cellxgene_indptr[cellxgene_ix], cellxgene_indptr[cellxgene_ix+1]):
  *                 out_coordinates[out_ix] = coordinates[position]             # <<<<<<<<<<<<<<
@@ -19059,7 +19059,7 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
             __PYX_XCLEAR_MEMVIEW(&__pyx_t_8, 0);
             __pyx_t_8.memview = NULL; __pyx_t_8.data = NULL;
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":34
+            /* "chromatinhd/loaders/fragments_helpers.pyx":34
  *             for position in range(cellxgene_indptr[cellxgene_ix], cellxgene_indptr[cellxgene_ix+1]):
  *                 out_coordinates[out_ix] = coordinates[position]
  *                 out_genemapping[out_ix] = genemapping[position]             # <<<<<<<<<<<<<<
@@ -19068,9 +19068,9 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
  */
             __pyx_t_10 = __pyx_v_position;
             __pyx_t_11 = __pyx_v_out_ix;
-            *((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_out_genemapping.data) + __pyx_t_11)) )) = (*((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_genemapping.data) + __pyx_t_10)) )));
+            *((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_out_genemapping.data) + __pyx_t_11)) )) = (*((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_genemapping.data) + __pyx_t_10)) )));
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":35
+            /* "chromatinhd/loaders/fragments_helpers.pyx":35
  *                 out_coordinates[out_ix] = coordinates[position]
  *                 out_genemapping[out_ix] = genemapping[position]
  *                 out_local_cellxgene_ix[out_ix] = local_cellxgene_ix             # <<<<<<<<<<<<<<
@@ -19078,9 +19078,9 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
  *                 out_ix += 1
  */
             __pyx_t_10 = __pyx_v_out_ix;
-            *((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_out_local_cellxgene_ix.data) + __pyx_t_10)) )) = __pyx_v_local_cellxgene_ix;
+            *((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_out_local_cellxgene_ix.data) + __pyx_t_10)) )) = __pyx_v_local_cellxgene_ix;
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":37
+            /* "chromatinhd/loaders/fragments_helpers.pyx":37
  *                 out_local_cellxgene_ix[out_ix] = local_cellxgene_ix
  * 
  *                 out_ix += 1             # <<<<<<<<<<<<<<
@@ -19092,7 +19092,7 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
         }
       }
 
-      /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":29
+      /* "chromatinhd/loaders/fragments_helpers.pyx":29
  *     local_cellxgene_ix = 0 # will store the current fragment counting from 0
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -19118,7 +19118,7 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
       }
   }
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":39
+  /* "chromatinhd/loaders/fragments_helpers.pyx":39
  *                 out_ix += 1
  * 
  *     return out_ix             # <<<<<<<<<<<<<<
@@ -19132,7 +19132,7 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
   __pyx_t_12 = 0;
   goto __pyx_L0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":13
+  /* "chromatinhd/loaders/fragments_helpers.pyx":13
  * ctypedef np.float64_t FLOAT64_t
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
@@ -19145,7 +19145,7 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_8, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_t_9, 1);
   __Pyx_XDECREF(__pyx_t_12);
-  __Pyx_AddTraceback("chromatinhd.models.pred.loader.fragments_helpers.extract_fragments", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("chromatinhd.loaders.fragments_helpers.extract_fragments", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -19153,7 +19153,7 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
   return __pyx_r;
 }
 
-/* "chromatinhd/models/pred/loader/fragments_helpers.pyx":42
+/* "chromatinhd/loaders/fragments_helpers.pyx":42
  * 
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
@@ -19162,15 +19162,15 @@ if (unlikely((__pyx_memoryview_copy_contents(__pyx_t_8, __pyx_t_9, 1, 1, 0) < 0)
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_11chromatinhd_6models_4pred_6loader_17fragments_helpers_3multiple_arange(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_11chromatinhd_7loaders_17fragments_helpers_3multiple_arange(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_11chromatinhd_6models_4pred_6loader_17fragments_helpers_3multiple_arange = {"multiple_arange", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_11chromatinhd_6models_4pred_6loader_17fragments_helpers_3multiple_arange, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_11chromatinhd_6models_4pred_6loader_17fragments_helpers_3multiple_arange(PyObject *__pyx_self, 
+static PyMethodDef __pyx_mdef_11chromatinhd_7loaders_17fragments_helpers_3multiple_arange = {"multiple_arange", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_11chromatinhd_7loaders_17fragments_helpers_3multiple_arange, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_11chromatinhd_7loaders_17fragments_helpers_3multiple_arange(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -19248,10 +19248,10 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[2] = __Pyx_Arg_FASTCALL(__pyx_args, 2);
       values[3] = __Pyx_Arg_FASTCALL(__pyx_args, 3);
     }
-    __pyx_v_a = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_a.memview)) __PYX_ERR(0, 46, __pyx_L3_error)
-    __pyx_v_b = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_b.memview)) __PYX_ERR(0, 47, __pyx_L3_error)
-    __pyx_v_ixs = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_ixs.memview)) __PYX_ERR(0, 48, __pyx_L3_error)
-    __pyx_v_local_cellxregion_ix = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_local_cellxregion_ix.memview)) __PYX_ERR(0, 49, __pyx_L3_error)
+    __pyx_v_a = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_a.memview)) __PYX_ERR(0, 46, __pyx_L3_error)
+    __pyx_v_b = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_b.memview)) __PYX_ERR(0, 47, __pyx_L3_error)
+    __pyx_v_ixs = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_ixs.memview)) __PYX_ERR(0, 48, __pyx_L3_error)
+    __pyx_v_local_cellxregion_ix = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_local_cellxregion_ix.memview)) __PYX_ERR(0, 49, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
@@ -19261,11 +19261,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_b, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_ixs, 1);
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_local_cellxregion_ix, 1);
-  __Pyx_AddTraceback("chromatinhd.models.pred.loader.fragments_helpers.multiple_arange", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("chromatinhd.loaders.fragments_helpers.multiple_arange", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helpers_2multiple_arange(__pyx_self, __pyx_v_a, __pyx_v_b, __pyx_v_ixs, __pyx_v_local_cellxregion_ix);
+  __pyx_r = __pyx_pf_11chromatinhd_7loaders_17fragments_helpers_2multiple_arange(__pyx_self, __pyx_v_a, __pyx_v_b, __pyx_v_ixs, __pyx_v_local_cellxregion_ix);
 
   /* function exit code */
   __PYX_XCLEAR_MEMVIEW(&__pyx_v_a, 1);
@@ -19276,27 +19276,27 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helpers_2multiple_arange(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_a, __Pyx_memviewslice __pyx_v_b, __Pyx_memviewslice __pyx_v_ixs, __Pyx_memviewslice __pyx_v_local_cellxregion_ix) {
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_out_ix;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_pair_ix;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_v_position;
+static PyObject *__pyx_pf_11chromatinhd_7loaders_17fragments_helpers_2multiple_arange(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_a, __Pyx_memviewslice __pyx_v_b, __Pyx_memviewslice __pyx_v_ixs, __Pyx_memviewslice __pyx_v_local_cellxregion_ix) {
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_out_ix;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_pair_ix;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_v_position;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   Py_ssize_t __pyx_t_1;
   Py_ssize_t __pyx_t_2;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_3;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_4;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_5;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_6;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_7;
-  __pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t __pyx_t_8;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_3;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_4;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_5;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_6;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_7;
+  __pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t __pyx_t_8;
   PyObject *__pyx_t_9 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("multiple_arange", 0);
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":52
+  /* "chromatinhd/loaders/fragments_helpers.pyx":52
  * ):
  *     cdef INT64_t out_ix, pair_ix, position
  *     out_ix = 0 # will store where in the output array we are currently             # <<<<<<<<<<<<<<
@@ -19305,7 +19305,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  */
   __pyx_v_out_ix = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":53
+  /* "chromatinhd/loaders/fragments_helpers.pyx":53
  *     cdef INT64_t out_ix, pair_ix, position
  *     out_ix = 0 # will store where in the output array we are currently
  *     pair_ix = 0 # will store the current a, b pair index             # <<<<<<<<<<<<<<
@@ -19314,7 +19314,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  */
   __pyx_v_pair_ix = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":55
+  /* "chromatinhd/loaders/fragments_helpers.pyx":55
  *     pair_ix = 0 # will store the current a, b pair index
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -19330,7 +19330,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
       #endif
       /*try:*/ {
 
-        /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":56
+        /* "chromatinhd/loaders/fragments_helpers.pyx":56
  * 
  *     with nogil:
  *         for pair_ix in range(a.shape[0]):             # <<<<<<<<<<<<<<
@@ -19342,7 +19342,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
         for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
           __pyx_v_pair_ix = __pyx_t_3;
 
-          /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":57
+          /* "chromatinhd/loaders/fragments_helpers.pyx":57
  *     with nogil:
  *         for pair_ix in range(a.shape[0]):
  *             for position in range(a[pair_ix], b[pair_ix]):             # <<<<<<<<<<<<<<
@@ -19350,13 +19350,13 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  *                 local_cellxregion_ix[out_ix] = pair_ix
  */
           __pyx_t_4 = __pyx_v_pair_ix;
-          __pyx_t_5 = (*((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_b.data) + __pyx_t_4)) )));
+          __pyx_t_5 = (*((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_b.data) + __pyx_t_4)) )));
           __pyx_t_4 = __pyx_v_pair_ix;
           __pyx_t_6 = __pyx_t_5;
-          for (__pyx_t_7 = (*((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_a.data) + __pyx_t_4)) ))); __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
+          for (__pyx_t_7 = (*((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_a.data) + __pyx_t_4)) ))); __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
             __pyx_v_position = __pyx_t_7;
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":58
+            /* "chromatinhd/loaders/fragments_helpers.pyx":58
  *         for pair_ix in range(a.shape[0]):
  *             for position in range(a[pair_ix], b[pair_ix]):
  *                 ixs[out_ix] = position             # <<<<<<<<<<<<<<
@@ -19364,9 +19364,9 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  *                 out_ix += 1
  */
             __pyx_t_8 = __pyx_v_out_ix;
-            *((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_ixs.data) + __pyx_t_8)) )) = __pyx_v_position;
+            *((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_ixs.data) + __pyx_t_8)) )) = __pyx_v_position;
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":59
+            /* "chromatinhd/loaders/fragments_helpers.pyx":59
  *             for position in range(a[pair_ix], b[pair_ix]):
  *                 ixs[out_ix] = position
  *                 local_cellxregion_ix[out_ix] = pair_ix             # <<<<<<<<<<<<<<
@@ -19374,9 +19374,9 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
  *             pair_ix += 1
  */
             __pyx_t_8 = __pyx_v_out_ix;
-            *((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t *) __pyx_v_local_cellxregion_ix.data) + __pyx_t_8)) )) = __pyx_v_pair_ix;
+            *((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) ( /* dim=0 */ ((char *) (((__pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t *) __pyx_v_local_cellxregion_ix.data) + __pyx_t_8)) )) = __pyx_v_pair_ix;
 
-            /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":60
+            /* "chromatinhd/loaders/fragments_helpers.pyx":60
  *                 ixs[out_ix] = position
  *                 local_cellxregion_ix[out_ix] = pair_ix
  *                 out_ix += 1             # <<<<<<<<<<<<<<
@@ -19386,7 +19386,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
             __pyx_v_out_ix = (__pyx_v_out_ix + 1);
           }
 
-          /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":61
+          /* "chromatinhd/loaders/fragments_helpers.pyx":61
  *                 local_cellxregion_ix[out_ix] = pair_ix
  *                 out_ix += 1
  *             pair_ix += 1             # <<<<<<<<<<<<<<
@@ -19397,7 +19397,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
         }
       }
 
-      /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":55
+      /* "chromatinhd/loaders/fragments_helpers.pyx":55
  *     pair_ix = 0 # will store the current a, b pair index
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -19416,7 +19416,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
       }
   }
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":63
+  /* "chromatinhd/loaders/fragments_helpers.pyx":63
  *             pair_ix += 1
  * 
  *     return out_ix             # <<<<<<<<<<<<<<
@@ -19428,7 +19428,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
   __pyx_t_9 = 0;
   goto __pyx_L0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":42
+  /* "chromatinhd/loaders/fragments_helpers.pyx":42
  * 
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
@@ -19439,7 +19439,7 @@ static PyObject *__pyx_pf_11chromatinhd_6models_4pred_6loader_17fragments_helper
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_9);
-  __Pyx_AddTraceback("chromatinhd.models.pred.loader.fragments_helpers.multiple_arange", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("chromatinhd.loaders.fragments_helpers.multiple_arange", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -19577,7 +19577,7 @@ static PyType_Slot __pyx_type___pyx_array_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_array_spec = {
-  "chromatinhd.models.pred.loader.fragments_helpers.array",
+  "chromatinhd.loaders.fragments_helpers.array",
   sizeof(struct __pyx_array_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_SEQUENCE,
@@ -19623,7 +19623,7 @@ static PyBufferProcs __pyx_tp_as_buffer_array = {
 
 static PyTypeObject __pyx_type___pyx_array = {
   PyVarObject_HEAD_INIT(0, 0)
-  "chromatinhd.models.pred.loader.fragments_helpers.""array", /*tp_name*/
+  "chromatinhd.loaders.fragments_helpers.""array", /*tp_name*/
   sizeof(struct __pyx_array_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_array, /*tp_dealloc*/
@@ -19776,7 +19776,7 @@ static PyType_Slot __pyx_type___pyx_MemviewEnum_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_MemviewEnum_spec = {
-  "chromatinhd.models.pred.loader.fragments_helpers.Enum",
+  "chromatinhd.loaders.fragments_helpers.Enum",
   sizeof(struct __pyx_MemviewEnum_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
@@ -19786,7 +19786,7 @@ static PyType_Spec __pyx_type___pyx_MemviewEnum_spec = {
 
 static PyTypeObject __pyx_type___pyx_MemviewEnum = {
   PyVarObject_HEAD_INIT(0, 0)
-  "chromatinhd.models.pred.loader.fragments_helpers.""Enum", /*tp_name*/
+  "chromatinhd.loaders.fragments_helpers.""Enum", /*tp_name*/
   sizeof(struct __pyx_MemviewEnum_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_Enum, /*tp_dealloc*/
@@ -20076,7 +20076,7 @@ static PyType_Slot __pyx_type___pyx_memoryview_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_memoryview_spec = {
-  "chromatinhd.models.pred.loader.fragments_helpers.memoryview",
+  "chromatinhd.loaders.fragments_helpers.memoryview",
   sizeof(struct __pyx_memoryview_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
@@ -20122,7 +20122,7 @@ static PyBufferProcs __pyx_tp_as_buffer_memoryview = {
 
 static PyTypeObject __pyx_type___pyx_memoryview = {
   PyVarObject_HEAD_INIT(0, 0)
-  "chromatinhd.models.pred.loader.fragments_helpers.""memoryview", /*tp_name*/
+  "chromatinhd.loaders.fragments_helpers.""memoryview", /*tp_name*/
   sizeof(struct __pyx_memoryview_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_memoryview, /*tp_dealloc*/
@@ -20274,7 +20274,7 @@ static PyType_Slot __pyx_type___pyx_memoryviewslice_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_memoryviewslice_spec = {
-  "chromatinhd.models.pred.loader.fragments_helpers._memoryviewslice",
+  "chromatinhd.loaders.fragments_helpers._memoryviewslice",
   sizeof(struct __pyx_memoryviewslice_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC|Py_TPFLAGS_SEQUENCE,
@@ -20284,7 +20284,7 @@ static PyType_Spec __pyx_type___pyx_memoryviewslice_spec = {
 
 static PyTypeObject __pyx_type___pyx_memoryviewslice = {
   PyVarObject_HEAD_INIT(0, 0)
-  "chromatinhd.models.pred.loader.fragments_helpers.""_memoryviewslice", /*tp_name*/
+  "chromatinhd.loaders.fragments_helpers.""_memoryviewslice", /*tp_name*/
   sizeof(struct __pyx_memoryviewslice_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc__memoryviewslice, /*tp_dealloc*/
@@ -20439,7 +20439,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_cellxgene_indptr, __pyx_k_cellxgene_indptr, sizeof(__pyx_k_cellxgene_indptr), 0, 0, 1, 1},
     {&__pyx_n_s_cellxgene_ix, __pyx_k_cellxgene_ix, sizeof(__pyx_k_cellxgene_ix), 0, 0, 1, 1},
     {&__pyx_n_s_cellxgene_oi, __pyx_k_cellxgene_oi, sizeof(__pyx_k_cellxgene_oi), 0, 0, 1, 1},
-    {&__pyx_n_s_chromatinhd_models_pred_loader_f, __pyx_k_chromatinhd_models_pred_loader_f, sizeof(__pyx_k_chromatinhd_models_pred_loader_f), 0, 0, 1, 1},
+    {&__pyx_n_s_chromatinhd_loaders_fragments_he, __pyx_k_chromatinhd_loaders_fragments_he, sizeof(__pyx_k_chromatinhd_loaders_fragments_he), 0, 0, 1, 1},
     {&__pyx_n_s_class, __pyx_k_class, sizeof(__pyx_k_class), 0, 0, 1, 1},
     {&__pyx_n_s_class_getitem, __pyx_k_class_getitem, sizeof(__pyx_k_class_getitem), 0, 0, 1, 1},
     {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
@@ -20518,7 +20518,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_shape, __pyx_k_shape, sizeof(__pyx_k_shape), 0, 0, 1, 1},
     {&__pyx_n_s_size, __pyx_k_size, sizeof(__pyx_k_size), 0, 0, 1, 1},
     {&__pyx_n_s_spec, __pyx_k_spec, sizeof(__pyx_k_spec), 0, 0, 1, 1},
-    {&__pyx_kp_s_src_chromatinhd_models_pred_load, __pyx_k_src_chromatinhd_models_pred_load, sizeof(__pyx_k_src_chromatinhd_models_pred_load), 0, 0, 1, 0},
+    {&__pyx_kp_s_src_chromatinhd_loaders_fragment, __pyx_k_src_chromatinhd_loaders_fragment, sizeof(__pyx_k_src_chromatinhd_loaders_fragment), 0, 0, 1, 0},
     {&__pyx_n_s_start, __pyx_k_start, sizeof(__pyx_k_start), 0, 0, 1, 1},
     {&__pyx_n_s_step, __pyx_k_step, sizeof(__pyx_k_step), 0, 0, 1, 1},
     {&__pyx_n_s_stop, __pyx_k_stop, sizeof(__pyx_k_stop), 0, 0, 1, 1},
@@ -20720,7 +20720,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GIVEREF(__pyx_tuple__20);
   __pyx_codeobj__21 = (PyObject*)__Pyx_PyCode_New(3, 0, 0, 5, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__20, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_pyx_unpickle_Enum, 1, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__21)) __PYX_ERR(1, 1, __pyx_L1_error)
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":13
+  /* "chromatinhd/loaders/fragments_helpers.pyx":13
  * ctypedef np.float64_t FLOAT64_t
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
@@ -20730,9 +20730,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__22 = PyTuple_Pack(11, __pyx_n_s_cellxgene_oi, __pyx_n_s_cellxgene_indptr, __pyx_n_s_coordinates, __pyx_n_s_genemapping, __pyx_n_s_out_coordinates, __pyx_n_s_out_genemapping, __pyx_n_s_out_local_cellxgene_ix, __pyx_n_s_out_ix, __pyx_n_s_local_cellxgene_ix, __pyx_n_s_cellxgene_ix, __pyx_n_s_position); if (unlikely(!__pyx_tuple__22)) __PYX_ERR(0, 13, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__22);
   __Pyx_GIVEREF(__pyx_tuple__22);
-  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(7, 0, 0, 11, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_chromatinhd_models_pred_load, __pyx_n_s_extract_fragments, 13, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 13, __pyx_L1_error)
+  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(7, 0, 0, 11, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_chromatinhd_loaders_fragment, __pyx_n_s_extract_fragments, 13, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 13, __pyx_L1_error)
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":42
+  /* "chromatinhd/loaders/fragments_helpers.pyx":42
  * 
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
@@ -20742,7 +20742,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__24 = PyTuple_Pack(7, __pyx_n_s_a, __pyx_n_s_b, __pyx_n_s_ixs, __pyx_n_s_local_cellxregion_ix, __pyx_n_s_out_ix, __pyx_n_s_pair_ix, __pyx_n_s_position); if (unlikely(!__pyx_tuple__24)) __PYX_ERR(0, 42, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__24);
   __Pyx_GIVEREF(__pyx_tuple__24);
-  __pyx_codeobj__25 = (PyObject*)__Pyx_PyCode_New(4, 0, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__24, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_chromatinhd_models_pred_load, __pyx_n_s_multiple_arange, 42, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__25)) __PYX_ERR(0, 42, __pyx_L1_error)
+  __pyx_codeobj__25 = (PyObject*)__Pyx_PyCode_New(4, 0, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__24, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_src_chromatinhd_loaders_fragment, __pyx_n_s_multiple_arange, 42, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__25)) __PYX_ERR(0, 42, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -21293,14 +21293,14 @@ if (!__Pyx_RefNanny) {
   #if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
   if (__Pyx_init_sys_getdefaultencoding_params() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
-  if (__pyx_module_is_main_chromatinhd__models__pred__loader__fragments_helpers) {
+  if (__pyx_module_is_main_chromatinhd__loaders__fragments_helpers) {
     if (PyObject_SetAttr(__pyx_m, __pyx_n_s_name_2, __pyx_n_s_main) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   }
   #if PY_MAJOR_VERSION >= 3
   {
     PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(0, 1, __pyx_L1_error)
-    if (!PyDict_GetItemString(modules, "chromatinhd.models.pred.loader.fragments_helpers")) {
-      if (unlikely((PyDict_SetItemString(modules, "chromatinhd.models.pred.loader.fragments_helpers", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
+    if (!PyDict_GetItemString(modules, "chromatinhd.loaders.fragments_helpers")) {
+      if (unlikely((PyDict_SetItemString(modules, "chromatinhd.loaders.fragments_helpers", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
     }
   }
   #endif
@@ -21834,7 +21834,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_pyx_unpickle_Enum, __pyx_t_7) < 0) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":4
+  /* "chromatinhd/loaders/fragments_helpers.pyx":4
  * #cython: language_level=3
  * cimport cython
  * import numpy as np             # <<<<<<<<<<<<<<
@@ -21846,7 +21846,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_np, __pyx_t_7) < 0) __PYX_ERR(0, 4, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":6
+  /* "chromatinhd/loaders/fragments_helpers.pyx":6
  * import numpy as np
  * cimport numpy as np
  * np.import_array()             # <<<<<<<<<<<<<<
@@ -21855,7 +21855,7 @@ if (!__Pyx_RefNanny) {
  */
   __pyx_t_9 = __pyx_f_5numpy_import_array(); if (unlikely(__pyx_t_9 == ((int)-1))) __PYX_ERR(0, 6, __pyx_L1_error)
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":8
+  /* "chromatinhd/loaders/fragments_helpers.pyx":8
  * np.import_array()
  * 
  * INT64 = np.int64             # <<<<<<<<<<<<<<
@@ -21870,7 +21870,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_INT64, __pyx_t_4) < 0) __PYX_ERR(0, 8, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":10
+  /* "chromatinhd/loaders/fragments_helpers.pyx":10
  * INT64 = np.int64
  * ctypedef np.int64_t INT64_t
  * FLOAT64 = np.float64             # <<<<<<<<<<<<<<
@@ -21885,31 +21885,31 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_FLOAT64, __pyx_t_7) < 0) __PYX_ERR(0, 10, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":13
+  /* "chromatinhd/loaders/fragments_helpers.pyx":13
  * ctypedef np.float64_t FLOAT64_t
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
  * @cython.wraparound(False)  # turn off negative index wrapping for entire function
  * @cython.cdivision
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_11chromatinhd_6models_4pred_6loader_17fragments_helpers_1extract_fragments, 0, __pyx_n_s_extract_fragments, NULL, __pyx_n_s_chromatinhd_models_pred_loader_f, __pyx_d, ((PyObject *)__pyx_codeobj__23)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 13, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_11chromatinhd_7loaders_17fragments_helpers_1extract_fragments, 0, __pyx_n_s_extract_fragments, NULL, __pyx_n_s_chromatinhd_loaders_fragments_he, __pyx_d, ((PyObject *)__pyx_codeobj__23)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 13, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_extract_fragments, __pyx_t_7) < 0) __PYX_ERR(0, 13, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":42
+  /* "chromatinhd/loaders/fragments_helpers.pyx":42
  * 
  * 
  * @cython.boundscheck(False) # turn off bounds-checking for entire function             # <<<<<<<<<<<<<<
  * @cython.wraparound(False)  # turn off negative index wrapping for entire function
  * @cython.cdivision
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_11chromatinhd_6models_4pred_6loader_17fragments_helpers_3multiple_arange, 0, __pyx_n_s_multiple_arange, NULL, __pyx_n_s_chromatinhd_models_pred_loader_f, __pyx_d, ((PyObject *)__pyx_codeobj__25)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 42, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_11chromatinhd_7loaders_17fragments_helpers_3multiple_arange, 0, __pyx_n_s_multiple_arange, NULL, __pyx_n_s_chromatinhd_loaders_fragments_he, __pyx_d, ((PyObject *)__pyx_codeobj__25)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 42, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_multiple_arange, __pyx_t_7) < 0) __PYX_ERR(0, 42, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "chromatinhd/models/pred/loader/fragments_helpers.pyx":1
+  /* "chromatinhd/loaders/fragments_helpers.pyx":1
  * #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION             # <<<<<<<<<<<<<<
  * #cython: language_level=3
  * cimport cython
@@ -21928,7 +21928,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_XDECREF(__pyx_t_7);
   if (__pyx_m) {
     if (__pyx_d && stringtab_initialized) {
-      __Pyx_AddTraceback("init chromatinhd.models.pred.loader.fragments_helpers", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init chromatinhd.loaders.fragments_helpers", __pyx_clineno, __pyx_lineno, __pyx_filename);
     }
     #if !CYTHON_USE_MODULE_STATE
     Py_CLEAR(__pyx_m);
@@ -21942,7 +21942,7 @@ if (!__Pyx_RefNanny) {
     }
     #endif
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init chromatinhd.models.pred.loader.fragments_helpers");
+    PyErr_SetString(PyExc_ImportError, "init chromatinhd.loaders.fragments_helpers");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
@@ -27086,7 +27086,7 @@ no_fail:
 }
 
 /* ObjectToMemviewSlice */
-  static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(PyObject *obj, int writable_flag) {
+  static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(PyObject *obj, int writable_flag) {
     __Pyx_memviewslice result = { 0, 0, { 0 }, { 0 }, { 0 } };
     __Pyx_BufFmt_StackElem stack[1];
     int axes_specs[] = { (__Pyx_MEMVIEW_DIRECT | __Pyx_MEMVIEW_CONTIG) };
@@ -27097,7 +27097,7 @@ no_fail:
     }
     retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, __Pyx_IS_C_CONTIG,
                                                  (PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) | writable_flag, 1,
-                                                 &__Pyx_TypeInfo_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t, stack,
+                                                 &__Pyx_TypeInfo_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t, stack,
                                                  &result, obj);
     if (unlikely(retcode == -1))
         goto __pyx_fail;
@@ -27109,7 +27109,7 @@ __pyx_fail:
 }
 
 /* ObjectToMemviewSlice */
-  static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t(PyObject *obj, int writable_flag) {
+  static CYTHON_INLINE __Pyx_memviewslice __Pyx_PyObject_to_MemoryviewSlice_d_dc_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t(PyObject *obj, int writable_flag) {
     __Pyx_memviewslice result = { 0, 0, { 0 }, { 0 }, { 0 } };
     __Pyx_BufFmt_StackElem stack[1];
     int axes_specs[] = { (__Pyx_MEMVIEW_DIRECT | __Pyx_MEMVIEW_FOLLOW), (__Pyx_MEMVIEW_DIRECT | __Pyx_MEMVIEW_CONTIG) };
@@ -27120,7 +27120,7 @@ __pyx_fail:
     }
     retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, __Pyx_IS_C_CONTIG,
                                                  (PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) | writable_flag, 2,
-                                                 &__Pyx_TypeInfo_nn___pyx_t_11chromatinhd_6models_4pred_6loader_17fragments_helpers_INT64_t, stack,
+                                                 &__Pyx_TypeInfo_nn___pyx_t_11chromatinhd_7loaders_17fragments_helpers_INT64_t, stack,
                                                  &result, obj);
     if (unlikely(retcode == -1))
         goto __pyx_fail;

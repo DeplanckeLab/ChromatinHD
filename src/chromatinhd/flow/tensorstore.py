@@ -78,6 +78,9 @@ class Tensorstore(Obj):
         spec_read: dict = default_spec_read,
         dtype=None,
         name=None,
+        compression="blosc",
+        chunks=None,
+        shape=(0,),
     ):
         self.name = name
         self.spec_create = copy.deepcopy(spec_create)
@@ -86,6 +89,21 @@ class Tensorstore(Obj):
 
         if dtype is not None:
             self.spec_create["metadata"]["dtype"] = dtype
+
+        if compression is not None:
+            if compression == "blosc":
+                self.spec_create["metadata"]["compressor"] = {
+                    "id": "blosc",
+                    "clevel": 3,
+                    "cname": "zstd",
+                    "shuffle": 2,
+                }
+
+        if chunks is not None:
+            self.spec_create["metadata"]["chunks"] = chunks
+
+        if shape is not None:
+            self.spec_create["metadata"]["shape"] = shape
 
         if "dtype" not in self.spec_create["metadata"]:
             raise ValueError("dtype must be specified")

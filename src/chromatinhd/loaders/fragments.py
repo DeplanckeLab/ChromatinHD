@@ -94,7 +94,7 @@ class FragmentsResult:
 
 class Fragments:
     """
-    Basic loader for fragments.
+    Basic loader for fragments. This requires either `regionxcell_indptr` (for a Fragments) or `regionxcell_fragmentixs_indptr` (for a FragmentsView) to be present.
 
     Example:
         ```

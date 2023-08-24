@@ -12,39 +12,6 @@ from chromatinhd.flow.tensorstore import Tensorstore, TensorstoreInstance
 from chromatinhd.utils.numpy import indices_to_indptr
 
 
-compression = {
-    "id": "blosc",
-    "clevel": 3,
-    "cname": "zstd",
-    "shuffle": 2,
-}
-# compression = None
-regionxcell_fragmentixs_indptr_spec = {
-    "driver": "zarr",
-    "kvstore": {
-        "driver": "file",
-    },
-    "metadata": {
-        "compressor": compression,
-        "dtype": ">i8",
-        "shape": [0],
-        "chunks": [100000],
-    },
-}
-fragmentixs_spec = {
-    "driver": "zarr",
-    "kvstore": {
-        "driver": "file",
-    },
-    "metadata": {
-        "compressor": compression,
-        "dtype": ">i8",
-        "shape": [0],
-        "chunks": [100000],
-    },
-}
-
-
 class FragmentsView(Flow):
     """
     A view of fragments based on regions that are a subset of the parent fragments. In a typical use case, the parent contains fragments for all chromosomes, while this the view focuses on specific regions.
@@ -58,10 +25,10 @@ class FragmentsView(Flow):
     regions: Regions = Linked()
     """The regions object"""
 
-    fragmentixs: TensorstoreInstance = Tensorstore(fragmentixs_spec)
+    fragmentixs: TensorstoreInstance = Tensorstore(dtype=">i8", chunks=[100000], compression="blosc")
     """Index of fragments in the parent fragments object"""
 
-    regionxcell_fragmentixs_indptr: TensorstoreInstance = Tensorstore(regionxcell_fragmentixs_indptr_spec)
+    regionxcell_fragmentixs_indptr: TensorstoreInstance = Tensorstore(dtype=">i8", chunks=[100000], compression="blosc")
     """Index pointers in the fragmentixs array for each regionxcell"""
 
     @classmethod
@@ -122,7 +89,7 @@ class FragmentsView(Flow):
                 Whether to only include fragments that are only partially overlapping with the region. If False, partially overlapping fragments will be selected as well.
 
         Returns:
-            The same object, but with the regionxcell_fragmentixs_indptr and fragmentixs tensorstores filled
+            self, with the regionxcell_fragmentixs_indptr and fragmentixs tensorstores populated
 
         """
         # dummy proofing
