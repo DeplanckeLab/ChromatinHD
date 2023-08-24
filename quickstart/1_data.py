@@ -266,7 +266,6 @@ motifscan = chd.data.Motifscan.from_pwms(
     cutoff_col="cutoff_0001",
     fasta_file=fasta_file,
     path=dataset_folder / "motifscan",
-    device="cuda",
 )
 
 # %%

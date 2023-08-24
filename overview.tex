@@ -1,0 +1,29 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\title{ChromatinHD}
+\author{Wouter Saelens}
+\date{August 2023}
+
+\begin{document}
+
+\maketitle
+
+\begin{equation}
+    p(x_1,x_2) = p(x_1)p(x_2|x_1)
+\end{equation}
+
+\begin{equation}
+    p(x_1) = p(x_{1,l},x_{1,r}) = p(x_{1,l})p(x_{1,r}|x_{1,l})
+\end{equation}
+
+\begin{equation}
+    p(x_{1,l}) = \prod_{i=0}^{d} p(x_{1,l}|x_{1}\in w_i)
+\end{equation}
+
+\begin{equation}
+    p(x_{1,l}|x_{1}\in w_a) = f(motifs)
+\end{equation}
+
+\end{document}

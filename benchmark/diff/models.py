@@ -84,6 +84,15 @@ models["original"] = model
 model = chd.models.diff.model.cutnf.Model(
     fragments,
     clustering,
+    nbins = (32, 64, 128)
+)
+model.train_model(fragments, clustering, fold, n_epochs=30)
+models["original_rev"] = model
+
+# %%
+model = chd.models.diff.model.cutnf.Model(
+    fragments,
+    clustering,
 )
 model.train_model(fragments, clustering, fold, n_epochs=100)
 models["original_100epoch"] = model

@@ -78,3 +78,12 @@ clipboard-copy:hover {
 .md-nav--secondary {
     border-left: 2px solid #33333333 !important;
 }
+
+/* side bar */
+.md-sidebar {
+    width: 15rem;
+}
+
+.md-sidebar__inner {
+    padding-right: inherit !important;
+}

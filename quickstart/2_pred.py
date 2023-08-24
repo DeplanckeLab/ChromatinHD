@@ -51,7 +51,7 @@ folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1")
 models = chd.models.pred.model.additive.Models(dataset_folder / "models" / "additive", reset=True)
 
 # %% tags=["hide_output"]
-models.train_models(fragments, transcriptome, folds, device="cuda")
+models.train_models(fragments, transcriptome, folds)
 
 # %% [markdown]
 # ## Some quality checks
@@ -60,7 +60,7 @@ models.train_models(fragments, transcriptome, folds, device="cuda")
 # We will first check whether the model learned something, by comparing the predictive performance with a baseline
 
 # %%
-gene_cors = models.get_gene_cors(fragments, transcriptome, folds, device="cuda")
+gene_cors = models.get_gene_cors(fragments, transcriptome, folds)
 gene_cors["symbol"] = gene_cors.index.map(transcriptome.symbol)
 
 # %%
@@ -102,14 +102,14 @@ ax.set_xscale("log")
 # ## Predictivity per position
 
 # %% [markdown]
-# To determine which regions were important for the model to predict gene expression, we will censor fragments from windows of various sizes, and then check whether the model performance on a set of test cells decreased. This functionality is implemented in the `GeneMultiWindow` class. This will only run the censoring for a subset of genes to speed up interpretation.
+# To determine which regions were important for the model to predict gene expression, we will censor fragments from windows of various sizes, and then check whether the model performance on a set of test cells decreased. This functionality is implemented in the `RegionMultiWindow` class. This will only run the censoring for a subset of genes to speed up interpretation.
 
 # %%
 censorer = chd.models.pred.interpret.MultiWindowCensorer(fragments.regions.window)
-genemultiwindow = chd.models.pred.interpret.GeneMultiWindow(models.path / "interpret" / "genemultiwindow")
+RegionMultiWindow = chd.models.pred.interpret.RegionMultiWindow(models.path / "interpret" / "RegionMultiWindow")
 
 # %%
-genemultiwindow.score(
+RegionMultiWindow.score(
     fragments,
     transcriptome,
     models,
@@ -128,7 +128,7 @@ genemultiwindow.score(
 )
 
 # %%
-genemultiwindow.interpolate()
+RegionMultiWindow.interpolate()
 
 # %%
 symbol = "EBF1"
@@ -140,13 +140,13 @@ region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
 panel_genes = chd.plot.genome.genes.Genes.from_region(region, width=width)
 fig.main.add_under(panel_genes)
 
-panel_pileup = chd.models.pred.plot.Pileup.from_genemultiwindow(
-    genemultiwindow, transcriptome.gene_id(symbol), width=width
+panel_pileup = chd.models.pred.plot.Pileup.from_RegionMultiWindow(
+    RegionMultiWindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_pileup)
 
-panel_predictivity = chd.models.pred.plot.Predictivity.from_genemultiwindow(
-    genemultiwindow, transcriptome.gene_id(symbol), width=width
+panel_predictivity = chd.models.pred.plot.Predictivity.from_RegionMultiWindow(
+    RegionMultiWindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_predictivity)
 
@@ -160,8 +160,12 @@ fig.plot()
 
 # %%
 censorer = chd.models.pred.interpret.WindowCensorer(fragments.regions.window)
-genepairwindow = chd.models.pred.interpret.GenePairWindow(models.path / "interpret" / "genepairwindow", reset=True)
-genepairwindow.score(fragments, transcriptome, models, folds, censorer=censorer, genes=transcriptome.gene_id(["CCL4"]))
+regionpairwindow = chd.models.pred.interpret.RegionPairWindow(
+    models.path / "interpret" / "regionpairwindow", reset=True
+)
+regionpairwindow.score(
+    fragments, transcriptome, models, folds, censorer=censorer, genes=transcriptome.gene_id(["CCL4"])
+)
 
 # %%
 symbol = "CCL4"
@@ -175,20 +179,20 @@ panel_genes = chd.plot.genome.genes.Genes.from_region(region, width=width)
 fig.main.add_under(panel_genes)
 
 # pileup
-panel_pileup = chd.models.pred.plot.Pileup.from_genemultiwindow(
-    genemultiwindow, transcriptome.gene_id(symbol), width=width
+panel_pileup = chd.models.pred.plot.Pileup.from_RegionMultiWindow(
+    RegionMultiWindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_pileup)
 
 # predictivity
-panel_predictivity = chd.models.pred.plot.Predictivity.from_genemultiwindow(
-    genemultiwindow, transcriptome.gene_id(symbol), width=width
+panel_predictivity = chd.models.pred.plot.Predictivity.from_RegionMultiWindow(
+    RegionMultiWindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_predictivity)
 
 # copredictivity
-panel_copredictivity = chd.models.pred.plot.Copredictivity.from_genepairwindow(
-    genepairwindow, transcriptome.gene_id(symbol), width=width
+panel_copredictivity = chd.models.pred.plot.Copredictivity.from_regionpairwindow(
+    regionpairwindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_copredictivity)
 

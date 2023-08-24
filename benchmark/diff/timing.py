@@ -67,13 +67,13 @@ scores = []
 # %%
 import logging
 
-logger = chromatinhd.models.diff.trainer.trainer.logger
+logger = chd.models.diff.trainer.trainer.logger
 logger.setLevel(logging.DEBUG)
 logger.handlers = []
 # logger.handlers = [logging.StreamHandler()]
 
 # %%
-devices = pd.DataFrame({"device": ["cuda:1", "cpu"]}).set_index("device")
+devices = pd.DataFrame({"device": ["cuda:0", "cuda:1", "cpu"]}).set_index("device")
 for device in devices.index:
     if device != "cpu":
         devices.loc[device, "label"] = torch.cuda.get_device_properties(device).name
@@ -86,7 +86,7 @@ scores = pd.DataFrame({"device": devices.index}).set_index("device")
 # %%
 for device in devices.index:
     start = time.time()
-    model = chromatinhd.models.diff.model.cutnf.Model(
+    model = chd.models.diff.model.cutnf.Model(
         fragments,
         clustering,
     )
@@ -97,7 +97,7 @@ for device in devices.index:
 
 # %%
 for device in devices.index:
-    genepositional = chromatinhd.models.diff.interpret.genepositional.GenePositional(
+    genepositional = chd.models.diff.interpret.genepositional.GenePositional(
         path=chd.get_output() / "interpret" / "genepositional"
     )
 
