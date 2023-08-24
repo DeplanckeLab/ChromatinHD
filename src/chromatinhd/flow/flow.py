@@ -155,13 +155,12 @@ class Flow(metaclass=Flowable):
             """
         """
         )
+
+        cls = f"<span class='soft'>({self.__class__.__module__}.{self.__class__.__name__})</span>"
+        path = ""
         lines += [
             "<div class='la-flow'>",
-            "<strong>"
-            + str(self.path.name)
-            + "</strong>"
-            + " "
-            + f"<span class='soft'>({self.__class__.__module__}.{self.__class__.__name__})</span>",
+            "<strong>" + str(self.path.name) + "</strong>" + " " + cls + " " + path,
         ]
         lines += ["<ul class='instances'>"]
         for obj_id, obj in self._obj_map.items():

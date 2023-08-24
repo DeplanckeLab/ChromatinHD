@@ -223,7 +223,7 @@ class Fragments:
             )  # this is typically the slowest part by far
 
             # center coordinates around region centers, flip based on strandedness
-            coordinates = (self.region_centers[regionmapping][:, None] - coordinates) * self.region_strands[
+            coordinates = (coordinates - self.region_centers[regionmapping][:, None]) * self.region_strands[
                 regionmapping
             ][:, None]
         else:

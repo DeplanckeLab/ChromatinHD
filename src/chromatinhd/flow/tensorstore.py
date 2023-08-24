@@ -102,6 +102,8 @@ class Tensorstore(Obj):
             return getattr(obj, name)
 
     def __set__(self, obj, value):
+        if not isinstance(value, np.ndarray):
+            raise ValueError("Must be an numpy ndarray, not " + str(type(value)))
         self.__get__(obj)[:] = value
 
     def exists(self, obj):
