@@ -78,7 +78,7 @@ class Motifscan(Flow):
         cutoff_col: str = None,
         motifs: pd.DataFrame = None,
         device: str = None,
-        batch_size: int = 5000000,
+        batch_size: int = 50000000,
         path: Union[str, pathlib.Path] = None,
         overwrite: bool = True,
         reuse: bool = False,
@@ -325,7 +325,6 @@ def read_pwms(pwms_file):
 
 def scan(onehot, pwm, cutoff=0.0):
     assert onehot.shape[1] == 4
-    assert onehot.shape[2] >= pwm.shape[0]
     assert pwm.shape[0] == 4
 
     k = pwm.shape[1]
