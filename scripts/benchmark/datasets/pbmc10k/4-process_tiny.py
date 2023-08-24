@@ -108,3 +108,9 @@ pysam.tabix_compress(folder_dataset_publish / "fragments.tsv", folder_dataset_pu
 # !ls -lh {folder_dataset_publish}
 # !tabix -p bed {folder_dataset_publish / "fragments.tsv.gz"}
 folder_dataset_publish
+
+# %%
+transcriptome.var.index
+
+# %%
+coordinates.index

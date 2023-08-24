@@ -66,20 +66,20 @@ adata = pickle.load((folder_data_preproc / "adata_annotated.pkl").open("rb"))
 transcriptome = chd.data.transcriptome.Transcriptome.from_adata(adata, path=dataset_folder / "transcriptome")
 
 # %%
-selected_transcripts = pickle.load((folder_data_preproc / "selected_transcripts.pkl").open("rb"))
-regions = chd.data.regions.Regions.from_transcripts(
-    selected_transcripts, [-10000, 10000], dataset_folder / "regions" / "10k10k"
-)
+import genomepy
+
+# genomepy.install_genome("GRCh38", genomes_dir="/data/genome/")
+
+sizes_file = "/data/genome/GRCh38/GRCh38.fa.sizes"
+
+# %%
+regions = chd.data.regions.Regions.from_chromosomes_file(sizes_file, path = dataset_folder / "regions" / "all")
 
 # %%
 fragments_file = folder_data_preproc / "fragments.tsv.gz"
-fragments = chd.data.fragments.Fragments(dataset_folder / "fragments" / "10k10k")
-fragments.regions = regions
-fragments = chd.data.fragments.Fragments.from_fragments_tsv(
-    fragments_file=fragments_file,
-    regions=regions,
-    obs=transcriptome.obs,
-    path=fragments.path,
-)
 
 # %%
+fragments = chd.data.Fragments.from_fragments_tsv(fragments_file, regions = regions, obs = transcriptome.obs, path = dataset_folder / "fragments" / "all")
+
+# %%
+fragments.create_regionxcell_indptr()
