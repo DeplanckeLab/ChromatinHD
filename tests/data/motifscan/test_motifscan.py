@@ -4,14 +4,15 @@ import numpy as np
 import torch
 
 
-def test_digitize_sequence():
-    assert (chd.data.motifscan.motifscan.digitize_sequence("ACGTN") == np.array([0, 1, 2, 3, 4])).all()
-
-
-def test_create_onehot():
+def test_create_onehots():
     assert (
-        chd.data.motifscan.motifscan.create_onehot(chd.data.motifscan.motifscan.digitize_sequence("ACGTN"))
-        == torch.tensor([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]])
+        chd.data.motifscan.motifscan.create_onehots(["ACGTN", "GCTNA"])
+        == torch.tensor(
+            [
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]],
+                [[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 0, 0], [1, 0, 0, 0]],
+            ]
+        )
     ).all()
 
 
@@ -22,7 +23,7 @@ def test_scan():
             [0.0, 1, 0, 0],
             [0.0, 0, 1, 0],
         ]
-    )
+    ).T
     tests = [
         {
             "sequence": "ACGT",
@@ -55,9 +56,7 @@ def test_scan():
     ]
 
     for test in tests:
-        onehot = chd.data.motifscan.motifscan.create_onehot(
-            chd.data.motifscan.motifscan.digitize_sequence(test["sequence"])
-        )[None, ...]
+        onehot = chd.data.motifscan.motifscan.create_onehots([test["sequence"]]).permute(0, 2, 1)
         pwm = test["pwm"]
 
         scores, positions, strands = chd.data.motifscan.motifscan.scan(onehot, pwm, cutoff=1.5)
