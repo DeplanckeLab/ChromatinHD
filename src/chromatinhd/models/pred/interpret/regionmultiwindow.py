@@ -122,6 +122,8 @@ class RegionMultiWindow(chd.flow.Flow):
 
                 self.regions = self.regions | {region}
 
+        return self
+
     def interpolate(self, regions=None, force=False):
         force_ = force
 
@@ -226,6 +228,8 @@ class RegionMultiWindow(chd.flow.Flow):
                     interpolated,
                     interpolate_file.open("wb"),
                 )
+
+        return self
 
     def get_plotdata(self, region):
         interpolated_file = self.get_scoring_path(region) / "interpolated.pkl"

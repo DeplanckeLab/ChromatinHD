@@ -38,7 +38,7 @@ class Folds(Flow):
                 whether to overwrite existing folds
         """
         if not overwrite and self.get("folds").exists(self):
-            return
+            return self
 
         folds = []
 
@@ -64,6 +64,8 @@ class Folds(Flow):
                     }
                 )
         self.folds = folds
+
+        return self
 
     def sample_cellxgene(
         self,

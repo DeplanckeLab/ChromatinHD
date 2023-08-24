@@ -61,11 +61,11 @@ class Motifscan(Flow):
         cutoffs: Union[int, float, pd.Series] = None,
         cutoff_col: str = None,
         motifs: pd.DataFrame = None,
-        device=None,
+        device: str = None,
         batch_size: int = 5000000,
         path: Union[str, pathlib.Path] = None,
-        overwrite=True,
-        reuse=False,
+        overwrite: bool = True,
+        reuse: bool = False,
     ):
         """
         Create a motifscan object from a set of pwms and a set of regions
@@ -89,6 +89,10 @@ class Motifscan(Flow):
                 The batch size to use for scanning. Decrease this if the GPU runs out of memory
             path:
                 The folder where the motifscan data will be stored.
+            overwrite:
+                Whether to overwrite existing motifscan data
+            reuse:
+                Whether to reuse existing motifscan data
         """
 
         if device is None:

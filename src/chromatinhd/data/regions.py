@@ -1,10 +1,13 @@
 from __future__ import annotations
-from chromatinhd.flow import Flow, Stored, TSV
-import pandas as pd
-import numpy as np
+
+from typing import List, Optional
 import pathlib
+
+import numpy as np
+import pandas as pd
 import tqdm.auto as tqdm
-from chromatinhd.flow import PathLike
+
+from chromatinhd.flow import TSV, Flow, PathLike, Stored
 
 
 class Regions(Flow):
@@ -19,7 +22,11 @@ class Regions(Flow):
 
     @classmethod
     def from_transcripts(
-        cls, transcripts: pd.DataFrame, window: [list, np.ndarray], path: PathLike = None, max_n_regions=None
+        cls,
+        transcripts: pd.DataFrame,
+        window: [list, np.ndarray],
+        path: PathLike = None,
+        max_n_regions: Optional[int] = None,
     ) -> Regions:
         """
         Create regions from a dataframe of transcripts,
@@ -60,7 +67,7 @@ class Regions(Flow):
             window=window,
         )
 
-    def filter(self, region_ids, path=None) -> Regions:
+    def filter(self, region_ids: List[str], path: PathLike = None) -> Regions:
         """
         Select a subset of regions
 

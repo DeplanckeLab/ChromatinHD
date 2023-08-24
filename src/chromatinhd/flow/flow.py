@@ -1,36 +1,31 @@
-import pathlib
-import torch
-import pickle
-import numpy as np
 import gzip
-import json
 import importlib
+import json
+import pathlib
+import pickle
 import shutil
 from typing import Union
 
+import numpy as np
+import torch
+
+from .objects import is_instance, is_obj
+
 PathLike = Union[str, pathlib.Path]
-
-
-class Obj:
-    name = None
-
-    def __init__(self, name=None):
-        self.name = name
-
-
-def is_obj(x):
-    return isinstance(x, Obj)
 
 
 class Flowable(type):
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
 
+        cls._obj_map = {}
+
         # compile objects
         for attr_id, attr in cls.__dict__.items():
             if is_obj(attr):
                 assert isinstance(attr_id, str)
                 attr.name = attr_id
+                cls._obj_map[attr_id] = attr
 
     def __setattr__(cls, key, value):
         super().__setattr__(key, value)
@@ -86,6 +81,8 @@ class Flow(metaclass=Flowable):
         if not self._get_info_path().exists():
             self._store_info()
 
+        self._obj_instances = {}
+
     def __copy__(self):
         return self.__class__(path=None)
 
@@ -137,270 +134,54 @@ class Flow(metaclass=Flowable):
         raise TypeError("This class cannot be pickled.")
 
     def get(self, k):
-        return self.__class__.__dict__[k]
+        if k in self._obj_instances:
+            return self._obj_instances[k]
+        return self._obj_map[k]
 
     @property
     def o(self):
         return FlowObjects(self)
 
+    def _repr_html_(self):
+        import json
 
-class Linked(Obj):
-    """
-    A link to another flow on disk
-    """
+        from . import tipyte
+        import pkg_resources
+        from IPython.display import HTML, display
+        import random
 
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                path = obj.path / self.name
+        lines = []
+        lines.append(
+            """
+        """
+        )
+        lines += [
+            "<div class='la-flow'>",
+            "<strong>"
+            + str(self.path.name)
+            + "</strong>"
+            + " "
+            + f"<span class='soft'>({self.__class__.__module__}.{self.__class__.__name__})</span>",
+        ]
+        lines += ["<ul class='instances'>"]
+        for obj_id, obj in self._obj_map.items():
+            if obj_id in self._obj_instances:
+                instance = self._obj_instances[obj_id]
+                if instance.exists():
+                    html_repr = instance._repr_html_()
+                    lines.append(f"<li>{html_repr}</li>")
+            elif is_obj(obj):
+                if obj.exists(self):
+                    html_repr = obj._repr_html_(self)
+                    lines.append(f"<li>{html_repr}</li>")
+        lines += ["</ul>"]
 
-                if not path.exists():
-                    raise FileNotFoundError(f"File {path} does not exist")
-                if not path.is_symlink():
-                    raise FileNotFoundError(f"File {path} is not a symlink")
+        # create template
+        template = tipyte.template_to_function(
+            pkg_resources.resource_filename("chromatinhd", "flow/flow_template.jinja2"), escaper=lambda x: x
+        )
 
-                value = Flow.from_path(path.resolve())
-                setattr(obj, name, value)
+        parameters = {"div_id": random.randint(0, 50000), "html": "".join(lines)}
+        html = template(**parameters)
 
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        # symlink to value.path
-        path = obj.path / self.name
-        name = "_" + self.name
-        if path.exists():
-            if not path.is_symlink():
-                raise FileExistsError(f"File {path} already exists")
-            else:
-                path.unlink()
-        if (not str(obj.path).startswith("memory")) and (not str(value.path).startswith("memory")):
-            path.symlink_to(value.path.resolve())
-        setattr(obj, name, value)
-
-
-class Stored(Obj):
-    """
-    A python object that is stored on disk using pickle
-    """
-
-    def __init__(self, default=None, name=None):
-        self.default = default
-        self.name = name
-
-    def get_path(self, folder):
-        return folder / (self.name + ".pkl")
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            if self.name is None:
-                raise ValueError(obj)
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                path = self.get_path(obj.path)
-                if not path.exists():
-                    if self.default is None:
-                        raise FileNotFoundError(f"File {path} does not exist")
-                    else:
-                        value = self.default()
-                        pickle.dump(value, path.open("wb"))
-                setattr(obj, name, pickle.load(self.get_path(obj.path).open("rb")))
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        name = "_" + self.name
-        pickle.dump(value, self.get_path(obj.path).open("wb"))
-        setattr(obj, name, value)
-
-    def exists(self, obj):
-        return self.get_path(obj.path).exists()
-
-
-class StoredDataFrame(Stored):
-    """
-    A pandas dataframe stored on disk
-    """
-
-    def __init__(self, index_name=None, name=None):
-        super().__init__(name=name)
-        self.index_name = index_name
-
-    def __set__(self, obj, value):
-        if self.index_name is not None:
-            value.index.name = self.index_name
-        super().__set__(obj, value)
-
-
-class StoredTensor(Stored):
-    def __init__(self, dtype=None, name=None):
-        super().__init__(name=name)
-        self.dtype = dtype
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                x = pickle.load(self.get_path(obj.path).open("rb"))
-                if not torch.is_tensor(x):
-                    raise ValueError(f"File {self.get_path(obj.path)} is not a tensor")
-                elif x.dtype is not self.dtype:
-                    x = x.to(self.dtype)
-                if not x.is_contiguous():
-                    x = x.contiguous()
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        if not torch.is_tensor(value):
-            raise ValueError("Value is not a tensor")
-        elif self.dtype is not None:
-            value = value.to(self.dtype).contiguous()
-        name = "_" + self.name
-        pickle.dump(value, self.get_path(obj.path).open("wb"))
-        setattr(obj, name, value)
-
-
-class StoredNumpyInt64(Stored):
-    """
-    A numpy int64 tensor stored on disk
-    """
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                x = pickle.load(self.get_path(obj.path).open("rb"))
-                if x.dtype is not np.int64:
-                    x = x.astype(np.int64)
-                if not x.flags["C_CONTIGUOUS"]:
-                    x = np.ascontiguousarray(x)
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        value = np.ascontiguousarray(value.astype(np.int64))
-        name = "_" + self.name
-        pickle.dump(value, self.get_path(obj.path).open("wb"))
-        setattr(obj, name, value)
-
-
-class CompressedNumpy(Stored):
-    """
-    A compressed numpy array stored on disk
-    """
-
-    dtype = None
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                x = pickle.load(gzip.GzipFile(fileobj=self.get_path(obj.path).open("rb"), mode="r", compresslevel=3))
-                if self.dtype is not None:
-                    if x.dtype is not self.dtype:
-                        x = x.astype(self.dtype)
-                if not x.flags["C_CONTIGUOUS"]:
-                    x = np.ascontiguousarray(x)
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-    def __set__(self, obj, value):
-        if self.dtype is not None:
-            value = np.ascontiguousarray(value.astype(self.dtype))
-        name = "_" + self.name
-        pickle.dump(value, gzip.GzipFile(fileobj=self.get_path(obj.path).open("wb"), mode="w", compresslevel=3))
-        setattr(obj, name, value)
-
-
-class CompressedNumpyFloat64(CompressedNumpy):
-    dtype = np.float64
-
-
-class CompressedNumpyInt64(CompressedNumpy):
-    dtype = np.int64
-
-
-class TSV(Stored):
-    """
-    A pandas object stored on disk in tsv format
-    """
-
-    def __init__(self, columns=None, index_name=None, name=None):
-        super().__init__(name=name)
-        self.columns = columns
-        self.index_name = index_name
-
-    def get_path(self, folder):
-        return folder / (self.name + ".tsv")
-
-    def __get__(self, obj=None, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                import pandas as pd
-
-                x = pd.read_table(self.get_path(obj.path), index_col=0)
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-    def __set__(self, obj, value, folder=None):
-        name = "_" + self.name
-        if folder is None:
-            folder = obj.path
-        if self.index_name is not None:
-            value.index.name = self.index_name
-        value.to_csv(self.get_path(folder).open("w"), sep="\t")
-        setattr(obj, name, value)
-
-
-class StoredDict(Obj):
-    def __init__(self, cls, name=None, kwargs=None):
-        super().__init__(name=name)
-        if kwargs is None:
-            kwargs = {}
-        self.kwargs = kwargs
-        self.cls = cls
-
-    def get_path(self, folder):
-        return folder / self.name
-
-    def __get__(self, obj, type=None):
-        if obj is not None:
-            name = "_" + self.name
-            if not hasattr(obj, name):
-                x = StoredDictInstance(self.name, self.get_path(obj.path), self.cls, obj, self.kwargs)
-                setattr(obj, name, x)
-            return getattr(obj, name)
-
-
-class StoredDictInstance:
-    def __init__(self, name, path, cls, obj, kwargs):
-        self.dict = {}
-        self.cls = cls
-        self.obj = obj
-        self.name = name
-        self.path = path
-        self.kwargs = kwargs
-        if not self.path.exists():
-            self.path.mkdir(parents=True)
-        for file in self.path.iterdir():
-            if file.is_dir():
-                raise ValueError(f"Folder {file} in {self.obj.path} is not allowed")
-            # key is file name without extension
-            key = file.name.split(".")[0]
-            self.dict[key] = self.cls(name=key, **self.kwargs)
-
-    def __getitem__(self, key):
-        return self.dict[key].__get__(self)
-
-    def __setitem__(self, key, value):
-        if key not in self.dict:
-            self.dict[key] = self.cls(name=key, **self.kwargs)
-        self.dict[key].__set__(self, value)
-
-    def items(self):
-        for k in self.dict:
-            yield k, self[k]
-
-    def keys(self):
-        return self.dict.keys()
+        return html

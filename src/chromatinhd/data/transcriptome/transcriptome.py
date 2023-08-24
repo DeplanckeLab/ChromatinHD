@@ -69,8 +69,10 @@ class Transcriptome(Flow):
         transcriptome.adata = adata
 
         for k, v in adata.layers.items():
-            transcriptome.layers[k] = v
-        transcriptome.X = adata.X
+            if sparse.is_scipysparse(v):
+                v = np.array(v.todense())
+            transcriptome.layers[k] = v.astype(">f4")
+        transcriptome.layers["X"] = adata.X.astype(">f4")
         transcriptome.var = adata.var
         transcriptome.obs = adata.obs
         return transcriptome

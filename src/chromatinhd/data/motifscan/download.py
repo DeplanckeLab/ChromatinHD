@@ -4,25 +4,38 @@ import pathlib
 import chromatinhd.data.motifscan
 
 
-def get_hocomoco(path):
+def get_hocomoco(path, organism="human"):
     """
     Download hocomoco human data
+
+    Parameters:
+        path:
+            the path to download to
+        organism:
+            the organism to download for, either "human" or "mouse"
     """
     path = pathlib.Path(path)
     path.mkdir(parents=True, exist_ok=True)
 
+    if organism == "human":
+        organism = "HUMAN"
+    elif organism == "mouse":
+        organism = "MOUSE"
+    else:
+        raise ValueError(f"Unknown organism: {organism}")
+
     # download cutoffs, pwms and annotations
     if not (path / "pwm_cutoffs.txt").exists():
         urllib.request.urlretrieve(
-            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_standard_thresholds_HUMAN_mono.txt",
+            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_standard_thresholds_{organism}_mono.txt",
             path / "pwm_cutoffs.txt",
         )
         urllib.request.urlretrieve(
-            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_pwms_HUMAN_mono.txt",
+            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_pwms_{organism}_mono.txt",
             path / "pwms.txt",
         )
         urllib.request.urlretrieve(
-            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_annotation_HUMAN_mono.tsv",
+            "https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/{organism}/mono/HOCOMOCOv11_core_annotation_{organism}_mono.tsv",
             path / "annot.txt",
         )
 

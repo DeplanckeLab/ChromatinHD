@@ -1,5 +1,4 @@
-from .flow import (
-    Flow,
+from .objects import (
     Linked,
     Stored,
     StoredDataFrame,
@@ -10,6 +9,9 @@ from .flow import (
     CompressedNumpyInt64,
     TSV,
     StoredDict,
+)
+from .flow import (
+    Flow,
     PathLike,
 )
 from . import tensorstore

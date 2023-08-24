@@ -1,8 +1,9 @@
-from .flow import Obj
+from .objects import Obj
 
 import tensorstore as ts
 import numpy as np
 import copy
+import os
 
 default_spec_create = {
     "driver": "zarr",
@@ -32,6 +33,26 @@ default_spec_read = {
     },
     "open": True,
 }
+
+
+def format_size(size: int) -> str:
+    for unit in ("Bb", "Kb", "Mb", "Gb", "Tb"):
+        if size < 1024:
+            break
+        size /= 1024
+    return f"{size:.1f}{unit}"
+
+
+def get_size(start_path="."):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+
+    return total_size
 
 
 def deep_update(mapping, *updating_mappings):
@@ -79,7 +100,7 @@ class Tensorstore(Obj):
             name = "_" + self.name
             if not hasattr(obj, name):
                 instance = TensorstoreInstance(
-                    self.get_path(obj.path), self.spec_create, self.spec_write, self.spec_read
+                    self.name, self.get_path(obj.path), self.spec_create, self.spec_write, self.spec_read
                 )
                 setattr(obj, name, instance)
             return getattr(obj, name)
@@ -90,17 +111,14 @@ class Tensorstore(Obj):
     def exists(self, obj):
         return self.__get__(obj).exists()
 
-
-def filesize(size: int) -> str:
-    for unit in ("B", "K", "M", "G", "T"):
-        if size < 1024:
-            break
-        size /= 1024
-    return f"{size:.1f}{unit}"
+    def _repr_html_(self, obj):
+        instance = self.__get__(obj)
+        return instance._repr_html_()
 
 
 class TensorstoreInstance:
-    def __init__(self, path, spec_create, spec_write, spec_read):
+    def __init__(self, name, path, spec_create, spec_write, spec_read):
+        self.name = name
         self.path = path
         self.spec_create = deep_update(spec_create, {"kvstore": {"path": str(path)}})
         self.spec_write = deep_update(spec_write, {"kvstore": {"path": str(path)}})
@@ -127,7 +145,7 @@ class TensorstoreInstance:
     @property
     def info(self):
         return {
-            "disk_space": filesize(sum(file.stat().st_size for file in self.path.rglob("*"))),
+            "disk_space": get_size(self.path),
         }
 
     def __getitem__(self, key):
@@ -151,6 +169,11 @@ class TensorstoreInstance:
     @property
     def oindex(self):
         return OIndex(self.open_reader().oindex)
+
+    def _repr_html_(self):
+        shape = "[" + ",".join(str(x) for x in self.shape) + "]"
+        size = format_size(get_size(self.path))
+        return f"<span class='iconify' data-icon='mdi-axis-arrow'></span> <b>{self.name}</b> {shape}, {size}"
 
 
 class OIndex:

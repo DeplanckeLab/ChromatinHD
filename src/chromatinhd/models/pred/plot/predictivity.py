@@ -101,11 +101,11 @@ class Predictivity(chromatinhd.grid.Panel):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_RegionMultiWindow(cls, RegionMultiWindow, gene, width, show_accessibility=False):
+    def from_regionmultiwindow(cls, regionmultiwindow, gene, width, show_accessibility=False):
         """
         Plot predictivity of a specific gene using a RegionMultiWindow object
         """
-        plotdata = RegionMultiWindow.get_plotdata(gene).reset_index()
+        plotdata = regionmultiwindow.get_plotdata(gene).reset_index()
         window = np.array([plotdata["position"].min(), plotdata["position"].max()])
         return cls(plotdata, window, width, show_accessibility=show_accessibility)
 
@@ -150,11 +150,11 @@ class Pileup(chromatinhd.grid.Panel):
         ax.set_ylim(0)
 
     @classmethod
-    def from_RegionMultiWindow(cls, RegionMultiWindow, gene, width):
+    def from_regionmultiwindow(cls, regionmultiwindow, gene, width):
         """
-        Plot pileup of a specific gene using a RegionMultiWindow object
+        Plot pileup of a specific gene using a regionmultiwindow object
         """
-        plotdata = RegionMultiWindow.get_plotdata(gene).reset_index()
+        plotdata = regionmultiwindow.get_plotdata(gene).reset_index()
         window = np.array([plotdata["position"].min(), plotdata["position"].max()])
         return cls(plotdata, window, width)
 

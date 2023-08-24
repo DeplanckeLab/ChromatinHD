@@ -24,7 +24,7 @@ except ImportError:
 import dataclasses
 
 import chromatinhd.data.fragments
-from chromatinhd.data.minibatches import Minibatch
+from chromatinhd.loaders.minibatches import Minibatch
 
 
 @dataclasses.dataclass

@@ -136,6 +136,7 @@ class Fragments(Flow):
         cell_column: str = None,
         path: PathLike = None,
         overwrite: bool = True,
+        reuse: bool = False,
     ) -> Fragments:
         """
         Create a Fragments object from a fragments tsv file
@@ -156,6 +157,8 @@ class Fragments(Flow):
                 Folder in which the fragments data will be stored.
             overwrite:
                 Whether to overwrite the data if it already exists.
+            reuse:
+                Whether to reuse existing data if it exists.
         Returns:
             A new Fragments object
         """
@@ -166,8 +169,10 @@ class Fragments(Flow):
             path = pathlib.Path(path)
         if not fragments_file.exists():
             raise FileNotFoundError(f"File {fragments_file} does not exist")
-        if not overwrite and path.exists():
-            raise FileExistsError(f"Folder {path} already exists")
+        if not overwrite and path.exists() and not reuse:
+            raise FileExistsError(
+                f"Folder {path} already exists, use `overwrite=True` to overwrite, or `reuse=True` to reuse existing data"
+            )
 
         # regions information
         var = pd.DataFrame(index=regions.coordinates.index)
@@ -181,7 +186,7 @@ class Fragments(Flow):
         else:
             cell_to_cell_ix = obs.set_index(cell_column)["ix"].to_dict()
 
-        self = cls.create(path=path, obs=obs, var=var, regions=regions)
+        self = cls.create(path=path, obs=obs, var=var, regions=regions, reset=overwrite)
 
         # read the fragments file
         try:
