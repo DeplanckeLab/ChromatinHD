@@ -20,6 +20,22 @@ from chromatinhd.flow.tensorstore import Tensorstore
 from chromatinhd.utils.torch import ind2ptr
 from chromatinhd.utils.numpy import ind2ptr as ind2ptr_numpy
 
+# try to load the shared library
+# typically, this will be installed as a python extension
+try:
+    from . import scan_helpers  # pylint: disable=C0413,E0611
+# however, during developement, we want to load the cython source directly
+except ImportError:
+    import pyximport
+
+    pyximport.install(
+        reload_support=True,
+        language_level=3,
+        setup_args=dict(include_dirs=[np.get_include()]),
+        build_in_temp=False,
+    )
+    from . import scan_helpers  # pylint: disable=C0413,E0611
+
 
 class Motifscan(Flow):
     """
@@ -160,7 +176,7 @@ class Motifscan(Flow):
             assert (
                 len(set(len(sequence) for sequence in sequences)) == 1
             ), "All regions/sequences should have the same length"
-            onehot = torch.stack([create_onehot(digitize_sequence(sequence)) for sequence in sequences]).to(device)
+            onehot = create_onehots(sequences).to(device)
             for motif_ix, motif in enumerate(motifs.index):
                 cutoff = cutoffs[motif]
 
@@ -170,11 +186,19 @@ class Motifscan(Flow):
                     pwm = torch.from_numpy(pwm)
                 pwm = pwm.to(dtype=torch.float32, device=onehot.device)
 
+                # (
+                #     scores_motif,
+                #     positions_motif,
+                #     strands_motif,
+                # ) = scan(onehot, pwm, cutoff=cutoff)
+
+                onehot2 = onehot.permute(0, 2, 1)
+                pwm2 = pwm.transpose(1, 0)
                 (
                     scores_motif,
                     positions_motif,
                     strands_motif,
-                ) = scan(onehot, pwm, cutoff=cutoff)
+                ) = scan(onehot2, pwm2, cutoff=cutoff)
 
                 positions_motif[0] = positions_motif[0] + region_coordinates_batch["ix"].values[0]
 
@@ -241,7 +265,7 @@ class Motifscan(Flow):
 
         return self
 
-    def select_motifs(self, motif_ids, path=None):
+    def filter(self, motif_ids, path=None):
         """
         Select a subset of motifs
         """
@@ -299,38 +323,30 @@ def read_pwms(pwms_file):
     return pwms
 
 
-def scan(onehot, pwm, cutoff=0):
-    n = onehot.shape[-2]
-    k = pwm.shape[-2]
+def scan(onehot, pwm, cutoff=0.0):
+    assert onehot.shape[1] == 4
+    assert onehot.shape[2] >= pwm.shape[0]
+    assert pwm.shape[0] == 4
 
-    # forward strand
-    positive = torch.zeros(((*onehot.shape[:-2], n - k + 1)), device=onehot.device)
-    for i in range(k):
-        # to save memory we do the matrix multiplication once per motif position
-        # this does not cause a significant slowdown
-        x = torch.matmul(onehot, pwm[[i]].T)
-        positive += x[..., i : n - k + i + 1, 0]
-    del x
+    k = pwm.shape[1]
+
+    onehot = onehot.float()
+    pwm = pwm.float()
+    pwm_rev = pwm.flip(1)
+    onehot_comp = onehot[:, [3, 2, 1, 0]]
+    positive = torch.nn.functional.conv1d(onehot, pwm.unsqueeze(0))[:, 0]
 
     found_positive = positive >= cutoff
     scores_positive = positive[found_positive]
     positions_positive = torch.stack(torch.where(found_positive)).to(torch.int)
 
-    # reverse (complement) strand
-    onehot_comp = onehot[..., [3, 2, 1, 0]]
-    pwm_rev = pwm.flip(0)
-    negative = torch.zeros(((*onehot.shape[:-2], n - k + 1)), device=onehot.device)
-    for i in range(k):
-        x = torch.matmul(onehot_comp, pwm_rev[[i]].T)
-        negative += x[..., i : n - k + i + 1, 0]
-    del x
+    negative = torch.nn.functional.conv1d(onehot_comp, pwm_rev.unsqueeze(0))[:, 0]
 
     found_negative = negative >= cutoff
     scores_negative = negative[found_negative]
     positions_negative = torch.stack(torch.where(found_negative)).to(torch.int)
     positions_negative[-1, :] = positions_negative[-1, :] + k - 1
 
-    # return stacked score across forward or reverse strands
     return (
         torch.cat([scores_positive, scores_negative]),
         torch.cat([positions_positive, positions_negative], -1).to(torch.int),
@@ -343,24 +359,10 @@ def scan(onehot, pwm, cutoff=0):
     )
 
 
-def create_onehot(seq):
-    """
-    Sequence contains integers 0 (A), 1 (C), 2 (G), 3 (T), and 4 (N)
-    """
-    return torch.tensor(np.eye(5, dtype=np.float32)[seq][:, :-1])
-
-
-def digitize_sequence(sequence):
-    translate_table = {
-        "A": 0,
-        "C": 1,
-        "G": 2,
-        "T": 3,
-        "N": 4,
-        "a": 0,
-        "c": 1,
-        "g": 2,
-        "t": 3,
-        "n": 4,
-    }  # alphabetic order
-    return np.array([translate_table[x] for x in sequence], dtype=np.int8)
+def create_onehots(sequences):
+    onehots = []
+    for sequence in sequences:
+        onehot = np.zeros((len(sequence), 4), dtype=np.int8)
+        scan_helpers.seq_to_onehot(sequence.upper().encode(), onehot)
+        onehots.append(torch.from_numpy(onehot))
+    return torch.stack(onehots).to(torch.float32)

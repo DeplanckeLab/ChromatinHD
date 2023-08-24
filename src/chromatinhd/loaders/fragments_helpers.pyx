@@ -61,3 +61,49 @@ def multiple_arange(
             pair_ix += 1
 
     return out_ix
+
+
+
+@cython.boundscheck(False) # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
+@cython.cdivision
+def multiple_arange(
+    INT64_t [::1] a,
+    INT64_t [::1] b,
+    INT64_t [::1] ixs,
+    INT64_t [::1] local_cellxregion_ix,
+):
+    cdef INT64_t out_ix, pair_ix, position
+    out_ix = 0 # will store where in the output array we are currently
+    pair_ix = 0 # will store the current a, b pair index
+
+    with nogil:
+        for pair_ix in range(a.shape[0]):
+            for position in range(a[pair_ix], b[pair_ix]):
+                ixs[out_ix] = position
+                local_cellxregion_ix[out_ix] = pair_ix
+                out_ix += 1
+            pair_ix += 1
+
+    return out_ix
+
+@cython.boundscheck(False) # turn off bounds-checking for entire function
+@cython.wraparound(False)  # turn off negative index wrapping for entire function
+@cython.cdivision
+def count_A_cython(bytes s, INT64_t [:,::1] out_onehot):
+    cdef char* cstr = s
+    cdef int i, length = len(s)
+
+    for i in range(length):
+        if cstr[i] == b'A':
+            out_onehot[i, 0] = 1
+        elif cstr[i] == b'C':
+            out_onehot[i, 1] = 1
+        elif cstr[i] == b'G':
+            out_onehot[i, 2] = 1
+        elif cstr[i] == b'T':
+            out_onehot[i, 3] = 1
+        else:
+            out_onehot[i, 4] = 1
+
+    return out_onehot
