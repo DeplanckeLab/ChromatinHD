@@ -1143,7 +1143,7 @@ You're not viewing the latest version.
   <div class="doc doc-contents first">
 
   
-      <p>Basic loader for fragments.</p>
+      <p>Basic loader for fragments. This requires either <code>regionxcell_indptr</code> (for a Fragments) or <code>regionxcell_fragmentixs_indptr</code> (for a FragmentsView) to be present.</p>
 
 <details class="example" open>
   <summary>Example</summary>
@@ -1316,7 +1316,7 @@ data.coordinates
 <span class="normal">252</span>
 <span class="normal">253</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Fragments</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Basic loader for fragments.</span>
+<span class="sd">    Basic loader for fragments. This requires either `regionxcell_indptr` (for a Fragments) or `regionxcell_fragmentixs_indptr` (for a FragmentsView) to be present.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        ```</span>
@@ -1389,7 +1389,7 @@ data.coordinates
                     <span class="p">}</span>
                 <span class="p">}</span>
             <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">fragmentixs</span><span class="o">.</span><span class="n">open_reader</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">regionxcell_fragmentixs</span><span class="o">.</span><span class="n">open_reader</span><span class="p">(</span>
                 <span class="p">{</span><span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;data_copy_concurrency&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;limit&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}}}</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">region_centers</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[</span><span class="s2">&quot;tss&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
@@ -1434,14 +1434,14 @@ data.coordinates
                 <span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span>
             <span class="p">)</span>
 
-            <span class="n">fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
+            <span class="n">regionxcell_fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
             <span class="n">local_cellxregion_ix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
 
             <span class="c1"># load the actual fragment data</span>
-            <span class="n">fragmentixs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span><span class="p">[</span><span class="n">fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+            <span class="n">regionxcell_fragmentixs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span><span class="p">[</span><span class="n">regionxcell_fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
             <span class="n">regionmapping</span> <span class="o">=</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi</span><span class="p">[</span><span class="n">local_cellxregion_ix</span> <span class="o">%</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">n_regions</span><span class="p">]</span>
             <span class="n">coordinates</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">regionxcell_fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
             <span class="p">)</span>  <span class="c1"># this is typically the slowest part by far</span>
 
             <span class="c1"># center coordinates around region centers, flip based on strandedness</span>
@@ -1456,9 +1456,9 @@ data.coordinates
                 <span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
+            <span class="n">regionxcell_fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
             <span class="n">coordinates</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">regionxcell_fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
             <span class="p">)</span>  <span class="c1"># this is typically the slowest part by far</span>
             <span class="n">local_cellxregion_ix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
             <span class="n">regionmapping</span> <span class="o">=</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi</span><span class="p">[</span><span class="n">local_cellxregion_ix</span> <span class="o">%</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">n_regions</span><span class="p">]</span>
@@ -1670,7 +1670,7 @@ data.coordinates
                 <span class="p">}</span>
             <span class="p">}</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">fragmentixs</span><span class="o">.</span><span class="n">open_reader</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">regionxcell_fragmentixs</span><span class="o">.</span><span class="n">open_reader</span><span class="p">(</span>
             <span class="p">{</span><span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;data_copy_concurrency&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;limit&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}}}</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">region_centers</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[</span><span class="s2">&quot;tss&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
@@ -1846,14 +1846,14 @@ data.coordinates
             <span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
+        <span class="n">regionxcell_fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
         <span class="n">local_cellxregion_ix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
 
         <span class="c1"># load the actual fragment data</span>
-        <span class="n">fragmentixs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span><span class="p">[</span><span class="n">fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+        <span class="n">regionxcell_fragmentixs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fragmentixs_reader</span><span class="p">[</span><span class="n">regionxcell_fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
         <span class="n">regionmapping</span> <span class="o">=</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi</span><span class="p">[</span><span class="n">local_cellxregion_ix</span> <span class="o">%</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">n_regions</span><span class="p">]</span>
         <span class="n">coordinates</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">regionxcell_fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
         <span class="p">)</span>  <span class="c1"># this is typically the slowest part by far</span>
 
         <span class="c1"># center coordinates around region centers, flip based on strandedness</span>
@@ -1868,9 +1868,9 @@ data.coordinates
             <span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
+        <span class="n">regionxcell_fragmentixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_fragmentixs</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
         <span class="n">coordinates</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coordinates_reader</span><span class="p">[</span><span class="n">regionxcell_fragmentixs</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
         <span class="p">)</span>  <span class="c1"># this is typically the slowest part by far</span>
         <span class="n">local_cellxregion_ix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_local_cellxregion_ix</span><span class="p">,</span> <span class="n">n_fragments</span><span class="p">)</span>
         <span class="n">regionmapping</span> <span class="o">=</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi</span><span class="p">[</span><span class="n">local_cellxregion_ix</span> <span class="o">%</span> <span class="n">minibatch</span><span class="o">.</span><span class="n">n_regions</span><span class="p">]</span>
@@ -1918,8 +1918,7 @@ data.coordinates
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/loaders/fragments.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">280</span>
-<span class="normal">281</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">281</span>
 <span class="normal">282</span>
 <span class="normal">283</span>
 <span class="normal">284</span>
@@ -1943,7 +1942,9 @@ data.coordinates
 <span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
-<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Cuts</span><span class="p">(</span><span class="n">Fragments</span><span class="p">):</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Cuts</span><span class="p">(</span><span class="n">Fragments</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minibatch</span><span class="p">:</span> <span class="n">Minibatch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CutsResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load a minibatch of cuts.</span>
@@ -1968,6 +1969,7 @@ data.coordinates
             <span class="n">n_regions</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi</span><span class="p">),</span>
             <span class="n">n_fragments</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">n_fragments</span><span class="p">,</span>
             <span class="n">n_cuts</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">n_fragments</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="n">window</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">,</span>
         <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
         </details>
@@ -2050,8 +2052,7 @@ data.coordinates
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/loaders/fragments.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">281</span>
-<span class="normal">282</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">282</span>
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
@@ -2074,7 +2075,9 @@ data.coordinates
 <span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
-<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minibatch</span><span class="p">:</span> <span class="n">Minibatch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CutsResult</span><span class="p">:</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minibatch</span><span class="p">:</span> <span class="n">Minibatch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CutsResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load a minibatch of cuts.</span>
 
@@ -2098,6 +2101,7 @@ data.coordinates
         <span class="n">n_regions</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi</span><span class="p">),</span>
         <span class="n">n_fragments</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">n_fragments</span><span class="p">,</span>
         <span class="n">n_cuts</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">n_fragments</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">window</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
@@ -2518,7 +2522,8 @@ data.coordinates
 <span class="normal">274</span>
 <span class="normal">275</span>
 <span class="normal">276</span>
-<span class="normal">277</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="normal">277</span>
+<span class="normal">278</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
 <span class="k">class</span> <span class="nc">CutsResult</span><span class="p">:</span>
     <span class="n">coordinates</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
     <span class="n">local_cellxregion_ix</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
@@ -2526,6 +2531,7 @@ data.coordinates
     <span class="n">n_regions</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">n_fragments</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">n_cuts</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">window</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">local_region_ix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>

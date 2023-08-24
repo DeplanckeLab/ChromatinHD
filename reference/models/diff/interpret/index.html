@@ -1049,10 +1049,7 @@ You're not viewing the latest version.
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/models/diff/interpret/genepositional.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 24</span>
-<span class="normal"> 25</span>
-<span class="normal"> 26</span>
-<span class="normal"> 27</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 27</span>
 <span class="normal"> 28</span>
 <span class="normal"> 29</span>
 <span class="normal"> 30</span>
@@ -1196,18 +1193,12 @@ You're not viewing the latest version.
 <span class="normal">168</span>
 <span class="normal">169</span>
 <span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">GenePositional</span><span class="p">(</span><span class="n">chd</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">Flow</span><span class="p">):</span>
+<span class="normal">171</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">GenePositional</span><span class="p">(</span><span class="n">chd</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">Flow</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Positional interpretation of *diff* models</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">genes</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">Stored</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="nb">set</span><span class="p">)</span>
+    <span class="n">probs</span> <span class="o">=</span> <span class="n">StoredDict</span><span class="p">(</span><span class="n">DataArray</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">score</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1251,15 +1242,14 @@ You're not viewing the latest version.
 
         <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">pbar</span><span class="p">:</span>
             <span class="n">pbar</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span>
-            <span class="n">probs_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scoring_path</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;probs.pkl&quot;</span>
 
             <span class="n">force</span> <span class="o">=</span> <span class="n">force_</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">probs_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">gene</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">:</span>
                 <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
 
             <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
-                <span class="n">design_gene</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;gene_ix&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">fragments</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">gene</span><span class="p">)]})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
-                <span class="n">design_gene</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">gene</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;gene&quot;</span><span class="p">)</span>
+                <span class="n">design_region</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;region_ix&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">fragments</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">gene</span><span class="p">)]})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+                <span class="n">design_region</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">gene</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;gene&quot;</span><span class="p">)</span>
                 <span class="n">design_clustering</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;active_cluster&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">clustering</span><span class="o">.</span><span class="n">n_clusters</span><span class="p">)})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
                     <span class="s2">&quot;category&quot;</span>
                 <span class="p">)</span>
@@ -1268,7 +1258,7 @@ You're not viewing the latest version.
                     <span class="s2">&quot;category&quot;</span>
                 <span class="p">)</span>
                 <span class="n">design_coord</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">design_coord</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span>
-                <span class="n">design</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">crossing</span><span class="p">(</span><span class="n">design_gene</span><span class="p">,</span> <span class="n">design_clustering</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
+                <span class="n">design</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">crossing</span><span class="p">(</span><span class="n">design_region</span><span class="p">,</span> <span class="n">design_clustering</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
 
                 <span class="n">design</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
@@ -1282,12 +1272,12 @@ You're not viewing the latest version.
                             <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;active_cluster&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)),</span>
                             <span class="n">clustering</span><span class="o">.</span><span class="n">n_clusters</span><span class="p">,</span>
                         <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
-                        <span class="n">gene_ix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;gene_ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+                        <span class="n">region_ix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;region_ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
 
                         <span class="n">prob</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">evaluate_pseudo</span><span class="p">(</span>
                             <span class="n">pseudocoordinates</span><span class="p">,</span>
                             <span class="n">clustering</span><span class="o">=</span><span class="n">pseudocluster</span><span class="p">,</span>
-                            <span class="n">gene_ix</span><span class="o">=</span><span class="n">gene_ix</span><span class="p">,</span>
+                            <span class="n">region_ix</span><span class="o">=</span><span class="n">region_ix</span><span class="p">,</span>
                             <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
                         <span class="p">)</span>
 
@@ -1311,9 +1301,9 @@ You're not viewing the latest version.
                     <span class="p">],</span>
                 <span class="p">)</span>
 
-                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">probs</span><span class="p">,</span> <span class="n">probs_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;wb&quot;</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span> <span class="o">=</span> <span class="n">probs</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">genes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">genes</span> <span class="o">|</span> <span class="p">{</span><span class="n">gene</span><span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -1326,11 +1316,8 @@ You're not viewing the latest version.
 <span class="sd">        Returns:</span>
 <span class="sd">            Two dataframes, one with the probabilities per cluster, one with the mean</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">probs_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scoring_path</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;probs.pkl&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">probs_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">probs_file</span><span class="si">}</span><span class="s2"> does not exist&quot;</span><span class="p">)</span>
+        <span class="n">probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span>
 
-        <span class="n">probs</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">probs_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;rb&quot;</span><span class="p">))</span>
         <span class="n">plotdata</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="s2">&quot;prob&quot;</span><span class="p">)</span>
 
         <span class="n">window</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
@@ -1351,11 +1338,6 @@ You're not viewing the latest version.
         <span class="n">plotdata_mean</span> <span class="o">=</span> <span class="n">plotdata</span><span class="p">[[</span><span class="s2">&quot;prob&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;coord&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">plotdata</span><span class="p">,</span> <span class="n">plotdata_mean</span>
-
-    <span class="k">def</span> <span class="nf">get_scoring_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="n">path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">path</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -1437,9 +1419,7 @@ You're not viewing the latest version.
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/interpret/genepositional.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">137</span>
-<span class="normal">138</span>
-<span class="normal">139</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">139</span>
 <span class="normal">140</span>
 <span class="normal">141</span>
 <span class="normal">142</span>
@@ -1471,8 +1451,7 @@ You're not viewing the latest version.
 <span class="normal">168</span>
 <span class="normal">169</span>
 <span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="normal">171</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_plotdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns average and differential probabilities for a particular gene.</span>
 
@@ -1483,11 +1462,8 @@ You're not viewing the latest version.
 <span class="sd">    Returns:</span>
 <span class="sd">        Two dataframes, one with the probabilities per cluster, one with the mean</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">probs_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scoring_path</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;probs.pkl&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">probs_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">probs_file</span><span class="si">}</span><span class="s2"> does not exist&quot;</span><span class="p">)</span>
+    <span class="n">probs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span>
 
-    <span class="n">probs</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">probs_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;rb&quot;</span><span class="p">))</span>
     <span class="n">plotdata</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="s2">&quot;prob&quot;</span><span class="p">)</span>
 
     <span class="n">window</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
@@ -1628,10 +1604,7 @@ You're not viewing the latest version.
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/interpret/genepositional.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 31</span>
-<span class="normal"> 32</span>
-<span class="normal"> 33</span>
-<span class="normal"> 34</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 34</span>
 <span class="normal"> 35</span>
 <span class="normal"> 36</span>
 <span class="normal"> 37</span>
@@ -1732,7 +1705,9 @@ You're not viewing the latest version.
 <span class="normal">132</span>
 <span class="normal">133</span>
 <span class="normal">134</span>
-<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">score</span><span class="p">(</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">score</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
@@ -1774,15 +1749,14 @@ You're not viewing the latest version.
 
     <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">pbar</span><span class="p">:</span>
         <span class="n">pbar</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span>
-        <span class="n">probs_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scoring_path</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;probs.pkl&quot;</span>
 
         <span class="n">force</span> <span class="o">=</span> <span class="n">force_</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">probs_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">gene</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">:</span>
             <span class="n">force</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
-            <span class="n">design_gene</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;gene_ix&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">fragments</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">gene</span><span class="p">)]})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
-            <span class="n">design_gene</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">gene</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;gene&quot;</span><span class="p">)</span>
+            <span class="n">design_region</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;region_ix&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">fragments</span><span class="o">.</span><span class="n">var</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="n">gene</span><span class="p">)]})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+            <span class="n">design_region</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">gene</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;gene&quot;</span><span class="p">)</span>
             <span class="n">design_clustering</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;active_cluster&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">clustering</span><span class="o">.</span><span class="n">n_clusters</span><span class="p">)})</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
                 <span class="s2">&quot;category&quot;</span>
             <span class="p">)</span>
@@ -1791,7 +1765,7 @@ You're not viewing the latest version.
                 <span class="s2">&quot;category&quot;</span>
             <span class="p">)</span>
             <span class="n">design_coord</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">design_coord</span><span class="p">[</span><span class="s2">&quot;coord&quot;</span><span class="p">]</span>
-            <span class="n">design</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">crossing</span><span class="p">(</span><span class="n">design_gene</span><span class="p">,</span> <span class="n">design_clustering</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
+            <span class="n">design</span> <span class="o">=</span> <span class="n">chd</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">crossing</span><span class="p">(</span><span class="n">design_region</span><span class="p">,</span> <span class="n">design_clustering</span><span class="p">,</span> <span class="n">design_coord</span><span class="p">)</span>
 
             <span class="n">design</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">design</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
@@ -1805,12 +1779,12 @@ You're not viewing the latest version.
                         <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;active_cluster&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)),</span>
                         <span class="n">clustering</span><span class="o">.</span><span class="n">n_clusters</span><span class="p">,</span>
                     <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
-                    <span class="n">gene_ix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;gene_ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+                    <span class="n">region_ix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">design_subset</span><span class="p">[</span><span class="s2">&quot;region_ix&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
 
                     <span class="n">prob</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">evaluate_pseudo</span><span class="p">(</span>
                         <span class="n">pseudocoordinates</span><span class="p">,</span>
                         <span class="n">clustering</span><span class="o">=</span><span class="n">pseudocluster</span><span class="p">,</span>
-                        <span class="n">gene_ix</span><span class="o">=</span><span class="n">gene_ix</span><span class="p">,</span>
+                        <span class="n">region_ix</span><span class="o">=</span><span class="n">region_ix</span><span class="p">,</span>
                         <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
                     <span class="p">)</span>
 
@@ -1834,9 +1808,9 @@ You're not viewing the latest version.
                 <span class="p">],</span>
             <span class="p">)</span>
 
-            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">probs</span><span class="p">,</span> <span class="n">probs_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;wb&quot;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span> <span class="o">=</span> <span class="n">probs</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">genes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">genes</span> <span class="o">|</span> <span class="p">{</span><span class="n">gene</span><span class="p">}</span>
+    <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>

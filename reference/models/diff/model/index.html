@@ -702,6 +702,13 @@ You're not viewing the latest version.
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#chromatinhd.models.diff.model.cutnf.Model.__init__" class="md-nav__link">
+    __init__()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#chromatinhd.models.diff.model.cutnf.Model.get_prediction" class="md-nav__link">
     get_prediction()
   </a>
@@ -1496,23 +1503,37 @@ You're not viewing the latest version.
 <span class="normal">533</span>
 <span class="normal">534</span>
 <span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">HybridModel</span><span class="p">):</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">HybridModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A ChromatinHD-diff model that models the probability density of observing a cut site between clusterings</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">fragments</span><span class="p">,</span>
-        <span class="n">clustering</span><span class="p">,</span>
-        <span class="n">nbins</span><span class="o">=</span><span class="p">(</span>
+        <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
+        <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
+        <span class="n">nbins</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
             <span class="mi">128</span><span class="p">,</span>
             <span class="mi">64</span><span class="p">,</span>
             <span class="mi">32</span><span class="p">,</span>
         <span class="p">),</span>
         <span class="n">decoder_n_layers</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
         <span class="n">baseline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">scale_likelihood</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">rho_delta_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">rho_delta_p_scale_free</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">mixture_delta_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -1520,6 +1541,19 @@ You're not viewing the latest version.
         <span class="n">mixture_delta_p_scale_dist</span><span class="o">=</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span>
         <span class="n">mixture_delta_p_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
     <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parameters:</span>
+<span class="sd">            fragments:</span>
+<span class="sd">                Fragments object</span>
+<span class="sd">            clustering:</span>
+<span class="sd">                Clustering object</span>
+<span class="sd">            nbins:</span>
+<span class="sd">                Number of bins for the spline</span>
+<span class="sd">            decoder_n_layers:</span>
+<span class="sd">                Number of layers in the decoder</span>
+<span class="sd">            baseline:</span>
+<span class="sd">                Whether to use a baseline model</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">n_total_regions</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span>
@@ -1632,7 +1666,7 @@ You're not viewing the latest version.
 
     <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_</span><span class="p">(</span>
-            <span class="n">coordinates</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">cuts</span><span class="o">.</span><span class="n">coordinates</span><span class="p">,</span>
+            <span class="n">coordinates</span><span class="o">=</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">cuts</span><span class="o">.</span><span class="n">coordinates</span> <span class="o">-</span> <span class="n">data</span><span class="o">.</span><span class="n">cuts</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">cuts</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="o">.</span><span class="n">cuts</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
             <span class="n">clustering</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">clustering</span><span class="o">.</span><span class="n">onehot</span><span class="p">,</span>
             <span class="n">regions_oi</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">minibatch</span><span class="o">.</span><span class="n">regions_oi_torch</span><span class="p">,</span>
             <span class="n">local_region_ix</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">cuts</span><span class="o">.</span><span class="n">local_region_ix</span><span class="p">,</span>
@@ -1846,11 +1880,11 @@ You're not viewing the latest version.
         <span class="n">region_ix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="kn">from</span> <span class="nn">chromatinhd.models.diff.loader.clustering</span> <span class="kn">import</span> <span class="n">Result</span> <span class="k">as</span> <span class="n">ClusteringResult</span>
+        <span class="kn">from</span> <span class="nn">chromatinhd.loaders.clustering</span> <span class="kn">import</span> <span class="n">Result</span> <span class="k">as</span> <span class="n">ClusteringResult</span>
         <span class="kn">from</span> <span class="nn">chromatinhd.models.diff.loader.clustering_cuts</span> <span class="kn">import</span> <span class="p">(</span>
             <span class="n">Result</span> <span class="k">as</span> <span class="n">ClusteringCutsResult</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="kn">from</span> <span class="nn">chromatinhd.models.diff.loader.cuts</span> <span class="kn">import</span> <span class="n">Result</span> <span class="k">as</span> <span class="n">CutsResult</span>
+        <span class="kn">from</span> <span class="nn">chromatinhd.loaders.fragments</span> <span class="kn">import</span> <span class="n">CutsResult</span>
         <span class="kn">from</span> <span class="nn">chromatinhd.loaders.minibatches</span> <span class="kn">import</span> <span class="n">Minibatch</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">clustering</span><span class="p">):</span>
@@ -1888,6 +1922,9 @@ You're not viewing the latest version.
                 <span class="n">local_cellxregion_ix</span><span class="o">=</span><span class="n">local_cellxregion_ix</span><span class="p">,</span>
                 <span class="n">localcellxregion_ix</span><span class="o">=</span><span class="n">localcellxregion_ix</span><span class="p">,</span>
                 <span class="n">n_regions</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_oi</span><span class="p">),</span>
+                <span class="n">n_fragments</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">coordinates</span><span class="p">),</span>
+                <span class="n">n_cuts</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">coordinates</span><span class="p">),</span>
+                <span class="n">window</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span>
             <span class="p">),</span>
             <span class="n">clustering</span><span class="o">=</span><span class="n">ClusteringResult</span><span class="p">(</span>
                 <span class="n">onehot</span><span class="o">=</span><span class="n">clustering</span><span class="p">,</span>
@@ -1921,6 +1958,292 @@ You're not viewing the latest version.
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="chromatinhd.models.diff.model.cutnf.Model.__init__" class="doc doc-heading">
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">decoder_n_layers</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">baseline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">rho_delta_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">rho_delta_p_scale_free</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mixture_delta_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mixture_delta_p_scale_free</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mixture_delta_p_scale_dist</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span> <span class="n">mixture_delta_p_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+
+  <p><strong>Parameters:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Default</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>fragments</code></td>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="chromatinhd.data.fragments.Fragments" href="../../../data/fragments/#chromatinhd.data.fragments.Fragments">Fragments</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Fragments object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>clustering</code></td>
+          <td>
+                <code><a class="autorefs autorefs-internal" title="chromatinhd.data.clustering.Clustering" href="../../../data/clustering/#chromatinhd.data.clustering.Clustering">Clustering</a></code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Clustering object</p>
+            </div>
+          </td>
+          <td>
+              <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>nbins</code></td>
+          <td>
+                <code><span title="typing.List">List</span>[int]</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Number of bins for the spline</p>
+            </div>
+          </td>
+          <td>
+                <code>(128, 64, 32)</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>decoder_n_layers</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Number of layers in the decoder</p>
+            </div>
+          </td>
+          <td>
+                <code>0</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>baseline</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Whether to use a baseline model</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
+          </td>
+        </tr>
+    </tbody>
+  </table>
+
+      <details class="quote">
+        <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
+    <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
+    <span class="n">nbins</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="mi">128</span><span class="p">,</span>
+        <span class="mi">64</span><span class="p">,</span>
+        <span class="mi">32</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">decoder_n_layers</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">baseline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">rho_delta_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">rho_delta_p_scale_free</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">mixture_delta_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mixture_delta_p_scale_free</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">mixture_delta_p_scale_dist</span><span class="o">=</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span>
+    <span class="n">mixture_delta_p_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parameters:</span>
+<span class="sd">        fragments:</span>
+<span class="sd">            Fragments object</span>
+<span class="sd">        clustering:</span>
+<span class="sd">            Clustering object</span>
+<span class="sd">        nbins:</span>
+<span class="sd">            Number of bins for the spline</span>
+<span class="sd">        decoder_n_layers:</span>
+<span class="sd">            Number of layers in the decoder</span>
+<span class="sd">        baseline:</span>
+<span class="sd">            Whether to use a baseline model</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">n_total_regions</span> <span class="o">=</span> <span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">n_clusters</span> <span class="o">=</span> <span class="n">clustering</span><span class="o">.</span><span class="n">n_clusters</span>
+
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">DifferentialQuadraticSplineStack</span><span class="p">(</span>
+        <span class="n">nbins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span>
+        <span class="n">n_regions</span><span class="o">=</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mixture</span> <span class="o">=</span> <span class="n">TransformedDistribution</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+    <span class="n">n_delta_mixture_components</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">split_deltas</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">baseline</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span> <span class="o">=</span> <span class="n">Decoder</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_clusters</span><span class="p">,</span>
+            <span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">,</span>
+            <span class="n">n_delta_mixture_components</span><span class="p">,</span>
+            <span class="n">n_layers</span><span class="o">=</span><span class="n">decoder_n_layers</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span> <span class="o">=</span> <span class="n">BaselineDecoder</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_clusters</span><span class="p">,</span>
+            <span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">,</span>
+            <span class="n">n_delta_mixture_components</span><span class="p">,</span>
+            <span class="n">n_layers</span><span class="o">=</span><span class="n">decoder_n_layers</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># calculate libsizes and rho bias</span>
+    <span class="n">libsize</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">mapping</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span><span class="p">))</span>
+
+    <span class="n">rho_bias</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">mapping</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">))</span>
+        <span class="o">/</span> <span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span>
+        <span class="o">/</span> <span class="n">libsize</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">min_rho_bias</span> <span class="o">=</span> <span class="mf">1e-5</span>
+    <span class="n">rho_bias</span> <span class="o">=</span> <span class="n">min_rho_bias</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">min_rho_bias</span><span class="p">)</span> <span class="o">*</span> <span class="n">rho_bias</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;rho_bias&quot;</span><span class="p">,</span> <span class="n">rho_bias</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">track</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">mixture_delta_regularization</span> <span class="o">=</span> <span class="n">mixture_delta_regularization</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mixture_delta_regularization</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">mixture_delta_p_scale_free</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mixture_delta_p_scale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">mixture_delta_p_scale</span><span class="p">),</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span>
+                <span class="s2">&quot;mixture_delta_p_scale&quot;</span><span class="p">,</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">mixture_delta_p_scale</span><span class="p">)),</span>
+            <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mixture_delta_p_scale_dist</span> <span class="o">=</span> <span class="n">mixture_delta_p_scale_dist</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">rho_delta_regularization</span> <span class="o">=</span> <span class="n">rho_delta_regularization</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_delta_regularization</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">rho_delta_p_scale_free</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rho_delta_p_scale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;rho_delta_p_scale&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)))</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 
@@ -2072,19 +2395,7 @@ You're not viewing the latest version.
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">339</span>
-<span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
-<span class="normal">350</span>
-<span class="normal">351</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">351</span>
 <span class="normal">352</span>
 <span class="normal">353</span>
 <span class="normal">354</span>
@@ -2199,7 +2510,19 @@ You're not viewing the latest version.
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
-<span class="normal">466</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_prediction</span><span class="p">(</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_prediction</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">clustering</span><span class="p">:</span> <span class="n">Clustering</span><span class="p">,</span>
@@ -2349,19 +2672,7 @@ You're not viewing the latest version.
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">282</span>
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
@@ -2411,7 +2722,19 @@ You're not viewing the latest version.
 <span class="normal">329</span>
 <span class="normal">330</span>
 <span class="normal">331</span>
-<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">fold</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">fold</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Trains the model</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -2507,22 +2830,7 @@ You're not viewing the latest version.
 
         <details class="quote">
           <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span>
-<span class="normal">548</span>
-<span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">554</span>
 <span class="normal">555</span>
 <span class="normal">556</span>
 <span class="normal">557</span>
@@ -2550,7 +2858,22 @@ You're not viewing the latest version.
 <span class="normal">579</span>
 <span class="normal">580</span>
 <span class="normal">581</span>
-<span class="normal">582</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Models</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Models</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
     <span class="n">n_models</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">()</span>
 
     <span class="nd">@property</span>
@@ -2652,22 +2975,7 @@ You're not viewing the latest version.
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/models/diff/model/cutnf.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">548</span>
-<span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
 <span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
@@ -2676,7 +2984,22 @@ You're not viewing the latest version.
 <span class="normal">569</span>
 <span class="normal">570</span>
 <span class="normal">571</span>
-<span class="normal">572</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train_models</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="n">clustering</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Trains the models</span>
 
