@@ -4,301 +4,31 @@ import math
 from typing import Union
 from chromatinhd.embedding import EmbeddingTensor
 from chromatinhd.data.fragments import Fragments, FragmentsView
-
-
-class WindowStack(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def log_prob(self, bin_ixs, unnormalized_heights, inverse=False):
-        logprob = torch.zeros(bin_ixs.shape[0], device=bin_ixs.device)
-
-        for i, (unnormalized_heights_scale,) in enumerate(
-            zip(
-                unnormalized_heights,
-            )
-        ):
-            heights_scale = torch.nn.functional.log_softmax(unnormalized_heights_scale, 1) + math.log(
-                unnormalized_heights_scale.shape[1]
-            )
-            logprob += heights_scale.gather(1, bin_ixs[:, i].unsqueeze(1)).squeeze(1)
-
-        return logprob
+from chromatinhd.models.diff.model.splines import quadratic
 
 
 class FragmentPositionDistribution(torch.nn.Module):
     pass
 
 
-class Identity(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return x
-
-
-class FragmentPositionDistribution1(FragmentPositionDistribution):
-    def __init__(
-        self,
-        fragments: Union[Fragments, FragmentsView],
-        motifcounts,
-        clustering,
-        kernel_size=5,
-        final_channels=10,
-        n_hidden_dimensions=10,
-        n_motifs=1,
-        baseline=None,
-    ):
-        super().__init__()
-        self.window = fragments.regions.window
-        self.window_width = fragments.regions.window[1] - fragments.regions.window[0]
-        self.position_dist = WindowStack()
-        self.binsize = motifcounts.binsize
-
-        self.predictors = []
-        self.predictor2s = []
-        for i, (fragmentprob_size, motifcount_size) in enumerate(
-            zip(motifcounts.fragmentprob_sizes, motifcounts.motifcount_sizes)
-        ):
-            if not motifcount_size % fragmentprob_size == 0:
-                raise ValueError("motifcount_size must be a multiple of fragmentprob_size")
-            int(motifcount_size // fragmentprob_size)
-            predictor = torch.nn.Sequential(
-                # torch.nn.Linear(n_motifs, final_channels),
-                torch.nn.Conv1d(n_motifs, final_channels // 2, kernel_size=kernel_size, padding="same"),
-                torch.nn.Conv1d(final_channels // 2, final_channels, kernel_size=kernel_size, padding="same"),
-                # torch.nn.AvgPool1d(kernel_size=stride, stride=stride),
-            )
-            self.final_channels = final_channels
-            setattr(self, f"predictor_{i}", predictor)
-            self.predictors.append(predictor)
-
-            predictor2 = torch.nn.Sequential(
-                # Identity(),
-                torch.nn.Linear(final_channels, n_hidden_dimensions),
-                # torch.nn.Dropout(0.1),
-                torch.nn.ReLU(),
-                torch.nn.Linear(n_hidden_dimensions, n_hidden_dimensions),
-                torch.nn.ReLU(),
-            )
-            setattr(self, f"predictor2_{i}", predictor2)
-            self.predictor2s.append(predictor2)
-
-        # create/check baseline and differential
-        baseline_pretrained = baseline if baseline is not None else None
-
-        baseline = []
-        differentials = []
-        if baseline_pretrained is not None:
-            baseline = baseline_pretrained
-        else:
-            baseline = torch.nn.Embedding(
-                fragments.n_regions * parent_fragment_width,
-                fragmentprob_size,
-                sparse=True,
-            )
-            baseline.weight.data[:] = 0.0
-
-        baselines.append(baseline)
-        setattr(self, f"baseline_{i}", baseline)
-
-        differential = EmbeddingTensor(
-            clustering.n_clusters,
-            (n_hidden_dimensions,),
-        )
-        differential.weight.data[:] = 0.0
-        differentials.append(differential)
-        setattr(self, f"differential_{i}", differential)
-
-        self.baselines = baselines
-        self.differentials = differentials
-        self.n_clusters = clustering.n_clusters
-
-    def log_prob(self, data):
-        predictor = self.predictors[0]
-        predictor2 = self.predictor2s[0]
-        bincounts = data.motifcounts.regioncounts
-        self.motif_binsizes[0]
-        baseline = self.baselines[0]
-        differential = self.differentials[0]
-
-        # bincounts_input = (bincounts.float() / motif_binsize * 100)
-        bincounts_input = bincounts.float().unsqueeze(1)
-
-        # output: [fragment, channels, fragment_bin]
-        # motifcount_embedding = bincounts_input.float().unsqueeze(1)
-        # motifcount_embedding = (bincounts > 1).float().unsqueeze(1)
-        motifcount_embedding = predictor(bincounts_input)  # unsqueeze to add a single channel
-        fragmentprob_size = motifcount_embedding.shape[-1]
-
-        # transpose to [fragmentxfragment_bin, channel]
-        motifcount_embedding = motifcount_embedding.transpose(1, 2).reshape(-1, self.final_channels)
-
-        # output: [fragmentxfragment_bin, 1] -> [fragment, fragment_bin, hidden_dimension]
-        region_embedding = predictor2(motifcount_embedding).reshape((bincounts.shape[0], fragmentprob_size, -1))
-
-        baseline_unnormalized_height = baseline(data.minibatch.regions_oi_torch)
-
-        unnormalized_heights_scale = (
-            torch.einsum("bcd,ad->abc", region_embedding, differential.get_full_weight()) + baseline_unnormalized_height
-        )
-        heights_scale = torch.nn.functional.log_softmax(unnormalized_heights_scale, -1) + math.log(
-            unnormalized_heights_scale.shape[1]
-        )
-
-        likelihood_position = heights_scale[
-            data.clustering.labels[data.fragments.local_cell_ix],
-            data.fragments.local_region_ix,
-            data.motifcounts.binixs[:, 0],
-        ]
-        return likelihood_position
-
-
-class FragmentPositionDistribution2(FragmentPositionDistribution):
-    def __init__(
-        self,
-        fragments,
-        motifcounts,
-        clustering,
-        kernel_size=1,
-        final_channels=1,
-        n_hidden_dimensions=1,
-        n_motifs=1,
-        baselines=None,
-    ):
-        super().__init__()
-        self.window = fragments.regions.window
-        self.window_width = fragments.regions.window[1] - fragments.regions.window[0]
-        self.position_dist = WindowStack()
-        self.motif_binsizes = motifcounts.motif_binsizes
-
-        self.predictors = []
-        self.predictor2s = []
-        for i, (fragmentprob_size, motifcount_size) in enumerate(
-            zip(motifcounts.fragmentprob_sizes, motifcounts.motifcount_sizes)
-        ):
-            if not motifcount_size % fragmentprob_size == 0:
-                raise ValueError("motifcount_size must be a multiple of fragmentprob_size")
-            int(motifcount_size // fragmentprob_size)
-            predictor = torch.nn.Sequential(
-                # torch.nn.Linear(n_motifs, final_channels)
-                torch.nn.Conv1d(n_motifs, final_channels, kernel_size=kernel_size, padding="same"),
-                # torch.nn.AvgPool1d(kernel_size=stride, stride=stride),
-            )
-            self.final_channels = final_channels
-            setattr(self, f"predictor_{i}", predictor)
-            self.predictors.append(predictor)
-
-            predictor2 = torch.nn.Sequential(
-                Identity(),
-                # torch.nn.Linear(final_channels, n_hidden_dimensions),
-                # torch.nn.Dropout(0.1),
-                # torch.nn.Sigmoid(),
-                # torch.nn.Linear(n_hidden_dimensions, 1), # this is done in a head-specific way
-            )
-            setattr(self, f"predictor2_{i}", predictor2)
-            self.predictor2s.append(predictor2)
-
-        # create/check baselines and differential
-        baselines_pretrained = baselines if baselines is not None else None
-
-        baselines = []
-        differentials = []
-        for i, (parent_fragment_width, fragmentprob_size) in enumerate(
-            zip([1, *motifcounts.fragment_widths[:-1]], motifcounts.fragmentprob_sizes)
-        ):
-            if baselines_pretrained is not None:
-                baseline = baselines_pretrained[i]
-            else:
-                baseline = torch.nn.Embedding(
-                    fragments.n_regions * parent_fragment_width,
-                    fragmentprob_size,
-                    sparse=True,
-                )
-                baseline.weight.data[:] = 0.0
-
-            baselines.append(baseline)
-            setattr(self, f"baseline_{i}", baseline)
-
-            differential = EmbeddingTensor(
-                clustering.n_clusters,
-                (n_hidden_dimensions, 1),
-            )
-            differential.weight.data[:] = 0.0
-            differentials.append(differential)
-            setattr(self, f"differential_{i}", differential)
-
-        self.baselines = baselines
-        self.differentials = differentials
-        self.n_clusters = clustering.n_clusters
-
-    def log_prob(self, data):
-        unnormalized_heights = []
-        for i, (predictor, predictor2, bincounts, motif_binsize, baseline, differential) in enumerate(
-            zip(
-                self.predictors,
-                self.predictor2s,
-                data.motifcounts.bincounts,
-                self.motif_binsizes,
-                self.baselines,
-                self.differentials,
-            )
-        ):
-            bincounts_input = (bincounts.float() / motif_binsize * 100).unsqueeze(
-                1
-            )  # unsqueeze to add a single channel
-
-            # output: [fragment, channels, fragment_bin]
-            motifcount_embedding = bincounts_input.float().unsqueeze(1)
-            # motifcount_embedding = bincounts.float().unsqueeze(1)
-            motifcount_embedding = (bincounts > 1).float().unsqueeze(1)
-            # motifcount_embedding = predictor(bincounts_input)
-            fragmentprob_size = motifcount_embedding.shape[-1]
-
-            # transpose to [fragmentxfragment_bin, channel]
-            motifcount_embedding = motifcount_embedding.transpose(1, 2).reshape(-1, self.final_channels)
-
-            # output: [fragmentxfragment_bin, 1] -> [fragment, fragment_bin, hidden_dimension]
-            # fragment_embedding = bincounts.float().reshape((bincounts.shape[0], fragmentprob_size, -1))
-            fragment_embedding = predictor2(motifcount_embedding).reshape((bincounts.shape[0], fragmentprob_size, -1))
-
-            baseline_unnormalized_height = baseline(data.motifcounts.global_binixs[:, i])
-            # differential_weights = differential(
-            #     data.motifcounts.global_binixs[:, i] * self.n_clusters
-            #     + data.clustering.labels[data.fragments.local_cell_ix]
-            # )
-            differential_weights = differential(data.clustering.labels[data.fragments.local_cell_ix])
-
-            # fragment_embedding = fragment_embedding + baseline_unnormalized_height
-
-            unnormalized_height = (
-                torch.matmul(fragment_embedding, differential_weights).squeeze(-1) + baseline_unnormalized_height
-            )
-            unnormalized_heights.append(unnormalized_height)
-
-        # p(pos|region,motifs_region)
-        likelihood_position = self.position_dist.log_prob(
-            bin_ixs=data.motifcounts.binixs,
-            unnormalized_heights=unnormalized_heights,
-        )
-        return likelihood_position
+def calculate_binixs(coordinates, window, binsize):
+    return torch.div(coordinates - window[0], binsize, rounding_mode="floor")
 
 
 class Baseline(FragmentPositionDistribution):
-    def __init__(self, fragments, motifcounts, clustering, baseline=None):
+    def __init__(self, fragments, clustering, binsize=200, baseline=None):
         super().__init__()
 
         baseline_pretrained = baseline if baseline is not None else None
 
-        self.binsize = motifcounts.binsize
+        self.binsize = binsize
 
         if baseline_pretrained is not None:
             baseline = baseline_pretrained
         else:
             baseline = torch.nn.Embedding(
                 fragments.n_regions,
-                (fragments.regions.width // motifcounts.binsize),
+                (fragments.regions.width // binsize),
                 sparse=True,
             )
 
@@ -322,14 +52,315 @@ class Baseline(FragmentPositionDistribution):
     def log_prob(self, data):
         unnormalized_height = self.baseline(data.minibatch.regions_oi_torch)
 
-        logprob = torch.zeros(data.fragments.n_fragments, device=data.fragments.coordinates.device)
+        logprob = torch.zeros((data.fragments.n_fragments, 2), device=data.fragments.coordinates.device)
 
-        heights = torch.nn.functional.log_softmax(unnormalized_height, 1) + math.log(unnormalized_height.shape[1])
-        bin_ixs = torch.div(
-            data.fragments.coordinates[:, 0] - data.fragments.window[0], self.binsize, rounding_mode="floor"
-        )
-        logprob += heights[data.fragments.local_region_ix, bin_ixs]
+        heights = torch.nn.functional.log_softmax(unnormalized_height, -1)
+
+        bin_ixs_left = calculate_binixs(data.fragments.coordinates[:, 0], data.fragments.window, self.binsize)
+        logprob[:, 0] = heights[data.fragments.local_region_ix, bin_ixs_left]
+        bin_ixs_right = calculate_binixs(data.fragments.coordinates[:, 1], data.fragments.window, self.binsize)
+        logprob[:, 1] = heights[data.fragments.local_region_ix, bin_ixs_right]
         return logprob
 
     def parameters_sparse(self):
-        return [self.baseline.weight]
+        yield self.baseline.weight
+
+
+class FragmentPositionDistribution1(FragmentPositionDistribution):
+    def __init__(self, fragments: Union[Fragments, FragmentsView], clustering, binsize=200, baseline=None):
+        super().__init__()
+
+        baseline_pretrained = baseline if baseline is not None else None
+
+        self.binsize = binsize
+
+        if baseline_pretrained is not None:
+            baseline = baseline_pretrained
+        else:
+            baseline = torch.nn.Embedding(
+                fragments.n_regions,
+                (fragments.regions.width // binsize),
+                sparse=True,
+            )
+        self.baseline = baseline
+
+        self.binsize = binsize
+        self.binwidth = fragments.regions.width // binsize
+
+        self.delta_logit = EmbeddingTensor(fragments.n_regions, (clustering.n_clusters, self.binwidth), sparse=True)
+        self.delta_logit.weight.data[:] = 0
+
+    def log_prob(self, data):
+        unnormalized_height = self.baseline(data.minibatch.regions_oi_torch).unsqueeze(1) + self.delta_logit(
+            data.minibatch.regions_oi_torch
+        )
+
+        logprob = torch.zeros((data.fragments.n_fragments, 2), device=data.fragments.coordinates.device)
+
+        heights = torch.nn.functional.log_softmax(unnormalized_height, -1) - math.log(self.binsize)
+
+        bin_ixs_left = calculate_binixs(data.fragments.coordinates[:, 0], data.fragments.window, self.binsize)
+        logprob[:, 0] = heights[
+            data.fragments.local_region_ix, data.clustering.labels[data.fragments.local_cell_ix], bin_ixs_left
+        ]
+        bin_ixs_right = calculate_binixs(data.fragments.coordinates[:, 1], data.fragments.window, self.binsize)
+        logprob[:, 1] = heights[
+            data.fragments.local_region_ix, data.clustering.labels[data.fragments.local_cell_ix], bin_ixs_right
+        ]
+        return logprob
+
+    def parameters_sparse(self):
+        yield self.baseline.weight
+        yield self.delta_logit.weight
+
+
+class FragmentPositionDistribution2(FragmentPositionDistribution):
+    def __init__(
+        self, fragments: Union[Fragments, FragmentsView], clustering, binsize=200, baseline=None, delta_logit=None
+    ):
+        super().__init__()
+
+        baseline_pretrained = baseline if baseline is not None else None
+
+        self.binsize = binsize
+
+        if baseline_pretrained is not None:
+            baseline = baseline_pretrained
+        else:
+            baseline = torch.nn.Embedding(
+                fragments.n_regions,
+                (fragments.regions.width // binsize),
+                sparse=True,
+            )
+        self.baseline = baseline
+
+        self.binsize = binsize
+        self.binwidth = fragments.regions.width // binsize
+
+        if delta_logit is None:
+            self.delta_logit = EmbeddingTensor(fragments.n_regions, (clustering.n_clusters, self.binwidth), sparse=True)
+            self.delta_logit.weight.data[:] = 0
+        else:
+            self.delta_logit = delta_logit
+
+        self.register_buffer("bin_positions", torch.arange(*fragments.regions.window, binsize) + binsize // 2)
+
+        self.width = fragments.regions.width
+        self.inside = torch.nn.Parameter(torch.ones(1) * 10)
+
+    def log_prob(self, data):
+        unnormalized_heights = self.baseline(data.minibatch.regions_oi_torch).unsqueeze(1) + self.delta_logit(
+            data.minibatch.regions_oi_torch
+        )
+
+        logprob = torch.zeros((data.fragments.n_fragments, 2), device=data.fragments.coordinates.device)
+
+        heights_left = torch.nn.functional.log_softmax(unnormalized_heights, -1) - math.log(self.binsize)
+        bin_ixs_left = calculate_binixs(data.fragments.coordinates[:, 0], data.fragments.window, self.binsize)
+        logprob[:, 0] = heights_left[
+            data.fragments.local_region_ix, data.clustering.labels[data.fragments.local_cell_ix], bin_ixs_left
+        ]
+
+        # calculate weight
+        bin_ixs_right = calculate_binixs(data.fragments.coordinates[:, 1], data.fragments.window, self.binsize)
+        bin_ixs_match = bin_ixs_left == bin_ixs_right
+
+        logprob_inside = torch.log(torch.sigmoid(self.inside)) - math.log(self.binwidth)
+        logprob_outside = torch.log(1 - torch.sigmoid(self.inside)) - math.log(self.width - self.binwidth)
+
+        logprob[:, 1] = (logprob_inside * bin_ixs_match.float()) + (logprob_outside * (1 - bin_ixs_match.float()))
+
+        return logprob
+
+    def parameters_sparse(self):
+        yield self.baseline.weight
+        yield self.delta_logit.weight
+
+
+class FragmentsizeDistribution(torch.nn.Module):
+    def __init__(self, fragments):
+        super().__init__()
+
+        # create spline
+        self.width = 1024
+        self.bin_width = 1024 // 4
+
+        # make sure self.width is divisible by bin_width
+        assert self.width % self.bin_width == 0
+        n_bins = self.width // self.bin_width
+
+        unnormalized_widths = torch.ones((n_bins - 1,))
+        self.register_buffer("widths", quadratic.calculate_widths(unnormalized_widths))
+        self.register_buffer("bin_locations", quadratic.calculate_bin_locations(self.widths))
+
+        # initialize heights
+        counts = torch.bincount(
+            torch.searchsorted(
+                self.bin_locations,
+                torch.from_numpy(fragments.coordinates[:1000000, 1] - fragments.coordinates[:1000000, 0]) / self.width,
+                right=True,
+            )
+        )
+
+        outside_count = counts[-1] / counts.sum()
+        counts = counts[:-1] / counts.sum()
+
+        self.unnormalized_heights = torch.nn.Parameter(torch.log(counts.float() + 1e-10))
+        self.logprob_inside = torch.nn.Parameter(torch.log(outside_count))
+
+    def log_prob(self, data):
+        fragment_size = data.fragments.coordinates[:, 1] - data.fragments.coordinates[:, 0]
+        _, logabsdet = quadratic.quadratic_spline(
+            fragment_size / self.width,
+            widths=self.widths,
+            unnormalized_heights=self.unnormalized_heights,
+            bin_locations=self.bin_locations,
+        )
+
+        logabsdet[fragment_size > self.width] = torch.log(1 - torch.exp(self.logprob_inside))
+        logabsdet = logabsdet + self.logprob_inside
+
+        return logabsdet
+
+
+class FragmentPositionDistribution3(FragmentPositionDistribution):
+    def __init__(
+        self,
+        fragments: Union[Fragments, FragmentsView],
+        clustering,
+        binsize=200,
+        baseline=None,
+        delta_logit=None,
+        fragmentsize_distribution=None,
+    ):
+        super().__init__()
+
+        baseline_pretrained = baseline if baseline is not None else None
+
+        self.binsize = binsize
+
+        if baseline_pretrained is not None:
+            baseline = baseline_pretrained
+        else:
+            baseline = torch.nn.Embedding(
+                fragments.n_regions,
+                (fragments.regions.width // binsize),
+                sparse=True,
+            )
+        self.baseline = baseline
+
+        self.binsize = binsize
+        self.binwidth = fragments.regions.width // binsize
+
+        if delta_logit is None:
+            self.delta_logit = EmbeddingTensor(fragments.n_regions, (clustering.n_clusters, self.binwidth), sparse=True)
+            self.delta_logit.weight.data[:] = 0
+        else:
+            self.delta_logit = delta_logit
+
+        self.register_buffer("bin_positions", torch.arange(*fragments.regions.window, binsize) + binsize // 2)
+
+        if fragmentsize_distribution is None:
+            fragmentsize_distribution = FragmentsizeDistribution(fragments)
+
+        self.fragmentsize_distribution = fragmentsize_distribution
+
+    def log_prob(self, data):
+        unnormalized_heights = self.baseline(data.minibatch.regions_oi_torch).unsqueeze(1) + self.delta_logit(
+            data.minibatch.regions_oi_torch
+        )
+
+        logprob = torch.zeros((data.fragments.n_fragments, 2), device=data.fragments.coordinates.device)
+
+        heights_left = torch.nn.functional.log_softmax(unnormalized_heights, -1)
+        bin_ixs_left = calculate_binixs(data.fragments.coordinates[:, 0], data.fragments.window, self.binsize)
+        logprob[:, 0] = heights_left[
+            data.fragments.local_region_ix, data.clustering.labels[data.fragments.local_cell_ix], bin_ixs_left
+        ]
+
+        logprob[:, 1] = self.fragmentsize_distribution.log_prob(data)
+        return logprob
+
+    def parameters_sparse(self):
+        yield self.baseline.weight
+        yield self.delta_logit.weight
+
+
+##
+
+import math
+
+
+def transform_linear_spline(positions, n, width, unnormalized_heights):
+    binsize = torch.div(width, n, rounding_mode="floor")
+
+    normalized_heights = torch.nn.functional.log_softmax(unnormalized_heights, -1)
+    if normalized_heights.ndim == positions.ndim:
+        normalized_heights = normalized_heights.unsqueeze(0)
+
+    binixs = torch.div(positions, binsize, rounding_mode="trunc")
+
+    logprob = torch.gather(normalized_heights, 1, binixs.unsqueeze(1)).squeeze(1)
+
+    positions = positions - binixs * binsize
+    width = binsize
+
+    return logprob, positions, width
+
+
+def calculate_logprob(positions, nbins, width, unnormalized_heights_bins):
+    assert len(nbins) == len(unnormalized_heights_bins)
+
+    curpositions = positions
+    curwidth = width
+    logprob = torch.zeros_like(positions, dtype=torch.float)
+    for i, n in enumerate(nbins):
+        assert (curwidth % n) == 0
+        logprob_layer, curpositions, curwidth = transform_linear_spline(
+            curpositions, n, curwidth, unnormalized_heights_bins[i]
+        )
+        logprob += logprob_layer
+    logprob = logprob - math.log(
+        curwidth
+    )  # if any width is left, we need to divide by the remaining number of possibilities
+    return logprob
+
+
+class FragmentsizeDistribution2(torch.nn.Module):
+    def __init__(self, fragments, nbins=(8, 8, 8, 2), width=1024):
+        super().__init__()
+
+        self.register_buffer("nbins", torch.from_numpy(np.array(nbins)))
+        self.total_width = fragments.regions.wiudth
+        self.width = width
+
+        self.register_buffer("totalnbins", torch.cumprod(self.nbins, 0))
+        self.register_buffer("totalbinwidths", torch.div(torch.tensor(width), self.totalnbins, rounding_mode="floor"))
+
+        unnormalized_heights_all = []
+        for i, (n, totaln) in enumerate(zip(self.nbins.numpy(), self.totalnbins.numpy())):
+            setattr(self, f"unnormalized_heights_all_{i}", torch.nn.Parameter(torch.zeros(totaln).reshape(-1, n)))
+        self.unnormalized_heights_all = unnormalized_heights_all
+
+        self.logprob_inside = torch.nn.Parameter(torch.log(torch.tensor(0.1)))
+
+    def log_prob(self, data):
+        fragmentsizes = torch.abs(data.fragments.coordinates[:, 1] - data.fragments.coordinates[:, 0])
+        inside = fragmentsizes < self.width
+
+        prob_inside = torch.sigmoid(self.logprob_inside)
+        logprob_outside = torch.log(1 - prob_inside) - (math.log(self.total_width - self.width))
+        logprob_inside = torch.log(prob_inside)
+        log_prob = torch.where(inside, logprob_inside, logprob_outside)
+        fragmentsizes_inside = fragmentsizes[inside]
+
+        totalbinixs = torch.div(fragmentsizes_inside[:, None], self.totalbinwidths, rounding_mode="floor")
+        totalbinsectors = torch.div(totalbinixs, self.nbins[None, :], rounding_mode="floor")
+        unnormalized_heights_bins = [
+            torch.index_select(getattr(self, f"unnormalized_heights_all_{i}"), 0, totalbinsector)
+            for i, totalbinsector in enumerate(totalbinsectors.T)
+        ]
+
+        log_prob[inside] += calculate_logprob(fragmentsizes_inside, self.nbins, self.width, unnormalized_heights_bins)
+
+        return log_prob

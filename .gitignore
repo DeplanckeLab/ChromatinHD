@@ -188,8 +188,10 @@ docs/source/quickstart/restats
 *.zarr/*
 *.hdf5
 restats
-docs/source/overview.aux
-docs/source/overview.fdb_latexmk
-docs/source/overview.fls
-docs/source/overview.pdf
-docs/source/overview.synctex.gz
+docs/tex/overview.aux
+docs/tex/overview.fdb_latexmk
+docs/tex/overview.fls
+docs/tex/overview.pdf
+docs/tex/overview.synctex.gz
+
+output/*

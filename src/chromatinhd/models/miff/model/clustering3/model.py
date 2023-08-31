@@ -24,7 +24,7 @@ from chromatinhd.optim import SparseDenseAdam
 from torch.optim import SGD
 from chromatinhd.utils import crossing
 
-from chromatinhd.models.miff.loader.combinations import MotifCountsFragmentsClustering as MainLoader
+from chromatinhd.models.miff.loader.combinations import FragmentsClustering as MainLoader
 from .count import FragmentCountDistribution1
 from .count import Baseline as CountBaseline
 from .position import FragmentPositionDistribution1
@@ -33,17 +33,15 @@ from .position import Baseline as PositionBaseline
 
 class Model(torch.nn.Module, HybridModel, Flow):
     """
-    A ChromatinHD-diff model that predicts fragments within cells using motifs
+    A ChromatinHD-diff model that identifies differential accessibility between clusters
     """
 
     fragments = Linked()
-    motifcounts = Linked()
     clustering = Linked()
 
     def __init__(
         self,
         fragments,
-        motifcounts,
         clustering,
         cls_fragment_count_distribution=FragmentCountDistribution1,
         cls_fragment_position_distribution=FragmentPositionDistribution1,
@@ -55,24 +53,23 @@ class Model(torch.nn.Module, HybridModel, Flow):
         Flow.__init__(self, path=path)
 
         self.fragment_count_distribution = cls_fragment_count_distribution(
-            fragments, motifcounts, clustering, **kwargs_fragment_count_distribution
+            fragments, clustering, **kwargs_fragment_count_distribution
         )
         self.fragment_position_distribution = cls_fragment_position_distribution(
             fragments,
-            motifcounts,
             clustering,
             **kwargs_fragment_position_distribution,
         )
 
         self.clustering = clustering
         self.fragments = fragments
-        self.motifcounts = motifcounts
 
     def forward(self, data, return_full_likelihood=False) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
         self.track = {}
 
         # p(region|motifs_region)
         likelihood_count = self.fragment_count_distribution.log_prob(data)
+        # print(likelihood_count.sum())
 
         # p(tile|region,motifs_tile)
         likelihood_position = self.fragment_position_distribution.log_prob(data)
@@ -87,16 +84,15 @@ class Model(torch.nn.Module, HybridModel, Flow):
         return {
             "likelihood_position": likelihood_position,
             "likelihood_count": likelihood_count,
-            "likelihood": likelihood_position + likelihood_count.flatten()[data.fragments.local_cellxregion_ix],
+            "likelihood": likelihood_position.sum(-1) + likelihood_count.flatten()[data.fragments.local_cellxregion_ix],
         }
 
-    def train_model(self, fold, fragments=None, motifcounts=None, clustering=None, device=None, n_epochs=30, lr=1e-2):
+    def train_model(self, fold, fragments=None, clustering=None, device=None, n_epochs=30, lr=1e-2, n_cells_step=1000):
         """
         Trains the model
         """
 
         fragments = self.fragments if fragments is None else fragments
-        motifcounts = self.motifcounts if motifcounts is None else motifcounts
         clustering = self.clustering if clustering is None else clustering
 
         if device is None:
@@ -107,13 +103,13 @@ class Model(torch.nn.Module, HybridModel, Flow):
             fold["cells_train"],
             fold["regions_train"],
             n_regions_step=1000,
-            n_cells_step=1000,
+            n_cells_step=n_cells_step,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
             fold["regions_validation"],
             n_regions_step=1000,
-            n_cells_step=1000,
+            n_cells_step=n_cells_step,
             permute_cells=False,
             permute_regions=False,
         )
@@ -121,17 +117,15 @@ class Model(torch.nn.Module, HybridModel, Flow):
         loaders_train = LoaderPool(
             MainLoader,
             dict(
-                motifcounts=motifcounts,
                 fragments=fragments,
                 clustering=clustering,
                 cellxregion_batch_size=minibatcher_train.cellxregion_batch_size,
             ),
-            n_workers=10,
+            n_workers=20,
         )
         loaders_validation = LoaderPool(
             MainLoader,
             dict(
-                motifcounts=motifcounts,
                 fragments=fragments,
                 clustering=clustering,
                 cellxregion_batch_size=minibatcher_validation.cellxregion_batch_size,
@@ -172,7 +166,6 @@ class Model(torch.nn.Module, HybridModel, Flow):
     def get_prediction(
         self,
         fragments: Fragments = None,
-        motifcounts=None,
         clustering=None,
         cells: List[str] = None,
         cell_ixs: List[int] = None,
@@ -181,7 +174,6 @@ class Model(torch.nn.Module, HybridModel, Flow):
         device: str = None,
     ) -> xr.Dataset:
         fragments = self.fragments if fragments is None else fragments
-        motifcounts = self.motifcounts if motifcounts is None else motifcounts
         clustering = self.clustering if clustering is None else clustering
 
         if cell_ixs is None:
@@ -213,7 +205,6 @@ class Model(torch.nn.Module, HybridModel, Flow):
         loaders = LoaderPool(
             MainLoader,
             dict(
-                motifcounts=motifcounts,
                 fragments=fragments,
                 clustering=clustering,
                 cellxregion_batch_size=minibatches.cellxregion_batch_size,
@@ -234,7 +225,9 @@ class Model(torch.nn.Module, HybridModel, Flow):
         self.eval()
         self = self.to(device)
 
-        for data in loaders:
+        progress = tqdm.tqdm(loaders, total=len(loaders), leave=False)
+
+        for data in progress:
             data = data.to(device)
             with torch.no_grad():
                 full_likelihood = self.forward(data, return_full_likelihood=True)
@@ -246,7 +239,7 @@ class Model(torch.nn.Module, HybridModel, Flow):
                 )
             ] += (
                 self._get_likelihood_cell_region(
-                    full_likelihood["likelihood_position"],
+                    full_likelihood["likelihood_position"].sum(-1),
                     data.fragments.local_cellxregion_ix,
                     data.minibatch.n_cells,
                     data.minibatch.n_regions,
@@ -291,22 +284,19 @@ class Model(torch.nn.Module, HybridModel, Flow):
         self,
         design,
         fragments=None,
-        motifcounts=None,
         clustering=None,
         device=None,
     ):
         fragments = self.fragments if fragments is None else fragments
-        motifcounts = self.motifcounts if motifcounts is None else motifcounts
         clustering = self.clustering if clustering is None else clustering
 
         assert "coordinate" in design.columns
         assert "region_ix" in design.columns
 
         from chromatinhd.loaders.minibatches import Minibatch
-        from chromatinhd.models.miff.loader.combinations import MotifCountsFragmentsClusteringResult
-        from chromatinhd.models.miff.loader.binnedmotifcounts import BinnedMotifCounts
+        from chromatinhd.models.miff.loader.combinations import FragmentsClusteringResult
         from chromatinhd.models.miff.loader.clustering import Result as ClusteringResult
-        from chromatinhd.loaders.fragments import Result as FragmentsResult
+        from chromatinhd.loaders.fragments import FragmentsResult
 
         coordinates = torch.from_numpy(design["coordinate"].values).to(torch.long)
         region_ix = torch.from_numpy(design["region_ix"].values).to(torch.long)
@@ -330,6 +320,8 @@ class Model(torch.nn.Module, HybridModel, Flow):
 
         coordinates = torch.stack([coordinates, coordinates], -1)
 
+        lib = torch.ones((len(cells_oi),), dtype=torch.float)
+
         fragments = FragmentsResult(
             coordinates=coordinates,
             local_cellxregion_ix=local_cellxregion_ix,
@@ -338,6 +330,7 @@ class Model(torch.nn.Module, HybridModel, Flow):
             regions_oi=regions_oi,
             cells_oi=cells_oi,
             window=window,
+            lib=lib,
         )
 
         minibatch = Minibatch(
@@ -345,16 +338,12 @@ class Model(torch.nn.Module, HybridModel, Flow):
             regions_oi=regions_oi.cpu().numpy(),
         )
 
-        motif_loader = BinnedMotifCounts(motifcounts)
-        motifcounts_result = motif_loader.load(minibatch, fragments)
-
         clustering_result = ClusteringResult(
             labels=torch.from_numpy(design["clustering_label"].values).to(torch.long),
         )
 
-        data = MotifCountsFragmentsClusteringResult(
+        data = FragmentsClusteringResult(
             fragments=fragments,
-            motifcounts=motifcounts_result,
             clustering=clustering_result,
             minibatch=minibatch,
         ).to(device)
@@ -366,11 +355,13 @@ class Model(torch.nn.Module, HybridModel, Flow):
 
         self = self.to("cpu")
 
-        return full_likelihood["likelihood"].detach().cpu(), full_likelihood["likelihood_position"].detach().cpu()
+        return (
+            full_likelihood["likelihood"].detach().cpu(),
+            full_likelihood["likelihood_position"][:, 0].detach().cpu(),
+        )
 
-    def plot_positional(self, fragments=None, motifcounts=None, clustering=None, region_ix=None, region=None):
+    def plot_positional(self, region=None, region_ix=None, fragments=None, clustering=None):
         fragments = self.fragments if fragments is None else fragments
-        motifcounts = self.motifcounts if motifcounts is None else motifcounts
         clustering = self.clustering if clustering is None else clustering
 
         import matplotlib.pyplot as plt
@@ -381,7 +372,7 @@ class Model(torch.nn.Module, HybridModel, Flow):
             region_ix = fragments.var.index.get_loc(region)
         else:
             region = fragments.var.index[region_ix]
-        coordinates = torch.linspace(*fragments.regions.window, 1001)[:-1]
+        coordinates = torch.linspace(*fragments.regions.window, 2001)[:-1]
 
         design = crossing(
             coordinate=coordinates,
@@ -392,7 +383,7 @@ class Model(torch.nn.Module, HybridModel, Flow):
         fig, ax = plt.subplots()
 
         design["logprob"], design["logprob_positional"] = self.evaluate_positional(
-            design, fragments=fragments, motifcounts=motifcounts, clustering=clustering
+            design, fragments=fragments, clustering=clustering
         )
         for cluster_ix, subdesign in design.groupby("clustering_label"):
             ax.plot(
@@ -406,3 +397,31 @@ class Model(torch.nn.Module, HybridModel, Flow):
         ax.set_ylabel("probability")
         ax.set_xlabel("coordinate")
         ax.set_title("Positional probability of motif")
+
+    state = Stored(persist=False)
+
+    def save_state(self):
+        from collections import OrderedDict
+
+        state = OrderedDict()
+        for k, v in self.__dict__.items():
+            if k.lstrip("_") in self._obj_map:
+                continue
+            if k == "path":
+                continue
+            state[k] = v
+        self.state = state
+
+    @classmethod
+    def restore(cls, path):
+        self = cls.__new__(cls)
+        Flow.__init__(self, path=path)
+        self.restore_state()
+        return self
+
+    def restore_state(self):
+        state = self.state
+        for k, v in state.items():
+            # if k.lstrip("_") in self._obj_map:
+            #     continue
+            self.__dict__[k] = v
