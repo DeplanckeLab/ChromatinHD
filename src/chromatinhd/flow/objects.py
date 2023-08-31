@@ -20,6 +20,8 @@ def format_size(size: int) -> str:
 
 def get_size(start_path="."):
     total_size = 0
+    if os.path.isfile(start_path):
+        return os.path.getsize(start_path)
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
@@ -115,9 +117,10 @@ class Stored(Obj):
     A python object that is stored on disk using pickle
     """
 
-    def __init__(self, default=None, name=None):
+    def __init__(self, default=None, name=None, persist=True):
         self.default = default
         self.name = name
+        self.persist = persist
 
     def get_path(self, folder):
         return folder / (str(self.name) + ".pkl")
@@ -135,13 +138,19 @@ class Stored(Obj):
                     else:
                         value = self.default()
                         pickle.dump(value, path.open("wb"))
-                setattr(obj, name, pickle.load(self.get_path(obj.path).open("rb")))
-            return getattr(obj, name)
+
+                value = pickle.load(self.get_path(obj.path).open("rb"))
+                if self.persist:
+                    setattr(obj, name, value)
+            else:
+                value = getattr(obj, name)
+            return value
 
     def __set__(self, obj, value):
         name = "_" + str(self.name)
         pickle.dump(value, self.get_path(obj.path).open("wb"))
-        setattr(obj, name, value)
+        if self.persist:
+            setattr(obj, name, value)
 
     def exists(self, obj):
         return self.get_path(obj.path).exists()
@@ -399,7 +408,10 @@ class DataArray(Obj):
     def _repr_html_(self, obj):
         instance = self.__get__(obj)
         shape = "[" + ",".join(str(x) for x in instance.shape) + "]"
-        size = format_size(get_size(self.get_path(obj.path)))
+        if not str(self.get_path(obj.path)).startswith("memory"):
+            size = format_size(get_size(self.get_path(obj.path)))
+        else:
+            size = ""
         return f"<span class='iconify' data-icon='mdi-axis-arrow-info'></span> <b>{self.name}</b> {shape}, {size}"
 
 
@@ -436,5 +448,8 @@ class Dataset(Obj):
 
     def _repr_html_(self, obj):
         self.__get__(obj)
-        size = format_size(get_size(self.get_path(obj.path)))
+        if not str(self.get_path(obj.path)).startswith("memory"):
+            size = format_size(get_size(self.get_path(obj.path)))
+        else:
+            size = ""
         return f"<span class='iconify' data-icon='mdi-axis-arrow-info'></span> <b>{self.name}</b> {size}"

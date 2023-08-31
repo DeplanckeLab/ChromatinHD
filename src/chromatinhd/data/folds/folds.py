@@ -11,7 +11,7 @@ from chromatinhd.data.fragments import Fragments
 
 class Folds(Flow):
     """
-    Folds of multiple cell and gene combinations
+    Folds of multiple cell and reion combinations
     """
 
     folds: dict = Stored()
@@ -25,7 +25,7 @@ class Folds(Flow):
         overwrite: bool = False,
     ):
         """
-        Sample cells and genes into folds
+        Sample cells and regions into folds
 
         Parameters:
             fragments:
@@ -67,7 +67,7 @@ class Folds(Flow):
 
         return self
 
-    def sample_cellxgene(
+    def sample_cellxregion(
         self,
         fragments: Fragments,
         n_folds: int,
@@ -76,7 +76,7 @@ class Folds(Flow):
         overwrite: bool = False,
     ):
         """
-        Sample cells and genes into folds
+        Sample cells and regions into folds
 
         Parameters:
             fragments:
@@ -100,17 +100,17 @@ class Folds(Flow):
 
             cell_bins = np.floor((np.arange(len(cells_all)) / (len(cells_all) / n_folds)))
 
-            genes_all = np.arange(fragments.n_regions)
+            regions_all = np.arange(fragments.n_regions)
 
             if stratify_by_chromosome:
                 chr_column = "chr" if "chr" in fragments.regions.coordinates.columns else "chrom"
                 chr_order = generator.permutation(fragments.regions.coordinates[chr_column].unique())
-                gene_chrs = pd.Categorical(
+                region_chrs = pd.Categorical(
                     fragments.regions.coordinates[chr_column].astype(str), categories=chr_order
                 ).codes
-                gene_bins = np.floor((gene_chrs / (len(chr_order) / n_folds))).astype(int)
+                region_bins = np.floor((region_chrs / (len(chr_order) / n_folds))).astype(int)
             else:
-                gene_bins = np.floor((np.arange(len(genes_all)) / (len(genes_all) / n_folds)))
+                region_bins = np.floor((np.arange(len(regions_all)) / (len(regions_all) / n_folds)))
 
             for i in range(n_folds):
                 cells_train = cells_all[cell_bins != i]
@@ -118,19 +118,19 @@ class Folds(Flow):
                 cells_validation = cells_validation_test[: (len(cells_validation_test) // 2)]
                 cells_test = cells_validation_test[(len(cells_validation_test) // 2) :]
 
-                genes_train = genes_all[gene_bins != i]
-                genes_validation_test = generator.permutation(genes_all[gene_bins == i])
-                genes_validation = genes_validation_test[: (len(genes_validation_test) // 2)]
-                genes_test = genes_validation_test[(len(genes_validation_test) // 2) :]
+                regions_train = regions_all[region_bins != i]
+                regions_validation_test = generator.permutation(regions_all[region_bins == i])
+                regions_validation = regions_validation_test[: (len(regions_validation_test) // 2)]
+                regions_test = regions_validation_test[(len(regions_validation_test) // 2) :]
 
                 folds.append(
                     {
                         "cells_train": cells_train,
                         "cells_validation": cells_validation,
                         "cells_test": cells_test,
-                        "genes_train": genes_train,
-                        "genes_validation": genes_validation,
-                        "genes_test": genes_test,
+                        "regions_train": regions_train,
+                        "regions_validation": regions_validation,
+                        "regions_test": regions_test,
                         "repeat": repeat_ix,
                     }
                 )

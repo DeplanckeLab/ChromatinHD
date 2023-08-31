@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import math
 from chromatinhd.embedding import EmbeddingTensor
 
@@ -34,7 +35,7 @@ class FragmentCountDistribution1(FragmentCountDistribution):
         if baseline is not None:
             self.baseline = baseline
         else:
-            self.baseline = EmbeddingTensor(fragments.n_genes, (1,), sparse=True)
+            self.baseline = EmbeddingTensor(fragments.n_regions, (1,), sparse=True)
 
         n_final_channels = 10
 
@@ -49,24 +50,24 @@ class FragmentCountDistribution1(FragmentCountDistribution):
 
         self.motif_binsizes = motifcounts.motif_binsizes
 
-        lib = (torch.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells).float() + 1e-2) / fragments.n_genes
+        lib = torch.from_numpy(fragments.regionxcell_counts.sum(0).astype(np.float) / fragments.n_regions)
         lib = torch.log(lib)
         self.register_buffer("lib", lib)
 
     def log_prob(self, data):
         motif_binsize = self.motif_binsizes[0]
-        motif_count_genes = data.motifcounts.genecounts / motif_binsize * 10
+        motif_count_regions = data.motifcounts.regioncounts / motif_binsize * 10
 
-        nn_outcome = self.nn_logit(motif_count_genes.unsqueeze(1)).squeeze(1)
+        nn_outcome = self.nn_logit(motif_count_regions.unsqueeze(1)).squeeze(1)
         logits = (
             torch.einsum("ab,cb->ac", self.weight(data.clustering.labels), nn_outcome)
-            + self.baseline(data.minibatch.genes_oi_torch).squeeze(1).unsqueeze(0)
+            + self.baseline(data.minibatch.regions_oi_torch).squeeze(1).unsqueeze(0)
             + self.lib.unsqueeze(1)[data.minibatch.cells_oi]
         )
 
         count = torch.bincount(
-            data.fragments.local_cellxgene_ix, minlength=data.minibatch.n_cells * data.minibatch.n_genes
-        ).reshape((data.minibatch.n_cells, data.minibatch.n_genes))
+            data.fragments.local_cellxregion_ix, minlength=data.minibatch.n_cells * data.minibatch.n_regions
+        ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
         likelihood_count = torch.distributions.Poisson(rate=torch.exp(logits)).log_prob(count)
         return likelihood_count
 
@@ -82,23 +83,21 @@ class FragmentCountDistributionBaseline(FragmentCountDistribution):
         if baseline is not None:
             self.baseline = baseline
         else:
-            self.baseline = EmbeddingTensor(fragments.n_genes, (1,), sparse=True)
-            init = (
-                torch.bincount(fragments.mapping[:, 1], minlength=fragments.n_genes).float() + 1e-2
-            ) / fragments.n_cells
+            self.baseline = EmbeddingTensor(fragments.n_regions, (1,), sparse=True)
+            init = torch.from_numpy(fragments.regionxcell_counts.sum(1).astype(np.float) / fragments.n_cells)
             init = torch.log(init)
             self.baseline.weight.data[:] = init.unsqueeze(-1)
 
-        lib = (torch.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells).float() + 1e-2) / fragments.n_genes
+        lib = torch.from_numpy(fragments.regionxcell_counts.sum(0).astype(np.float) / fragments.n_regions)
         lib = torch.log(lib)
         self.register_buffer("lib", lib)
 
     def log_prob(self, data):
         count = torch.bincount(
-            data.fragments.local_cellxgene_ix, minlength=data.minibatch.n_cells * data.minibatch.n_genes
-        ).reshape((data.minibatch.n_cells, data.minibatch.n_genes))
+            data.fragments.local_cellxregion_ix, minlength=data.minibatch.n_cells * data.minibatch.n_regions
+        ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
         logits = (
-            self.baseline(data.minibatch.genes_oi_torch).squeeze(1).unsqueeze(0)
+            self.baseline(data.minibatch.regions_oi_torch).squeeze(1).unsqueeze(0)
             + self.lib.unsqueeze(1)[data.minibatch.cells_oi]
         )
         likelihood_count = torch.distributions.Poisson(rate=torch.exp(logits)).log_prob(count)
@@ -179,7 +178,7 @@ class FragmentPositionDistribution1(FragmentPositionDistribution):
                 baseline = baselines_pretrained[i]
             else:
                 baseline = torch.nn.Embedding(
-                    fragments.n_genes * parent_fragment_width,
+                    fragments.n_regions * parent_fragment_width,
                     fragmentprob_size,
                     sparse=True,
                 )
@@ -203,7 +202,7 @@ class FragmentPositionDistribution1(FragmentPositionDistribution):
     def log_prob(self, data):
         predictor = self.predictors[0]
         predictor2 = self.predictor2s[0]
-        bincounts = data.motifcounts.genecounts
+        bincounts = data.motifcounts.regioncounts
         self.motif_binsizes[0]
         baseline = self.baselines[0]
         differential = self.differentials[0]
@@ -221,12 +220,12 @@ class FragmentPositionDistribution1(FragmentPositionDistribution):
         motifcount_embedding = motifcount_embedding.transpose(1, 2).reshape(-1, self.final_channels)
 
         # output: [fragmentxfragment_bin, 1] -> [fragment, fragment_bin, hidden_dimension]
-        gene_embedding = predictor2(motifcount_embedding).reshape((bincounts.shape[0], fragmentprob_size, -1))
+        region_embedding = predictor2(motifcount_embedding).reshape((bincounts.shape[0], fragmentprob_size, -1))
 
-        baseline_unnormalized_height = baseline(data.minibatch.genes_oi_torch)
+        baseline_unnormalized_height = baseline(data.minibatch.regions_oi_torch)
 
         unnormalized_heights_scale = (
-            torch.einsum("bcd,ad->abc", gene_embedding, differential.get_full_weight()) + baseline_unnormalized_height
+            torch.einsum("bcd,ad->abc", region_embedding, differential.get_full_weight()) + baseline_unnormalized_height
         )
         heights_scale = torch.nn.functional.log_softmax(unnormalized_heights_scale, -1) + math.log(
             unnormalized_heights_scale.shape[1]
@@ -234,7 +233,7 @@ class FragmentPositionDistribution1(FragmentPositionDistribution):
 
         likelihood_position = heights_scale[
             data.clustering.labels[data.fragments.local_cell_ix],
-            data.fragments.local_gene_ix,
+            data.fragments.local_region_ix,
             data.motifcounts.binixs[:, 0],
         ]
         return likelihood_position
@@ -297,7 +296,7 @@ class FragmentPositionDistribution2(FragmentPositionDistribution):
                 baseline = baselines_pretrained[i]
             else:
                 baseline = torch.nn.Embedding(
-                    fragments.n_genes * parent_fragment_width,
+                    fragments.n_regions * parent_fragment_width,
                     fragmentprob_size,
                     sparse=True,
                 )
@@ -362,7 +361,7 @@ class FragmentPositionDistribution2(FragmentPositionDistribution):
             )
             unnormalized_heights.append(unnormalized_height)
 
-        # p(pos|gene,motifs_gene)
+        # p(pos|region,motifs_region)
         likelihood_position = self.position_dist.log_prob(
             bin_ixs=data.motifcounts.binixs,
             unnormalized_heights=unnormalized_heights,
@@ -384,25 +383,25 @@ class FragmentPositionDistributionBaseline(FragmentPositionDistribution):
                 baseline = baselines_pretrained[i]
             else:
                 baseline = torch.nn.Embedding(
-                    fragments.n_genes * parent_fragment_width,
+                    fragments.n_regions * parent_fragment_width,
                     fragmentprob_size,
                     sparse=True,
                 )
 
                 # initialize by counting
-                binwidth = fragments.regions.region_width / fragmentprob_size
-                coordinates = fragments.coordinates[:, 0].numpy() - fragments.regions.window[0]
-                selected = (coordinates >= 0) & (coordinates < fragments.regions.region_width)
-                coordinates = coordinates[selected]
-                binixs = (coordinates // binwidth).astype(int)
-                gene_ix = fragments.mapping[selected, 1]
-                count = torch.bincount(
-                    (gene_ix * fragmentprob_size + binixs),
-                    minlength=fragmentprob_size * (fragments.n_genes),
-                ).reshape((fragments.n_genes), fragmentprob_size)
-                init_baseline = torch.log(count.float() + 1e-5)
+                # binwidth = fragments.regions.region_width / fragmentprob_size
+                # coordinates = fragments.coordinates[:, 0].numpy() - fragments.regions.window[0]
+                # selected = (coordinates >= 0) & (coordinates < fragments.regions.region_width)
+                # coordinates = coordinates[selected]
+                # binixs = (coordinates // binwidth).astype(int)
+                # region_ix = fragments.mapping[selected, 1]
+                # count = torch.bincount(
+                #     (region_ix * fragmentprob_size + binixs),
+                #     minlength=fragmentprob_size * (fragments.n_regions),
+                # ).reshape((fragments.n_regions), fragmentprob_size)
+                # init_baseline = torch.log(count.float() + 1e-5)
 
-                baseline.weight.data[:] = init_baseline
+                # baseline.weight.data[:] = init_baseline
 
             baselines.append(baseline)
             setattr(self, f"baseline_{i}", baseline)
@@ -414,11 +413,11 @@ class FragmentPositionDistributionBaseline(FragmentPositionDistribution):
         unnormalized_heights = []
 
         for i, (baseline,) in enumerate(zip(self.baselines)):
-            # global_binixs contains in which bin, including the gene ix, each fragment sits
+            # global_binixs contains in which bin, including the region ix, each fragment sits
             baseline_unnormalized_height = baseline(data.motifcounts.global_binixs[:, i])
             unnormalized_heights.append(baseline_unnormalized_height)
 
-        # p(pos|gene,motifs_gene)
+        # p(pos|region,motifs_region)
         likelihood_position = self.position_dist.log_prob(
             bin_ixs=data.motifcounts.binixs,
             unnormalized_heights=unnormalized_heights,

@@ -6,6 +6,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 import tqdm.auto as tqdm
+import functools
 
 from chromatinhd.flow import TSV, Flow, PathLike, Stored
 
@@ -128,6 +129,22 @@ class Regions(Flow):
             coordinates=chromosomes,
             window=None,
         )
+
+    @functools.cached_property
+    def n_regions(self):
+        return self.coordinates.shape[0]
+
+    @functools.cached_property
+    def region_lengths(self):
+        return (self.coordinates["end"] - self.coordinates["start"]).values
+
+    @functools.cached_property
+    def region_starts(self):
+        return self.coordinates["start"].values
+
+    @functools.cached_property
+    def cumulative_region_lengths(self):
+        return np.pad(np.cumsum(self.coordinates["end"].values - self.coordinates["start"].values), (1, 0))
 
 
 def select_tss_from_fragments(

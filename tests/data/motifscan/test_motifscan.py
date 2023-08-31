@@ -6,11 +6,12 @@ import torch
 
 def test_create_onehots():
     assert (
-        chd.data.motifscan.motifscan.create_onehots(["ACGTN", "GCTNA"])
+        chd.data.motifscan.motifscan.create_onehots(["ACGTN", "GCTNA", "NNNNN"])
         == torch.tensor(
             [
                 [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]],
                 [[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 0, 0], [1, 0, 0, 0]],
+                [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
             ]
         )
     ).all()
@@ -28,30 +29,30 @@ def test_scan():
         {
             "sequence": "ACGT",
             "pwm": pwm,
-            "expected_scores": torch.tensor([3.0, 3.0]),
-            "expected_positions": torch.tensor([[0, 0], [0, 3]]),
-            "expected_strands": torch.tensor([1, -1]),
+            "expected_scores": np.array([3.0, 3.0]),
+            "expected_positions": np.array([[0, 0], [0, 3]]),
+            "expected_strands": np.array([1, -1]),
         },
         {
             "sequence": "AAAA",
             "pwm": pwm,
-            "expected_scores": torch.tensor([]),
-            "expected_positions": torch.tensor([]).reshape(2, 0),
-            "expected_strands": torch.tensor([]),
+            "expected_scores": np.array([]),
+            "expected_positions": np.array([]).reshape(2, 0),
+            "expected_strands": np.array([]),
         },
         {
             "sequence": "CGT",
             "pwm": pwm,
-            "expected_scores": torch.tensor([3.0]),
-            "expected_positions": torch.tensor([[0], [2]]),
-            "expected_strands": torch.tensor([-1]),
+            "expected_scores": np.array([3.0]),
+            "expected_positions": np.array([[0], [2]]),
+            "expected_strands": np.array([-1]),
         },
         {
             "sequence": "CGTCGT",
             "pwm": pwm,
-            "expected_scores": torch.tensor([2.0, 3.0, 3.0]),
-            "expected_positions": torch.tensor([[0, 0, 0], [2, 2, 5]]),
-            "expected_strands": torch.tensor([1, -1, -1]),
+            "expected_scores": np.array([2.0, 3.0, 3.0]),
+            "expected_positions": np.array([[0, 0, 0], [2, 2, 5]]),
+            "expected_strands": np.array([1, -1, -1]),
         },
     ]
 
@@ -61,9 +62,9 @@ def test_scan():
 
         scores, positions, strands = chd.data.motifscan.motifscan.scan(onehot, pwm, cutoff=1.5)
 
-        assert torch.equal(scores, test["expected_scores"]), (test["sequence"], scores)
-        assert torch.equal(positions, test["expected_positions"].to(torch.int))
-        assert torch.equal(strands, test["expected_strands"].to(torch.int8))
+        assert np.allclose(scores, test["expected_scores"]), (test["sequence"], scores)
+        assert np.allclose(positions, test["expected_positions"].astype(np.int))
+        assert np.allclose(strands, test["expected_strands"].astype(np.int8))
 
 
 class TestMotifscan:

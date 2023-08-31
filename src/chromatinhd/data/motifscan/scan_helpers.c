@@ -1455,7 +1455,7 @@ static const char *__pyx_filename;
 /* #### Code section: filename_table ### */
 
 static const char *__pyx_f[] = {
-  "scan_helpers.pyx",
+  "src/chromatinhd/data/motifscan/scan_helpers.pyx",
   "<stringsource>",
   "__init__.cython-30.pxd",
   "type.pxd",
@@ -3281,6 +3281,7 @@ static const char __pyx_k_Unable_to_convert_item_to_object[] = "Unable to conver
 static const char __pyx_k_got_differing_extents_in_dimensi[] = "got differing extents in dimension ";
 static const char __pyx_k_no_default___reduce___due_to_non[] = "no default __reduce__ due to non-trivial __cinit__";
 static const char __pyx_k_numpy_core_umath_failed_to_impor[] = "numpy.core.umath failed to import";
+static const char __pyx_k_src_chromatinhd_data_motifscan_s[] = "src/chromatinhd/data/motifscan/scan_helpers.pyx";
 static const char __pyx_k_unable_to_allocate_shape_and_str[] = "unable to allocate shape and strides.";
 /* #### Code section: decls ### */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array___cinit__(struct __pyx_array_obj *__pyx_v_self, PyObject *__pyx_v_shape, Py_ssize_t __pyx_v_itemsize, PyObject *__pyx_v_format, PyObject *__pyx_v_mode, int __pyx_v_allocate_buffer); /* proto */
@@ -3523,6 +3524,7 @@ typedef struct {
   PyObject *__pyx_n_s_shape;
   PyObject *__pyx_n_s_size;
   PyObject *__pyx_n_s_spec;
+  PyObject *__pyx_kp_s_src_chromatinhd_data_motifscan_s;
   PyObject *__pyx_n_s_start;
   PyObject *__pyx_n_s_step;
   PyObject *__pyx_n_s_stop;
@@ -3746,6 +3748,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_shape);
   Py_CLEAR(clear_module_state->__pyx_n_s_size);
   Py_CLEAR(clear_module_state->__pyx_n_s_spec);
+  Py_CLEAR(clear_module_state->__pyx_kp_s_src_chromatinhd_data_motifscan_s);
   Py_CLEAR(clear_module_state->__pyx_n_s_start);
   Py_CLEAR(clear_module_state->__pyx_n_s_step);
   Py_CLEAR(clear_module_state->__pyx_n_s_stop);
@@ -3947,6 +3950,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_shape);
   Py_VISIT(traverse_module_state->__pyx_n_s_size);
   Py_VISIT(traverse_module_state->__pyx_n_s_spec);
+  Py_VISIT(traverse_module_state->__pyx_kp_s_src_chromatinhd_data_motifscan_s);
   Py_VISIT(traverse_module_state->__pyx_n_s_start);
   Py_VISIT(traverse_module_state->__pyx_n_s_step);
   Py_VISIT(traverse_module_state->__pyx_n_s_stop);
@@ -4182,6 +4186,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_shape __pyx_mstate_global->__pyx_n_s_shape
 #define __pyx_n_s_size __pyx_mstate_global->__pyx_n_s_size
 #define __pyx_n_s_spec __pyx_mstate_global->__pyx_n_s_spec
+#define __pyx_kp_s_src_chromatinhd_data_motifscan_s __pyx_mstate_global->__pyx_kp_s_src_chromatinhd_data_motifscan_s
 #define __pyx_n_s_start __pyx_mstate_global->__pyx_n_s_start
 #define __pyx_n_s_step __pyx_mstate_global->__pyx_n_s_step
 #define __pyx_n_s_stop __pyx_mstate_global->__pyx_n_s_stop
@@ -19493,7 +19498,7 @@ static PyObject *__pyx_pf_11chromatinhd_4data_9motifscan_12scan_helpers_seq_to_o
  *             out_onehot[i, 2] = 1
  *         elif cstr[i] == b'T':             # <<<<<<<<<<<<<<
  *             out_onehot[i, 3] = 1
- *         else:
+ * 
  */
     __pyx_t_6 = ((__pyx_v_cstr[__pyx_v_i]) == 'T');
     if (__pyx_t_6) {
@@ -19502,8 +19507,8 @@ static PyObject *__pyx_pf_11chromatinhd_4data_9motifscan_12scan_helpers_seq_to_o
  *             out_onehot[i, 2] = 1
  *         elif cstr[i] == b'T':
  *             out_onehot[i, 3] = 1             # <<<<<<<<<<<<<<
- *         else:
- *             out_onehot[i, 4] = 1
+ * 
+ *     return out_onehot
  */
       __pyx_t_8 = __pyx_v_i;
       __pyx_t_7 = 3;
@@ -19514,33 +19519,19 @@ static PyObject *__pyx_pf_11chromatinhd_4data_9motifscan_12scan_helpers_seq_to_o
  *             out_onehot[i, 2] = 1
  *         elif cstr[i] == b'T':             # <<<<<<<<<<<<<<
  *             out_onehot[i, 3] = 1
- *         else:
- */
-      goto __pyx_L5;
-    }
-
-    /* "chromatinhd/data/motifscan/scan_helpers.pyx":28
- *             out_onehot[i, 3] = 1
- *         else:
- *             out_onehot[i, 4] = 1             # <<<<<<<<<<<<<<
  * 
- *     return out_onehot
  */
-    /*else*/ {
-      __pyx_t_7 = __pyx_v_i;
-      __pyx_t_8 = 4;
-      *((__pyx_t_11chromatinhd_4data_9motifscan_12scan_helpers_INT8_t *) ( /* dim=1 */ ((char *) (((__pyx_t_11chromatinhd_4data_9motifscan_12scan_helpers_INT8_t *) ( /* dim=0 */ (__pyx_v_out_onehot.data + __pyx_t_7 * __pyx_v_out_onehot.strides[0]) )) + __pyx_t_8)) )) = 1;
     }
     __pyx_L5:;
   }
 
-  /* "chromatinhd/data/motifscan/scan_helpers.pyx":30
- *             out_onehot[i, 4] = 1
+  /* "chromatinhd/data/motifscan/scan_helpers.pyx":28
+ *             out_onehot[i, 3] = 1
  * 
  *     return out_onehot             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_9 = __pyx_memoryview_fromslice(__pyx_v_out_onehot, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_11chromatinhd_4data_9motifscan_12scan_helpers_INT8_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_11chromatinhd_4data_9motifscan_12scan_helpers_INT8_t, 0);; if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 30, __pyx_L1_error)
+  __pyx_t_9 = __pyx_memoryview_fromslice(__pyx_v_out_onehot, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_11chromatinhd_4data_9motifscan_12scan_helpers_INT8_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_11chromatinhd_4data_9motifscan_12scan_helpers_INT8_t, 0);; if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 28, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_9);
   __pyx_r = __pyx_t_9;
   __pyx_t_9 = 0;
@@ -20644,6 +20635,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_shape, __pyx_k_shape, sizeof(__pyx_k_shape), 0, 0, 1, 1},
     {&__pyx_n_s_size, __pyx_k_size, sizeof(__pyx_k_size), 0, 0, 1, 1},
     {&__pyx_n_s_spec, __pyx_k_spec, sizeof(__pyx_k_spec), 0, 0, 1, 1},
+    {&__pyx_kp_s_src_chromatinhd_data_motifscan_s, __pyx_k_src_chromatinhd_data_motifscan_s, sizeof(__pyx_k_src_chromatinhd_data_motifscan_s), 0, 0, 1, 0},
     {&__pyx_n_s_start, __pyx_k_start, sizeof(__pyx_k_start), 0, 0, 1, 1},
     {&__pyx_n_s_step, __pyx_k_step, sizeof(__pyx_k_step), 0, 0, 1, 1},
     {&__pyx_n_s_stop, __pyx_k_stop, sizeof(__pyx_k_stop), 0, 0, 1, 1},

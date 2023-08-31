@@ -14,6 +14,30 @@ from .objects import is_instance, is_obj
 PathLike = Union[str, pathlib.Path]
 
 
+def nearest_common_parent(path1, path2):
+    # Get parent directories for each path
+    parents1 = set(path1.parents)
+    parents2 = set(path2.parents)
+
+    # Find the common parents
+    common_parents = parents1.intersection(parents2)
+
+    # If there are no common parents, return None
+    if not common_parents:
+        return None
+
+    # Return the closest common parent
+    return max(common_parents, key=lambda p: len(p.parts))
+
+
+def relative_to_nearest_parent(path1, path2):
+    parent = nearest_common_parent(path1, path2)
+    if parent is None:
+        return path1
+
+    return path1.relative_to(parent)
+
+
 class Flowable(type):
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
@@ -127,7 +151,9 @@ class Flow(metaclass=Flowable):
         """
         Remove all files in this flow
         """
-        shutil.rmtree(self.path)
+        if self.path.exists():
+            if not str(self.path).startswith("memory"):
+                shutil.rmtree(self.path)
         self.path.mkdir(parents=True, exist_ok=True)
 
     def __getstate__(self):
@@ -157,10 +183,10 @@ class Flow(metaclass=Flowable):
         )
 
         cls = f"<span class='soft'>({self.__class__.__module__}.{self.__class__.__name__})</span>"
-        path = ""
+        path = f"<span class='soft' style='font-size:0.8em'>{relative_to_nearest_parent(self.path.parent, pathlib.Path.cwd())}/</span>"
         lines += [
             "<div class='la-flow'>",
-            "<strong>" + str(self.path.name) + "</strong>" + " " + cls + " " + path,
+            path + "<strong>" + str(self.path.name) + "</strong>" + " " + cls,
         ]
         lines += ["<ul class='instances'>"]
         for obj_id, obj in self._obj_map.items():

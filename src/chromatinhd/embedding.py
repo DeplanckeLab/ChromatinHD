@@ -1,3 +1,4 @@
+from __future__ import annotations
 import torch
 import numpy as np
 
@@ -67,3 +68,11 @@ class EmbeddingTensor(torch.nn.Embedding):
 
     def __getitem__(self, k):
         return self.forward(k)
+
+    @classmethod
+    def from_pretrained(cls, pretrained: EmbeddingTensor):
+        self = cls(pretrained.num_embeddings, pretrained.embedding_dims)
+        self.data = pretrained.data
+        self.weight.requires_grad = False
+
+        return self

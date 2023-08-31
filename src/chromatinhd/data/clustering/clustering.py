@@ -10,7 +10,7 @@ class Clustering(Flow):
     labels: pd.DataFrame = Stored()
     "Labels for each cell."
 
-    indices: np.array = Tensorstore(dtype=">i4")
+    indices: np.array = Tensorstore(dtype="<i4")
     "Indices for each cell."
 
     var: pd.DataFrame = StoredDataFrame(index_name="cluster")

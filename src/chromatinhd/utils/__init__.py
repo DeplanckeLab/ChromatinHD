@@ -6,6 +6,7 @@ import pandas as pd
 from .torch import interpolate_1d
 from .numpy import indices_to_indptr, indptr_to_indices
 from .testing import repeated_kfold_corrected_t_test
+from . import interleave
 from . import ecdf
 
 __all__ = [
