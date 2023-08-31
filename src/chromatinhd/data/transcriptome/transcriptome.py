@@ -71,11 +71,11 @@ class Transcriptome(Flow):
         for k, v in adata.layers.items():
             if sparse.is_scipysparse(v):
                 v = np.array(v.todense())
-            transcriptome.layers[k] = v.astype(">f4")
+            transcriptome.layers[k] = v.astype("<f4")
         if sparse.is_scipysparse(adata.X):
-            v = np.array(adata.X.todense()).astype(">f4")
+            v = np.array(adata.X.todense()).astype("<f4")
         else:
-            v = adata.X.astype(">f4")
+            v = adata.X.astype("<f4")
         transcriptome.layers["X"] = v
         transcriptome.var = adata.var
         transcriptome.obs = adata.obs
@@ -89,7 +89,7 @@ class Transcriptome(Flow):
     def X(self, value):
         self.layers["X"] = value
 
-    layers = StoredDict(Tensorstore, kwargs=dict(dtype=">f4"))
+    layers = StoredDict(Tensorstore, kwargs=dict(dtype="<f4"))
     "Dictionary of layers, such as raw, normalized and imputed data."
 
     def filter_genes(self, genes, path=None):
@@ -98,7 +98,7 @@ class Transcriptome(Flow):
 
         Parameters:
             genes:
-                Genes to filter. Should be a pandas Series with the index being the ensembl transcript ids.
+                Genes to filter.
         """
 
         self.var["ix"] = np.arange(self.var.shape[0])
