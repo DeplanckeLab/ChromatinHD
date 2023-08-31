@@ -25,10 +25,10 @@ class FragmentsView(Flow):
     regions: Regions = Linked()
     """The regions object"""
 
-    regionxcell_fragmentixs: TensorstoreInstance = Tensorstore(dtype=">i8", chunks=[100000], compression="blosc")
+    regionxcell_fragmentixs: TensorstoreInstance = Tensorstore(dtype="<i8", chunks=[100000], compression="blosc")
     """Index of fragments in the parent fragments object"""
 
-    regionxcell_fragmentixs_indptr: TensorstoreInstance = Tensorstore(dtype=">i8", chunks=[100000], compression="blosc")
+    regionxcell_fragmentixs_indptr: TensorstoreInstance = Tensorstore(dtype="<i8", chunks=[100000], compression="blosc")
     """Index pointers in the regionxcell_fragmentixs array for each regionxcell"""
 
     @classmethod
@@ -75,7 +75,11 @@ class FragmentsView(Flow):
         return self
 
     def create_regionxcell_indptr(
-        self, parentregion_column: str = "chrom", batch_size: int = 500, inclusive: bool = True
+        self,
+        parentregion_column: str = "chrom",
+        batch_size: int = 500,
+        inclusive: bool = True,
+        overwrite=True,
     ) -> FragmentsView:
         """
         Create the index pointers that can be used for fast access to fragments of a particular regionxcell combination
@@ -87,6 +91,8 @@ class FragmentsView(Flow):
                 Number of regions to wait before saving the intermediate results and freeing up memory. Reduce this number to avoid running out of memory.
             inclusive:
                 Whether to only include fragments that are only partially overlapping with the region. If False, partially overlapping fragments will be selected as well.
+            overwrite:
+                Whether to overwrite the existing index pointers.
 
         Returns:
             Same object but with the `regionxcell_fragmentixs_indptr` and `regionxcell_fragmentixs` populated
@@ -108,6 +114,9 @@ class FragmentsView(Flow):
                 f"Not all regions are present in the parent fragments. Missing regions: {self.regions.coordinates[parentregion_column][~self.regions.coordinates[parentregion_column].isin(self.parent.regions.coordinates[parentregion_column])]}"
             )
 
+        if self.regionxcell_fragmentixs_indptr.exists() and not overwrite:
+            return self
+
         mapping = self.parent.mapping[:]
         coordinates = self.parent.coordinates[:]
 
@@ -122,10 +131,9 @@ class FragmentsView(Flow):
 
         fragmentixs_counter = 0
 
-        # resize regionxcell to the number of cells * regions
-        self.regionxcell_fragmentixs_indptr.open_writer().resize(
-            exclusive_max=[self.n_cells * self.n_regions + 1]
-        ).result()
+        # reset the tensorstores
+        self.regionxcell_fragmentixs_indptr.open_creator(shape=(0,))
+        self.regionxcell_fragmentixs.open_creator(shape=(0,))
 
         # index pointers from parentregions to fragments
         parentregion_fragment_indptr = indices_to_indptr(mapping[:, 1], self.parent.n_regions)
@@ -138,6 +146,8 @@ class FragmentsView(Flow):
         )
         for region_ix, (region_id, region) in loop:
             loop.set_description(f"Processing region {region_id}")
+
+            # extract in which parent region we need to look
             parentregion_ix = parentregion_to_parentregion_ix[region[parentregion_column]]
 
             parentregion_start_ix, parentregion_end_ix = (
@@ -145,16 +155,22 @@ class FragmentsView(Flow):
                 parentregion_fragment_indptr[parentregion_ix + 1],
             )
 
+            # extract parent's mapping and coordinates
             coordinates_parentregion = coordinates[parentregion_start_ix:parentregion_end_ix]
-            mapping_parentregion = mapping[parentregion_start_ix:parentregion_end_ix]
+            cellmapping_parentregion = mapping[parentregion_start_ix:parentregion_end_ix, 0]
+
+            # extract fragments lying within the region
+            # depending on the strand, we either need to include the start or the end
+            region["start_inclusive"] = region["start"] + (region["strand"] == -1)
+            region["end_inclusive"] = region["end"] + (region["strand"] == -1)
 
             if inclusive:
-                fragments_oi = (coordinates_parentregion[:, 0] >= region["start"]) & (
-                    coordinates_parentregion[:, 1] < region["end"]
+                fragments_oi = (coordinates_parentregion[:, 0] >= region["start_inclusive"]) & (
+                    coordinates_parentregion[:, 1] < region["end_inclusive"]
                 )
             else:
                 raise NotImplementedError("For now, only inclusive fragments are supported")
-            local_cellmapping = mapping_parentregion[fragments_oi, 0]
+            local_cellmapping = cellmapping_parentregion[fragments_oi]
 
             local_fragmentixs = np.argsort(local_cellmapping).astype(np.int64)
 
@@ -182,14 +198,8 @@ class FragmentsView(Flow):
                 regionxcell_fragmentixs = np.concatenate(fragmentixs_all)
                 regionxcell_fragmentixs_indptr = np.concatenate(regionxcell_fragmentixs_indptr)
 
-                self.regionxcell_fragmentixs.open_writer().resize(exclusive_max=[fragmentixs_counter]).result()
-
-                self.regionxcell_fragmentixs[
-                    fragmentixs_counter - len(regionxcell_fragmentixs) : fragmentixs_counter
-                ] = regionxcell_fragmentixs
-                self.regionxcell_fragmentixs_indptr[
-                    region_ixs[0] * self.n_cells : (region_ixs[-1] + 1) * self.n_cells
-                ] = regionxcell_fragmentixs_indptr
+                self.regionxcell_fragmentixs.extend(regionxcell_fragmentixs)
+                self.regionxcell_fragmentixs_indptr.extend(regionxcell_fragmentixs_indptr)
 
                 region_ixs = []
                 fragmentixs_all = []
@@ -202,14 +212,8 @@ class FragmentsView(Flow):
         regionxcell_fragmentixs = np.concatenate(fragmentixs_all)
         regionxcell_fragmentixs_indptr = np.concatenate(regionxcell_fragmentixs_indptr)
 
-        self.regionxcell_fragmentixs.open_writer().resize(exclusive_max=[fragmentixs_counter]).result()
-
-        self.regionxcell_fragmentixs[
-            fragmentixs_counter - len(regionxcell_fragmentixs) : fragmentixs_counter
-        ] = regionxcell_fragmentixs
-        self.regionxcell_fragmentixs_indptr[
-            region_ixs[0] * self.n_cells : ((region_ixs[-1] + 1) * self.n_cells) + 1
-        ] = regionxcell_fragmentixs_indptr
+        self.regionxcell_fragmentixs.extend(regionxcell_fragmentixs)
+        self.regionxcell_fragmentixs_indptr.extend(regionxcell_fragmentixs_indptr)
 
         return self
 
@@ -233,7 +237,7 @@ class FragmentsView(Flow):
         """
         Estimate the expected number of fragments per regionxcell combination. This is used to estimate the buffer size for loading fragments.
         """
-        return math.ceil(self.regionxcell_fragmentixs.shape[0] / self.n_cells / self.n_regions * 2)
+        return math.ceil(self.regionxcell_fragmentixs.shape[0] / self.n_cells / self.n_regions)
 
     @property
     def coordinates(self):
@@ -248,3 +252,10 @@ class FragmentsView(Flow):
         Mapping of the fragments, equal to the parent mapping
         """
         return self.parent.mapping
+
+    @property
+    def regionxcell_counts(self):
+        """
+        Number of fragments per region and cell
+        """
+        return np.diff(self.regionxcell_fragmentixs_indptr[:]).reshape(self.regions.n_regions, -1)

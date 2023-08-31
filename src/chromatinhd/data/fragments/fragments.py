@@ -30,21 +30,23 @@ class Fragments(Flow):
     regions: Regions = Linked()
     """The regions in which (part of) the fragments are located and centered."""
 
-    coordinates: TensorstoreInstance = Tensorstore(dtype=">i4", chunks=[100000, 2], compression="blosc", shape=[0, 2])
+    # coordinates: TensorstoreInstance = Tensorstore(dtype="<i4", chunks=None, compression=None, shape=[0, 2])
+    coordinates: TensorstoreInstance = Tensorstore(dtype="<i4", chunks=[100000, 2], compression=None, shape=[0, 2])
+    # coordinates: TensorstoreInstance = Tensorstore(dtype="<i4", chunks=[100000, 2], compression="blosc", shape=[0, 2])
     """Coordinates of the two cut sites."""
 
-    mapping: TensorstoreInstance = Tensorstore(dtype=">i4", chunks=[100000, 2], compression="blosc", shape=[0, 2])
+    mapping: TensorstoreInstance = Tensorstore(dtype="<i4", chunks=[100000, 2], compression="blosc", shape=[0, 2])
     """Mapping of a fragment to a cell (first column) and a region (second column)"""
 
-    regionxcell_indptr: np.ndarray = Tensorstore(dtype=">i8", chunks=[100000], compression="blosc")
+    regionxcell_indptr: np.ndarray = Tensorstore(dtype="<i8", chunks=[100000], compression="blosc")
     """Index pointers to the regionxcell fragment positions"""
 
-    def create_regionxcell_indptr(self):
+    def create_regionxcell_indptr(self) -> Fragments:
         """
         Creates pointers to each individual region x cell combination from the mapping tensor.
 
         Returns:
-            self with `regionxcell_indptr` tensor populated
+            The same object with `regionxcell_indptr` populated
         """
         regionxcell_ix = self.mapping[:, 1] * self.n_cells + self.mapping[:, 0]
 
@@ -60,10 +62,10 @@ class Fragments(Flow):
 
         return self
 
-    var = TSV()
+    var: pd.DataFrame = TSV()
     """DataFrame containing information about regions."""
 
-    obs = TSV()
+    obs: pd.DataFrame = TSV()
     """DataFrame containing information about cells."""
 
     @functools.cached_property
@@ -81,7 +83,7 @@ class Fragments(Flow):
         return self.mapping[:, 0] * self.n_regions + self.mapping[:, 1]
 
     def estimate_fragment_per_cellxregion(self):
-        return math.ceil(self.coordinates.shape[0] / self.n_cells / self.n_regions * 2)
+        return math.ceil(self.coordinates.shape[0] / self.n_cells / self.n_regions)
 
     @class_or_instancemethod
     def from_fragments_tsv(
@@ -108,7 +110,7 @@ class Fragments(Flow):
                 Regions from which the fragments will be extracted.
             cell_column:
                 Column name in the `obs` DataFrame containing the cell names.
-                If not specified, the index of the `obs` DataFrame is used.
+                If None, the index of the `obs` DataFrame is used.
             path:
                 Folder in which the fragments data will be stored.
             overwrite:
@@ -161,10 +163,9 @@ class Fragments(Flow):
             desc="Processing fragments",
         )
 
-        mapping = self.mapping.open_creator()
-        coordinates = self.coordinates.open_creator()
+        self.mapping.open_creator()
+        self.coordinates.open_creator()
 
-        n_fragments_processed = 0
         for region_ix, (region_id, region_info) in pbar:
             pbar.set_description(f"{region_id}")
             fetched = fragments_tabix.fetch(
@@ -189,7 +190,7 @@ class Fragments(Flow):
                 parser=pysam.asTuple(),
             )
 
-            for fragment in fetched:
+            for fragment in tqdm.tqdm(fetched, leave=False, desc="Processing fragments"):
                 cell = fragment[3]
 
                 # only store the fragment if the cell is actually of interest
@@ -208,17 +209,18 @@ class Fragments(Flow):
             mapping_raw = mapping_raw[sorted_idx]
             coordinates_raw = coordinates_raw[sorted_idx]
 
-            # expand the dimensions of mapping and coordinates
-            new_shape = (mapping.shape[0] + (mapping.shape[0] - n_fragments_processed + mapping_raw.shape[0]), 2)
+            self.mapping.extend(mapping_raw)
+            self.coordinates.extend(coordinates_raw)
 
-            mapping = mapping.resize(exclusive_max=new_shape).result()
-            coordinates = coordinates.resize(exclusive_max=new_shape).result()
+            # # expand the dimensions of mapping and coordinates
+            # new_shape = (mapping.shape[0] + (mapping.shape[0] - n_fragments_processed + mapping_raw.shape[0]), 2)
 
-            # write
-            mapping[n_fragments_processed : n_fragments_processed + mapping_raw.shape[0]] = mapping_raw
-            coordinates[n_fragments_processed : n_fragments_processed + coordinates_raw.shape[0]] = coordinates_raw
+            # mapping = mapping.resize(exclusive_max=new_shape).result()
+            # coordinates = coordinates.resize(exclusive_max=new_shape).result()
 
-            n_fragments_processed += mapping_raw.shape[0]
+            # # write
+            # mapping[n_fragments_processed : n_fragments_processed + mapping_raw.shape[0]] = mapping_raw
+            # coordinates[n_fragments_processed : n_fragments_processed + coordinates_raw.shape[0]] = coordinates_raw
 
             del mapping_raw
             del coordinates_raw
@@ -243,7 +245,7 @@ class Fragments(Flow):
         # filter regions
         self.regions.coordinates["ix"] = np.arange(self.regions.coordinates.shape[0])
         regions.coordinates["ix"] = self.regions.coordinates["ix"].loc[regions.coordinates.index]
-        fragments_oi = np.isin(self.mapping[:, 1].numpy(), regions.coordinates["ix"])
+        fragments_oi = np.isin(self.mapping[:, 1], regions.coordinates["ix"])
 
         mapping = self.mapping[fragments_oi]
         coordinates = self.coordinates[fragments_oi]
@@ -251,10 +253,10 @@ class Fragments(Flow):
         var["original_ix"] = np.arange(var.shape[0])
         var = var.loc[regions.coordinates.index].copy()
         var["ix"] = np.arange(var.shape[0])
-        mapping[:, 1] = torch.from_numpy(var.set_index("original_ix").loc[mapping[:, 1].cpu().numpy(), "ix"].values)
+        mapping[:, 1] = var.set_index("original_ix").loc[mapping[:, 1], "ix"].values
 
         # Sort `coordinates` and `mapping` according to `mapping`
-        sorted_idx = torch.argsort((mapping[:, 0] * var.shape[0] + mapping[:, 1]))
+        sorted_idx = np.lexsort((coordinates[:, 0], mapping[:, 0], mapping[:, 1]))
         mapping = mapping[sorted_idx]
         coordinates = coordinates[sorted_idx]
 
