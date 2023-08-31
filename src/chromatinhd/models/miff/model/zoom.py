@@ -43,14 +43,14 @@ def calculate_logprob(positions, nbins, width, unnormalized_heights_zooms):
     return logprob
 
 
-def extract_unnormalized_heights(positions, totalbinwidth, unnormalized_heights_all):
+def extract_unnormalized_heights(positions, totalbinwidths, unnormalized_heights_all):
     """
     Extracts the unnormalized heights per zoom level from the global unnormalized heights tensor with size (totaln, n)
     You typically do not want to use this function directly, as the benifits of a zoomed likelihood are lost in this way.
     This function is mainly useful for debugging, inference or testing purposes
     """
-    totalbinixs = torch.div(positions, totalbinwidths, rounding_mode="floor")
-    totalbinsectors = torch.pad(totalbinixs[..., 1:], (1, 0))
+    totalbinixs = torch.div(positions[:, None], totalbinwidths, rounding_mode="floor")
+    totalbinsectors = torch.nn.functional.pad(totalbinixs[..., :-1], (1, 0))
     # totalbinsectors = torch.div(totalbinixs, self.nbins[None, :], rounding_mode="floor")
     unnormalized_heights_zooms = [
         torch.index_select(
