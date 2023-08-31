@@ -2,7 +2,7 @@ import chromatinhd.data.fragments
 import dataclasses
 import numpy as np
 
-from chromatinhd.models.pred.loader import Fragments
+from chromatinhd.loaders.fragments import Fragments
 from chromatinhd.loaders.minibatches import Minibatch
 from .motifs import Motifs
 from typing import List
