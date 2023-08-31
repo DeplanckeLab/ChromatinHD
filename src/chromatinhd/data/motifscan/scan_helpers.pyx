@@ -24,7 +24,5 @@ def seq_to_onehot(bytes s, INT8_t [:,::1] out_onehot):
             out_onehot[i, 2] = 1
         elif cstr[i] == b'T':
             out_onehot[i, 3] = 1
-        else:
-            out_onehot[i, 4] = 1
 
     return out_onehot
