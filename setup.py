@@ -9,6 +9,12 @@ setup_args = dict(
             include_dirs=[numpy.get_include()],
             py_limited_api=True,
         ),
+        Extension(
+            "chromatinhd.data.motifscan.scan_helpers",
+            ["src/chromatinhd/data/motifscan/scan_helpers.c"],
+            include_dirs=[numpy.get_include()],
+            py_limited_api=True,
+        ),
     ]
 )
 setup(**setup_args)

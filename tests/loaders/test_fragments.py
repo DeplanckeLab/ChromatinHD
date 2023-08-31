@@ -50,7 +50,7 @@ class TestFragmentsView:
                 "start": [0, 50, 50],
                 "end": [60, 110, 110],
                 "region": ["a1", "a2", "b1"],
-                "strand": 1,
+                "strand": [1, 1, -1],
             }
         ).set_index("region")
         regions = chd.data.Regions.create(coordinates=region_coordinates, window=np.array([0, 60]))
@@ -95,6 +95,8 @@ class TestFragmentsView:
 
         loader = chd.loaders.Fragments(fragments, cellxregion_batch_size=10)
 
+        assert (loader.region_centers == np.array([0, 50, 110])).all()
+
         for region_ix in range(regions.n_regions):
             region = regions.coordinates.iloc[region_ix]
             parentregion_ix = parentregions.coordinates.index.get_loc(region["chrom"])
@@ -122,7 +124,10 @@ class TestFragmentsView:
                 )
 
                 assert data.n_fragments == len(fragment_ixs)
-                assert (
-                    data.coordinates.numpy()
-                    == (fragments.coordinates[fragment_ixs] - region["start"] - fragments.regions.window[0])
-                ).all()
+                expected = (
+                    (fragments.coordinates[fragment_ixs])
+                    - (region["start"] - fragments.regions.window[0]) * (region["strand"] == 1).astype(int)
+                    - (region["end"] - fragments.regions.window[0]) * (region["strand"] == -1).astype(int)
+                ) * region["strand"]
+                found = data.coordinates.numpy()
+                assert np.allclose(found, expected)
