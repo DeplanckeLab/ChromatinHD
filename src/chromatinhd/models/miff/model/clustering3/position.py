@@ -322,7 +322,7 @@ def calculate_logprob(positions, nbins, width, unnormalized_heights_bins):
         logprob += logprob_layer
     logprob = logprob - math.log(
         curwidth
-    )  # if any width is left, we need to divide by the remaining number of possibilities
+    )  # if any width is left, we need to divide by the remaining number of possibilities to get a properly normalized probability
     return logprob
 
 
@@ -331,7 +331,7 @@ class FragmentsizeDistribution2(torch.nn.Module):
         super().__init__()
 
         self.register_buffer("nbins", torch.from_numpy(np.array(nbins)))
-        self.total_width = fragments.regions.wiudth
+        self.total_width = fragments.regions.width
         self.width = width
 
         self.register_buffer("totalnbins", torch.cumprod(self.nbins, 0))
@@ -339,10 +339,12 @@ class FragmentsizeDistribution2(torch.nn.Module):
 
         unnormalized_heights_all = []
         for i, (n, totaln) in enumerate(zip(self.nbins.numpy(), self.totalnbins.numpy())):
+            if (width // totaln) % 1 > 0:
+                raise ValueError("cumulative number of bins should be a multiple of width")
             setattr(self, f"unnormalized_heights_all_{i}", torch.nn.Parameter(torch.zeros(totaln).reshape(-1, n)))
         self.unnormalized_heights_all = unnormalized_heights_all
 
-        self.logprob_inside = torch.nn.Parameter(torch.log(torch.tensor(0.1)))
+        self.logprob_inside = torch.nn.Parameter(torch.logit(torch.tensor(0.9)))
 
     def log_prob(self, data):
         fragmentsizes = torch.abs(data.fragments.coordinates[:, 1] - data.fragments.coordinates[:, 0])
@@ -355,7 +357,8 @@ class FragmentsizeDistribution2(torch.nn.Module):
         fragmentsizes_inside = fragmentsizes[inside]
 
         totalbinixs = torch.div(fragmentsizes_inside[:, None], self.totalbinwidths, rounding_mode="floor")
-        totalbinsectors = torch.div(totalbinixs, self.nbins[None, :], rounding_mode="floor")
+        totalbinsectors = torch.pad(totalbinix[..., 1:], (1, 0))
+        # totalbinsectors = torch.div(totalbinixs, self.nbins[None, :], rounding_mode="floor")
         unnormalized_heights_bins = [
             torch.index_select(getattr(self, f"unnormalized_heights_all_{i}"), 0, totalbinsector)
             for i, totalbinsector in enumerate(totalbinsectors.T)
