@@ -164,7 +164,7 @@ class Decoding(torch.nn.Module, HybridModel):
 
         self.mixture_delta_p_scale_dist = mixture_delta_p_scale_dist
 
-    def forward_(self, local_cellxgene_ix, cut_coordinates, latent, genes_oi, cells_oi, cut_local_cellxgene_ix, cut_localcellxgene_ix, cut_local_gene_ix, n_cells, n_genes):
+    def forward_(self, local_cellxgene_ix, cut_coordinates, latent, genes_oi, cells_oi, cut_local_cellxgene_ix, cut_localcellxgene_ix, cut_local_gene_ix, n_cells, n_genes, return_likelihood=False):
         print("---  Decoding.forward_()  ---")
         # print("latent", latent)
         # print("genes_oi", genes_oi)
@@ -201,9 +201,12 @@ class Decoding(torch.nn.Module, HybridModel):
         # store likelihood inside instance of class to access it later
         self.track["likelihood"] = likelihood
 
-        return elbo
+        if return_likelihood:
+            return likelihood
+        else:
+            return elbo
 
-    def forward(self, data):
+    def forward(self, data, return_likelihood=False):
         print("---  Decoding.forward()  ---")
         if not hasattr(data, "latent"):
             data.latent = self.latent[data.cells_oi]
@@ -218,6 +221,7 @@ class Decoding(torch.nn.Module, HybridModel):
             cut_local_gene_ix=data.cut_local_gene_ix,
             local_cellxgene_ix=data.local_cellxgene_ix,
             cut_localcellxgene_ix=data.cut_localcellxgene_ix,
+            return_likelihood=return_likelihood,
         )
 
     def _get_likelihood_mixture_cell_gene(self, likelihood_mixture, cut_local_cellxgene_ix, n_cells, n_genes):
@@ -271,7 +275,6 @@ class Decoding(torch.nn.Module, HybridModel):
             self.forward(data)
 
         prob = self.track["likelihood"].detach().cpu()
-        print("prob", prob)
 
         return prob
 
