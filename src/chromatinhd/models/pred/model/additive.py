@@ -53,6 +53,26 @@ class SineEncoding(torch.nn.Module):
         return embedding
 
 
+class DirectEncoding(torch.nn.Sequential):
+    """
+    Dummy encoding of fragments, simply providing the positions directly
+    """
+
+    def __init__(self, window=(-10000, 10000)):
+        self.n_embedding_dimensions = 3
+        self.window = window
+        super().__init__()
+
+    def forward(self, coordinates):
+        return torch.cat(
+            [
+                torch.ones((*coordinates.shape[:-1], 1), device=coordinates.device, dtype=torch.float),
+                coordinates / (self.window[1] - self.window[0]) * 2,
+            ],
+            dim=-1,
+        )
+
+
 class FragmentEmbedder(torch.nn.Module):
     dropout_rate = 0.0
 
@@ -72,7 +92,10 @@ class FragmentEmbedder(torch.nn.Module):
 
         super().__init__(**kwargs)
 
-        self.sine_encoding = SineEncoding(n_frequencies=n_frequencies)
+        if n_frequencies == "direct":
+            self.sine_encoding = DirectEncoding()
+        else:
+            self.sine_encoding = SineEncoding(n_frequencies=n_frequencies)
 
         # default initialization same as a torch.nn.Linear
         self.bias1 = EmbeddingTensor(
@@ -202,7 +225,7 @@ class Model(torch.nn.Module, HybridModel):
         n_regions:
             the number of regions
         dummy:
-            whether to use a dummy model that just counts fragments
+            whether to use a dummy model that just counts fragments.
         n_frequencies:
             the number of frequencies to use for sine encoding
         reduce:
@@ -214,6 +237,8 @@ class Model(torch.nn.Module, HybridModel):
         dropout_rate:
             the dropout rate
     """
+
+    layer = None
 
     def __init__(
         self,
@@ -229,7 +254,7 @@ class Model(torch.nn.Module, HybridModel):
     ) -> None:
         super().__init__()
 
-        if dummy:
+        if dummy is True:
             self.fragment_embedder = FragmentEmbedderCounter()
         else:
             self.fragment_embedder = FragmentEmbedder(
@@ -327,6 +352,7 @@ class Model(torch.nn.Module, HybridModel):
         device=None,
         lr=1e-2,
         n_epochs=30,
+        pbar=True,
     ):
         """
         Train the model
@@ -356,6 +382,7 @@ class Model(torch.nn.Module, HybridModel):
                 transcriptome=transcriptome,
                 fragments=fragments,
                 cellxregion_batch_size=minibatcher_train.cellxregion_batch_size,
+                layer=self.layer,
             ),
             n_workers=10,
         )
@@ -365,6 +392,7 @@ class Model(torch.nn.Module, HybridModel):
                 transcriptome=transcriptome,
                 fragments=fragments,
                 cellxregion_batch_size=minibatcher_validation.cellxregion_batch_size,
+                layer=self.layer,
             ),
             n_workers=5,
         )
@@ -385,6 +413,7 @@ class Model(torch.nn.Module, HybridModel):
             checkpoint_every_epoch=1,
             optimize_every_step=1,
             device=device,
+            pbar=pbar,
         )
 
         trainer.train()
@@ -439,6 +468,7 @@ class Model(torch.nn.Module, HybridModel):
                 transcriptome=transcriptome,
                 fragments=fragments,
                 cellxregion_batch_size=minibatches.cellxregion_batch_size,
+                layer=self.layer,
             ),
             n_workers=5,
         )
@@ -550,6 +580,7 @@ class Model(torch.nn.Module, HybridModel):
                 transcriptome=transcriptome,
                 fragments=fragments,
                 cellxregion_batch_size=minibatcher.cellxregion_batch_size,
+                layer=self.layer,
             ),
             n_workers=10,
         )

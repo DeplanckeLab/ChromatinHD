@@ -29,10 +29,13 @@ class Transcriptome:
         elif torch.is_tensor(X):
             self.X = X
         elif isinstance(X, TensorstoreInstance):
+            # self.X = X
             self.X = X.oindex  # open a tensorstore reader with orthogonal indexing
         else:
             self.X = torch.from_numpy(X)
 
     def load(self, minibatch):
         X = torch.from_numpy(self.X[minibatch.cells_oi, minibatch.genes_oi])
+        if X.ndim == 1:
+            X = X.unsqueeze(1)
         return Result(value=X)

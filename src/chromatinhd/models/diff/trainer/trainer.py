@@ -26,6 +26,7 @@ class Trainer:
         optimize_every_step=1,
         premature_termination=True,
         premature_termination_epochs=1,
+        gamma=1.0,
     ):
         self.model = model
         self.loaders_train = loaders_train
@@ -34,6 +35,8 @@ class Trainer:
         self.trace = Trace()
 
         self.optim = optim
+
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=1, gamma=gamma)
 
         self.step_ix = 0
         self.epoch = 0
@@ -124,6 +127,7 @@ class Trainer:
 
                 self.trace.append(loss.item(), self.epoch, self.step_ix, "train")
             self.epoch += 1
+            self.scheduler.step()
 
         pbar.update(n_steps_total)
         pbar.close()

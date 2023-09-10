@@ -264,3 +264,17 @@ class TensorstoreInstance:
                 metadata = self.open_metadata()
                 metadata["shape"] = self._obj.shape
                 pickle.dump(metadata, self.path_metadata.open("wb"))
+
+    @property
+    def oindex(self):
+        return OIndex(self.open_reader())
+
+
+class OIndex:
+    def __init__(self, value):
+        self.value = value
+
+    def __getitem__(self, key):
+        if len(key) == 2:
+            return self.value[key[0]][:, key[1]]
+        return self.value[key]

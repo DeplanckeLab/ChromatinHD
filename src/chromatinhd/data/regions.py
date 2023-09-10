@@ -146,6 +146,14 @@ class Regions(Flow):
     def cumulative_region_lengths(self):
         return np.pad(np.cumsum(self.coordinates["end"].values - self.coordinates["start"].values), (1, 0))
 
+    @property
+    def var(self):
+        return self.coordinates
+
+    @var.setter
+    def var(self, value):
+        self.coordinates = value
+
 
 def select_tss_from_fragments(
     transcripts: pd.DataFrame, fragments_file: PathLike, window: [np.ndarray, tuple] = (-100, 100)

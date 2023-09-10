@@ -49,9 +49,8 @@ class Baseline(FragmentCountDistribution):
 
 
 class FragmentCountDistribution1(FragmentCountDistribution):
-    def __init__(self, fragments, clustering, baseline=None):
+    def __init__(self, fragments, clustering, baseline=None, delta_logit=None):
         super().__init__()
-        self.logit = torch.nn.Parameter(torch.zeros((1,)))
         if baseline is not None:
             self.baseline = baseline
         else:
@@ -60,8 +59,11 @@ class FragmentCountDistribution1(FragmentCountDistribution):
             init = torch.log(init)
             self.baseline.weight.data[:] = init.unsqueeze(-1)
 
-        self.delta_logit = EmbeddingTensor(fragments.n_regions, (clustering.n_clusters,), sparse=True)
-        self.delta_logit.weight.data[:] = 0
+        if delta_logit is not None:
+            self.delta_logit = delta_logit
+        else:
+            self.delta_logit = EmbeddingTensor(fragments.n_regions, (clustering.n_clusters,), sparse=True)
+            self.delta_logit.weight.data[:] = 0
 
         lib = torch.from_numpy(fragments.regionxcell_counts.sum(0).astype(np.float) / fragments.n_regions)
         lib = torch.log(lib)
@@ -89,3 +91,10 @@ class FragmentCountDistribution1(FragmentCountDistribution):
     def parameters_sparse(self):
         yield self.baseline.weight
         yield self.delta_logit.weight
+
+    @classmethod
+    def from_baseline(cls, fragments, clustering, count_reference):
+        baseline = torch.nn.Embedding.from_pretrained(count_reference.baseline.weight.data)
+        delta_logit = EmbeddingTensor.from_pretrained(count_reference.delta_logit)
+
+        return cls(fragments=fragments, clustering=clustering, delta_logit=delta_logit, baseline=baseline)

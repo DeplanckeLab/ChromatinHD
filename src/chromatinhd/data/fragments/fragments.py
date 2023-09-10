@@ -190,7 +190,10 @@ class Fragments(Flow):
                 parser=pysam.asTuple(),
             )
 
-            for fragment in tqdm.tqdm(fetched, leave=False, desc="Processing fragments"):
+            fetched = fetched
+            # pbar = tqdm.tqdm(fetched, leave=False, desc="Processing fragments"
+
+            for fragment in fetched:
                 cell = fragment[3]
 
                 # only store the fragment if the cell is actually of interest

@@ -43,23 +43,23 @@ class Model(torch.nn.Module, HybridModel, Flow):
         self,
         fragments,
         clustering,
-        cls_fragment_count_distribution=FragmentCountDistribution1,
-        cls_fragment_position_distribution=FragmentPositionDistribution1,
-        kwargs_fragment_position_distribution={},
-        kwargs_fragment_count_distribution={},
+        fragment_position_distribution=None,
+        fragment_count_distribution=None,
         path=None,
+        **kwargs,
     ):
         torch.nn.Module.__init__(self)
-        Flow.__init__(self, path=path)
+        Flow.__init__(self, path=path, **kwargs)
 
-        self.fragment_count_distribution = cls_fragment_count_distribution(
-            fragments, clustering, **kwargs_fragment_count_distribution
-        )
-        self.fragment_position_distribution = cls_fragment_position_distribution(
-            fragments,
-            clustering,
-            **kwargs_fragment_position_distribution,
-        )
+        if fragment_count_distribution is not None:
+            self.fragment_count_distribution = fragment_count_distribution
+        else:
+            self.fragment_count_distribution = FragmentCountDistribution1(fragments, clustering)
+
+        if fragment_position_distribution is not None:
+            self.fragment_position_distribution = fragment_position_distribution
+        else:
+            self.fragment_position_distribution = FragmentPositionDistribution1(fragments, clustering)
 
         self.clustering = clustering
         self.fragments = fragments
@@ -91,6 +91,11 @@ class Model(torch.nn.Module, HybridModel, Flow):
         """
         Trains the model
         """
+
+        import gc
+
+        gc.collect()
+        torch.cuda.empty_cache()
 
         fragments = self.fragments if fragments is None else fragments
         clustering = self.clustering if clustering is None else clustering

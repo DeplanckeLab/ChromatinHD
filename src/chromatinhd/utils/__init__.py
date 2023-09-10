@@ -107,6 +107,14 @@ def paircos(x, y, dim=0):
     return cos
 
 
+def pairzmse(x, y, dim=0):
+    x_std = x.std(dim, keepdims=True) + 1e-8
+    y_std = y.std(dim, keepdims=True) + 1e-8
+    x = (x - x.mean(dim, keepdims=True)) / x_std
+    y = (y - y.mean(dim, keepdims=True)) / y_std
+    return ((x - y) ** 2).mean(dim)
+
+
 def fix_class(obj):
     import importlib
 

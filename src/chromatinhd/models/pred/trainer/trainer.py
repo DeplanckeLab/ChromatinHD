@@ -38,6 +38,7 @@ class Trainer:
         n_epochs=30,
         checkpoint_every_epoch=1,
         optimize_every_step=10,
+        pbar=True,
     ):
         self.model = model
         self.loaders_train = loaders_train
@@ -59,6 +60,8 @@ class Trainer:
 
         self.device = device if device is not None else get_default_device()
 
+        self.pbar = pbar
+
     def train(self):
         self.model = self.model.to(self.device)
 
@@ -71,7 +74,7 @@ class Trainer:
         self.loaders_validation.initialize(self.minibatcher_validation)
 
         n_steps_total = self.n_epochs * len(self.loaders_train)
-        pbar = tqdm.tqdm(total=n_steps_total, leave=False)
+        pbar = tqdm.tqdm(total=n_steps_total, leave=False) if self.pbar else None
 
         while (self.epoch < self.n_epochs) and (continue_training):
             # checkpoint if necessary
@@ -127,13 +130,15 @@ class Trainer:
                     self.optim.zero_grad()
 
                 self.step_ix += 1
-                pbar.update()
+                if pbar is not None:
+                    pbar.update()
 
                 self.trace.append(loss.item(), self.epoch, self.step_ix, "train")
             self.epoch += 1
 
-        pbar.update(n_steps_total)
-        pbar.close()
+        if pbar is not None:
+            pbar.update(n_steps_total)
+            pbar.close()
 
         self.model = self.model.to("cpu")
 

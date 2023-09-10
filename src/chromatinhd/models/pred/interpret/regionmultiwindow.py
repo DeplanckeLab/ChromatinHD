@@ -44,14 +44,17 @@ class RegionMultiWindow(chd.flow.Flow):
         transcriptome,
         models,
         folds,
-        regions,
         censorer,
+        regions=None,
         force=False,
         device=None,
     ):
         force_ = force
         design = censorer.design.iloc[1:].copy()
         self.design = design
+
+        if regions is None:
+            regions = fragments.regions.var.index
 
         pbar = tqdm.tqdm(regions, leave=False)
 
@@ -150,7 +153,10 @@ class RegionMultiWindow(chd.flow.Flow):
                 x = scores["deltacor"].values
                 scores_statistical = []
                 for i in range(x.shape[1]):
-                    scores_statistical.append(scipy.stats.ttest_1samp(x[:, i], 0, alternative="less").pvalue)
+                    if x.shape[0] > 1:
+                        scores_statistical.append(scipy.stats.ttest_1samp(x[:, i], 0, alternative="less").pvalue)
+                    else:
+                        scores_statistical.append(1.0)
                 scores_statistical = pd.DataFrame({"pvalue": scores_statistical})
                 scores_statistical["qval"] = fdr(scores_statistical["pvalue"])
 
