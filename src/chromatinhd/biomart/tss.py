@@ -39,7 +39,6 @@ def get_transcripts(
                     biomart_dataset.attribute("chromosome_name"),
                     biomart_dataset.attribute("strand"),
                     biomart_dataset.attribute("external_gene_name"),
-                    biomart_dataset.attribute("transcript_is_canonical"),
                     biomart_dataset.attribute("transcript_biotype"),
                 ],
                 filters=filters,
