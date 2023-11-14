@@ -106,10 +106,10 @@ ax.set_xscale("log")
 
 # %%
 censorer = chd.models.pred.interpret.MultiWindowCensorer(fragments.regions.window)
-RegionMultiWindow = chd.models.pred.interpret.RegionMultiWindow(models.path / "interpret" / "RegionMultiWindow")
+regionmultiwindow = chd.models.pred.interpret.RegionMultiWindow(models.path / "interpret" / "regionmultiwindow")
 
 # %%
-RegionMultiWindow.score(
+regionmultiwindow.score(
     fragments,
     transcriptome,
     models,
@@ -128,7 +128,7 @@ RegionMultiWindow.score(
 )
 
 # %%
-RegionMultiWindow.interpolate()
+regionmultiwindow.interpolate()
 
 # %%
 symbol = "EBF1"
@@ -140,13 +140,13 @@ region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
 panel_genes = chd.plot.genome.genes.Genes.from_region(region, width=width)
 fig.main.add_under(panel_genes)
 
-panel_pileup = chd.models.pred.plot.Pileup.from_RegionMultiWindow(
-    RegionMultiWindow, transcriptome.gene_id(symbol), width=width
+panel_pileup = chd.models.pred.plot.Pileup.from_regionmultiwindow(
+    regionmultiwindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_pileup)
 
-panel_predictivity = chd.models.pred.plot.Predictivity.from_RegionMultiWindow(
-    RegionMultiWindow, transcriptome.gene_id(symbol), width=width
+panel_predictivity = chd.models.pred.plot.Predictivity.from_regionmultiwindow(
+    regionmultiwindow, transcriptome.gene_id(symbol), width=width
 )
 fig.main.add_under(panel_predictivity)
 
