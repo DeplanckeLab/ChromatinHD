@@ -194,23 +194,33 @@ class Motifscan(Flow):
                     fasta.fetch(chrom, start, end + 1)
                     for chrom, start, end in region_coordinates_batch[["chrom", "start", "end"]].values
                 ]
-                assert (
-                    len(set(len(sequence) for sequence in sequences)) == 1
-                ), "All regions/sequences should have the same length"
+                if not all(len(sequence) == len(sequences[0]) for sequence in sequences):
+                    raise ValueError("All regions/sequences should have the same length")
                 onehot2 = create_onehots(sequences).permute(0, 2, 1)
             else:
+                if region_onehots is None:
+                    region_onehots = create_region_onehots(regions, fasta_file)
                 onehot2 = torch.stack([region_onehots[region] for region in region_coordinates_batch.index]).permute(
                     0, 2, 1
                 )
             onehot2 = onehot2.to(device)
 
             assert onehot2.shape[1] == 4
-            assert onehot2.shape[2] == region_coordinates_batch["len"].iloc[0]
+            assert onehot2.shape[2] == region_coordinates_batch["len"].iloc[0], (
+                onehot2.shape[2],
+                region_coordinates_batch["len"].iloc[0],
+            )
+
+            positions_raw = []
+            scores_raw = []
+            indices_raw = []
+            coordinates_raw = []
+            strands_raw = []
             for motif_ix, motif in enumerate(motifs.index):
                 cutoff = cutoffs[motif]
 
-                if cutoff < 0:
-                    raise ValueError(f"Cutoff for motif {motif} is negative, but should be positive.")
+                # if cutoff < 0:
+                #     raise ValueError(f"Cutoff for motif {motif} is negative, but should be positive.")
 
                 # get pwm
                 pwm = pwms[motif]
@@ -230,28 +240,34 @@ class Motifscan(Flow):
                     + positions[1]
                 )
 
-                # sort by position
-                sorted_idx = np.argsort(positions)
-                indices = np.full_like(positions, motif_ix, dtype=np.int32)
-                indices = indices[sorted_idx]
-                scores = scores[sorted_idx]
-                strands = strands[sorted_idx]
-                coordinates = coordinates[sorted_idx]
-                positions = positions[sorted_idx]
+                positions_raw.append(positions)
+                coordinates_raw.append(coordinates)
+                indices_raw.append(np.full_like(positions, motif_ix, dtype=np.int32))
+                strands_raw.append(strands)
+                scores_raw.append(scores)
 
-                self.indices.extend(indices)
-                self.scores.extend(scores)
-                self.strands.extend(strands)
-                self.coordinates.extend(coordinates)
-                self.positions.extend(positions)
+            # sort by position
+            positions = np.concatenate(positions_raw)
+            coordinates = np.concatenate(coordinates_raw)
+            indices = np.concatenate(indices_raw)
+            strands = np.concatenate(strands_raw)
+            scores = np.concatenate(scores_raw)
+
+            sorted_idx = np.argsort(positions)
+            indices = np.full_like(positions, motif_ix, dtype=np.int32)
+            indices = indices[sorted_idx]
+            scores = scores[sorted_idx]
+            strands = strands[sorted_idx]
+            coordinates = coordinates[sorted_idx]
+            positions = positions[sorted_idx]
+
+            self.indices.extend(indices)
+            self.scores.extend(scores)
+            self.strands.extend(strands)
+            self.coordinates.extend(coordinates)
+            self.positions.extend(positions)
 
         return self
-
-    # def create_indptr(self):
-    #     """
-    #     Populate the indptr
-    #     """
-    #     self.indptr = ind2ptr_numpy(self.positions[:], self.regions.region_lengths.sum())
 
     def create_region_indptr(self):
         """
@@ -330,7 +346,7 @@ def divide_regions_in_batches(region_coordinates, batch_size=10):
     region_coordinates["same_length"] = region_coordinates["len"] == region_coordinates["len"].iloc[0]
     region_coordinates["cumlen"] = region_coordinates["cumlen"] + (batch_size * ~region_coordinates["same_length"])
     region_coordinates["batch"] = (region_coordinates["cumlen"] // batch_size).astype(int)
-    region_coordinates["batch"] = np.argsort(region_coordinates["batch"])
+    # region_coordinates["batch"] = np.argsort(region_coordinates["batch"])
 
     region_coordinates["ix"] = np.arange(region_coordinates.shape[0])
 
@@ -409,7 +425,7 @@ def create_region_onehots(regions: Regions, fasta_file: PathLike):
     fasta = pysam.FastaFile(fasta_file)
 
     for region_id, region in tqdm.tqdm(regions.coordinates.iterrows()):
-        sequences = fasta.fetch(region["chrom"], region["start"], region["end"] + 1)
+        sequences = fasta.fetch(region["chrom"], region["start"], region["end"])
         onehot = create_onehots([sequences])
         region_onehots[region_id] = onehot[0]
     return region_onehots
