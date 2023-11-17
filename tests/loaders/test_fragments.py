@@ -93,10 +93,7 @@ class TestFragmentsView:
         fragments = chd.data.fragments.FragmentsView.from_fragments(parentfragments, regions, overwrite=True)
         fragments.create_regionxcell_indptr()
 
-        loader = chd.loaders.Fragments(fragments, cellxregion_batch_size=10)
-
-        assert (loader.region_centers == np.array([0, 50, 110])).all()
-
+        # test regionxcell_indptr
         for region_ix in range(regions.n_regions):
             region = regions.coordinates.iloc[region_ix]
             parentregion_ix = parentregions.coordinates.index.get_loc(region["chrom"])
@@ -105,27 +102,42 @@ class TestFragmentsView:
                     (parentfragments.mapping[:, 0] == cell_ix)
                     & (parentfragments.mapping[:, 1] == parentregion_ix)
                     & (parentfragments.coordinates[:, 0] >= region["start"])
-                    & (parentfragments.coordinates[:, 1] < region["end"])
+                    & (parentfragments.coordinates[:, 0] < region["end"])
                 )
 
                 regionxcell_ix = region_ix * fragments.n_cells + cell_ix
-                indptr_start, indptr_end = (
-                    fragments.regionxcell_fragmentixs_indptr[regionxcell_ix].item(),
-                    fragments.regionxcell_fragmentixs_indptr[regionxcell_ix + 1].item(),
-                )
+                indptr_start, indptr_end = fragments.regionxcell_indptr[regionxcell_ix, :]
 
-                fragment_ixs = fragments.regionxcell_fragmentixs[indptr_start:indptr_end]
+                fragment_ixs = np.arange(indptr_start, indptr_end)
 
                 assert fragments_oi.sum() == len(fragment_ixs)
                 assert np.all(fragment_ixs == np.where(fragments_oi)[0])
+
+        # test loader
+        loader = chd.loaders.Fragments(fragments, cellxregion_batch_size=10)
+
+        assert (loader.region_centers == np.array([0, 50, 110])).all()
+        for region_ix in range(regions.n_regions):
+            region = regions.coordinates.iloc[region_ix]
+            parentregion_ix = parentregions.coordinates.index.get_loc(region["chrom"])
+            for cell_ix in range(obs.shape[0]):
+                fragments_oi = (
+                    (parentfragments.mapping[:, 0] == cell_ix)
+                    & (parentfragments.mapping[:, 1] == parentregion_ix)
+                    & (parentfragments.coordinates[:, 0] >= region["start"])
+                    & (parentfragments.coordinates[:, 0] < region["end"])
+                )
+
+                regionxcell_ix = region_ix * fragments.n_cells + cell_ix
+                indptr_start, indptr_end = fragments.regionxcell_indptr[regionxcell_ix, :]
 
                 data = loader.load(
                     chd.loaders.minibatches.Minibatch(cells_oi=np.array([cell_ix]), regions_oi=np.array([region_ix]))
                 )
 
-                assert data.n_fragments == len(fragment_ixs)
+                assert data.n_fragments == fragments_oi.sum(), f"{region_ix=} {parentregion_ix=} {cell_ix=}"
                 expected = (
-                    (fragments.coordinates[fragment_ixs])
+                    (fragments.coordinates[fragments_oi])
                     - (region["start"] - fragments.regions.window[0]) * (region["strand"] == 1).astype(int)
                     - (region["end"] - fragments.regions.window[0]) * (region["strand"] == -1).astype(int)
                 ) * region["strand"]
