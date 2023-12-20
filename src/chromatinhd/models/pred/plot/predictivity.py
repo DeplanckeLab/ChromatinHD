@@ -9,8 +9,13 @@ class Predictivity(chromatinhd.grid.Panel):
     Plot predictivity of a gene.
     """
 
-    def __init__(self, plotdata, window, width, show_accessibility=False):
+    def __init__(
+        self, plotdata, window, width, show_accessibility=False, color_by_effect=True, limit=-0.05, label_y=True
+    ):
         super().__init__((width, 0.5))
+
+        if "position" not in plotdata.columns:
+            plotdata = plotdata.reset_index()
 
         plotdata["effect_sign"] = np.sign(plotdata["effect"])
         plotdata["segment"] = plotdata["effect_sign"].diff().ne(0).cumsum()
@@ -19,7 +24,10 @@ class Predictivity(chromatinhd.grid.Panel):
         ax.set_xlim(*window)
 
         for segment, segment_data in plotdata.groupby("segment"):
-            color = "tomato" if segment_data["effect"].iloc[0] > 0 else "#0074D9"
+            if color_by_effect:
+                color = "tomato" if segment_data["effect"].iloc[0] > 0 else "#0074D9"
+            else:
+                color = "#333"
             ax.plot(
                 segment_data["position"],
                 segment_data["deltacor"],
@@ -50,8 +58,10 @@ class Predictivity(chromatinhd.grid.Panel):
         #     lw=0,
         # )
 
+        if label_y is True:
+            label_y = "Predictivity\n($\\Delta$ cor)"
         ax.set_ylabel(
-            "Predictivity\n($\\Delta$ cor)",
+            label_y,
             rotation=0,
             ha="right",
             va="center",
@@ -59,7 +69,7 @@ class Predictivity(chromatinhd.grid.Panel):
 
         ax.set_xticks([])
         ax.invert_yaxis()
-        ax.set_ylim(0, max(-0.05, ax.get_ylim()[1]))
+        ax.set_ylim(0, max(limit, ax.get_ylim()[1]))
 
         if show_accessibility:
             ax2 = self.add_twinx()
@@ -101,18 +111,37 @@ class Predictivity(chromatinhd.grid.Panel):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_regionmultiwindow(cls, regionmultiwindow, gene, width, show_accessibility=False):
+    def from_regionmultiwindow(cls, regionmultiwindow, gene, width, show_accessibility=False, window=None):
         """
         Plot predictivity of a specific gene using a RegionMultiWindow object
         """
         plotdata = regionmultiwindow.get_plotdata(gene).reset_index()
-        window = np.array([plotdata["position"].min(), plotdata["position"].max()])
-        return cls(plotdata, window, width, show_accessibility=show_accessibility)
+        if window is None:
+            window = np.array([plotdata["position"].min(), plotdata["position"].max()])
+        return cls(plotdata, width=width, show_accessibility=show_accessibility, window=window)
+
+    def add_arrow(self, position, y=0.5, orientation="left"):
+        ax = self.ax
+        trans = mpl.transforms.blended_transform_factory(x_transform=ax.transData, y_transform=ax.transAxes)
+        if orientation == "left":
+            xytext = (15, 15)
+        elif orientation == "right":
+            xytext = (-15, 15)
+        ax.annotate(
+            text="",
+            xy=(position, y),
+            xytext=xytext,
+            textcoords="offset points",
+            xycoords=trans,
+            arrowprops=dict(arrowstyle="->", color="black", lw=1, connectionstyle="arc3"),
+        )
 
 
 class Pileup(chromatinhd.grid.Panel):
     def __init__(self, plotdata, window, width):
         super().__init__((width, 0.5))
+        if "position" not in plotdata.columns:
+            plotdata = plotdata.reset_index()
 
         ax = self.ax
         ax.set_xlim(*window)
@@ -150,13 +179,14 @@ class Pileup(chromatinhd.grid.Panel):
         ax.set_ylim(0)
 
     @classmethod
-    def from_regionmultiwindow(cls, regionmultiwindow, gene, width):
+    def from_regionmultiwindow(cls, regionmultiwindow, gene, width, window=None):
         """
         Plot pileup of a specific gene using a regionmultiwindow object
         """
         plotdata = regionmultiwindow.get_plotdata(gene).reset_index()
-        window = np.array([plotdata["position"].min(), plotdata["position"].max()])
-        return cls(plotdata, window, width)
+        if window is None:
+            window = np.array([plotdata["position"].min(), plotdata["position"].max()])
+        return cls(plotdata, width=width, window=window)
 
 
 class PredictivityBroken(Broken):

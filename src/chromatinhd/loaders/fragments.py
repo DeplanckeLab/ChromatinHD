@@ -39,7 +39,7 @@ class FragmentsResult:
     n_fragments: int
     "Number of fragments"
 
-    regionmapping: torch.Tensor
+    regionmapping: torch.Tensor = None
     "Mapping from local cell x region index to region index"
 
     cells_oi: np.ndarray = None
@@ -60,6 +60,9 @@ class FragmentsResult:
     lib: torch.Tensor = None
     "Library size for each cell"
 
+    doublet_idx: torch.Tensor = None
+    "Indices of doublets"
+
     @property
     def n_cells(self):
         return len(self.cells_oi)
@@ -71,7 +74,8 @@ class FragmentsResult:
     def to(self, device):
         self.coordinates = self.coordinates.to(device)
         self.local_cellxregion_ix = self.local_cellxregion_ix.to(device)
-        self.regionmapping = self.regionmapping.to(device)
+        if self.regionmapping is not None:
+            self.regionmapping = self.regionmapping.to(device)
         if self.lib is not None:
             self.lib = self.lib.to(device)
         return self
@@ -109,342 +113,6 @@ class catchtime(object):
     def __exit__(self, type, value, traceback):
         self.t = time.time() - self.t
         # print(self.name, self.t)
-
-
-# class Fragments:
-#     """
-#     Basic loader for fragments. This requires either `regionxcell_indptr` (for a Fragments) or `regionxcell_fragmentixs_indptr` (for a FragmentsView) to be present.
-
-#     Example:
-#         ```
-#         loader = Fragments(fragments, cellxregion_batch_size=1000)
-#         minibatch = Minibatch(cells_oi=np.arange(100), regions_oi=np.arange(100))
-#         data = loader.load(minibatch)
-#         data.coordinates
-#         ```
-#     """
-
-#     cellxregion_batch_size: int
-
-#     preloaded = False
-
-#     out_coordinates: torch.Tensor
-#     out_regionmapping: torch.Tensor
-#     out_local_cellxregion_ix: torch.Tensor
-
-#     n_regions: int
-#     is_view: bool
-
-#     def __init__(
-#         self,
-#         fragments: Union[chromatinhd.data.fragments.Fragments, chromatinhd.data.fragments.FragmentsView],
-#         cellxregion_batch_size: int,
-#         n_fragment_per_cellxregion: int = None,
-#     ):
-#         """
-#         Parameters:
-#             fragments: Fragments object
-#             cellxregion_batch_size: maximum number of cell x region combinations that will be loaded
-#             n_fragment_per_cellxregion: estimated number of the number of fragments per cell x region combination, used for preallocation
-#         """
-#         self.cellxregion_batch_size = cellxregion_batch_size
-
-#         # store auxilliary information
-#         window = fragments.regions.window
-#         self.window = window
-
-#         # create buffers for coordinates
-#         if n_fragment_per_cellxregion is None:
-#             n_fragment_per_cellxregion = fragments.estimate_fragment_per_cellxregion()
-#         fragment_buffer_size = n_fragment_per_cellxregion * cellxregion_batch_size
-#         self.fragment_buffer_size = fragment_buffer_size
-
-#         self.n_regions = fragments.n_regions
-
-#         # set up readers and determine if we are dealing with a view or not
-#         if isinstance(fragments, chromatinhd.data.fragments.Fragments):
-#             self.regionxcell_indptr_reader = fragments.regionxcell_indptr.open_reader(
-#                 {"context": {"data_copy_concurrency": {"limit": 1}}}
-#             )
-#             self.coordinates_reader = fragments.coordinates.open_reader()
-#             self.is_view = False
-
-#         elif isinstance(fragments, chromatinhd.data.fragments.FragmentsView):
-#             self.regionxcell_fragmentixs_indptr_reader = fragments.regionxcell_fragmentixs_indptr.open_reader()
-#             self.coordinates_reader = fragments.parent.coordinates.open_reader()
-#             self.fragmentixs_reader = fragments.regionxcell_fragmentixs.open_reader()
-#             assert np.all(
-#                 fragments.regions.coordinates["end"] - fragments.regions.coordinates["start"] == window[1] - window[0]
-#             )
-
-#             if "strand" in fragments.regions.coordinates.columns:
-#                 self.region_strands = fragments.regions.coordinates["strand"].values
-#             else:
-#                 self.region_strands = np.ones((len(fragments.regions.coordinates),), dtype=np.int8)
-#             self.region_centers = (fragments.regions.coordinates["start"] - fragments.regions.window[0]).values * (
-#                 self.region_strands == 1
-#             ).astype(int) + (fragments.regions.coordinates["end"] - fragments.regions.window[0]).values * (
-#                 self.region_strands == -1
-#             ).astype(
-#                 int
-#             )
-#             self.is_view = True
-#         else:
-#             raise ValueError("fragments must be either a Fragments or FragmentsView object")
-
-#         self.n_cells = fragments.n_cells
-
-#     def preload(self):
-#         self.out_fragmentixs = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
-#         self.out_local_cellxregion_ix = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
-
-#         self.preloaded = True
-
-#     def load(self, minibatch: Minibatch) -> FragmentsResult:
-#         """
-#         Load a minibatch of fragments.
-
-#         Parameters:
-#             minibatch: Minibatch object
-
-#         Returns:
-#             The loaded fragments
-#         """
-#         if not self.preloaded:
-#             self.preload()
-
-#         if (len(minibatch.cells_oi) * len(minibatch.regions_oi)) > self.cellxregion_batch_size:
-#             raise ValueError(
-#                 "Too many cell x region requested, increase cellxregion_batch_size at loader initialization"
-#             )
-
-#         if self.is_view:
-#             with catchtime("all") as t:
-#                 with catchtime("arange") as t:
-#                     # load the fragment indices using pointers to the regionxcell fragment indices
-#                     regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
-#                     n_fragments = fragments_helpers.multiple_arange(
-#                         np.array(self.regionxcell_fragmentixs_indptr_reader[regionxcell_ixs]),
-#                         np.array(self.regionxcell_fragmentixs_indptr_reader[regionxcell_ixs + 1]),
-#                         self.out_fragmentixs,
-#                         self.out_local_cellxregion_ix,
-#                     )
-
-#                     assert n_fragments < self.fragment_buffer_size, "fragment buffer size too small"
-
-#                 with catchtime("resize/copy") as t:
-#                     regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
-#                     local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
-
-#                 with catchtime("fragmentixs") as t:
-#                     # load the actual fragment data
-#                     regionxcell_fragmentixs = np.array(self.fragmentixs_reader[regionxcell_fragmentixs])
-
-#                 with catchtime("coordinates") as t:
-#                     regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
-#                     coordinates = np.array(
-#                         self.coordinates_reader[regionxcell_fragmentixs]
-#                     )  # this is typically the slowest part by far
-
-#                 with catchtime("center") as t:
-#                     # center coordinates around region centers, flip based on strandedness
-#                     coordinates = (coordinates - self.region_centers[regionmapping][:, None]) * self.region_strands[
-#                         regionmapping
-#                     ][:, None]
-#         else:
-#             regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
-#             n_fragments = fragments_helpers.multiple_arange(
-#                 self.regionxcell_indptr_reader[regionxcell_ixs].read().result(),
-#                 self.regionxcell_indptr_reader[regionxcell_ixs + 1].read().result(),
-#                 self.out_fragmentixs,
-#                 self.out_local_cellxregion_ix,
-#             )
-#             regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
-#             coordinates = (
-#                 self.coordinates_reader[regionxcell_fragmentixs].read().result()
-#             )  # this is typically the slowest part by far
-#             local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
-#             regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
-
-#         return FragmentsResult(
-#             coordinates=torch.from_numpy(coordinates),
-#             local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
-#             n_fragments=n_fragments,
-#             regionmapping=torch.from_numpy(regionmapping),
-#             window=self.window,
-#             n_total_regions=self.n_regions,
-#             cells_oi=minibatch.cells_oi,
-#             regions_oi=minibatch.regions_oi,
-#         )
-
-
-# class Fragments:
-#     """
-#     Basic loader for fragments. This requires either `regionxcell_indptr` (for a Fragments) or `regionxcell_fragmentixs_indptr` (for a FragmentsView) to be present.
-
-#     Example:
-#         ```
-#         loader = Fragments(fragments, cellxregion_batch_size=1000)
-#         minibatch = Minibatch(cells_oi=np.arange(100), regions_oi=np.arange(100))
-#         data = loader.load(minibatch)
-#         data.coordinates
-#         ```
-#     """
-
-#     cellxregion_batch_size: int
-
-#     preloaded = False
-
-#     out_coordinates: torch.Tensor
-#     out_regionmapping: torch.Tensor
-#     out_local_cellxregion_ix: torch.Tensor
-
-#     n_regions: int
-#     is_view: bool
-
-#     def __init__(
-#         self,
-#         fragments: Union[chromatinhd.data.fragments.Fragments, chromatinhd.data.fragments.FragmentsView],
-#         cellxregion_batch_size: int,
-#         n_fragment_per_cellxregion: int = None,
-#     ):
-#         """
-#         Parameters:
-#             fragments: Fragments object
-#             cellxregion_batch_size: maximum number of cell x region combinations that will be loaded
-#             n_fragment_per_cellxregion: estimated number of the number of fragments per cell x region combination, used for preallocation
-#         """
-#         self.cellxregion_batch_size = cellxregion_batch_size
-
-#         # store auxilliary information
-#         window = fragments.regions.window
-#         self.window = window
-
-#         # create buffers for coordinates
-#         if n_fragment_per_cellxregion is None:
-#             n_fragment_per_cellxregion = fragments.estimate_fragment_per_cellxregion()
-#         fragment_buffer_size = n_fragment_per_cellxregion * cellxregion_batch_size
-#         self.fragment_buffer_size = fragment_buffer_size
-
-#         self.n_regions = fragments.n_regions
-
-#         # set up readers and determine if we are dealing with a view or not
-#         if isinstance(fragments, chromatinhd.data.fragments.Fragments):
-#             self.regionxcell_indptr_reader = fragments.regionxcell_indptr.open_reader(
-#                 {"context": {"data_copy_concurrency": {"limit": 1}}}
-#             )
-#             self.coordinates_reader = fragments.coordinates.open_reader(
-#                 {
-#                     "context": {
-#                         "data_copy_concurrency": {"limit": 1},
-#                     }
-#                 }
-#             )
-#             self.is_view = False
-
-#         elif isinstance(fragments, chromatinhd.data.fragments.FragmentsView):
-#             import zarr
-
-#             self.regionxcell_fragmentixs_indptr_reader = zarr.open(
-#                 fragments.regionxcell_fragmentixs_indptr.path, "r"
-#             ).oindex
-#             self.coordinates_reader = zarr.open(fragments.parent.coordinates.path, "r").oindex
-#             self.fragmentixs_reader = zarr.open(fragments.regionxcell_fragmentixs.path, "r").oindex
-#             self.region_centers = (fragments.regions.coordinates["start"] - fragments.regions.window[0]).values
-#             assert np.all(
-#                 fragments.regions.coordinates["end"] - fragments.regions.coordinates["start"] == window[1] - window[0]
-#             )
-
-#             if "strand" in fragments.regions.coordinates.columns:
-#                 self.region_strands = fragments.regions.coordinates["strand"].values
-#             else:
-#                 self.region_strands = np.ones((len(fragments.regions.coordinates),), dtype=np.int8)
-#             self.is_view = True
-#         else:
-#             raise ValueError("fragments must be either a Fragments or FragmentsView object")
-
-#         self.n_cells = fragments.n_cells
-
-#     def preload(self):
-#         self.out_fragmentixs = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
-#         self.out_local_cellxregion_ix = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
-
-#         self.preloaded = True
-
-#     def load(self, minibatch: Minibatch) -> FragmentsResult:
-#         """
-#         Load a minibatch of fragments.
-
-#         Parameters:
-#             minibatch: Minibatch object
-
-#         Returns:
-#             The loaded fragments
-#         """
-#         if not self.preloaded:
-#             self.preload()
-
-#         if (len(minibatch.cells_oi) * len(minibatch.regions_oi)) > self.cellxregion_batch_size:
-#             raise ValueError(
-#                 "Too many cell x region requested, increase cellxregion_batch_size at loader initialization"
-#             )
-
-#         if self.is_view:
-#             with catchtime("all") as t:
-#                 with catchtime("arange") as t:
-#                     # load the fragment indices using pointers to the regionxcell fragment indices
-#                     regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
-#                     n_fragments = fragments_helpers.multiple_arange(
-#                         np.array(self.regionxcell_fragmentixs_indptr_reader[regionxcell_ixs]),
-#                         np.array(self.regionxcell_fragmentixs_indptr_reader[regionxcell_ixs + 1]),
-#                         self.out_fragmentixs,
-#                         self.out_local_cellxregion_ix,
-#                     )
-
-#                     assert n_fragments < self.fragment_buffer_size, "fragment buffer size too small"
-
-#                 with catchtime("resize/copy") as t:
-#                     regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
-#                     local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
-
-#                 with catchtime("fragmentixs") as t:
-#                     # load the actual fragment data
-#                     regionxcell_fragmentixs = self.fragmentixs_reader[regionxcell_fragmentixs]
-
-#                 with catchtime("coordinates") as t:
-#                     regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
-#                     coordinates = self.coordinates_reader[
-#                         regionxcell_fragmentixs
-#                     ]  # this is typically the slowest part by far
-
-#                 with catchtime("center") as t:
-#                     # center coordinates around region centers, flip based on strandedness
-#                     coordinates = (coordinates - self.region_centers[regionmapping][:, None]) * self.region_strands[
-#                         regionmapping
-#                     ][:, None]
-#         else:
-#             regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
-#             n_fragments = fragments_helpers.multiple_arange(
-#                 self.regionxcell_indptr_reader[regionxcell_ixs],
-#                 self.regionxcell_indptr_reader[regionxcell_ixs + 1],
-#                 self.out_fragmentixs,
-#                 self.out_local_cellxregion_ix,
-#             )
-#             regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
-#             coordinates = self.coordinates_reader[regionxcell_fragmentixs]  # this is typically the slowest part by far
-#             local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
-#             regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
-
-#         return FragmentsResult(
-#             coordinates=torch.from_numpy(coordinates),
-#             local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
-#             n_fragments=n_fragments,
-#             regionmapping=torch.from_numpy(regionmapping),
-#             window=self.window,
-#             n_total_regions=self.n_regions,
-#             cells_oi=minibatch.cells_oi,
-#             regions_oi=minibatch.regions_oi,
-#         )
 
 
 def open_memmap(path):
@@ -485,8 +153,9 @@ class Fragments:
         fragments: Union[chromatinhd.data.fragments.Fragments, chromatinhd.data.fragments.FragmentsView],
         cellxregion_batch_size: int,
         n_fragment_per_cellxregion: int = None,
-        buffer_size_multiplier=2,
+        buffer_size_multiplier=10,  # increase this if crashing
         provide_lib=False,
+        provide_multiplets=True,
     ):
         """
         Parameters:
@@ -522,10 +191,9 @@ class Fragments:
             )
             self.is_view = False
 
-        elif isinstance(fragments, chromatinhd.data.fragments.FragmentsView):
-            self.regionxcell_fragmentixs_indptr_reader = fragments.regionxcell_fragmentixs_indptr.open_reader()
-            self.coordinates_reader = fragments.parent.coordinates.open_reader()
-            self.fragmentixs_reader = fragments.regionxcell_fragmentixs.open_reader()
+        elif isinstance(fragments, chromatinhd.data.fragments.view.FragmentsView):
+            self.regionxcell_indptr_reader = fragments.regionxcell_indptr.open_reader()
+            self.coordinates_reader = fragments.coordinates.open_reader()
 
             if "strand" in fragments.regions.coordinates.columns:
                 self.region_strands = fragments.regions.coordinates["strand"].values
@@ -540,9 +208,11 @@ class Fragments:
             )
             self.is_view = True
         else:
-            raise ValueError("fragments must be either a Fragments or FragmentsView object")
+            raise ValueError("fragments must be either a Fragments or FragmentsView object", type(fragments))
 
         self.n_cells = fragments.n_cells
+
+        self.provide_multiplets = provide_multiplets
 
     def preload(self):
         self.out_fragmentixs = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
@@ -569,38 +239,27 @@ class Fragments:
             )
 
         if self.is_view:
-            with catchtime("all") as t:
-                with catchtime("arange") as t:
-                    # load the fragment indices using pointers to the regionxcell fragment indices
-                    regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
-                    n_fragments = fragments_helpers.multiple_arange(
-                        np.array(self.regionxcell_fragmentixs_indptr_reader[regionxcell_ixs]),
-                        np.array(self.regionxcell_fragmentixs_indptr_reader[regionxcell_ixs + 1]),
-                        self.out_fragmentixs,
-                        self.out_local_cellxregion_ix,
-                    )
+            # load the fragment indices using pointers to the regionxcell fragment indices
+            regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
+            n_fragments = fragments_helpers.multiple_arange(
+                np.array(self.regionxcell_indptr_reader[regionxcell_ixs, 0]),
+                np.array(self.regionxcell_indptr_reader[regionxcell_ixs, 1]),
+                self.out_fragmentixs,
+                self.out_local_cellxregion_ix,
+            )
 
-                    assert n_fragments < self.fragment_buffer_size, "fragment buffer size too small"
+            assert n_fragments < self.fragment_buffer_size, "fragment buffer size too small"
 
-                with catchtime("resize/copy") as t:
-                    regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
-                    local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
+            regionxcell_fragmentixs = self.out_fragmentixs[:n_fragments]
+            local_cellxregion_ix = self.out_local_cellxregion_ix[:n_fragments]
 
-                with catchtime("fragmentixs") as t:
-                    # load the actual fragment data
-                    regionxcell_fragmentixs = self.fragmentixs_reader[regionxcell_fragmentixs]
+            regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
+            coordinates = self.coordinates_reader[regionxcell_fragmentixs]  # this is typically the slowest part by far
 
-                with catchtime("coordinates") as t:
-                    regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
-                    coordinates = self.coordinates_reader[
-                        regionxcell_fragmentixs
-                    ]  # this is typically the slowest part by far
-
-                with catchtime("center") as t:
-                    # center coordinates around region centers, flip based on strandedness
-                    coordinates = (coordinates - self.region_centers[regionmapping][:, None]) * self.region_strands[
-                        regionmapping
-                    ][:, None]
+            # center coordinates around region centers, flip based on strandedness
+            coordinates = (coordinates - self.region_centers[regionmapping][:, None]) * self.region_strands[
+                regionmapping
+            ][:, None]
         else:
             regionxcell_ixs = (minibatch.regions_oi * self.n_cells + minibatch.cells_oi[:, None]).flatten()
             n_fragments = fragments_helpers.multiple_arange(
@@ -614,6 +273,22 @@ class Fragments:
             local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
             regionmapping = minibatch.regions_oi[local_cellxregion_ix % minibatch.n_regions]
 
+        # multiplets
+        if self.provide_multiplets:
+            from chromatinhd.utils.numpy import indices_to_indptr
+
+            indptr = indices_to_indptr(local_cellxregion_ix, minibatch.n_cells * minibatch.n_regions)
+            indptr_diff = np.diff(indptr)
+
+            doublets = np.where(indptr_diff == 2)[0]
+            doublet_idx = torch.from_numpy(np.stack([indptr[doublets], indptr[doublets] + 1], -1).flatten())
+
+            triplets = np.where(indptr_diff == 2)[0]
+            triplet_idx = np.stack([indptr[triplets], indptr[triplets] + 1, indptr[triplets] + 2], -1).flatten()
+        else:
+            doublet_idx = None
+            triplet_idx = None
+
         return FragmentsResult(
             coordinates=torch.from_numpy(coordinates),
             local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
@@ -623,6 +298,7 @@ class Fragments:
             n_total_regions=self.n_regions,
             cells_oi=minibatch.cells_oi,
             regions_oi=minibatch.regions_oi,
+            doublet_idx=doublet_idx,
         )
 
 
@@ -630,7 +306,6 @@ class Fragments:
 class CutsResult:
     coordinates: torch.Tensor
     local_cellxregion_ix: torch.Tensor
-    localcellxregion_ix: torch.Tensor
     n_regions: int
     n_fragments: int
     n_cuts: int
@@ -647,7 +322,6 @@ class CutsResult:
     def to(self, device):
         self.coordinates = self.coordinates.to(device)
         self.local_cellxregion_ix = self.local_cellxregion_ix.to(device)
-        self.localcellxregion_ix = self.localcellxregion_ix.to(device)
         return self
 
 
@@ -665,14 +339,164 @@ class Cuts(Fragments):
         result = super().load(minibatch)
 
         cut_coordinates = result.coordinates.flatten()
-        local_cellxregion_ix = result.local_cellxregion_ix.expand(2, -1).T.flatten()
-        local_cell_ix = torch.div(local_cellxregion_ix, self.n_regions, rounding_mode="floor")
-        localcellxregion_ix = local_cell_ix * self.n_regions + result.regionmapping.expand(2, -1).T.flatten()
+
+        n_cuts_per_fragment = result.coordinates.shape[1]
+        local_cellxregion_ix = result.local_cellxregion_ix.expand(n_cuts_per_fragment, -1).T.flatten()
+
+        selected = np.random.rand(len(cut_coordinates)) < 0.2
+        cut_coordinates = cut_coordinates[selected]
+        local_cellxregion_ix = local_cellxregion_ix[selected]
 
         return CutsResult(
             coordinates=cut_coordinates,
             local_cellxregion_ix=local_cellxregion_ix,
-            localcellxregion_ix=localcellxregion_ix,
+            n_regions=len(minibatch.regions_oi),
+            n_fragments=result.n_fragments,
+            n_cuts=result.n_fragments * n_cuts_per_fragment,
+            window=self.window,
+        )
+
+
+class FragmentsRegional:
+    """
+    Basic loader for fragments. This requires either `regionxcell_indptr` (for a Fragments) or `regionxcell_fragmentixs_indptr` (for a FragmentsView) to be present.
+
+    Example:
+        ```
+        loader = Fragments(fragments, cellxregion_batch_size=1000)
+        minibatch = Minibatch(cells_oi=np.arange(100), regions_oi=np.arange(100))
+        data = loader.load(minibatch)
+        data.coordinates
+        ```
+    """
+
+    is_view = False
+
+    cellxregion_batch_size: int
+
+    preloaded = False
+
+    out_coordinates: torch.Tensor
+    out_regionmapping: torch.Tensor
+    out_local_cellxregion_ix: torch.Tensor
+
+    n_regions: int
+
+    def __init__(
+        self,
+        fragments: Union[chromatinhd.data.fragments.Fragments, chromatinhd.data.fragments.FragmentsView],
+        cellxregion_batch_size: int,
+        region_oi,
+        n_fragment_per_cellxregion: int = None,
+        buffer_size_multiplier=10,  # increase this if crashing
+        provide_lib=False,
+        provide_multiplets=False,
+    ):
+        """
+        Parameters:
+            fragments: Fragments object
+            cellxregion_batch_size: maximum number of cell x region combinations that will be loaded
+            n_fragment_per_cellxregion: estimated number of the number of fragments per cell x region combination, used for preallocation
+        """
+        self.cellxregion_batch_size = cellxregion_batch_size
+
+        # store auxilliary information
+        window = fragments.regions.window
+        self.window = window
+
+        # create buffers for coordinates
+        if n_fragment_per_cellxregion is None:
+            n_fragment_per_cellxregion = fragments.estimate_fragment_per_cellxregion()
+        fragment_buffer_size = n_fragment_per_cellxregion * cellxregion_batch_size * buffer_size_multiplier
+        self.fragment_buffer_size = fragment_buffer_size
+
+        self.n_regions = fragments.n_regions
+
+        # load cache
+        cache = fragments.get_cache(region_oi)
+        self.regionxcell_indptr_reader = cache["regionxcell_indptr"]
+        self.coordinates_reader = cache["coordinates"]
+
+        self.n_cells = fragments.n_cells
+
+        if provide_multiplets:
+            raise NotImplementedError("provide_multiplets not implemented for FragmentsRegional")
+        self.provide_multiplets = provide_multiplets
+
+        # check if view
+        if isinstance(fragments, chromatinhd.data.fragments.view.FragmentsView):
+            self.is_view = True
+            self.center = int(fragments.regions.coordinates.loc[region_oi]["tss"])
+            self.strand = int(fragments.regions.coordinates.loc[region_oi]["strand"])
+
+    def preload(self):
+        self.out_fragmentixs = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
+        self.out_local_cellxregion_ix = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
+
+        self.preloaded = True
+
+    def load(self, minibatch: Minibatch) -> FragmentsResult:
+        """
+        Load a minibatch of fragments.
+
+        Parameters:
+            minibatch: Minibatch object
+
+        Returns:
+            The loaded fragments
+        """
+        if not self.preloaded:
+            self.preload()
+
+        if (len(minibatch.cells_oi) * len(minibatch.regions_oi)) > self.cellxregion_batch_size:
+            raise ValueError(
+                "Too many cell x region requested, increase cellxregion_batch_size at loader initialization"
+            )
+
+        regionxcell_ixs = (minibatch.cells_oi[:, None]).flatten()
+        n_fragments = fragments_helpers.multiple_arange(
+            self.regionxcell_indptr_reader[regionxcell_ixs],
+            self.regionxcell_indptr_reader[regionxcell_ixs + 1],
+            self.out_fragmentixs,
+            self.out_local_cellxregion_ix,
+        )
+        regionxcell_fragmentixs = np.resize(self.out_fragmentixs, n_fragments)
+        coordinates = self.coordinates_reader[regionxcell_fragmentixs]
+        local_cellxregion_ix = np.resize(self.out_local_cellxregion_ix, n_fragments)
+
+        if self.is_view:
+            coordinates = (coordinates - self.center) * self.strand  # .astype(np.int32)
+
+        return FragmentsResult(
+            coordinates=torch.from_numpy(coordinates),
+            local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
+            n_fragments=n_fragments,
+            window=self.window,
+            n_total_regions=self.n_regions,
+            cells_oi=minibatch.cells_oi,
+            regions_oi=minibatch.regions_oi,
+        )
+
+
+class CutsRegional(FragmentsRegional):
+    def load(self, minibatch: Minibatch) -> CutsResult:
+        """
+        Load a minibatch of cuts.
+
+        Parameters:
+            minibatch: Minibatch object
+
+        Returns:
+            The loaded cut sites
+        """
+        result = super().load(minibatch)
+
+        cut_coordinates = result.coordinates.flatten()
+        local_cellxregion_ix = result.local_cellxregion_ix.expand(2, -1).T.flatten()
+
+        return CutsResult(
+            coordinates=cut_coordinates,
+            local_cellxregion_ix=local_cellxregion_ix,
             n_regions=len(minibatch.regions_oi),
             n_fragments=result.n_fragments,
             n_cuts=result.n_fragments * 2,

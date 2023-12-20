@@ -5,10 +5,12 @@ import torch
 
 @dataclasses.dataclass
 class Result:
-    onehot: torch.Tensor
+    # onehot: torch.Tensor
+    indices: torch.Tensor
 
     def to(self, device):
-        self.onehot = self.onehot.to(device)
+        self.indices = self.indices.to(device)
+        # self.onehot = self.onehot.to(device)
         return self
 
 
@@ -31,5 +33,6 @@ class Clustering:
         ).to(torch.float)
 
     def load(self, minibatch):
-        onehot = self.onehot[minibatch.cells_oi, :]
-        return Result(onehot=onehot)
+        # onehot = self.onehot[minibatch.cells_oi, :]
+        indices = torch.argmax(self.onehot[minibatch.cells_oi, :], dim=1)
+        return Result(indices=indices)

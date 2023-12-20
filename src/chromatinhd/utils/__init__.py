@@ -4,8 +4,8 @@ import pickle
 import pandas as pd
 
 from .torch import interpolate_1d
-from .numpy import indices_to_indptr, indptr_to_indices
-from .testing import repeated_kfold_corrected_t_test
+from .numpy import indices_to_indptr, indptr_to_indices, indices_to_indptr_chunked
+from .testing import repeated_kfold_corrected_t_test, fdr
 from . import interleave
 from . import ecdf
 
@@ -112,6 +112,25 @@ def pairzmse(x, y, dim=0):
     y_std = y.std(dim, keepdims=True) + 1e-8
     x = (x - x.mean(dim, keepdims=True)) / x_std
     y = (y - y.mean(dim, keepdims=True)) / y_std
+    return ((x - y) ** 2).mean(dim)
+
+
+import numpy as np
+
+
+def pairzmae(x, y, dim=0):
+    x_std = x.std(dim, keepdims=True) + 1e-8
+    y_std = y.std(dim, keepdims=True) + 1e-8
+    x = (x - x.mean(dim, keepdims=True)) / x_std
+    y = (y - y.mean(dim, keepdims=True)) / y_std
+    return (np.abs(x - y)).mean(dim)
+
+
+def paircmse(x, y, dim=0):
+    x_std = x.std(dim, keepdims=True) + 1e-8
+    y_std = y.std(dim, keepdims=True) + 1e-8
+    x = (x - x.mean(dim, keepdims=True)) / x_std * y_std
+    y = y - y.mean(dim, keepdims=True)
     return ((x - y) ** 2).mean(dim)
 
 

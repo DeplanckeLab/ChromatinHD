@@ -80,7 +80,10 @@ class Linked(Obj):
 
                 if not path.exists():
                     raise FileNotFoundError(f"File {path} does not exist")
-                if not path.is_symlink():
+
+                if path.is_dir():
+                    pass
+                elif not path.is_symlink():
                     raise FileNotFoundError(f"File {path} is not a symlink")
 
                 from .flow import Flow
@@ -94,13 +97,20 @@ class Linked(Obj):
         # symlink to value.path
         path = self.get_path(obj)
         name = "_" + str(self.name)
-        if path.exists():
-            if not path.is_symlink():
+
+        # remove existing symlink if exists
+        if not str(path).startswith("memory"):
+            if not path.exists():
+                pass
+            elif not path.is_symlink():
+                if path == value.path:
+                    return
                 raise FileExistsError(f"File {path} already exists")
             else:
                 path.unlink()
-        if (not str(obj.path).startswith("memory")) and (not str(value.path).startswith("memory")):
-            path.symlink_to(value.path.resolve())
+
+            if not str(value.path.resolve()).startswith("memory"):
+                path.symlink_to(value.path.resolve())
         setattr(obj, name, value)
 
     def exists(self, obj):
@@ -112,15 +122,28 @@ class Linked(Obj):
         return f"<span class='iconify' data-icon='mdi-link'></span> <b>{self.name}</b>"
 
 
+def is_gz_file(filepath):
+    with open(filepath, "rb") as test_f:
+        return test_f.read(2) == b"\x1f\x8b"
+
+
+def load_file(filepath):
+    if is_gz_file(filepath):
+        return gzip.GzipFile(fileobj=filepath.open("rb"), mode="r")
+    else:
+        return filepath.open("rb")
+
+
 class Stored(Obj):
     """
     A python object that is stored on disk using pickle
     """
 
-    def __init__(self, default=None, name=None, persist=True):
+    def __init__(self, default=None, name=None, persist=True, compress=False):
         self.default = default
         self.name = name
         self.persist = persist
+        self.compress = compress
 
     def get_path(self, folder):
         return folder / (str(self.name) + ".pkl")
@@ -137,9 +160,13 @@ class Stored(Obj):
                         raise FileNotFoundError(f"File {path} does not exist")
                     else:
                         value = self.default()
-                        pickle.dump(value, path.open("wb"))
 
-                value = pickle.load(self.get_path(obj.path).open("rb"))
+                        if self.compress:
+                            pickle.dump(value, gzip.GzipFile(fileobj=path.open("wb"), mode="w", compresslevel=3))
+                        else:
+                            pickle.dump(value, path.open("wb"))
+                else:
+                    value = pickle.load(load_file(self.get_path(obj.path)))
                 if self.persist:
                     setattr(obj, name, value)
             else:
@@ -151,6 +178,13 @@ class Stored(Obj):
         pickle.dump(value, self.get_path(obj.path).open("wb"))
         if self.persist:
             setattr(obj, name, value)
+
+    def __delete__(self, obj):
+        path = self.get_path(obj.path)
+        if path.exists():
+            path.unlink()
+        if hasattr(obj, "_" + str(self.name)):
+            delattr(obj, "_" + str(self.name))
 
     def exists(self, obj):
         return self.get_path(obj.path).exists()
@@ -316,6 +350,10 @@ class StoredDict(Obj):
                 setattr(obj, name, x)
             return getattr(obj, name)
 
+    def __set__(self, obj, value, folder=None):
+        instance = self.__get__(obj)
+        instance.__set__(obj, value)
+
     def _repr_html_(self, obj=None):
         instance = self.__get__(obj)
         return instance._repr_html_()
@@ -347,6 +385,10 @@ class StoredDictInstance(Instance):
         if key not in self.dict:
             self.dict[key] = self.cls(name=key, **self.kwargs)
         self.dict[key].__set__(self, value)
+
+    def __set__(self, obj, value, folder=None):
+        for k, v in value.items():
+            self[k] = v
 
     def __contains__(self, key):
         return key in self.dict
@@ -392,14 +434,17 @@ class DataArray(Obj):
                     raise FileNotFoundError(f"File {path} does not exist")
                 import xarray as xr
 
-                setattr(obj, name, xr.open_zarr(self.get_path(obj.path))[self.name])
+                array = xr.open_zarr(self.get_path(obj.path))
+
+                setattr(obj, name, array[list(array.keys())[0]])
             return getattr(obj, name)
 
     def __set__(self, obj, value):
         import xarray as xr
 
         name = "_" + str(self.name)
-        value.to_zarr(self.get_path(obj.path), mode="w")
+        if not (str(obj.path).startswith("memory")):
+            value.to_zarr(self.get_path(obj.path), mode="w")
         setattr(obj, name, value)
 
     def exists(self, obj):
@@ -416,7 +461,22 @@ class DataArray(Obj):
 
 
 class Dataset(Obj):
-    def __init__(self, name=None):
+    def __init__(self, name=None, compressor="blosc"):
+        if compressor not in [None, "blosc", "zstd"]:
+            raise ValueError(f"Compressor {compressor} not supported")
+
+        if compressor is None:
+            compressor = {}
+        elif compressor == "blosc":
+            import zarr
+
+            compressor = zarr.Blosc(cname="zstd", clevel=3, shuffle=2)
+        elif compressor == "zstd":
+            import zarr
+
+            compressor = zarr.Blosc(cname="zstd", clevel=3)
+        self.compressor = compressor
+
         super().__init__(name=name)
 
     def get_path(self, folder):
@@ -440,7 +500,12 @@ class Dataset(Obj):
         import xarray as xr
 
         name = "_" + str(self.name)
-        value.to_zarr(self.get_path(obj.path), mode="w")
+        if not (str(obj.path).startswith("memory")):
+            value.to_zarr(
+                self.get_path(obj.path),
+                mode="w",
+                encoding={k: {"compressor": self.compressor} for k in value.data_vars},
+            )
         setattr(obj, name, value)
 
     def exists(self, obj):

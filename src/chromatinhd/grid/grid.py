@@ -441,6 +441,12 @@ class Grid(Element):
             self.paddings_width[column] = padding
         return el
 
+    def __iter__(self):
+        for row in self.elements:
+            for el in row:
+                if el is not None:
+                    yield el
+
 
 class _Figure(mpl.figure.Figure):
     """

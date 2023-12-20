@@ -1,9 +1,9 @@
 import chromatinhd.data.transcriptome
 import dataclasses
 
-from .fragments import Fragments
+from .fragments import Fragments, FragmentsRegional
 from chromatinhd.loaders.minibatches import Minibatch
-from .transcriptome import Transcriptome
+from .transcriptome import Transcriptome, TranscriptomeGene
 
 
 @dataclasses.dataclass
@@ -26,13 +26,20 @@ class TranscriptomeFragments:
         transcriptome: chromatinhd.data.transcriptome.Transcriptome,
         cellxregion_batch_size: int,
         layer: str = None,
+        region_oi=None,
     ):
         # ensure that transcriptome and fragments have the same var
         if not all(transcriptome.var.index == fragments.var.index):
             raise ValueError("Transcriptome and fragments should have the same var index. ")
 
-        self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size)
-        self.transcriptome = Transcriptome(transcriptome, layer=layer)
+        if region_oi is None:
+            self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size)
+            self.transcriptome = Transcriptome(transcriptome, layer=layer)
+        else:
+            self.fragments = FragmentsRegional(
+                fragments, cellxregion_batch_size=cellxregion_batch_size, region_oi=region_oi
+            )
+            self.transcriptome = TranscriptomeGene(transcriptome, gene_oi=region_oi, layer=layer)
 
     def load(self, minibatch):
         return Result(

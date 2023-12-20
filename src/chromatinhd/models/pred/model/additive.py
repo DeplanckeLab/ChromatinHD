@@ -1,7 +1,7 @@
 """
 Additive model for predicting region expression from fragments
 """
-
+from __future__ import annotations
 
 import torch
 import torch_scatter
@@ -13,8 +13,8 @@ import pandas as pd
 import pickle
 
 from chromatinhd.embedding import EmbeddingTensor
-from chromatinhd.models import HybridModel
-from chromatinhd.flow import Flow, Stored, StoredDict
+from chromatinhd.models import FlowModel
+from chromatinhd.flow import Flow, Stored, StoredDict, Linked
 
 from chromatinhd.loaders.minibatches import Minibatcher
 from chromatinhd.loaders.transcriptome_fragments import (
@@ -39,8 +39,9 @@ class SineEncoding(torch.nn.Module):
 
         self.register_buffer(
             "frequencies",
-            torch.tensor([[1 / 1000 ** (2 * i / n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2),
+            torch.tensor([[1 / 100 ** (2 * i / n_frequencies)] * 2 for i in range(1, n_frequencies + 1)]).flatten(-2),
         )
+
         self.register_buffer(
             "shifts",
             torch.tensor([[0, torch.pi / 2] for _ in range(1, n_frequencies + 1)]).flatten(-2),
@@ -129,7 +130,7 @@ class FragmentEmbedder(torch.nn.Module):
         elif isinstance(self.nonlinear, str) and self.nonlinear == "elu":
             embedding = torch.nn.functional.elu(embedding)
 
-        if self.dropout_rate > 0:
+        if (self.dropout_rate > 0) and self.training:
             embedding = torch.nn.functional.dropout(embedding, self.dropout_rate)
 
         return embedding
@@ -217,7 +218,7 @@ class EmbeddingToExpression(torch.nn.Module):
         return [self.bias1.weight, self.weight1.weight]
 
 
-class Model(torch.nn.Module, HybridModel):
+class Model(FlowModel):
     """
     Predicting region expression from raw fragments using an additive model across fragments from the same cell
 
@@ -238,11 +239,24 @@ class Model(torch.nn.Module, HybridModel):
             the dropout rate
     """
 
-    layer = None
+    transcriptome = Linked()
+    """The transcriptome"""
+
+    fragments = Linked()
+    """The fragments"""
+
+    fold = Stored()
+    """The cells used for training, test and validation"""
+
+    layer = Stored()
+    """The layer of the transcriptome"""
 
     def __init__(
         self,
-        n_regions: int,
+        path=None,
+        fragments: Fragments | None = None,
+        transcriptome: Transcriptome | None = None,
+        fold=None,
         dummy: bool = False,
         n_frequencies: int = 50,
         reduce: str = "sum",
@@ -250,26 +264,67 @@ class Model(torch.nn.Module, HybridModel):
         n_embedding_dimensions: int = 10,
         dropout_rate: float = 0.0,
         embedding_to_expression_initialization: str = "default",
+        layer=None,
+        reset=False,
         **kwargs: Any,
     ) -> None:
-        super().__init__()
+        super().__init__(path=path, reset=reset, **kwargs)
 
-        if dummy is True:
-            self.fragment_embedder = FragmentEmbedderCounter()
-        else:
-            self.fragment_embedder = FragmentEmbedder(
-                n_frequencies=n_frequencies,
+        if fragments is not None:
+            self.fragments = fragments
+        if transcriptome is not None:
+            self.transcriptome = transcriptome
+        if fold is not None:
+            self.fold = fold
+        if layer is not None:
+            self.layer = layer
+        elif not self.o.layer.exists(self):
+            if transcriptome is not None:
+                self.layer = list(self.transcriptome.layers.keys())[0]
+
+        self.layer = "magic"
+
+        if not self.o.state.exists(self):
+            assert fragments is not None
+            assert transcriptome is not None
+
+            n_regions = fragments.n_regions
+
+            if dummy is True:
+                self.fragment_embedder = FragmentEmbedderCounter()
+            else:
+                self.fragment_embedder = FragmentEmbedder(
+                    n_frequencies=n_frequencies,
+                    n_regions=n_regions,
+                    nonlinear=nonlinear,
+                    n_embedding_dimensions=n_embedding_dimensions,
+                    dropout_rate=dropout_rate,
+                )
+            self.embedding_region_pooler = EmbeddingGenePooler(reduce=reduce)
+            self.embedding_to_expression = EmbeddingToExpression(
                 n_regions=n_regions,
-                nonlinear=nonlinear,
-                n_embedding_dimensions=n_embedding_dimensions,
-                dropout_rate=dropout_rate,
+                n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
+                initialization=embedding_to_expression_initialization,
             )
-        self.embedding_region_pooler = EmbeddingGenePooler(reduce=reduce)
-        self.embedding_to_expression = EmbeddingToExpression(
-            n_regions=n_regions,
-            n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
-            initialization=embedding_to_expression_initialization,
-        )
+
+            n_regions = fragments.n_regions
+
+            if dummy is True:
+                self.fragment_embedder = FragmentEmbedderCounter()
+            else:
+                self.fragment_embedder = FragmentEmbedder(
+                    n_frequencies=n_frequencies,
+                    n_regions=n_regions,
+                    nonlinear=nonlinear,
+                    n_embedding_dimensions=n_embedding_dimensions,
+                    dropout_rate=dropout_rate,
+                )
+            self.embedding_region_pooler = EmbeddingGenePooler(reduce=reduce)
+            self.embedding_to_expression = EmbeddingToExpression(
+                n_regions=n_regions,
+                n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
+                initialization=embedding_to_expression_initialization,
+            )
 
     def forward(self, data):
         """
@@ -346,23 +401,36 @@ class Model(torch.nn.Module, HybridModel):
 
     def train_model(
         self,
-        fragments: Fragments,
-        transcriptome: Transcriptome,
-        fold: list,
+        fold: list = None,
+        fragments: Fragments = None,
+        transcriptome: Transcriptome = None,
         device=None,
-        lr=1e-2,
-        n_epochs=30,
+        lr=1e-3,
+        n_epochs=60,
         pbar=True,
+        n_regions_step=500,
+        n_cells_step=200,
+        weight_decay=1e-5,
+        checkpoint_every_epoch=1,
     ):
         """
         Train the model
         """
+        if fold is None:
+            fold = self.fold
+        assert fold is not None
+
+        if fragments is None:
+            fragments = self.fragments
+        if transcriptome is None:
+            transcriptome = self.transcriptome
+
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
             range(fragments.n_regions),
-            n_regions_step=500,
-            n_cells_step=200,
+            n_regions_step=n_regions_step,
+            n_cells_step=n_cells_step,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
@@ -407,22 +475,24 @@ class Model(torch.nn.Module, HybridModel):
                 self.parameters_sparse(),
                 self.parameters_dense(),
                 lr=lr,
-                weight_decay=1e-5,
+                weight_decay=weight_decay,
             ),
             n_epochs=n_epochs,
-            checkpoint_every_epoch=1,
+            checkpoint_every_epoch=checkpoint_every_epoch,
             optimize_every_step=1,
             device=device,
             pbar=pbar,
         )
+
+        self.trace = trainer.trace
 
         trainer.train()
         # trainer.trace.plot()
 
     def get_prediction(
         self,
-        fragments,
-        transcriptome,
+        fragments=None,
+        transcriptome=None,
         cells=None,
         cell_ixs=None,
         regions=None,
@@ -433,6 +503,11 @@ class Model(torch.nn.Module, HybridModel):
         """
         Returns the prediction of a dataset
         """
+
+        if fragments is None:
+            fragments = self.fragments
+        if transcriptome is None:
+            transcriptome = self.transcriptome
         if cell_ixs is None:
             if cells is None:
                 cells = fragments.obs.index
@@ -533,9 +608,9 @@ class Model(torch.nn.Module, HybridModel):
 
     def get_prediction_censored(
         self,
-        fragments,
-        transcriptome,
         censorer,
+        fragments=None,
+        transcriptome=None,
         cells=None,
         cell_ixs=None,
         regions=None,
@@ -545,6 +620,11 @@ class Model(torch.nn.Module, HybridModel):
         """
         Returns the prediction of multiple censored dataset
         """
+        if fragments is None:
+            fragments = self.fragments
+        if transcriptome is None:
+            transcriptome = self.transcriptome
+
         if cell_ixs is None:
             if cells is None:
                 cells = fragments.obs.index

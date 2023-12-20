@@ -4,21 +4,19 @@ import numpy as np
 
 class Broken(Grid):
     """
-    A grid build from distinct "regions" that are using the same coordinate space
+    A grid build from distinct regions that are using the same coordinate space
     """
 
-    def __init__(self, regions, width, gap=1, height=0.5, *args, **kwargs):
-        super().__init__(padding_width=gap, *args, **kwargs)
+    def __init__(self, breaking, height=0.5, *args, **kwargs):
+        super().__init__(padding_width=breaking.gap, *args, **kwargs)
+
+        regions = breaking.regions
 
         regions["width"] = regions["end"] - regions["start"]
         regions["ix"] = np.arange(len(regions))
 
-        assert width > gap * (len(regions) - 1), "Width is not enough to contain gaps"
-
-        self.resolution = regions["width"].sum() / (width - (len(regions) - 1) * gap)
-
         for region, region_info in regions.iterrows():
-            subpanel_width = region_info["width"] / self.resolution
+            subpanel_width = region_info["width"] / breaking.resolution
             panel, ax = self.add_right(
                 Panel((subpanel_width, height)),
             )
@@ -32,6 +30,9 @@ class Broken(Grid):
             if region_info["ix"] != len(regions) - 1:
                 ax.spines.right.set_visible(False)
             ax.spines.top.set_visible(False)
+            ax.set_facecolor("none")
+
+            # ax.plot([0, 0], [0, 1], transform=ax.transAxes, color="k", lw=1, clip_on=False)
 
 
 def add_slanted_x(ax1, ax2, size=4, **kwargs):

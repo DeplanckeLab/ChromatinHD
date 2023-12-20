@@ -1,1 +1,1 @@
-from .trainer import Trainer, Trainer2
+from .trainer import Trainer, SharedTrainer, TrainerPerFeature

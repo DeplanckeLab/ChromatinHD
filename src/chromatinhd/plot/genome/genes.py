@@ -6,10 +6,19 @@ import seaborn as sns
 import chromatinhd
 import chromatinhd as chd
 from chromatinhd.grid.broken import Broken
-from chromatinhd.plot import gene_ticker
+from chromatinhd.plot import gene_ticker, format_distance, round_significant
 
 
-def center(coords, region):
+def center(coords: pd.DataFrame, region: pd.Series, window: np.ndarray = None):
+    """
+    Center coordinates around a region
+
+    Parameters:
+        coords: The coordinates, with columns start and end
+        region: The region, with columns start, end, and strand
+        window: The window to filter to
+    """
+    coords = coords.copy()
     if coords.shape[0] == 0:
         coords = pd.DataFrame(columns=["start", "end", "method"])
     else:
@@ -17,13 +26,17 @@ def center(coords, region):
             [
                 (peak["start"] - region["tss"]) * region["strand"],
                 (peak["end"] - region["tss"]) * region["strand"],
-            ][:: region["strand"]]
+            ][:: int(region["strand"])]
             for _, peak in coords.iterrows()
         ]
+
+    if window is not None:
+        # partial overlap
+        coords = coords.loc[~((coords["end"] < window[0]) | (coords["start"] > window[1]))]
     return coords
 
 
-def get_genes_plotdata(region, genome="GRCh38"):
+def get_genes_plotdata(region, genome="GRCh38", window=None):
     biomart_dataset = chd.biomart.Dataset.from_genome(genome)
     if "chrom" not in region.index:
         region = region.copy()
@@ -34,7 +47,7 @@ def get_genes_plotdata(region, genome="GRCh38"):
     exons = chd.biomart.get_exons(biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"])
 
     plotdata_genes = canonical_transcripts
-    plotdata_genes = center(plotdata_genes, region)
+    plotdata_genes = center(plotdata_genes, region, window=window)
 
     plotdata_exons = exons.rename(
         columns={
@@ -43,7 +56,7 @@ def get_genes_plotdata(region, genome="GRCh38"):
             "ensembl_gene_id": "gene",
         }
     )
-    plotdata_exons = center(plotdata_exons, region)
+    plotdata_exons = center(plotdata_exons, region, window=window)
 
     plotdata_coding = exons.dropna().rename(
         columns={
@@ -52,7 +65,7 @@ def get_genes_plotdata(region, genome="GRCh38"):
             "ensembl_gene_id": "gene",
         }
     )
-    plotdata_coding = center(plotdata_coding, region)
+    plotdata_coding = center(plotdata_coding, region, window=window)
 
     return plotdata_genes, plotdata_exons, plotdata_coding
 
@@ -123,7 +136,7 @@ class Genes(chromatinhd.grid.Ax):
                 symbol = gene_info["symbol"]
             strand = gene_info["strand"] * region["strand"]
             if (gene_info["start"] > window[0]) & (gene_info["start"] < window[1]):
-                label = symbol + " → " if strand == 1 else " ← " + symbol
+                label = symbol + " → " if strand == 1 else "← " + symbol + " "
                 ha = "right"
                 # ha = "left" if (strand == -1) else "right"
 
@@ -153,7 +166,7 @@ class Genes(chromatinhd.grid.Ax):
                 )
             else:
                 ax.text(
-                    0,
+                    window[0] + (window[1] - window[0]) / 2,
                     y,
                     "(" + symbol + ")",
                     style="italic",
@@ -198,7 +211,7 @@ class Genes(chromatinhd.grid.Ax):
         if window is None:
             assert "tss" in region
             window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
-        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(region, genome=genome)
+        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(region, genome=genome, window=window)
 
         return cls(
             plotdata_genes=plotdata_genes,
@@ -221,39 +234,40 @@ def filter_position(x, start, end):
     return y
 
 
-class GenesBrokenBase(Broken):
+class GenesBroken(Broken):
     def __init__(
         self,
         plotdata_genes,
         plotdata_exons,
         plotdata_coding,
-        regions,
+        breaking,
         gene_id,
-        promoter,
+        region,
         window,
-        width,
-        gap,
-        full_ticks=False,
         *args,
+        label_positions=True,
         **kwargs,
     ):
         height = len(plotdata_genes) * 0.08
         super().__init__(
-            regions=regions,
+            breaking=breaking,
             height=height,
-            width=width,
-            gap=gap,
             *args,
             **kwargs,
         )
 
+        if len(plotdata_genes) == 0:
+            return
+
+        plotdata_genes["ix"] = np.arange(len(plotdata_genes))
+
         ylim = (-0.5, plotdata_genes["ix"].max() + 0.5)
 
-        for (region, region_info), (panel, ax) in zip(regions.iterrows(), self.elements[0]):
+        for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), self):
+            # prepare axis
             ax.xaxis.tick_top()
             ax.set_yticks([])
             ax.set_ylabel("")
-            # ax.set_xlabel("Distance to TSS")
             ax.xaxis.set_label_position("top")
             ax.tick_params(axis="x", length=2, pad=0, labelsize=8, width=0.5)
             ax.xaxis.set_major_formatter(gene_ticker)
@@ -264,15 +278,56 @@ class GenesBrokenBase(Broken):
             ax.set_xlim(region_info["start"], region_info["end"])
             ax.set_ylim(*ylim)
 
+            # add label of position
+            if label_positions:
+                y = ylim[1] + 1.0
+                ax.annotate(
+                    format_distance(
+                        round_significant(
+                            int(region_info["start"] + (region_info["end"] - region_info["start"]) / 2), 2
+                        ),
+                        None,
+                    ),
+                    (0.5, y),
+                    xycoords=mpl.transforms.blended_transform_factory(ax.transAxes, ax.transData),
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color="#999999",
+                    bbox=dict(facecolor="#FFFFFF", boxstyle="square,pad=0.1", lw=0),
+                    # rotation=90,
+                )
+                line = mpl.lines.Line2D(
+                    [0.0, 1.0],
+                    [y, y],
+                    transform=mpl.transforms.blended_transform_factory(ax.transAxes, ax.transData),
+                    color="#999999",
+                    lw=0.5,
+                    clip_on=False,
+                )
+                ax.add_line(line)
+                # ax.annotate(
+                #     "|",
+                #     (1.0, 1.1),
+                #     xycoords="axes fraction",
+                #     ha="center",
+                #     va="bottom",
+                # )
+
+            # plot genes
             plotdata_genes_region = filter_start_end(plotdata_genes, region_info["start"], region_info["end"])
 
             for gene, gene_info in plotdata_genes_region.iterrows():
                 y = gene_info["ix"]
                 is_oi = gene == gene_id
+                if is_oi:
+                    color = "#000000"
+                else:
+                    color = "#888888"
                 ax.plot(
                     [gene_info["start"], gene_info["end"]],
                     [y, y],
-                    color="black" if is_oi else "grey",
+                    color=color,
                 )
 
                 plotdata_exons_gene = plotdata_exons.query("gene == @gene")
@@ -284,7 +339,7 @@ class GenesBrokenBase(Broken):
                         exon_info["end"] - exon_info["start"],
                         h,
                         fc="white",
-                        ec="#333333",
+                        ec=color,
                         lw=1.0,
                         zorder=9,
                     )
@@ -297,8 +352,8 @@ class GenesBrokenBase(Broken):
                         (coding_info["start"], y - h / 2),
                         coding_info["end"] - coding_info["start"],
                         h,
-                        fc="#333333",
-                        ec="#333333",
+                        fc=color,
+                        ec=color,
                         lw=1.0,
                         zorder=10,
                     )
@@ -312,18 +367,20 @@ class GenesBrokenBase(Broken):
         ax.set_yticklabels(plotdata_genes["symbol"], fontsize=6, style="italic")
         ax.tick_params(axis="y", length=0, pad=2, width=0.5)
 
+    @classmethod
+    def from_region(cls, region, breaking, genome="GRCh38", window=None, **kwargs):
+        if window is None:
+            assert "tss" in region
+            window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
+        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(region, genome=genome, window=window)
 
-class GenesBroken(GenesBrokenBase):
-    def __init__(self, promoter, genome_folder, window, *args, **kwargs):
-        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(promoter, genome_folder, window)
-
-        return super().__init__(
-            *args,
+        return cls(
             plotdata_genes=plotdata_genes,
             plotdata_exons=plotdata_exons,
             plotdata_coding=plotdata_coding,
-            promoter=promoter,
-            gene_id=promoter.name,
+            region=region,
+            gene_id=region.name,
             window=window,
+            breaking=breaking,
             **kwargs,
         )

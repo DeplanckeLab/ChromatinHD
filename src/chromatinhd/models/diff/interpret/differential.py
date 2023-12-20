@@ -4,7 +4,12 @@ import pandas as pd
 
 
 class DifferentialSlices:
-    def __init__(self, positions, region_ixs, cluster_ixs, window, n_genes, n_clusters, scores=None):
+    clusters = None
+    regions = None
+
+    def __init__(
+        self, positions, region_ixs, cluster_ixs, window, n_genes, n_clusters, scores=None, clusters=None, regions=None
+    ):
         assert positions.ndim == 2
         assert positions.shape[1] == 2
         self.positions = positions
@@ -14,6 +19,8 @@ class DifferentialSlices:
         self.n_genes = n_genes
         self.n_clusters = n_clusters
         self.scores = scores
+        self.clusters = clusters
+        self.regions = regions
 
     def get_slicescores(self):
         slicescores = pd.DataFrame(
@@ -26,6 +33,12 @@ class DifferentialSlices:
                 "mid": self.positions[:, 0] + (self.positions[:, 1] - self.positions[:, 0]) / 2 + self.window[0],
             }
         )
+
+        if self.clusters is not None:
+            slicescores["cluster"] = self.clusters[slicescores["cluster_ix"]]
+        if self.regions is not None:
+            slicescores["region"] = self.regions[slicescores["region_ix"]]
+
         slicescores.index = np.arange(len(slicescores))
         return slicescores
 
@@ -277,14 +290,14 @@ class DifferentialSlices:
             window,
             n_genes,
             scores=scores,
-            n_clusters=len(peakscores["cluster"].cat.categories),
+            clusters=peakscores["cluster"].cat.categories,
+            regions=peakscores["region"].cat.categories,
         )
 
     @classmethod
     def from_basepair_ranking(cls, basepair_ranking, window, cutoff, resolution=1):
         """
         :param: cutoff
-
         """
         n_genes = basepair_ranking.shape[0]
         n_clusters = basepair_ranking.shape[1]
@@ -301,6 +314,8 @@ class DifferentialSlices:
             n_genes,
             n_clusters,
             resolution=resolution,
+            clusters=basepair_ranking.coords["cluster"],
+            regions=basepair_ranking.coords["region"],
         )
 
     def get_slicetopologies(self, probs):

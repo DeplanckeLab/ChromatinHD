@@ -125,6 +125,10 @@ class Tensorstore(Obj):
 
 
 class TensorstoreInstance:
+    _obj = None
+
+    _fixed_reader = None
+
     def __init__(self, name, path, spec_create, spec_write, spec_read):
         self.name = name
         self.path = path
@@ -137,6 +141,8 @@ class TensorstoreInstance:
         return self.path.with_suffix(".meta")
 
     def open_reader(self, spec=None, old=False):
+        if self._fixed_reader is not None:
+            return self._fixed_reader
         if spec is None:
             spec = self.spec_read
         else:
@@ -152,6 +158,10 @@ class TensorstoreInstance:
         else:
             fp = self._obj
         return fp
+
+    def fix_reader(self):
+        if self._fixed_reader is None:
+            self._fixed_reader = self.open_reader()
 
     def open_writer(self, spec=None):
         if spec is None:
@@ -200,7 +210,7 @@ class TensorstoreInstance:
         return fp
 
     def exists(self):
-        return self.path.exists() and self.path_metadata.exists()
+        return (self._obj is not None) or (self.path.exists() and self.path_metadata.exists())
 
     @property
     def info(self):
@@ -257,6 +267,8 @@ class TensorstoreInstance:
 
                 writer[: writer.shape[0] - value.shape[0]] = reader[:]
                 writer[writer.shape[0] - value.shape[0] :] = value
+
+                self.path.with_suffix(".dat.old").unlink()
 
                 pickle.dump(metadata, self.path_metadata.open("wb"))
             else:

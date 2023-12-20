@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import tqdm.auto as tqdm
 import math
+import time
 import functools
 
 from chromatinhd.data.fragments import Fragments
@@ -29,6 +30,8 @@ class FragmentsView(Flow):
 
     regions: Regions = Linked()
     """The regions object"""
+
+    parentregion_column: str = Stored()
 
     @classmethod
     def from_fragments(
@@ -63,7 +66,7 @@ class FragmentsView(Flow):
         if not isinstance(parent, Fragments):
             raise ValueError("parent should be a Fragments object")
         if not isinstance(regions, Regions):
-            raise ValueError("regions should be a Regions object")
+            raise ValueError("regions should be a Regions object", regions.__class__)
 
         # dummy proofing
         if parentregion_column not in regions.coordinates.columns:
@@ -121,9 +124,7 @@ class FragmentsView(Flow):
         parentregion_to_parentregion_ix = self.parent.regions.coordinates.index.get_loc
 
         # reset the tensorstores
-        regionxcell_indptr = self.regionxcell_indptr.open_creator(
-            shape=(len(self.regions.coordinates) * len(self.obs), 2)
-        )
+        regionxcell_indptr = np.zeros((len(self.regions.coordinates) * len(self.obs), 2), dtype=np.int64)
 
         # index pointers from parentregions to fragments
         parentregion_fragment_indptr = indices_to_indptr(mapping[:, 1], self.parent.n_regions)
@@ -183,7 +184,141 @@ class FragmentsView(Flow):
                     cell_indptr + parentregion_start_ix
                 )
 
+        regionxcell_indptr_writer = self.regionxcell_indptr.open_creator(
+            shape=(len(self.regions.coordinates) * len(self.obs), 2)
+        )
+        regionxcell_indptr_writer[:] = regionxcell_indptr
+
         return self
+
+    def create_regionxcell_indptr2(
+        self,
+        inclusive: tuple = (True, False),
+        overwrite=True,
+    ) -> FragmentsView:
+        """
+        Create index pointers (left and right) for the fragments associated to each regionxcell combination. This implementation is faster if there are many samples with a lot of fragments (e.g. minibulk data)
+
+        Parameters:
+            batch_size:
+                Number of regions to wait before saving the intermediate results and freeing up memory. Reduce this number to avoid running out of memory.
+            inclusive:
+                Whether to only include fragments that are only partially overlapping with the region. Must be a tuple indicating left and/or right inclusivity.
+            overwrite:
+                Whether to overwrite the existing index pointers.
+
+        Returns:
+            Same object but with the `regionxcell_indptr` populated
+
+        """
+        if self.regionxcell_indptr.exists() and not overwrite:
+            return self
+
+        mapping = self.parent.mapping[:]
+        coordinates = self.parent.coordinates[:]
+
+        # convert regions in parent to parent region ixs
+        parentregion_to_parentregion_ix = self.parent.regions.coordinates.index.get_loc
+
+        # reset the tensorstores
+        regionxcell_indptr = np.zeros((len(self.regions.coordinates) * len(self.obs), 2), dtype=np.int64)
+
+        # index pointers from parentregions to fragments
+        parent_regionxcell_indptr = indices_to_indptr(
+            mapping[:, 1] * self.parent.n_cells + mapping[:, 0], self.parent.n_regions * self.parent.n_cells
+        )
+
+        pbar = tqdm.tqdm(
+            total=len(self.regions.coordinates) * len(self.obs),
+            leave=False,
+            desc="Processing regions",
+        )
+
+        self.regions.coordinates["ix"] = np.arange(len(self.regions))
+        self.regions.coordinates["start_inclusive"] = self.regions.coordinates["start"] + (
+            self.regions.coordinates["strand"] == -1
+        )
+        self.regions.coordinates["end_inclusive"] = self.regions.coordinates["end"] + (
+            self.regions.coordinates["strand"] == -1
+        )
+
+        lastupdate = time.time()
+        i = 0
+
+        for parentregion, subcoordinates in self.regions.coordinates.groupby(self.parentregion_column):
+            # extract in which parent region we need to look
+            parentregion_ix = parentregion_to_parentregion_ix(parentregion)
+
+            for cell_ix in range(self.n_cells):
+                # extract the parent region coordinates per cell
+                parentregionxcell_ix = parentregion_ix * self.parent.n_cells + cell_ix
+                parentregion_start_ix, parentregion_end_ix = parent_regionxcell_indptr[
+                    parentregionxcell_ix : parentregionxcell_ix + 2
+                ]
+
+                coordinates_parentregion = coordinates[parentregion_start_ix:parentregion_end_ix]
+
+                for region_id, region in subcoordinates.iterrows():
+                    # extract fragments lying within the region
+                    region_ix = region["ix"]
+                    regionxcell_ix = region_ix * self.n_cells + cell_ix
+
+                    if (pbar is not None) and (time.time() - lastupdate > 1):
+                        pbar.update(i + 1)
+                        i = 0
+                        pbar.set_description(f"Processing region {region_id} {cell_ix}")
+                        lastupdate = time.time()
+                    else:
+                        i += 1
+
+                    # extract fragments lying within the region
+                    if inclusive == (True, False):
+                        n_excluded_left = np.searchsorted(coordinates_parentregion[:, 0], region["start_inclusive"])
+                        n_included = (
+                            np.searchsorted(coordinates_parentregion[:, 0], region["end_inclusive"]) - n_excluded_left
+                        )
+                    else:
+                        raise NotImplementedError("For now, only left-inclusive fragments are supported")
+
+                    regionxcell_indptr[regionxcell_ix] = [
+                        parentregion_start_ix + n_excluded_left,
+                        parentregion_start_ix + n_excluded_left + n_included,
+                    ]
+
+        regionxcell_indptr_writer = self.regionxcell_indptr.open_creator(
+            shape=(len(self.regions.coordinates) * len(self.obs), 2)
+        )
+        regionxcell_indptr_writer[:] = regionxcell_indptr
+
+        return self
+
+    def filter_regions(self, regions: Regions, path: PathLike = None, overwrite=True) -> Fragments:
+        """
+        Filter based on new regions
+
+        Parameters:
+            regions:
+                Regions to filter.
+        Returns:
+            A new Fragments object
+        """
+
+        # check if new regions are a subset of the existing ones
+        if not regions.coordinates.index.isin(self.regions.coordinates.index).all():
+            raise ValueError("New regions should be a subset of the existing ones")
+
+        # create new fragments
+        fragments = FragmentsView.create(
+            parent=self.parent,
+            regions=regions,
+            path=path,
+            parentregion_column=self.parentregion_column,
+            obs=self.obs,
+            var=regions.coordinates,
+            reset=overwrite,
+        )
+
+        return fragments
 
     var: pd.DataFrame = TSV()
     """DataFrame containing information about regions."""
@@ -227,3 +362,42 @@ class FragmentsView(Flow):
         Number of fragments per region and cell
         """
         return (self.regionxcell_indptr[:, 1] - self.regionxcell_indptr[:, 0]).reshape(self.regions.n_regions, -1).T
+
+    _cache = None
+
+    def get_cache(self, region_oi):
+        """
+        Get the cache for a specific region
+        """
+
+        if self._cache is None:
+            self._cache = {}
+
+        if region_oi in self._cache:
+            return self._cache[region_oi]
+
+        region_ix = self.regions.coordinates.index.get_loc(region_oi)
+        regionxcell_ixs = region_ix * self.n_cells + np.arange(self.n_cells)
+
+        indptrs = self.regionxcell_indptr[regionxcell_ixs]
+
+        coordinates_reader = self.parent.coordinates.open_reader()
+
+        n = []
+        i = 0
+        coordinates = []
+        for start, end in indptrs:
+            coordinates.append(coordinates_reader[start:end])
+            i += end - start
+            n.append(end - start)
+
+        coordinates = np.concatenate(coordinates)
+        local_cellxregion_ix = np.repeat(np.arange(len(indptrs)), n)
+        regionxcell_indptr = indices_to_indptr(local_cellxregion_ix, len(indptrs), dtype=np.int64)
+
+        self._cache[region_oi] = {
+            "regionxcell_indptr": regionxcell_indptr,
+            "coordinates": coordinates,
+        }
+
+        return self._cache[region_oi]

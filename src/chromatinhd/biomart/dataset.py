@@ -3,6 +3,7 @@ import pandas as pd
 import io
 from .cache import cache
 import xml.etree.cElementTree as ET
+import tqdm.auto as tqdm
 
 
 def get_datasets(
@@ -46,12 +47,23 @@ class Attribute:
 
 
 class Filter:
-    def __init__(self, name, **kwargs):
+    def __init__(self, name, value, **kwargs):
         self.name = name
+        self.value = value
         self.kwargs = kwargs
 
     def to_xml(self):
-        return ET.Element("Filter", name=self.name, **self.kwargs)
+        if isinstance(self.value, str):
+            value = self.value
+        else:
+            value = ",".join(self.value)
+        return ET.Element("Filter", name=self.name, value=value, **self.kwargs)
+
+    def __len__(self):
+        return len(self.value)
+
+    def __getitem__(self, ix):
+        return Filter(self.name, **{k: v[ix] for k, v in self.kwargs.items()}, value=self.value[ix])
 
 
 class Dataset:
@@ -130,7 +142,16 @@ class Dataset:
     def get(self, attributes=[], filters=[]) -> pd.DataFrame:
         """
         Get the result with a given set of attributes and filters
+
+        If the result is already in the cache, it will be returned from the cache
+
+        Parameters:
+            attributes:
+                list of attributes to return
+            filters:
+                list of filters to apply
         """
+
         xml = ET.Element(
             "Query",
             virtualSchemaName="default",
@@ -158,12 +179,36 @@ class Dataset:
                 raise ValueError(
                     f"Response status code is {response.status_code} and not 200. Response text: {response.text}"
                 )
+            if "Query ERROR: caught BioMart" in response.text:
+                raise ValueError(response.text)
             result = pd.read_table(
                 io.StringIO(response.text),
                 sep="\t",
                 names=[attribute.name for attribute in attributes],
             )
             cache[url] = result
+        return result
+
+    def get_batched(self, attributes=[], filters=[], batch_size=50) -> pd.DataFrame:
+        """
+        Get the result with a given set of attributes and filters, but batched
+
+        Parameters:
+            attributes:
+                list of attributes to return
+            filters:
+                list of filters to apply
+            batch_size:
+                batch size
+        """
+        assert len(filters) == 1
+        filter = filters[0]
+
+        result = []
+        for i in tqdm.tqdm(range(0, len(filter), batch_size), leave=False):
+            filters_ = [filter[i : i + batch_size]]
+            result.append(self.get(attributes=attributes, filters=filters_))
+        result = pd.concat(result)
         return result
 
     @classmethod

@@ -48,12 +48,10 @@ class RegionPairWindow(chd.flow.Flow):
 
     def score(
         self,
-        fragments: Fragments,
-        transcriptome: Transcriptome,
         models: Models,
-        folds: Folds,
         censorer,
         regions: Optional[List] = None,
+        folds=None,
         force=False,
         device=None,
     ):
@@ -80,27 +78,33 @@ class RegionPairWindow(chd.flow.Flow):
         if device is None:
             device = get_default_device()
 
-        if regions is None:
-            regions = transcriptome.var.index
+        if folds is None:
+            folds = models.folds
 
         pbar = tqdm.tqdm(regions, leave=False)
-
         for region in pbar:
             pbar.set_description(region)
 
             force = force_
+
             if region not in self.scores:
                 force = True
 
+            deltacor_folds = []
+            copredictivity_folds = []
+            lost_folds = []
+
             if force:
-                deltacor_folds = []
-                copredictivity_folds = []
-                lost_folds = []
-                for fold, model in zip(folds, models):
+                for fold_ix, fold in enumerate(folds):
+                    model_name = f"{region}_{fold_ix}"
+                    if model_name not in models:
+                        raise ValueError(f"Model {model_name} not found")
+
+                    pbar.set_description(region + " " + str(fold_ix))
+
+                    model = models[model_name]
                     predicted, expected, n_fragments = model.get_prediction_censored(
-                        fragments,
-                        transcriptome,
-                        censorer,
+                        censorer=censorer,
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         regions=[region],
                         device=device,
@@ -146,14 +150,14 @@ class RegionPairWindow(chd.flow.Flow):
                         "deltacor": xr.DataArray(
                             deltacor_folds,
                             coords=[
-                                ("model", np.arange(len(models))),
+                                ("fold", np.arange(len(folds))),
                                 ("window", design.index),
                             ],
                         ),
                         "lost": xr.DataArray(
                             lost_folds,
                             coords=[
-                                ("model", np.arange(len(models))),
+                                ("fold", np.arange(len(folds))),
                                 ("window", design.index),
                             ],
                         ),
@@ -161,11 +165,12 @@ class RegionPairWindow(chd.flow.Flow):
                 )
 
                 windows_oi = lost_folds.mean(0) > 1e-3
+                windows_oi = np.ones(len(design), dtype=bool)
 
                 interaction = xr.DataArray(
                     copredictivity_folds[:, windows_oi][:, :, windows_oi],
                     coords=[
-                        ("model", np.arange(len(models))),
+                        ("fold", np.arange(len(folds))),
                         ("window1", design.index[windows_oi]),
                         ("window2", design.index[windows_oi]),
                     ],

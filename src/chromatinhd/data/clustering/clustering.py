@@ -17,7 +17,13 @@ class Clustering(Flow):
     "Information for each cluster, such as a label, color, ..."
 
     @classmethod
-    def from_labels(cls, labels: pd.Series, path: PathLike = None) -> Clustering:
+    def from_labels(
+        cls,
+        labels: pd.Series,
+        var: pd.DataFrame = None,
+        path: PathLike = None,
+        overwrite=False,
+    ) -> Clustering:
         """
         Create a Clustering object from a series of labels.
 
@@ -27,34 +33,47 @@ class Clustering(Flow):
                 names.
             path:
                 Folder where the clustering information will be stored.
+            overwrite:
+                Whether to overwrite the clustering information if it already
+                exists.
 
         Returns:
             Clustering object.
 
         """
-        clustering = cls(path)
+        self = cls(path, reset=overwrite)
+
+        if not overwrite and self.o.labels.exists(self):
+            return self
+
         if not isinstance(labels, pd.Series):
             labels = pd.Series(labels).astype("category")
         elif not labels.dtype.name == "category":
             labels = labels.astype("category")
-        clustering.labels = labels
-        clustering.indices = labels.cat.codes.values
-        clustering.var = (
-            pd.DataFrame(
-                {
-                    "cluster": labels.unique(),
-                    "n_cells": labels.value_counts(),
-                    "label": labels.unique(),
-                }
+        self.labels = labels
+        self.indices = labels.cat.codes.values
+
+        if var is None:
+            var = (
+                pd.DataFrame(
+                    {
+                        "cluster": labels.cat.categories,
+                        "label": labels.cat.categories,
+                    }
+                )
+                .set_index("cluster")
+                .loc[labels.cat.categories]
             )
-            .set_index("cluster")
-            .loc[labels.cat.categories]
-        )
-        return clustering
+            var["n_cells"] = labels.value_counts()
+        else:
+            var = var.reindex(labels.cat.categories)
+            var["label"] = labels.cat.categories
+        self.var = var
+        return self
 
     @property
     def n_clusters(self):
-        return len(self.labels.unique())
+        return len(self.labels.cat.categories)
 
     # temporarily link cluster_info to var
     @property

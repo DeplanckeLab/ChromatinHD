@@ -14,3 +14,17 @@ def indptr_to_indices(x):
 
 
 ptr2ind = indptr_to_indices
+
+
+def indices_to_indptr_chunked(x, n, dtype=np.int32, batch_size=10e3):
+    counts = np.zeros(n + 1, dtype=np.int32)
+    cur_value = 0
+    for a, b in zip(
+        np.arange(0, len(x), batch_size, dtype=int), np.arange(batch_size, len(x) + batch_size, batch_size, dtype=int)
+    ):
+        x_ = x[a:b]
+        bincount = np.bincount(x_ - cur_value)
+        counts[(cur_value + 1) : (cur_value + len(bincount) + 1)] += bincount
+        cur_value = x_[-1]
+    indptr = np.cumsum(counts, dtype=dtype)
+    return indptr

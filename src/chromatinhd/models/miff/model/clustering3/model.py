@@ -31,7 +31,7 @@ from .position import FragmentPositionDistribution1
 from .position import Baseline as PositionBaseline
 
 
-class Model(torch.nn.Module, HybridModel, Flow):
+class Model(torch.nn.Module, HybridModel, FlowModel):
     """
     A ChromatinHD-diff model that identifies differential accessibility between clusters
     """
@@ -402,31 +402,3 @@ class Model(torch.nn.Module, HybridModel, Flow):
         ax.set_ylabel("probability")
         ax.set_xlabel("coordinate")
         ax.set_title("Positional probability of motif")
-
-    state = Stored(persist=False)
-
-    def save_state(self):
-        from collections import OrderedDict
-
-        state = OrderedDict()
-        for k, v in self.__dict__.items():
-            if k.lstrip("_") in self._obj_map:
-                continue
-            if k == "path":
-                continue
-            state[k] = v
-        self.state = state
-
-    @classmethod
-    def restore(cls, path):
-        self = cls.__new__(cls)
-        Flow.__init__(self, path=path)
-        self.restore_state()
-        return self
-
-    def restore_state(self):
-        state = self.state
-        for k, v in state.items():
-            # if k.lstrip("_") in self._obj_map:
-            #     continue
-            self.__dict__[k] = v

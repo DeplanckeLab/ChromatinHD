@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from chromatinhd.embedding import FeatureParameter
+import math
 
 
 class SineEncoding(torch.nn.Module):
@@ -157,7 +158,14 @@ class RadialEncoding(torch.nn.Module):
 class RadialBinaryEncoding(torch.nn.Module):
     requires_grad = False
 
-    def __init__(self, n_frequencies, window=[-100000, 100000], n_features=2, scale=1, parameterize_loc=False):
+    def __init__(
+        self,
+        n_frequencies,
+        window=[-100000, 100000],
+        n_features=2,
+        scale=1,
+        parameterize_loc=False,
+    ):
         super().__init__()
 
         # create frequencies
@@ -193,6 +201,193 @@ class RadialBinaryEncoding(torch.nn.Module):
             embedding.requires_grad = True
             self.embedding = embedding
         return embedding
+
+
+class RadialBinaryEncoding2(torch.nn.Module):
+    requires_grad = False
+
+    def __init__(
+        self,
+        bin_widths=(100, 200, 500, 1000, 2000, 5000),
+        window=(-100000, 100000),
+        n_features=2,
+        scale=1,
+        parameterize_loc=False,
+    ):
+        super().__init__()
+
+        locs = []
+        scales = []
+
+        for bin_width in bin_widths:
+            loc = torch.arange(window[0], window[1] + 1, bin_width)
+            locs.extend(loc)
+            scales.extend((bin_width * scale) * np.ones(len(loc)))
+
+        if parameterize_loc:
+            self.locs = torch.nn.Parameter(torch.tensor(locs).float())
+        else:
+            self.register_buffer("locs", torch.tensor(locs).float())
+        self.register_buffer("scales", torch.tensor(scales).float())
+
+        self.n_embedding_dimensions = len(locs) * n_features
+
+    def forward(self, coordinates):
+        coordinates = coordinates[..., None]
+        embedding = torch.exp(-(((coordinates - self.locs) / self.scales) ** 2) / 2).flatten(-2)
+
+        if self.requires_grad:
+            embedding.requires_grad = True
+            self.embedding = embedding
+        return embedding
+
+
+class SplineBinaryEncoding(torch.nn.Module):
+    def __init__(
+        self, binwidths=(100, 200, 500, 1000, 2000, 5000), window=(-100000, 100000), n_embedding_dimensions=100
+    ):
+        super().__init__()
+        self.register_buffer("binwidths", torch.tensor(binwidths))
+        self.register_buffer("binshifts", window[0] // self.binwidths)
+        nbins = torch.tensor([(window[1] - window[0]) // binwidth + 1 for binwidth in self.binwidths])
+        self.register_buffer(
+            "bincumstarts", torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(nbins, 0)[:-1]])
+        )
+
+        self.w = torch.nn.Parameter(torch.zeros(nbins.sum(), n_embedding_dimensions))
+        self.n_embedding_dimensions = n_embedding_dimensions
+        self.window = window
+
+    def forward(self, coordinates):
+        coords = torch.clamp(coordinates, self.window[0], self.window[1] - 1)
+
+        cumidxs = (
+            coords // self.binwidths[:, None, None] - self.binshifts[:, None, None] + self.bincumstarts[:, None, None]
+        )
+        alphas = coords % self.binwidths[:, None, None] / self.binwidths[:, None, None]
+
+        w0 = self.w.index_select(0, cumidxs.flatten()).reshape(cumidxs.shape + (self.n_embedding_dimensions,))
+        w1 = self.w.index_select(0, cumidxs.flatten() + 1).reshape(cumidxs.shape + (self.n_embedding_dimensions,))
+
+        # b = bin, f = fragment, c = cut sites (left/right), d = embedding dimension
+        out = torch.einsum("bfcd,bfc->fd", w0, 1 - alphas) + torch.einsum("bfcd,bfc->fd", w1, alphas)
+        return out
+
+
+import time
+
+
+class catchtime(object):
+    def __init__(self, name=""):
+        self.name = name
+
+    def __enter__(self):
+        self.t = time.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.t = time.time() - self.t
+        # print(self.name, self.t)
+
+
+class MultiSplineBinaryEncoding(torch.nn.Module):
+    def __init__(
+        self,
+        n_regions,
+        binwidths=(100, 200, 500, 1000, 2000, 5000),
+        window=(-100000, 100000),
+        n_embedding_dimensions=100,
+        weight_constructor=torch.zeros,
+    ):
+        super().__init__()
+        self.register_buffer("binwidths", torch.tensor(binwidths))
+        self.register_buffer("binshifts", window[0] // self.binwidths)
+        nbins = torch.tensor([(window[1] - window[0]) // binwidth + 1 for binwidth in self.binwidths])
+        self.register_buffer(
+            "bincumstarts", torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(nbins, 0)[:-1]])
+        )
+
+        self.w = FeatureParameter(
+            n_regions,
+            (
+                nbins.sum(),
+                n_embedding_dimensions,
+            ),
+            constructor=torch.zeros,
+        )
+        self.n_embedding_dimensions = n_embedding_dimensions
+        self.window = window
+
+    def forward(self, coordinates, indptr, regions_oi):
+        coords = torch.clamp(coordinates, self.window[0], self.window[1] - 1)
+
+        with catchtime("cumidx"):
+            cumidxs = (
+                coords // self.binwidths[:, None, None]
+                - self.binshifts[:, None, None]
+                + self.bincumstarts[:, None, None]
+            ).transpose(1, 0)
+            alphas = (coords % self.binwidths[:, None, None] / self.binwidths[:, None, None]).transpose(1, 0)
+
+        with catchtime("zoof"):
+            outputs = []
+            for ix, start, end in zip(regions_oi, indptr[:-1], indptr[1:]):
+                with catchtime("subset"):
+                    cumidxs_oi = cumidxs[start:end]
+                    alphas_oi = alphas[start:end]
+                with catchtime("select"):
+                    w0 = (
+                        self.w[ix]
+                        .index_select(0, cumidxs_oi.flatten())
+                        .reshape(cumidxs_oi.shape + (self.n_embedding_dimensions,))
+                    )
+                    w1 = (
+                        self.w[ix]
+                        .index_select(0, cumidxs_oi.flatten() + 1)
+                        .reshape(cumidxs_oi.shape + (self.n_embedding_dimensions,))
+                    )
+
+                # b = bin, f = fragment, c = left/right cut site, d = embedding dimension
+                with catchtime("einsum"):
+                    outputs.append(
+                        torch.einsum("fbcd,fbc->fd", w0, 1 - alphas_oi) + torch.einsum("fbcd,fbc->fd", w1, alphas_oi)
+                    )
+        return torch.cat(outputs, dim=0)
+
+    # def forward(self, coordinates, indptr, regions_oi):
+    #     coords = torch.clamp(coordinates, self.window[0], self.window[1] - 1)
+
+    #     with catchtime("cumidx"):
+    #         cumidxs = (
+    #             coords // self.binwidths[:, None, None]
+    #             - self.binshifts[:, None, None]
+    #             + self.bincumstarts[:, None, None]
+    #         ).transpose(1, 0)
+    #         alphas = (coords % self.binwidths[:, None, None] / self.binwidths[:, None, None]).transpose(1, 0)
+
+    #     output = torch.zeros((coordinates.shape[0], self.n_embedding_dimensions), device=coordinates.device)
+    #     with catchtime("zoof"):
+    #         for ix, start, end in zip(regions_oi, indptr[:-1], indptr[1:]):
+    #             with catchtime("subset"):
+    #                 cumidxs_oi = cumidxs[start:end]
+    #                 alphas_oi = alphas[start:end]
+    #             with catchtime("select"):
+    #                 w0 = (
+    #                     self.w[ix]
+    #                     .index_select(0, cumidxs_oi.flatten())
+    #                     .reshape(cumidxs_oi.shape + (self.n_embedding_dimensions,))
+    #                 )
+    #                 w1 = (
+    #                     self.w[ix]
+    #                     .index_select(0, cumidxs_oi.flatten() + 1)
+    #                     .reshape(cumidxs_oi.shape + (self.n_embedding_dimensions,))
+    #                 )
+
+    #             # b = bin, f = fragment, c = left/right cut site, d = embedding dimension
+    #             output[start:end] = torch.einsum("fbcd,fbc->fd", w0, 1 - alphas_oi) + torch.einsum(
+    #                 "fbcd,fbc->fd", w1, alphas_oi
+    #             )
+    #     return output
 
 
 class RadialBinaryCenterEncoding(torch.nn.Module):
@@ -355,167 +550,3 @@ class LinearDistanceEncoding(torch.nn.Module):
             torch.clamp(self.scales - torch.abs(distances.unsqueeze(-1) - self.locs), 0) / self.scales
         )
         return embedding
-
-
-class SplineBinaryEncoding(torch.nn.Module):
-    def __init__(
-        self, binwidths=(100, 200, 500, 1000, 2000, 5000), window=(-100000, 100000), n_embedding_dimensions=100
-    ):
-        super().__init__()
-        self.register_buffer("binwidths", torch.tensor(binwidths))
-        self.register_buffer("binshifts", window[0] // self.binwidths)
-        nbins = torch.tensor([(window[1] - window[0]) // binwidth + 1 for binwidth in self.binwidths])
-        self.register_buffer(
-            "bincumstarts", torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(nbins, 0)[:-1]])
-        )
-
-        self.w = torch.nn.Parameter(torch.zeros(nbins.sum(), n_embedding_dimensions))
-        self.n_embedding_dimensions = n_embedding_dimensions
-        self.window = window
-
-    def forward(self, coordinates):
-        coords = torch.clamp(coordinates, self.window[0], self.window[1] - 1)
-
-        cumidxs = (
-            coords // self.binwidths[:, None, None] - self.binshifts[:, None, None] + self.bincumstarts[:, None, None]
-        )
-        alphas = coords % self.binwidths[:, None, None] / self.binwidths[:, None, None]
-
-        w0 = self.w.index_select(0, cumidxs.flatten()).reshape(cumidxs.shape + (self.n_embedding_dimensions,))
-        w1 = self.w.index_select(0, cumidxs.flatten() + 1).reshape(cumidxs.shape + (self.n_embedding_dimensions,))
-
-        # b = bin, f = fragment, c = left/right cut site, d = embedding dimension
-        out = torch.einsum("bfcd,bfc->fd", w0, 1 - alphas) + torch.einsum("bfcd,bfc->fd", w1, alphas)
-        return out
-
-
-class SplineRegionalBinaryEncoding2(torch.nn.Module):
-    def __init__(
-        self,
-        n_regions,
-        # binwidths=(500,),
-        binwidths=(100, 200, 500, 1000, 2000, 5000),
-        window=(-100000, 100000),
-        n_embedding_dimensions=100,
-    ):
-        super().__init__()
-        self.register_buffer("binwidths", torch.tensor(binwidths))
-        self.register_buffer("binshifts", window[0] // self.binwidths)
-        nbins = torch.tensor([(window[1] - window[0]) // binwidth + 1 for binwidth in self.binwidths])
-        self.n_weights = nbins.sum()
-        self.register_buffer(
-            "bincumstarts", torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(nbins, 0)[:-1]])
-        )
-
-        self.w = FeatureParameter(n_regions, (self.n_weights, n_embedding_dimensions), constructor=torch.zeros)
-        self.n_embedding_dimensions = n_embedding_dimensions
-        self.window = window
-        self.n_regions = n_regions
-
-        self.bias = torch.nn.Embedding(n_regions, n_embedding_dimensions, sparse=True)
-
-        self.device = "cpu"
-
-    def forward(self, coordinates, regions_oi, local_region_ix):
-        coords = torch.clamp(coordinates, self.window[0], self.window[1] - 1)
-
-        localregionxbin_ix = (
-            coords // self.binwidths[:, None, None] - self.binshifts[:, None, None] + self.bincumstarts[:, None, None]
-        ) + local_region_ix[None, :, None] * self.n_weights
-        # print(localregionxbin_ix)
-        alphas = coords % self.binwidths[:, None, None] / self.binwidths[:, None, None]
-
-        w_genes = self.w(regions_oi.to("cpu").numpy()).reshape(-1, self.n_embedding_dimensions).to(self.device)
-
-        w0 = w_genes[localregionxbin_ix.flatten()].reshape(localregionxbin_ix.shape + (self.n_embedding_dimensions,))
-        w1 = w_genes[localregionxbin_ix.flatten() + 1].reshape(
-            localregionxbin_ix.shape + (self.n_embedding_dimensions,)
-        )
-
-        # b = regionxbin, f = fragment, c = left/right cut site, d = embedding dimension
-        out = (
-            torch.einsum("bfcd,bfc->fd", w0, 1 - alphas)
-            + torch.einsum("bfcd,bfc->fd", w1, alphas)
-            + self.bias(
-                regions_oi[local_region_ix]
-            )  # you can activate the bias here again once the first linear layer is gone
-        )
-        return out
-
-    def parameters_sparse(self):
-        yield self.w
-        yield self.bias
-
-    def _apply(self, fn, recurse=True):
-        w = self._modules["w"]
-        del self._modules["w"]
-        super()._apply(fn)
-        self._modules["w"] = w
-        self.device = self.bias.weight.device
-        return self
-
-
-class SplineRegionalBinaryEncoding2(torch.nn.Module):
-    def __init__(
-        self,
-        n_regions,
-        # binwidths=(500,),
-        binwidths=(100, 200, 500, 1000, 2000, 5000),
-        window=(-100000, 100000),
-        n_embedding_dimensions=100,
-    ):
-        super().__init__()
-        self.register_buffer("binwidths", torch.tensor(binwidths))
-        self.register_buffer("binshifts", window[0] // self.binwidths)
-        nbins = torch.tensor([(window[1] - window[0]) // binwidth + 1 for binwidth in self.binwidths])
-        self.n_weights = nbins.sum()
-        self.register_buffer(
-            "bincumstarts", torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(nbins, 0)[:-1]])
-        )
-
-        self.w = FeatureParameter(
-            n_regions, (self.n_weights, n_embedding_dimensions), constructor=torch.zeros, pin_memory=True
-        )
-        self.n_embedding_dimensions = n_embedding_dimensions
-        self.window = window
-        self.n_regions = n_regions
-
-        self.bias = FeatureParameter(n_regions, n_embedding_dimensions)
-
-        self.device = "cpu"
-
-    def forward(self, coordinates, head_mappings):
-        coords = torch.clamp(coordinates, self.window[0], self.window[1] - 1)
-
-        bin_ix = (
-            coords // self.binwidths[:, None, None] - self.binshifts[:, None, None] + self.bincumstarts[:, None, None]
-        )
-        alphas = coords % self.binwidths[:, None, None] / self.binwidths[:, None, None]
-
-        output = torch.zeros(
-            coordinates.shape[:-1] + (self.n_embedding_dimensions,), device=coordinates.device, dtype=torch.float
-        )
-
-        for ix, idx in head_mappings.items():
-            w = self.w[ix].to("cuda")
-            bin_ix_ = bin_ix[:, idx]
-            w0 = w[bin_ix_.flatten()].reshape(bin_ix_.shape + (self.n_embedding_dimensions,))
-            w1 = w[bin_ix_.flatten() + 1].reshape(bin_ix_.shape + (self.n_embedding_dimensions,))
-            output[idx] = (
-                torch.einsum("bfcd,bfc->fd", w0, 1 - alphas[:, idx])
-                + torch.einsum("bfcd,bfc->fd", w1, alphas[:, idx])
-                + self.bias[ix]
-            )
-        return output
-
-    def parameters_sparse(self):
-        yield self.w
-        yield self.bias
-
-    def _apply(self, fn, recurse=True):
-        w = self._modules["w"]
-        del self._modules["w"]
-        super()._apply(fn)
-        self._modules["w"] = w
-        self.device = self.bias[0].device
-        return self

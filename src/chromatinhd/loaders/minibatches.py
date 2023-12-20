@@ -71,6 +71,7 @@ class Minibatcher:
         use_all_regions: bool = True,
         permute_cells: bool = True,
         permute_regions: bool = False,
+        max_length: int = None,
     ):
         """
         Parameters:
@@ -96,38 +97,30 @@ class Minibatcher:
             regions = np.array(regions)
         self.regions = regions
         self.n_regions = len(regions)
+
+        if n_cells_step > len(cells):
+            n_cells_step = len(cells)
+        if n_regions_step > len(regions):
+            n_regions_step = len(regions)
+
         self.n_cells_step = n_cells_step
         self.n_regions_step = n_regions_step
 
         self.permute_cells = permute_cells
         self.permute_regions = permute_regions
 
-        self.use_all_cells = use_all_cells or len(cells) < n_cells_step
-        self.use_all_regions = use_all_regions or len(regions) < n_regions_step
+        self.use_all_cells = use_all_cells or (len(cells) <= n_cells_step)
+        self.use_all_regions = use_all_regions or (len(regions) <= n_regions_step)
 
         self.cellxregion_batch_size = n_cells_step * n_regions_step
-
-        # calculate length
-        n_cells = len(cells)
-        n_regions = len(regions)
-        if self.use_all_cells:
-            n_cell_bins = math.ceil(n_cells / n_cells_step)
-        else:
-            n_cell_bins = math.floor(n_cells / n_cells_step)
-        if self.use_all_regions:
-            n_region_bins = math.ceil(n_regions / n_regions_step)
-        else:
-            n_region_bins = math.floor(n_regions / n_regions_step)
-        self.length = n_cell_bins * n_region_bins
 
         self.i = 0
 
         self.rg = None
 
-    def __len__(self):
-        return self.length
+        self._setup_bins()
 
-    def __iter__(self):
+    def _setup_bins(self):
         self.rg = np.random.RandomState(self.i)
 
         if self.permute_cells:
@@ -149,13 +142,21 @@ class Minibatcher:
             cell_cuts.append(len(cells))
         cell_bins = [cells[a:b] for a, b in zip(cell_cuts[:-1], cell_cuts[1:])]
 
+        self.length = len(cell_bins) * len(region_bins)
+
         product = itertools.product(cell_bins, region_bins)
 
         if self.permute_cells and self.permute_regions:
             rng = random.Random(self.i)
             product = list(product)
             rng.shuffle(list(product))
+        return product
 
+    def __len__(self):
+        return self.length
+
+    def __iter__(self):
+        product = self._setup_bins()
         for cells_oi, regions_oi in product:
             yield Minibatch(cells_oi=cells_oi, regions_oi=regions_oi)
 

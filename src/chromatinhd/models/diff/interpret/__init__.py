@@ -1,1 +1,2 @@
-from .genepositional import GenePositional
+from .regionpositional import RegionPositional
+from .performance import Performance

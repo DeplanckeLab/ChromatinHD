@@ -7,7 +7,7 @@ import functools
 
 from chromatinhd.data.motifscan import Motifscan
 from chromatinhd.data.regions import Regions
-from chromatinhd.flow import TSV, Flow, Linked, PathLike
+from chromatinhd.flow import TSV, Flow, Linked, PathLike, Stored
 from chromatinhd.flow.tensorstore import Tensorstore, TensorstoreInstance
 
 
@@ -24,6 +24,9 @@ class MotifscanView(Flow):
 
     region_indptr: TensorstoreInstance = Tensorstore(shape=(0, 2), dtype="<i8", chunks=(100, 2), compression=None)
     """Index pointers for each region. The first column is the start of the region in the parent motifscan, the second column is the end of the region in the parent motifscan"""
+
+    parentregion_column = Stored()
+    """Column in the regions coordinates that links each new region to the regions of the original motifscan. This is typically the chromosome column. This column should be present in `regions.coordinates` and should refer to the index of the parent regions."""
 
     @property
     def motifs(self):
@@ -44,9 +47,10 @@ class MotifscanView(Flow):
         cls,
         parent: Motifscan,
         regions: Regions,
+        parent_region_column: str = "chrom",
         path: PathLike = None,
         overwrite: bool = False,
-    ):
+    ) -> MotifscanView:
         """
         Creates a motifscan view from a parent motifscan object and a regions object
 
@@ -65,13 +69,14 @@ class MotifscanView(Flow):
             while isinstance(parent, MotifscanView):
                 parent = parent.parent
         if not isinstance(parent, Motifscan):
-            raise ValueError("parent should be a Motifscan object")
+            raise ValueError(f"parent should be a Motifscan object, {type(parent)} provided")
         if not isinstance(regions, Regions):
             raise ValueError("regions should be a Regions object")
 
         self = cls.create(
             parent=parent,
             regions=regions,
+            parentregion_column=parent_region_column,
             path=path,
             reset=overwrite,
         )
@@ -105,9 +110,6 @@ class MotifscanView(Flow):
             raise ValueError(
                 f"Not all regions are present in the parent motifscan. Missing regions: {self.regions.coordinates[parentregion_column][~self.regions.coordinates[parentregion_column].isin(self.parent.regions.coordinates[parentregion_column])]}"
             )
-
-        # mapping = self.parent.mapping[:]
-        # coordinates = self.parent.coordinates[:]
 
         # # convert regions in parent to parent region ixs
         self.parent.regions.coordinates["ix"] = np.arange(len(self.parent.regions.coordinates))
@@ -143,3 +145,150 @@ class MotifscanView(Flow):
             region_indptr[regions_subset["ix"].values] = indptr
 
         return self
+
+    def get_slice(
+        self,
+        region_id=None,
+        region_ix=None,
+        start=None,
+        end=None,
+        return_scores=True,
+        return_strands=True,
+        return_indptr=False,
+    ) -> tuple:
+        """
+        Get the positions/scores/strandedness of motifs within a slice of the motifscan
+
+        Parameters:
+            region:
+                Region id
+            region_ix:
+                Region index
+            start:
+                Start of the slice, in region coordinates
+            end:
+                End of the slice, in region coordinates
+
+        Returns:
+            Motifs positions, indices, scores and strands of the slice
+        """
+        # fix the readers of the parent
+        self.parent.indices.fix_reader()
+        self.parent.indptr.fix_reader()
+        self.parent.scores.fix_reader()
+        self.parent.strands.fix_reader()
+        self.parent.region_indptr.fix_reader()
+        self.parent.coordinates.fix_reader()
+
+        if region_id is not None:
+            region = self.regions.coordinates.loc[region_id]
+        elif region_ix is not None:
+            region = self.regions.coordinates.iloc[region_ix]
+        else:
+            raise ValueError("Either region or region_ix should be provided")
+        region_id = region.name
+        parentregion_to_parentregion_ix = self.parent.regions.coordinates.index.get_loc
+        parentregion_ix = parentregion_to_parentregion_ix(
+            self.regions.coordinates.loc[region_id, self.parentregion_column]
+        )
+
+        # get start and end, either whole region or subset
+        if start is None:
+            parent_start = int(region["start"])
+        else:
+            if region["strand"] == 1:
+                parent_start = int(region["tss"] + start)
+            else:
+                parent_start = int(region["tss"] - start)
+        if end is None:
+            parent_end = int(region["end"])
+        else:
+            if region["strand"] == 1:
+                parent_end = int(region["tss"] + end)
+            else:
+                parent_end = int(region["tss"] - end)
+
+        if parent_start > parent_end:
+            parent_start, parent_end = parent_end, parent_start
+
+        parent_cumulative_start = np.clip(
+            self.parent.regions.cumulative_region_lengths[parentregion_ix] + parent_start,
+            self.parent.regions.cumulative_region_lengths[parentregion_ix],
+            self.parent.regions.cumulative_region_lengths[parentregion_ix + 1],
+        )
+        parent_cumulative_end = np.clip(
+            self.parent.regions.cumulative_region_lengths[parentregion_ix] + parent_end,
+            self.parent.regions.cumulative_region_lengths[parentregion_ix],
+            self.parent.regions.cumulative_region_lengths[parentregion_ix + 1],
+        )
+
+        indptr = self.parent.indptr[parent_cumulative_start : (parent_cumulative_end + 1)]
+
+        indptr_start, indptr_end = indptr[0], indptr[-1]
+
+        out = []
+
+        out.append((self.parent.coordinates[indptr_start:indptr_end] - region["tss"]) * region["strand"])
+        out.append(self.parent.indices[indptr_start:indptr_end])
+
+        if return_scores:
+            out.append(self.parent.scores[indptr_start:indptr_end])
+        if return_strands:
+            out.append(self.parent.strands[indptr_start:indptr_end])
+        if return_indptr:
+            out.append(indptr - indptr_start)
+
+        return out
+
+    def count_slices(self, slices: pd.DataFrame) -> pd.DataFrame:
+        """
+        Get multiple slices of the motifscan
+
+        Parameters:
+            slices:
+                DataFrame containing the slices to get. Each row should contain a region_ix, start and end column. The region_ix should refer to the index of the regions object. The start and end columns should contain the start and end of the slice, in region coordinates.
+
+        Returns:
+            DataFrame containing the counts of each motif (columns) in each slice (rows)
+        """
+
+        if self.regions.window is None:
+            raise NotImplementedError("count_slices is only implemented for regions with a window")
+
+        if "region_ix" not in slices:
+            slices["region_ix"] = self.regions.coordinates.index.get_indexer(slices["region"])
+
+        progress = enumerate(zip(slices["start"], slices["end"], slices["region_ix"]))
+        progress = tqdm.tqdm(
+            progress,
+            total=len(slices),
+            leave=False,
+            desc="Counting slices",
+        )
+
+        motif_counts = np.zeros((len(slices), self.n_motifs), dtype=int)
+        for i, (relative_start, relative_end, region_ix) in progress:
+            start = relative_start
+            end = relative_end
+            positions, indices = self.get_slice(
+                region_ix=region_ix, start=start, end=end, return_scores=False, return_strands=False
+            )
+            motif_counts[i] = np.bincount(indices, minlength=self.n_motifs)
+        motif_counts = pd.DataFrame(motif_counts, index=slices.index, columns=self.motifs.index)
+        return motif_counts
+
+    @property
+    def n_motifs(self) -> int:
+        """
+        Number of motifs
+        """
+        return self.parent.n_motifs
+
+    @property
+    def scanned(self) -> bool:
+        """
+        Whether the motifscan is scanned
+        """
+        if self.o.parent.exists(self):
+            return self.parent.scanned
+        return False

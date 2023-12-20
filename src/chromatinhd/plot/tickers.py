@@ -3,6 +3,7 @@ import matplotlib.ticker as ticker
 import decimal
 
 import functools
+import math
 
 
 def count_zeros(value):
@@ -14,18 +15,30 @@ def count_zeros(value):
     return count
 
 
-def custom_gene_formatter(value, tick_pos):
+def round_significant(value, significant=2):
+    """
+    Round to a significant number of digits, including trailing zeros.
+    For example round_significant(15400, 2) = 15000
+    """
+
+    n = math.log10(abs(value))
+    return round(value, significant - int(n) - 1)
+
+
+def format_distance(value, tick_pos):
     abs_value = int(abs(value))
     if abs_value >= 1000000:
+        # zeros = 0
         zeros = len(str(abs_value).rstrip("0")) - 1
         abs_value = abs_value / 1000000
         suffix = "mb"
     elif abs_value >= 1000:
-        zeros = len(str(abs_value).rstrip("0")) - 1
+        zeros = 0
+        # zeros = len(str(abs_value).rstrip("0")) - 1
         abs_value = abs_value / 1000
         suffix = "kb"
     elif abs_value == 0:
-        zeros = 0
+        # zeros = 0
         return "TSS"
     else:
         zeros = 0
@@ -35,7 +48,7 @@ def custom_gene_formatter(value, tick_pos):
     return f"-{formatted_value}" if value < 0 else f"+{formatted_value}"
 
 
-gene_ticker = ticker.FuncFormatter(custom_gene_formatter)
+gene_ticker = ticker.FuncFormatter(format_distance)
 
 
 def custom_formatter(value, tick_pos, base=1):

@@ -23,6 +23,7 @@ class Folds(Flow):
         n_folds: int,
         n_repeats: int = 1,
         overwrite: bool = False,
+        seed: int = 1,
     ):
         """
         Sample cells and regions into folds
@@ -43,7 +44,7 @@ class Folds(Flow):
         folds = []
 
         for repeat_ix in range(n_repeats):
-            generator = np.random.RandomState(repeat_ix)
+            generator = np.random.RandomState(repeat_ix * seed)
 
             cells_all = generator.permutation(fragments.n_cells)
 
@@ -89,7 +90,7 @@ class Folds(Flow):
                 whether to overwrite existing folds
         """
         if not overwrite and self.get("folds").exists(self):
-            return
+            return self
 
         folds = []
 
@@ -135,6 +136,7 @@ class Folds(Flow):
                     }
                 )
         self.folds = folds
+        return self
 
     def __getitem__(self, ix):
         return self.folds[ix]

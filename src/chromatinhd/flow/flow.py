@@ -8,10 +8,14 @@ from typing import Union
 
 import numpy as np
 import torch
+import weakref
 
 from .objects import is_instance, is_obj
 
 PathLike = Union[str, pathlib.Path]
+
+
+_cache = weakref.WeakValueDictionary()
 
 
 def nearest_common_parent(path1, path2):
@@ -42,7 +46,15 @@ class Flowable(type):
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
 
-        cls._obj_map = {}
+        parent = None
+        if len(bases) > 0:
+            parent = bases[0]
+            if hasattr(parent, "_obj_map"):
+                cls._obj_map = parent._obj_map.copy()
+            else:
+                cls._obj_map = {}
+        else:
+            cls._obj_map = {}
 
         # compile objects
         for attr_id, attr in cls.__dict__.items():
@@ -77,6 +89,8 @@ class Flow(metaclass=Flowable):
     def __init__(self, path=None, folder=None, name=None, reset=False):
         if isinstance(path, str):
             path = pathlib.Path(path)
+        elif isinstance(path, Flow):
+            path = path.path
         if path is None:
             if folder is None:
                 # make temporary
@@ -96,6 +110,8 @@ class Flow(metaclass=Flowable):
             path = folder / name
 
         self.path = path
+        global _cache
+        _cache[str(self.path.resolve())] = self
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
@@ -139,7 +155,9 @@ class Flow(metaclass=Flowable):
         """
         Load a previously created flow from disk
         """
-        info = json.load(open(path / ".flow"))
+        if str(path) in _cache:
+            return _cache[str(path.resolve())]
+        info = json.load(open(path.resolve() / ".flow"))
 
         # load class
         module = importlib.import_module(info["module"])
@@ -183,7 +201,10 @@ class Flow(metaclass=Flowable):
         )
 
         cls = f"<span class='soft'>({self.__class__.__module__}.{self.__class__.__name__})</span>"
-        path = f"<span class='soft' style='font-size:0.8em'>{relative_to_nearest_parent(self.path.parent, pathlib.Path.cwd())}/</span>"
+        if not str(self.path).startswith("memory"):
+            path = f"<span class='soft' style='font-size:0.8em'>{relative_to_nearest_parent(self.path.parent, pathlib.Path.cwd())}/</span>"
+        else:
+            path = ""
         lines += [
             "<div class='la-flow'>",
             path + "<strong>" + str(self.path.name) + "</strong>" + " " + cls,
@@ -210,3 +231,9 @@ class Flow(metaclass=Flowable):
         html = template(**parameters)
 
         return html
+
+    def __truediv__(self, other):
+        if isinstance(other, str):
+            return Flow(self.path / other)
+        else:
+            raise ValueError("Can only divide by string")

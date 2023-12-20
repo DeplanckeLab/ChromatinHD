@@ -28,6 +28,7 @@ class Regions(Flow):
         window: [list, np.ndarray],
         path: PathLike = None,
         max_n_regions: Optional[int] = None,
+        overwrite=True,
     ) -> Regions:
         """
         Create regions from a dataframe of transcripts,
@@ -56,8 +57,12 @@ class Regions(Flow):
         regions["negative_strand"] = (regions["strand"] == -1).astype(int)
         regions["chrom"] = transcripts.loc[regions.index, "chrom"]
 
-        regions["start"] = regions["tss"] + window[0] * (regions["strand"] == 1) - window[1] * (regions["strand"] == -1)
-        regions["end"] = regions["tss"] + window[1] * (regions["strand"] == -1) - window[0] * (regions["strand"] == 1)
+        regions["start"] = (
+            regions["tss"] + window[0] * (regions["strand"] == 1) - window[1] * (regions["strand"] == -1)
+        ).astype(int)
+        regions["end"] = (
+            regions["tss"] + window[1] * (regions["strand"] == -1) - window[0] * (regions["strand"] == 1)
+        ).astype(int)
 
         if max_n_regions is not None:
             regions = regions.iloc[:max_n_regions]
@@ -66,9 +71,10 @@ class Regions(Flow):
             path=path,
             coordinates=regions[["chrom", "start", "end", "tss", "strand", "ensembl_transcript_id"]],
             window=window,
+            reset=overwrite,
         )
 
-    def filter(self, region_ids: List[str], path: PathLike = None) -> Regions:
+    def filter(self, region_ids: List[str], path: PathLike = None, overwrite=True) -> Regions:
         """
         Select a subset of regions
 
@@ -81,7 +87,9 @@ class Regions(Flow):
             Regions with only the specified region_ids
         """
 
-        return Regions.create(coordinates=self.coordinates.loc[region_ids], window=self.window, path=path)
+        return Regions.create(
+            coordinates=self.coordinates.loc[region_ids], window=self.window, path=path, reset=overwrite
+        )
 
     @property
     def window_width(self):
@@ -95,7 +103,7 @@ class Regions(Flow):
 
     @classmethod
     def from_chromosomes_file(
-        cls, chromosomes_file: PathLike, path: PathLike = None, filter_chromosomes=True
+        cls, chromosomes_file: PathLike, path: PathLike = None, filter_chromosomes=True, overwrite: bool = True
     ) -> Regions:
         """
         Create regions based on a chromosomes file, e.g. hg38.chrom.sizes
@@ -128,6 +136,7 @@ class Regions(Flow):
             path=path,
             coordinates=chromosomes,
             window=None,
+            reset=overwrite,
         )
 
     @functools.cached_property
@@ -153,6 +162,9 @@ class Regions(Flow):
     @var.setter
     def var(self, value):
         self.coordinates = value
+
+    def __len__(self):
+        return self.n_regions
 
 
 def select_tss_from_fragments(

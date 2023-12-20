@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import chromatinhd as chd
 import numpy as np
 import pandas as pd
@@ -7,7 +9,7 @@ import scipy.stats
 import tqdm.auto as tqdm
 from chromatinhd import get_default_device
 
-from chromatinhd.flow.objects import StoredDict, Dataset
+from chromatinhd.flow.objects import StoredDict, Dataset, Stored
 
 
 def fdr(p_vals):
@@ -35,48 +37,139 @@ class RegionMultiWindow(chd.flow.Flow):
     The regions that have been scored.
     """
 
-    scores = StoredDict(Dataset)
-    interpolated = StoredDict(Dataset)
+    scores = chd.flow.SparseDataset()
+    interpolation = chd.flow.SparseDataset()
+    censorer = Stored()
+
+    @classmethod
+    def create(
+        cls, folds, transcriptome, fragments, censorer, path=None, phases=None, overwrite=False
+    ) -> RegionMultiWindow:
+        self = super().create(path, reset=overwrite)
+
+        if phases is None:
+            # phases = ["train", "validation", "test"]
+            phases = ["validation", "test"]
+
+        regions = fragments.regions.var.index
+
+        coords_pointed = {
+            regions.name: regions,
+            "fold": pd.Index(range(len(folds)), name="fold"),
+            "phase": pd.Index(phases, name="phase"),
+        }
+        coords_fixed = {
+            censorer.design.index.name: censorer.design.index[1:],
+        }
+
+        self.censorer = censorer
+
+        design_censorer = censorer.design
+
+        if not self.o.scores.exists(self):
+            self.scores = chd.sparse.SparseDataset.create(
+                self.path / "scores",
+                variables={
+                    "deltacor": {
+                        "dimensions": (regions.name, "fold", "phase", design_censorer.index.name),
+                        "dtype": np.float32,
+                    },
+                    "lost": {
+                        "dimensions": (regions.name, "fold", "phase", design_censorer.index.name),
+                        "dtype": np.float32,
+                    },
+                    "effect": {
+                        "dimensions": (regions.name, "fold", "phase", design_censorer.index.name),
+                        "dtype": np.float32,
+                    },
+                    "scored": {
+                        "dimensions": (regions.name, "fold"),
+                        "dtype": bool,
+                        "sparse": False,
+                    },
+                },
+                coords_pointed=coords_pointed,
+                coords_fixed=coords_fixed,
+            )
+
+        if not self.o.interpolation.exists(self):
+            positions_oi = np.arange(
+                self.design["window_start"].min(),
+                self.design["window_end"].max() + 1,
+                10,
+            )
+
+            self.design_interpolation = pd.DataFrame(
+                {
+                    "position": positions_oi,
+                }
+            ).set_index("position")
+
+            self.interpolation = chd.sparse.SparseDataset.create(
+                self.path / "interpolation",
+                variables={
+                    "deltacor": {
+                        "dimensions": (regions.name, self.design_interpolation.index.name),
+                        "dtype": np.float32,
+                    },
+                    "lost": {"dimensions": (regions.name, self.design_interpolation.index.name), "dtype": np.float32},
+                    "effect": {"dimensions": (regions.name, self.design_interpolation.index.name), "dtype": np.float32},
+                    "interpolated": {"dimensions": (regions.name,), "dtype": bool, "sparse": False},
+                },
+                coords_pointed={regions.name: regions},
+                coords_fixed={"position": self.design_interpolation.index},
+            )
+
+        return self
 
     def score(
         self,
-        fragments,
-        transcriptome,
         models,
-        folds,
-        censorer,
+        folds=None,
+        fragments=None,
+        transcriptome=None,
         regions=None,
         force=False,
         device=None,
     ):
         force_ = force
-        design = censorer.design.iloc[1:].copy()
-        self.design = design
 
         if regions is None:
-            regions = fragments.regions.var.index
+            # get regions from models
+            if models.regions_oi is not None:
+                regions = models.regions_oi
+            else:
+                regions = self.scores.coords_pointed[list(self.scores.coords_pointed)[0]]
+
+        if folds is None:
+            folds = models.folds
 
         pbar = tqdm.tqdm(regions, leave=False)
 
         for region in pbar:
             pbar.set_description(region)
 
-            force = force_
-            if region not in self.scores:
-                force = True
+            for fold_ix, fold in enumerate(folds):
+                force = force_
+                if not self.scores["scored"][region, fold_ix]:
+                    force = True
 
-            if force:
-                deltacor_folds = []
-                lost_folds = []
-                effect_folds = []
-                for fold, model in zip(folds, models):
+                if force:
+                    model_name = f"{region}_{fold_ix}"
+                    if model_name not in models:
+                        continue
+
+                    pbar.set_description(region + " " + str(fold_ix))
+
+                    model = models[model_name]
                     predicted, expected, n_fragments = model.get_prediction_censored(
-                        fragments,
-                        transcriptome,
-                        censorer,
+                        fragments=fragments,
+                        transcriptome=transcriptome,
+                        censorer=self.censorer,
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         regions=[region],
                         device=device,
+                        min_fragments=10,
                     )
 
                     # select 1st region, given that we're working with one region anyway
@@ -91,154 +184,124 @@ class RegionMultiWindow(chd.flow.Flow):
 
                     effect = (predicted[0] - predicted[1:]).mean(-1)
 
-                    deltacor_folds.append(deltacor)
-                    lost_folds.append(lost)
-                    effect_folds.append(effect)
-
-                deltacor_folds = np.stack(deltacor_folds, 0)
-                lost_folds = np.stack(lost_folds, 0)
-                effect_folds = np.stack(effect_folds, 0)
-
-                result = xr.Dataset(
-                    {
-                        "deltacor": xr.DataArray(
-                            deltacor_folds,
-                            coords=[
-                                ("model", np.arange(len(models))),
-                                ("window", design.index),
-                            ],
-                        ),
-                        "lost": xr.DataArray(
-                            lost_folds,
-                            coords=[
-                                ("model", np.arange(len(models))),
-                                ("window", design.index),
-                            ],
-                        ),
-                        "effect": xr.DataArray(
-                            effect_folds,
-                            coords=[
-                                ("model", np.arange(len(models))),
-                                ("window", design.index),
-                            ],
-                        ),
-                    }
-                )
-
-                self.scores[region] = result
+                    self.scores["deltacor"][region, fold_ix, "test"] = deltacor
+                    self.scores["lost"][region, fold_ix, "test"] = lost
+                    self.scores["effect"][region, fold_ix, "test"] = effect
+                    self.scores["scored"][region, fold_ix] = True
 
         return self
+
+    @property
+    def design(self):
+        return self.censorer.design.iloc[1:]
 
     def interpolate(self, regions=None, force=False):
         force_ = force
 
         if regions is None:
-            regions = self.scores.keys()
+            regions = self.scores.coords_pointed[list(self.scores.coords_pointed)[0]]
 
         pbar = tqdm.tqdm(regions, leave=False)
 
         for region in pbar:
             pbar.set_description(region)
 
-            if region not in self.scores:
+            if not all([self.scores["scored"][region, fold_ix] for fold_ix in self.scores.coords_pointed["fold"]]):
                 continue
 
             force = force_
-            if region not in self.interpolated:
+            if not self.interpolation["interpolated"][region]:
                 force = True
 
             if force:
-                scores = self.scores[region]
-
-                x = scores["deltacor"].values
-                scores_statistical = []
-                for i in range(x.shape[1]):
-                    if x.shape[0] > 1:
-                        scores_statistical.append(scipy.stats.ttest_1samp(x[:, i], 0, alternative="less").pvalue)
-                    else:
-                        scores_statistical.append(1.0)
-                scores_statistical = pd.DataFrame({"pvalue": scores_statistical})
-                scores_statistical["qval"] = fdr(scores_statistical["pvalue"])
-
-                plotdata = scores.mean("model").stack().to_dataframe()
-                plotdata = self.design.join(plotdata)
-
-                plotdata["qval"] = scores_statistical["qval"].values
-
-                window_sizes_info = pd.DataFrame({"window_size": self.design["window_size"].unique()}).set_index(
-                    "window_size"
-                )
-                window_sizes_info["ix"] = np.arange(len(window_sizes_info))
-
-                # interpolate
-                positions_oi = np.arange(
-                    self.design["window_start"].min(),
-                    self.design["window_end"].max() + 1,
-                )
-
-                deltacor_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
-                lost_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
-                effect_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
-                for window_size, window_size_info in window_sizes_info.iterrows():
-                    plotdata_oi = plotdata.query("window_size == @window_size")
-                    x = plotdata_oi["window_mid"].values.copy()
-                    y = plotdata_oi["deltacor"].values.copy()
-                    y[plotdata_oi["qval"] > 0.1] = 0.0
-                    deltacor_interpolated_ = np.clip(
-                        np.interp(positions_oi, x, y) / window_size * 1000,
-                        -np.inf,
-                        0,
-                        # np.inf,
-                    )
-                    deltacor_interpolated[window_size_info["ix"], :] = deltacor_interpolated_
-
-                    lost_interpolated_ = (
-                        np.interp(positions_oi, plotdata_oi["window_mid"], plotdata_oi["lost"]) / window_size * 1000
-                    )
-                    lost_interpolated[window_size_info["ix"], :] = lost_interpolated_
-
-                    effect_interpolated_ = (
-                        np.interp(
-                            positions_oi,
-                            plotdata_oi["window_mid"],
-                            plotdata_oi["effect"],
-                        )
-                        / window_size
-                        * 1000
-                    )
-                    effect_interpolated[window_size_info["ix"], :] = effect_interpolated_
-
-                deltacor = xr.DataArray(
-                    deltacor_interpolated.mean(0),
-                    coords=[
-                        ("position", positions_oi),
-                    ],
-                )
-                lost = xr.DataArray(
-                    lost_interpolated.mean(0),
-                    coords=[
-                        ("position", positions_oi),
-                    ],
-                )
-
-                effect = xr.DataArray(
-                    effect_interpolated.mean(0),
-                    coords=[
-                        ("position", positions_oi),
-                    ],
-                )
-
-                # save
-                interpolated = xr.Dataset({"deltacor": deltacor, "lost": lost, "effect": effect})
-
-                self.interpolated[region] = interpolated
+                deltacor, lost, effect = self._interpolate(region)
+                self.interpolation["deltacor"][region] = deltacor
+                self.interpolation["effect"][region] = effect
+                self.interpolation["lost"][region] = lost
+                self.interpolation["interpolated"][region] = True
 
         return self
 
+    def _interpolate(self, region):
+        deltacors = []
+        effects = []
+        losts = []
+        for fold_ix in self.scores.coords_pointed["fold"]:
+            deltacors.append(self.scores["deltacor"][region, fold_ix, "test"])
+            effects.append(self.scores["effect"][region, fold_ix, "test"])
+            losts.append(self.scores["lost"][region, fold_ix, "test"])
+        deltacors = np.stack(deltacors)
+        effects = np.stack(effects)
+        losts = np.stack(losts)
+
+        scores_statistical = []
+        for i in range(deltacors.shape[1]):
+            if deltacors.shape[0] > 1:
+                scores_statistical.append(scipy.stats.ttest_1samp(deltacors[:, i], 0, alternative="less").pvalue)
+            else:
+                scores_statistical.append(0.0)
+        scores_statistical = pd.DataFrame({"pvalue": scores_statistical})
+        scores_statistical["qval"] = fdr(scores_statistical["pvalue"])
+
+        plotdata = pd.DataFrame(
+            {
+                "deltacor": deltacors.mean(0),
+                "effect": effects.mean(0),
+                "lost": losts.mean(0),
+            },
+            index=self.design.index,
+        )
+        plotdata = self.design.join(plotdata)
+
+        plotdata["qval"] = scores_statistical["qval"].values
+
+        window_sizes_info = pd.DataFrame({"window_size": self.design["window_size"].unique()}).set_index("window_size")
+        window_sizes_info["ix"] = np.arange(len(window_sizes_info))
+
+        # interpolate
+        positions_oi = np.arange(
+            self.design["window_start"].min(),
+            self.design["window_end"].max() + 1,
+            10,
+        )
+
+        deltacor_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
+        lost_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
+        effect_interpolated = np.zeros((len(window_sizes_info), len(positions_oi)))
+        for window_size, window_size_info in window_sizes_info.iterrows():
+            plotdata_oi = plotdata.query("window_size == @window_size")
+            x = plotdata_oi["window_mid"].values.copy()
+            y = plotdata_oi["deltacor"].values.copy()
+            y[plotdata_oi["qval"] > 0.1] = 0.0
+            deltacor_interpolated_ = np.clip(
+                np.interp(positions_oi, x, y) / window_size * 1000,
+                -np.inf,
+                0,
+            )
+            deltacor_interpolated[window_size_info["ix"], :] = deltacor_interpolated_
+
+            lost_interpolated_ = (
+                np.interp(positions_oi, plotdata_oi["window_mid"], plotdata_oi["lost"]) / window_size * 1000
+            )
+            lost_interpolated[window_size_info["ix"], :] = lost_interpolated_
+
+            effect_interpolated_ = (
+                np.interp(
+                    positions_oi,
+                    plotdata_oi["window_mid"],
+                    plotdata_oi["effect"],
+                )
+                / window_size
+                * 1000
+            )
+            effect_interpolated[window_size_info["ix"], :] = effect_interpolated_
+        return deltacor_interpolated.mean(0), lost_interpolated.mean(0), effect_interpolated.mean(0)
+
     def get_plotdata(self, region):
-        if region not in self.interpolated:
-            raise ValueError(f"Region {region} not in interpolated. Run .interpolate() first.")
-        plotdata = self.interpolated[region].to_dataframe()
+        if not self.interpolation["interpolated"][region]:
+            raise ValueError(f"Region {region} not interpolated. Run .interpolate() first.")
+
+        plotdata = self.interpolation.sel_xr(region, variables=["deltacor", "lost", "effect"]).to_pandas()
 
         return plotdata
 

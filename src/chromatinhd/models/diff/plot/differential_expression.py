@@ -16,20 +16,25 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
         panel_height=0.5,
         norm_expression=None,
         symbol=None,
+        show_n_cells=True,
+        order=False,
         **kwargs,
     ):
         super().__init__(ncol=1, **{"padding_height": 0, **kwargs})
 
-        # plotdata_expression_clusters = plotdata_expression_clusters.loc[
-        #     ~plotdata_expression_clusters.index.isin(["Plasma"])
-        # ]
+        plotdata_expression_clusters = plotdata_expression_clusters.loc[cluster_info.index]
+
+        if order is True:
+            self.order = plotdata_expression_clusters.sort_values(ascending=False).index
+        else:
+            self.order = plotdata_expression_clusters.index
 
         if norm_expression is None:
             norm_expression = mpl.colors.Normalize(0.0, plotdata_expression_clusters.max(), clip=True)
 
         cmap_expression = get_cmap_rna_diff()
 
-        for cluster_id in cluster_info.index:
+        for cluster_id in self.order:
             panel, ax = chromatinhd.grid.Ax((width, panel_height))
             self.add(panel)
 
@@ -48,10 +53,15 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             ax.set_xlim(-1.05, 1.05)
             ax.set_ylim(-1.05, 1.05)
             ax.set_aspect(1)
+
+            label = cluster_info.loc[cluster_id, "label"]
+
+            if show_n_cells and "n_cells" in cluster_info.columns:
+                label += f" ({cluster_info.loc[cluster_id, 'n_cells']})"
             ax.text(
                 1.05,
                 0,
-                cluster_info.loc[cluster_id, "label"],
+                label,
                 ha="left",
                 va="center",
                 color="#333",
@@ -75,14 +85,18 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             )
 
     @classmethod
-    def from_transcriptome(cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, **kwargs):
+    def from_transcriptome(
+        cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, cluster_info=None, **kwargs
+    ):
         import pandas as pd
 
         transcriptome.var.index.get_loc(gene)
         plotdata_expression_clusters = (
-            pd.Series(transcriptome.get_X(gene), index=transcriptome.obs.index).groupby(clustering.labels).mean()
+            pd.Series(transcriptome.get_X(gene), index=transcriptome.obs.index).groupby(clustering.labels.values).mean()
         )
-        cluster_info = clustering.cluster_info
+
+        if cluster_info is None:
+            cluster_info = clustering.cluster_info
 
         return cls(
             plotdata_expression_clusters=plotdata_expression_clusters,

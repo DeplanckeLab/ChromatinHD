@@ -54,7 +54,12 @@ class Transcriptome(Flow):
         return self.var.reset_index("gene").set_index("symbol").loc[symbol]["ix"]
 
     @classmethod
-    def from_adata(cls, adata: sc.AnnData, path: Union[pathlib.Path, str] = None):
+    def from_adata(
+        cls,
+        adata: sc.AnnData,
+        path: Union[pathlib.Path, str] = None,
+        overwrite=False,
+    ):
         """
         Create a Transcriptome object from an AnnData object.
 
@@ -63,9 +68,11 @@ class Transcriptome(Flow):
                 Anndata object containing the transcriptome data.
             path:
                 Folder in which the transcriptome data will be stored.
+            overwrite:
+                Whether to overwrite the data if it already exists.
         """
 
-        transcriptome = cls(path=path)
+        transcriptome = cls(path=path, reset=overwrite)
         transcriptome.adata = adata
 
         for k, v in adata.layers.items():
@@ -116,6 +123,30 @@ class Transcriptome(Flow):
             layers=layers,
             path=path,
         )
+
+    def filter_cells(self, cells, path=None):
+        """
+        Filter cells
+
+        Parameters:
+            cells:
+                Cells to filter.
+        """
+
+        self.obs["ix"] = np.arange(self.obs.shape[0])
+        cell_ixs = self.obs["ix"].loc[cells]
+
+        layers = {}
+        for k, v in self.layers.items():
+            layers[k] = v[cell_ixs, :]
+        X = self.X[cell_ixs, :]
+
+        if self.o.adata.exists(self):
+            adata = self.adata[cell_ixs, :]
+        else:
+            adata = None
+
+        return Transcriptome.create(var=self.var, obs=self.obs.loc[cells], X=X, layers=layers, path=path, adata=adata)
 
     def get_X(self, gene_ids):
         """

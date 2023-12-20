@@ -5,6 +5,8 @@ import numpy as np
 class Effect(chromatinhd.grid.Panel):
     def __init__(self, plotdata, window, width, show_accessibility=False):
         super().__init__((width, 0.5))
+        if "position" not in plotdata.columns:
+            plotdata = plotdata.reset_index()
 
         ax = self.ax
         ax.set_xlim(*window)

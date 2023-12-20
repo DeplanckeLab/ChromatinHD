@@ -34,7 +34,7 @@ class Trace:
             )
             self.n_current_validation_steps += 1
 
-    def checkpoint(self, logger=print):
+    def checkpoint(self, logger=None):
         if (self.n_last_train_steps is not None) and (self.n_last_train_steps > 0) and (self.n_current_train_steps > 0):
             last_train_steps = pd.DataFrame(
                 self.train_steps[

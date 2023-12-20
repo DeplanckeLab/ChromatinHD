@@ -1,4 +1,5 @@
 import torch
+from chromatinhd.flow import Flow, Stored
 
 
 def get_sparse_parameters(module, parameters):
@@ -42,3 +43,43 @@ class HybridModel:
         parameters = get_sparse_parameters(self, parameters)
         parameters = [p for p in parameters if p.requires_grad]
         return parameters
+
+
+class FlowModel(torch.nn.Module, HybridModel, Flow):
+    state = Stored()
+
+    def __init__(self, path=None, reset=False, **kwargs):
+        torch.nn.Module.__init__(self)
+        Flow.__init__(self, path=path, reset=reset, **kwargs)
+
+        if self.o.state.exists(self):
+            if reset:
+                raise ValueError("Cannot reset a model that has already been initialized")
+            self.restore_state()
+
+    def save_state(self):
+        from collections import OrderedDict
+
+        state = OrderedDict()
+        for k, v in self.__dict__.items():
+            if k.lstrip("_") in self._obj_map:
+                continue
+            if k == "path":
+                continue
+            state[k] = v
+        self.state = state
+
+    @classmethod
+    def restore(cls, path):
+        self = cls.__new__(cls)
+        Flow.__init__(self, path=path)
+        self.restore_state()
+        return self
+
+    def restore_state(self):
+        state = self.state
+        for k, v in state.items():
+            # if k.lstrip("_") in self._obj_map:
+            #     continue
+            self.__dict__[k] = v
+        return self

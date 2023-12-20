@@ -5,7 +5,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import io
-from .differential import Differential
+from .differential import Differential, DifferentialBroken
 from .differential_expression import DifferentialExpression
 
 
@@ -87,91 +87,6 @@ class MotifsHighlighting:
             # import adjustText
 
             # adjustText.adjust_text(texts, ax=ax, autoalign="x", va="top", ha="center")
-
-
-class Peaks(chromatinhd.grid.Ax):
-    def __init__(
-        self,
-        peaks,
-        peakcallers,
-        window,
-        width,
-        label_methods=True,
-        label_rows=True,
-        label_methods_side="right",
-        row_height=1,
-    ):
-        super().__init__((width, row_height * len(peakcallers) / 5))
-
-        ax = self.ax
-        ax.set_xlim(*window)
-        for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
-            y = peakcallers.loc[peakcaller, "ix"]
-
-            if len(peaks_peakcaller) == 0:
-                continue
-            if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(peaks_peakcaller["cluster"]).all():
-                for _, peak in peaks_peakcaller.iterrows():
-                    rect = mpl.patches.Rectangle(
-                        (peak["start"], y),
-                        peak["end"] - peak["start"],
-                        1,
-                        fc="#333",
-                        lw=0,
-                    )
-                    ax.add_patch(rect)
-                    ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
-                    ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
-            else:
-                n_clusters = peaks_peakcaller["cluster"].max() + 1
-                h = 1 / n_clusters
-                for _, peak in peaks_peakcaller.iterrows():
-                    rect = mpl.patches.Rectangle(
-                        (peak["start"], y + peak["cluster"] / n_clusters),
-                        peak["end"] - peak["start"],
-                        h,
-                        fc="#333",
-                        lw=0,
-                    )
-                    ax.add_patch(rect)
-            if y > 0:
-                ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
-
-        ax.set_ylim(peakcallers["ix"].max() + 1, 0)
-        if label_methods:
-            ax.set_yticks(peakcallers["ix"] + 0.5)
-            ax.set_yticks(peakcallers["ix"].tolist() + [len(peakcallers)], minor=True)
-            ax.set_yticklabels(
-                peakcallers["label"],
-                fontsize=min(16 * row_height, 10),
-                va="center",
-            )
-            if label_rows:
-                ax.set_ylabel("CREs", rotation=0, ha="right", va="center")
-            else:
-                ax.set_ylabel("")
-        else:
-            ax.set_yticks([])
-            ax.set_ylabel("")
-        ax.tick_params(
-            axis="y",
-            which="major",
-            length=0,
-            pad=1,
-            right=label_methods_side == "right",
-            left=not label_methods_side == "left",
-        )
-        ax.tick_params(
-            axis="y",
-            which="minor",
-            length=1,
-            pad=1,
-            right=label_methods_side == "right",
-            left=not label_methods_side == "left",
-        )
-        ax.yaxis.tick_right()
-
-        ax.set_xticks([])
 
 
 class Conservation(chromatinhd.grid.Ax):

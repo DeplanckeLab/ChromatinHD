@@ -14,7 +14,7 @@ class EmbeddingTensor(torch.nn.Embedding):
     `x.data`, which will have dimensions [num_embeddings, *embedding_dims]. This can also be used to set the value.
     """
 
-    def __init__(self, num_embeddings, embedding_dims, *args, **kwargs):
+    def __init__(self, num_embeddings, embedding_dims, *args, constructor=None, **kwargs):
         if not isinstance(embedding_dims, tuple):
             embedding_dims = tuple(embedding_dims)
         if len(embedding_dims) == 0:
@@ -23,9 +23,15 @@ class EmbeddingTensor(torch.nn.Embedding):
         else:
             embedding_dim = np.prod(embedding_dims)
         super().__init__(num_embeddings, embedding_dim, *args, **kwargs)
+        if constructor is not None:
+            self.weight.data = constructor(self.weight.data.shape)
         self.embedding_dims = embedding_dims
 
     def forward(self, input):
+        if isinstance(input, int):
+            return super().forward(torch.tensor([input])).view(self.embedding_dims)
+        elif input.ndim == 0:
+            return super().forward(input.unsqueeze(0)).view(self.embedding_dims)
         return super().forward(input).view((input.shape[0], *self.embedding_dims))
 
     def extra_repr(self) -> str:
@@ -76,3 +82,26 @@ class EmbeddingTensor(torch.nn.Embedding):
         self.weight.requires_grad = False
 
         return self
+
+
+class FeatureParameter(torch.nn.Module):
+    _params = tuple()
+
+    def __init__(self, num_embeddings, embedding_dims, constructor=torch.zeros, *args, **kwargs):
+        super().__init__()
+        params = []
+        for i in range(num_embeddings):
+            params.append(torch.nn.Parameter(constructor(embedding_dims, *args, **kwargs)))
+            self.register_parameter(str(i), params[-1])
+        self._params = tuple(params)
+
+    def __getitem__(self, k):
+        return self._params[k]
+
+    def __setitem__(self, k, v):
+        self._params = list(self._params)
+        self._params[k] = v
+        self._params = tuple(self._params)
+
+    def __call__(self, ks):
+        return torch.stack([self._params[k] for k in ks], 0)
