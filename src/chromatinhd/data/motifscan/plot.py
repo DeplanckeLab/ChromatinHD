@@ -174,7 +174,9 @@ class GroupedMotifsBroken(Grid):
         motifs_oi, group_info, motifdata = _process_grouped_motifs(gene, motifs_oi, motifscan, group_info=group_info)
 
         for group, group_info_oi in group_info.iterrows():
-            broken = self.add_under(Broken(breaking, height=panel_height), padding=0)
+            broken = self.add_under(
+                Broken(breaking, height=panel_height, margin_height=0.0, padding_height=0.01), padding=0
+            )
             group_motifs = motifs_oi.query("group == @group")
 
             panel, ax = broken[0, -1]

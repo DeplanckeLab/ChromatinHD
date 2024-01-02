@@ -157,6 +157,60 @@ class DifferentialSlices:
         return slicescores
 
 
+class DifferentialPeaks:
+    """
+    Stores data of slices within regions linked to a specific cluster
+
+    Parameters
+    ----------
+    region_ixs : np.ndarray
+        Region indices
+    cluster_ixs : np.ndarray
+        Cluster indices
+    start_position_ixs : np.ndarray
+        Start position indices
+    end_position_ixs : np.ndarray
+        End position indices
+    data : np.ndarray
+        Data of slices
+    n_regions : int
+        Number of regions
+    """
+
+    step = 1
+
+    def __init__(self, region_ixs, cluster_ixs, start_position_ixs, end_position_ixs, data, n_regions):
+        self.region_ixs = region_ixs
+        self.start_position_ixs = start_position_ixs
+        self.end_position_ixs = end_position_ixs
+        self.n_regions = n_regions
+        self.cluster_ixs = cluster_ixs
+        self.data = data
+
+    def get_slice_scores(self, regions=None, clustering=None, cluster_info=None, min_length=10):
+        slicescores = pd.DataFrame(
+            {
+                "start": self.start_position_ixs * self.step + self.window[0],
+                "end": self.end_position_ixs * self.step + self.window[0],
+                "region_ix": self.region_ixs,
+                "cluster_ix": self.cluster_ixs,
+                "score": self.data,
+            }
+        )
+
+        if clustering is not None:
+            cluster_info = clustering.cluster_info
+        if cluster_info is not None:
+            slicescores["cluster"] = pd.Categorical(cluster_info.index[self.cluster_ixs], cluster_info.index)
+        if regions is not None:
+            slicescores["region"] = pd.Categorical(
+                regions.coordinates.index[self.region_ixs], regions.coordinates.index
+            )
+        slicescores["length"] = slicescores["end"] - slicescores["start"]
+        slicescores = slicescores.loc[slicescores["length"] >= min_length]
+        return slicescores
+
+
 class RegionPositional(chd.flow.Flow):
     """
     Positional interpretation of *diff* models
@@ -454,7 +508,7 @@ class RegionPositional(chd.flow.Flow):
         end = np.pad(start[1:], (0, 1), constant_values=len(positions_oi)) - 1
 
         region_ixs = regions_oi[start]
-        data = data_diff[oi]
+        data = data_diff[oi].max(1)
 
         start_position_ixs, end_position_ixs = positions_oi[start], positions_oi[end]
 
@@ -514,6 +568,22 @@ class RegionPositional(chd.flow.Flow):
         regions["length"] = regions["end"] - regions["start"]
         regions = regions[regions["length"] > min_length]
         return regions
+
+    def get_interpolated(self, region_id, clusters=None, desired_x=None, step=1):
+        probs = self.probs[region_id]
+
+        x_raw = probs.coords["coord"].values
+        y_raw = probs.values
+
+        if desired_x is None:
+            assert step is not None
+            desired_x = np.arange(*self.regions.window, step=step) - self.regions.window[0]
+
+        y = chd.utils.interpolate_1d(
+            torch.from_numpy(desired_x), torch.from_numpy(x_raw), torch.from_numpy(y_raw)
+        ).numpy()
+
+        return y
 
 
 def extract_slices(x, cutoff=0.0):

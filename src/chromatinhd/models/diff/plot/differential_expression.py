@@ -26,6 +26,8 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
         if order is True:
             self.order = plotdata_expression_clusters.sort_values(ascending=False).index
+        elif order is not False:
+            self.order = order
         else:
             self.order = plotdata_expression_clusters.index
 

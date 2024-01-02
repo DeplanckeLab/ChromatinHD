@@ -155,6 +155,7 @@ class MotifscanView(Flow):
         return_scores=True,
         return_strands=True,
         return_indptr=False,
+        motif_ixs=None,
     ) -> tuple:
         """
         Get the positions/scores/strandedness of motifs within a slice of the motifscan
@@ -226,15 +227,20 @@ class MotifscanView(Flow):
 
         indptr_start, indptr_end = indptr[0], indptr[-1]
 
-        out = []
+        positions = (self.parent.coordinates[indptr_start:indptr_end] - region["tss"]) * region["strand"]
+        indices = self.parent.indices[indptr_start:indptr_end]
 
-        out.append((self.parent.coordinates[indptr_start:indptr_end] - region["tss"]) * region["strand"])
-        out.append(self.parent.indices[indptr_start:indptr_end])
+        out = [positions, indices]
 
         if return_scores:
             out.append(self.parent.scores[indptr_start:indptr_end])
         if return_strands:
             out.append(self.parent.strands[indptr_start:indptr_end])
+
+        if motif_ixs is not None:
+            selection = np.isin(indices, motif_ixs)
+            out = [x[selection] for x in out]
+
         if return_indptr:
             out.append(indptr - indptr_start)
 

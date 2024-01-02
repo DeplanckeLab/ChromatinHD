@@ -217,7 +217,12 @@ class Wrap(Element):
         return list(self.elements)[key]
 
     def get_bottom_left_corner(self):
-        return self.elements[self.ncol * ((len(self.elements) % self.ncol) - 1)]
+        nrow = (len(self.elements) - 1) // self.ncol
+        print(len(self.elements))
+        ix = (nrow) * self.ncol
+        print(nrow, self.ncol, ix)
+        return self.elements[ix]
+        # return self.elements[self.ncol * ((len(self.elements) % self.ncol) - 1)]
 
 
 class WrapAutobreak(Wrap):

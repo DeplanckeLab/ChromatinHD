@@ -8,12 +8,12 @@ import matplotlib as mpl
 import pathlib
 
 
-def center_peaks(peaks, promoter):
+def center_peaks(peaks, promoter, columns=["start", "end"]):
     peaks = peaks.copy()
     if peaks.shape[0] == 0:
         peaks = pd.DataFrame(columns=["start", "end"])
     else:
-        peaks[["start", "end"]] = [
+        peaks[columns] = [
             [
                 (peak["start"] - promoter["tss"]) * int(promoter["strand"]),
                 (peak["end"] - promoter["tss"]) * int(promoter["strand"]),
@@ -23,12 +23,12 @@ def center_peaks(peaks, promoter):
     return peaks
 
 
-def uncenter_peaks(peaks, promoter):
+def uncenter_peaks(peaks, promoter, columns=["start", "end"]):
     peaks = peaks.copy()
     if peaks.shape[0] == 0:
         peaks = pd.DataFrame(columns=["start", "end"])
     else:
-        peaks[["start", "end"]] = [
+        peaks[columns] = [
             [
                 (peak["start"] * int(promoter["strand"]) + promoter["tss"]),
                 (peak["end"] * int(promoter["strand"]) + promoter["tss"]),
@@ -36,6 +36,26 @@ def uncenter_peaks(peaks, promoter):
             for _, peak in peaks.iterrows()
         ]
     return peaks
+
+
+def uncenter_multiple_peaks(slices, coordinates):
+    if "region_ix" not in slices.columns:
+        slices["region_ix"] = coordinates.index.get_indexer(slices["region"])
+    coordinates_oi = coordinates.iloc[slices["region_ix"]].copy()
+
+    slices["chrom"] = coordinates_oi["chrom"].values
+
+    slices["start_genome"] = np.where(
+        coordinates_oi["strand"] == 1,
+        (slices["start"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+        (slices["end"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+    )
+    slices["end_genome"] = np.where(
+        coordinates_oi["strand"] == 1,
+        (slices["end"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+        (slices["start"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+    )
+    return slices
 
 
 def get_usecols_and_names(peakcaller):
@@ -86,32 +106,7 @@ class Peaks(chromatinhd.grid.Ax):
         for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
             y = peakcallers.index.get_loc(peakcaller)
 
-            if len(peaks_peakcaller) == 0:
-                continue
-            if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(peaks_peakcaller["cluster"]).all():
-                for _, peak in peaks_peakcaller.iterrows():
-                    rect = mpl.patches.Rectangle(
-                        (peak["start"], y),
-                        peak["end"] - peak["start"],
-                        1,
-                        fc="#333",
-                        lw=0,
-                    )
-                    ax.add_patch(rect)
-                    ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
-                    ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
-            else:
-                n_clusters = peaks_peakcaller["cluster"].max() + 1
-                h = 1 / n_clusters
-                for _, peak in peaks_peakcaller.iterrows():
-                    rect = mpl.patches.Rectangle(
-                        (peak["start"], y + peak["cluster"] / n_clusters),
-                        peak["end"] - peak["start"],
-                        h,
-                        fc="#333",
-                        lw=0,
-                    )
-                    ax.add_patch(rect)
+            _plot_peaks(ax, peaks_peakcaller, y)
             if y > 0:
                 ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
 
@@ -174,9 +169,9 @@ class PeaksBroken(chromatinhd.grid.Broken):
         super().__init__(breaking, height=row_height * len(peakcallers) / 5)
 
         # y axis
-        ax = self.elements[0, -1]
+        panel, ax = self[0, -1]
 
-        ax.set_ylim(len(peakcallers), 0)
+        # label methods
         if label_methods:
             ax.set_yticks(np.arange(len(peakcallers)) + 0.5)
             ax.set_yticks(np.arange(len(peakcallers) + 1), minor=True)
@@ -188,12 +183,6 @@ class PeaksBroken(chromatinhd.grid.Broken):
         else:
             ax.set_yticks([])
 
-        if label_rows is True:
-            ax.set_ylabel("Putative\nCREs", rotation=0, ha="right", va="center")
-        elif label_rows is not False:
-            ax.set_ylabel(label_rows, rotation=0, ha="right", va="center")
-        else:
-            ax.set_ylabel("")
         ax.tick_params(
             axis="y",
             which="major",
@@ -202,6 +191,7 @@ class PeaksBroken(chromatinhd.grid.Broken):
             right=label_methods_side == "right",
             left=not label_methods_side == "left",
         )
+
         ax.tick_params(
             axis="y",
             which="minor",
@@ -212,39 +202,32 @@ class PeaksBroken(chromatinhd.grid.Broken):
         )
         ax.yaxis.tick_right()
 
-        ax.set_xticks([])
+        # label y
+        panel, ax = self[0, 0]
+        if label_rows is True:
+            ax.set_ylabel("Putative\nCREs", rotation=0, ha="right", va="center")
+        elif label_rows is not False:
+            ax.set_ylabel(label_rows, rotation=0, ha="right", va="center")
+        else:
+            ax.set_ylabel("")
+
+        # set ylim for each panel
+        for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), self):
+            ax.set_xticks([])
+            ax.set_ylim(len(peakcallers), 0)
 
         # plot peaks
-        for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), self):
-            for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
-                y = peakcallers.index.get_loc(peakcaller)
+        for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
+            y = peakcallers.index.get_loc(peakcaller)
+            for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), self):
+                plotdata = peaks_peakcaller.loc[
+                    ~(
+                        (peaks_peakcaller["start"] > region_info["end"])
+                        | (peaks_peakcaller["end"] < region_info["start"])
+                    )
+                ]
 
-                if len(peaks_peakcaller) == 0:
-                    continue
-                if ("cluster" not in peaks_peakcaller.columns) or pd.isnull(peaks_peakcaller["cluster"]).all():
-                    for _, peak in peaks_peakcaller.iterrows():
-                        rect = mpl.patches.Rectangle(
-                            (peak["start"], y),
-                            peak["end"] - peak["start"],
-                            1,
-                            fc="#333",
-                            lw=0,
-                        )
-                        ax.add_patch(rect)
-                        ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
-                        ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
-                else:
-                    n_clusters = peaks_peakcaller["cluster"].max() + 1
-                    h = 1 / n_clusters
-                    for _, peak in peaks_peakcaller.iterrows():
-                        rect = mpl.patches.Rectangle(
-                            (peak["start"], y + peak["cluster"] / n_clusters),
-                            peak["end"] - peak["start"],
-                            h,
-                            fc="#333",
-                            lw=0,
-                        )
-                        ax.add_patch(rect)
+                _plot_peaks(ax, plotdata, y)
                 if y > 0:
                     ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
 
@@ -275,3 +258,32 @@ def _get_peaks(region, peakcallers):
     peaks = pd.concat(peaks).reset_index().set_index(["peakcaller", "peak"])
     peaks["size"] = peaks["end"] - peaks["start"]
     return peaks
+
+
+def _plot_peaks(ax, plotdata, y):
+    if len(plotdata) == 0:
+        return
+    if ("cluster" not in plotdata.columns) or pd.isnull(plotdata["cluster"]).all():
+        for _, peak in plotdata.iterrows():
+            rect = mpl.patches.Rectangle(
+                (peak["start"], y),
+                peak["end"] - peak["start"],
+                1,
+                fc="#333",
+                lw=0,
+            )
+            ax.add_patch(rect)
+            ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
+            ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
+    else:
+        n_clusters = plotdata["cluster"].max() + 1
+        h = 1 / n_clusters
+        for _, peak in plotdata.iterrows():
+            rect = mpl.patches.Rectangle(
+                (peak["start"], y + peak["cluster"] / n_clusters),
+                peak["end"] - peak["start"],
+                h,
+                fc="#333",
+                lw=0,
+            )
+            ax.add_patch(rect)

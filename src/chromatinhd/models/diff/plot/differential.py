@@ -335,7 +335,9 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
             )
 
         for cluster, cluster_info_oi in self.cluster_info.loc[self.order].iterrows():
-            broken = self.add(chromatinhd.grid.Broken(breaking, height=panel_height))
+            broken = self.add(
+                chromatinhd.grid.Broken(breaking, height=panel_height, margin_height=0.0, padding_height=0.0)
+            )
 
             panel, ax = broken[0, 0]
             _setup_differential(ax, ymax, cluster_info_oi, label=label_accessibility and (cluster == self.order[0]))

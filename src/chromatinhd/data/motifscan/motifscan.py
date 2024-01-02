@@ -402,6 +402,7 @@ class Motifscan(Flow):
         return_indptr=False,
         return_scores=True,
         return_strands=True,
+        motif_ixs=None,
     ):
         """
         Get a slice of the motifscan
@@ -450,11 +451,17 @@ class Motifscan(Flow):
 
         coordinates = self.coordinates[indptr_start:indptr_end]
         indices = self.indices[indptr_start:indptr_end]
+
         out = [coordinates, indices]
         if return_scores:
             out.append(self.scores[indptr_start:indptr_end])
         if return_strands:
             out.append(self.strands[indptr_start:indptr_end])
+
+        if motif_ixs is not None:
+            selection = np.isin(indices, motif_ixs)
+            out = [x[selection] for x in out]
+
         if return_indptr:
             out.append(indptr)
 
