@@ -60,7 +60,7 @@ def xgboost_cv(x_train, y_train, x_validation, y_validation):
 class Prediction(Flow):
     scores = chd.flow.SparseDataset()
 
-    def initialize(self, peakcounts, transcriptome, folds, subset_cells=False):
+    def initialize(self, peakcounts, transcriptome, folds):
         self.peakcounts = peakcounts
         self.transcriptome = transcriptome
         self.folds = folds
@@ -98,8 +98,6 @@ class Prediction(Flow):
                 coords_pointed=coords_pointed,
                 coords_fixed=coords_fixed,
             )
-
-        self.subset_cells = subset_cells
 
     def score(
         self,
@@ -171,6 +169,132 @@ class Prediction(Flow):
             self.scores["cor"][gene_oi, fold_ix, "train"] = cors[0]
             self.scores["cor"][gene_oi, fold_ix, "validation"] = cors[1]
             self.scores["cor"][gene_oi, fold_ix, "test"] = cors[2]
+
+            self.scores["scored"][gene_oi, fold_ix] = True
+
+        end = time.time()
+        self.scores["time"][gene_oi] = end - start
+
+
+class PredictionTest(Flow):
+    scores = chd.flow.SparseDataset()
+
+    def initialize(self, train_peakcounts, train_transcriptome, test_peakcounts, test_transcriptome, folds):
+        self.train_peakcounts = train_peakcounts
+        self.test_peakcounts = test_peakcounts
+        self.train_transcriptome = train_transcriptome
+        self.test_transcriptome = test_transcriptome
+        self.folds = folds
+
+        self.phases = ["train", "validation", "test"]
+
+        coords_pointed = {
+            "region": self.test_transcriptome.var.index,
+            "fold": pd.Index(range(len(self.folds)), name="fold"),
+            "phase": pd.Index(self.phases, name="phase"),
+        }
+        coords_fixed = {}
+
+        if not self.o.scores.exists(self):
+            self.scores = chd.sparse.SparseDataset.create(
+                self.path / "scores",
+                variables={
+                    "cor": {
+                        "dimensions": ("region", "fold", "phase"),
+                        "dtype": np.float32,
+                        "sparse": False,
+                    },
+                    "time": {
+                        "dimensions": ("region",),
+                        "dtype": np.float32,
+                        "sparse": False,
+                        "fill_value": np.nan,
+                    },
+                    "scored": {
+                        "dimensions": ("region", "fold"),
+                        "dtype": np.bool,
+                        "sparse": False,
+                    },
+                },
+                coords_pointed=coords_pointed,
+                coords_fixed=coords_fixed,
+            )
+
+    def score(
+        self,
+        predictor="linear",
+        layer=None,
+    ):
+        if "dispersions_norm" in self.train_transcriptome.var.columns:
+            gene_ids = self.train_transcriptome.var.sort_values("dispersions_norm", ascending=False).index
+        else:
+            gene_ids = self.train_transcriptome.var.index
+        for gene_oi in tqdm.tqdm(gene_ids):
+            if not self.scores["scored"][gene_oi].all():
+                self._score_gene(gene_oi, predictor, layer)
+
+    def _score_gene(self, gene_oi, predictor, layer):
+        peaks, x_trainvalidation = self.train_peakcounts.get_peak_counts(gene_oi)
+        peaks2, x_test = self.test_peakcounts.get_peak_counts(gene_oi)
+
+        if layer is None:
+            layer = list(self.train_transcriptome.layers.keys())[0]
+        y_trainvalidation = self.train_transcriptome.layers[layer][:, self.train_transcriptome.var.index == gene_oi][
+            :, 0
+        ]
+        y_test = self.test_transcriptome.layers[layer][:, self.test_transcriptome.var.index == gene_oi][:, 0]
+
+        start = time.time()
+
+        for fold_ix, fold in enumerate(self.folds):
+            if (x_trainvalidation.shape[1] > 0) and (y_test.std() > 0):
+                cells_train = np.hstack([fold["cells_train"]])
+                cells_validation = np.hstack([fold["cells_validation"]])
+
+                x_train = x_trainvalidation[cells_train]
+                x_validation = x_trainvalidation[cells_validation]
+
+                y_train = y_trainvalidation[cells_train]
+                y_validation = y_trainvalidation[cells_validation]
+
+                if predictor == "linear":
+                    lm = sklearn.linear_model.LinearRegression()
+                    try:
+                        lm.fit(x_train, y_train)
+                    except np.linalg.LinAlgError:
+                        continue
+                else:
+                    if predictor == "lasso":
+                        lm = lasso_cv(x_train, y_train, x_validation, y_validation)
+                    elif predictor == "rf":
+                        lm = rf_cv(x_train, y_train, x_validation, y_validation)
+                    elif predictor == "ridge":
+                        lm = sklearn.linear_model.RidgeCV(alphas=10)
+                    elif predictor == "xgboost":
+                        import xgboost
+
+                        lm = xgboost_cv(x_train, y_train, x_validation, y_validation)
+                    else:
+                        raise ValueError(f"predictor {predictor} not recognized")
+
+                cors = []
+
+                y_predicted = lm.predict(x_train)
+                cors.append(np.corrcoef(y_train, y_predicted)[0, 1])
+
+                y_predicted = lm.predict(x_validation)
+                cors.append(np.corrcoef(y_validation, y_predicted)[0, 1])
+
+                y_predicted = lm.predict(x_test)
+                cors.append(np.corrcoef(y_test, y_predicted)[0, 1])
+            else:
+                cors = [0, 0, 0]
+
+            self.scores["cor"][gene_oi, fold_ix, "train"] = cors[0]
+            self.scores["cor"][gene_oi, fold_ix, "validation"] = cors[1]
+            self.scores["cor"][gene_oi, fold_ix, "test"] = cors[2]
+
+            print(cors)
 
             self.scores["scored"][gene_oi, fold_ix] = True
 

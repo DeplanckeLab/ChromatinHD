@@ -36,13 +36,13 @@ def center(coords: pd.DataFrame, region: pd.Series, window: np.ndarray = None):
     return coords
 
 
-def get_genes_plotdata(region, genome="GRCh38", window=None):
+def get_genes_plotdata(region, genome="GRCh38", window=None, use_cache=True):
     biomart_dataset = chd.biomart.Dataset.from_genome(genome)
     if "chrom" not in region.index:
         region = region.copy()
         region["chrom"] = region["chr"]
     canonical_transcripts = chd.biomart.get_canonical_transcripts(
-        biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"]
+        biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"], use_cache=use_cache
     )
     exons = chd.biomart.get_exons(biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"])
 
@@ -173,7 +173,7 @@ class Genes(chromatinhd.grid.Ax):
                     ha="center",
                     va="center",
                     fontsize=6,
-                    bbox=dict(facecolor="#FFFFFF88", boxstyle="square,pad=0", lw=0),
+                    bbox=dict(facecolor="#FFFFFF", boxstyle="square,pad=0", lw=0),
                 )
 
             plotdata_exons_gene = plotdata_exons.query("gene == @gene")
@@ -207,11 +207,13 @@ class Genes(chromatinhd.grid.Ax):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_region(cls, region, genome="GRCh38", window=None, **kwargs):
+    def from_region(cls, region, genome="GRCh38", window=None, use_cache=True, **kwargs):
         if window is None:
             assert "tss" in region
             window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
-        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(region, genome=genome, window=window)
+        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
+            region, genome=genome, window=window, use_cache=use_cache
+        )
 
         return cls(
             plotdata_genes=plotdata_genes,
@@ -246,6 +248,8 @@ class GenesBroken(Broken):
         window,
         *args,
         label_positions=True,
+        label_positions_minlength=500,
+        label_positions_rotation=0,
         **kwargs,
     ):
         height = len(plotdata_genes) * 0.08
@@ -281,22 +285,27 @@ class GenesBroken(Broken):
             # add label of position
             if label_positions:
                 y = ylim[1] + 1.0
-                ax.annotate(
-                    format_distance(
-                        round_significant(
-                            int(region_info["start"] + (region_info["end"] - region_info["start"]) / 2), 2
+                if region_info["end"] - region_info["start"] > label_positions_minlength:
+                    y_text = y
+                    if label_positions_rotation == 90:
+                        y_text = y_text + 0.5
+                    ax.annotate(
+                        format_distance(
+                            round_significant(
+                                int(region_info["start"] + (region_info["end"] - region_info["start"]) / 2), 2
+                            ),
+                            None,
                         ),
-                        None,
-                    ),
-                    (0.5, y),
-                    xycoords=mpl.transforms.blended_transform_factory(ax.transAxes, ax.transData),
-                    ha="center",
-                    va="center",
-                    fontsize=7,
-                    color="#999999",
-                    bbox=dict(facecolor="#FFFFFF", boxstyle="square,pad=0.1", lw=0),
-                    # rotation=90,
-                )
+                        (0.5, y_text),
+                        xycoords=mpl.transforms.blended_transform_factory(ax.transAxes, ax.transData),
+                        ha="center",
+                        va="center" if label_positions_rotation == 0 else "bottom",
+                        rotation=label_positions_rotation,
+                        fontsize=6,
+                        color="#999999",
+                        bbox=dict(facecolor="#FFFFFF", boxstyle="square,pad=0.1", lw=0),
+                        # rotation=90,
+                    )
                 line = mpl.lines.Line2D(
                     [0.0, 1.0],
                     [y, y],
@@ -368,11 +377,13 @@ class GenesBroken(Broken):
         ax.tick_params(axis="y", length=0, pad=2, width=0.5)
 
     @classmethod
-    def from_region(cls, region, breaking, genome="GRCh38", window=None, **kwargs):
+    def from_region(cls, region, breaking, genome="GRCh38", window=None, use_cache=True, **kwargs):
         if window is None:
             assert "tss" in region
             window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
-        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(region, genome=genome, window=window)
+        plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
+            region, genome=genome, window=window, use_cache=use_cache
+        )
 
         return cls(
             plotdata_genes=plotdata_genes,

@@ -145,7 +145,8 @@ class DifferentialSlices:
             pass
 
         if clustering is not None:
-            cluster_info = clustering.cluster_info
+            if cluster_info is None:
+                cluster_info = clustering.cluster_info
         if cluster_info is not None:
             slicescores["cluster"] = pd.Categorical(cluster_info.index[self.cluster_ixs], cluster_info.index)
         if regions is not None:
@@ -336,7 +337,7 @@ class RegionPositional(chd.flow.Flow):
 
         return self
 
-    def get_plotdata(self, region: str, clusters=None) -> (pd.DataFrame, pd.DataFrame):
+    def get_plotdata(self, region: str, clusters=None, relative_to=None) -> (pd.DataFrame, pd.DataFrame):
         """
         Returns average and differential probabilities for a particular region.
 
@@ -355,9 +356,17 @@ class RegionPositional(chd.flow.Flow):
         plotdata = probs.to_dataframe("prob")
 
         plotdata["prob"] = plotdata["prob"]
-        plotdata_mean = plotdata[["prob"]].groupby("coord").mean()
+
+        if relative_to is not None:
+            plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord").mean()
+        else:
+            plotdata_mean = plotdata[["prob"]].groupby("coord").mean()
 
         return plotdata, plotdata_mean
+
+    @property
+    def scored(self):
+        return len(self.probs) > 0
 
     slices = Stored(Slices)
 
@@ -432,8 +441,39 @@ class RegionPositional(chd.flow.Flow):
 
     differential_slices = Stored(DifferentialSlices)
 
-    def calculate_differential_slices(self, slices, fc_cutoff=2.0):
-        data_diff = slices.data - slices.data.mean(1, keepdims=True)
+    def calculate_differential_slices(self, slices, fc_cutoff=2.0, score="diff", a=None, b=None, n=None):
+        if score == "diff":
+            data_diff = slices.data - slices.data.mean(1, keepdims=True)
+            data_selected = data_diff > np.log(fc_cutoff)
+        elif score == "diff2":
+            data_diff = slices.data - slices.data.mean(1, keepdims=True)
+
+            data_selected = (
+                (data_diff > np.log(4.0))
+                | ((data_diff > np.log(3.0)) & (slices.data > 0.0))
+                | ((data_diff > np.log(2.0)) & (slices.data > 1.0))
+            )
+            # data_diff = data_diff * np.exp(slices.data.mean(1, keepdims=True))
+        elif score == "diff3":
+            probs_mean = slices.data.mean(1, keepdims=True)
+            actual = slices.data
+            diff = slices.data - probs_mean
+
+            x1, y1 = a
+            x2, y2 = b
+
+            X = diff
+            Y = actual
+
+            data_diff = -((x2 - x1) * (Y - y1) - (y2 - y1) * (X - x1))
+        else:
+            raise ValueError(f"Unknown score {score}")
+
+        if n is None:
+            data_selected = data_diff > np.log(fc_cutoff)
+        else:
+            cutoff = np.quantile(data_diff, 1 - n / data_diff.shape[0], axis=0, keepdims=True)
+            data_selected = data_diff > cutoff
 
         region_indices = np.repeat(slices.region_ixs, slices.end_position_ixs - slices.start_position_ixs)
         position_indices = np.concatenate(
@@ -445,7 +485,7 @@ class RegionPositional(chd.flow.Flow):
         cluster_ixs = []
         for ct_ix in range(data_diff.shape[1]):
             # select which data is relevant
-            oi = data_diff[:, ct_ix] > np.log(fc_cutoff)
+            oi = data_selected[:, ct_ix]
             if oi.sum() == 0:
                 continue
             positions_oi = position_indices[oi]
@@ -553,9 +593,10 @@ class RegionPositional(chd.flow.Flow):
                 ],
             }
         )
-        regions["distance_to_next"] = regions["start"].shift(-1) - regions["end"]
 
         # merge regions that are close to each other
+        regions["distance_to_next"] = regions["start"].shift(-1) - regions["end"]
+
         regions["merge"] = (regions["distance_to_next"] < max_merge_distance).fillna(False)
         regions["group"] = (~regions["merge"]).cumsum().shift(1).fillna(0).astype(int)
         regions = (

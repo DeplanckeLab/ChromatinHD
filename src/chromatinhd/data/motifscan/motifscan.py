@@ -303,10 +303,7 @@ class Motifscan(Flow):
             return
 
         region_indices_reader = self.region_indices.open_reader()
-        self.region_indptr = indices_to_indptr_chunked(
-            region_indices_reader,
-            self.regions.n_regions,
-        )
+        self.region_indptr = indices_to_indptr_chunked(region_indices_reader, self.regions.n_regions, dtype=np.int64)
 
     def create_indptr(self, overwrite=False):
         """
@@ -508,6 +505,17 @@ class Motifscan(Flow):
             motif_counts[i] = np.bincount(indices, minlength=self.n_motifs)
         motif_counts = pd.DataFrame(motif_counts, index=slices.index, columns=self.motifs.index)
         return motif_counts
+
+    def select_motif(self, x=None, symbol=None):
+        if symbol is not None:
+            return self.motifs.loc[self.motifs["symbol"] == symbol].index[0]
+        # return motifscan.motifs.loc[motifscan.motifs.index.str.contains(str)].sort_values("quality").index[0]
+        return self.motifs.loc[self.motifs.index.str.contains(x)].index[0]
+
+    def select_motifs(self, x=None, symbol=None):
+        if symbol is not None:
+            return self.motifs.loc[self.motifs["symbol"] == symbol].index.tolist()
+        return self.motifs.loc[self.motifs.index.str.contains(x)].index.tolist()
 
 
 def divide_regions_in_batches(region_coordinates, batch_size=10):

@@ -410,6 +410,14 @@ class Grid(Element):
 
         self.elements[row][col] = v
 
+    def add(self, el, row=0, column=0, padding_height=None, padding_width=None):
+        self[row, column] = el
+        if padding_height is not None:
+            self.paddings_height[row] = padding_height
+        if padding_width is not None:
+            self.paddings_width[column] = padding_width
+        return el
+
     def add_under(self, el, column=0, padding=None):
         if (self.nrow == 1) and self[0, 0] is None:
             row = 0
@@ -434,7 +442,7 @@ class Grid(Element):
         else:
             column = self.ncol
 
-        # get column index if column is a panel
+        # get column index if row is a panel
         if "grid.Element" in row.__class__.__mro__.__repr__():
             try:
                 row = np.array(self.elements).flatten().tolist().index(row) // self.ncol
@@ -446,11 +454,20 @@ class Grid(Element):
             self.paddings_width[column] = padding
         return el
 
+    def get_panel_position(self, panel):
+        for row, row_elements in enumerate(self.elements):
+            for col, el in enumerate(row_elements):
+                if el is panel:
+                    return row, col
+
     def __iter__(self):
         for row in self.elements:
             for el in row:
                 if el is not None:
                     yield el
+
+    def get_bottom_left_corner(self):
+        return self.elements[self.nrow - 1][0]
 
 
 class _Figure(mpl.figure.Figure):

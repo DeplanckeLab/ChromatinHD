@@ -82,7 +82,7 @@ class Motifs(Grid):
 
 
 class GroupedMotifs(Grid):
-    def __init__(self, motifscan, gene, motifs_oi, window=None, width=1.0, panel_height=0.1):
+    def __init__(self, motifscan, gene, motifs_oi, window=None, width=1.0, panel_height=0.1, label_motifs=True):
         """
         Plot the location of motifs in a region.
         """
@@ -97,13 +97,30 @@ class GroupedMotifs(Grid):
             ax.set_xlim(window)
             ax.set_xticks([])
             ax.set_yticks([])
-            rainbow_text(
-                ax=ax,
-                x=1.0,
-                y=0.5,
-                strings=group_motifs["label"].tolist(),
-                colors=group_motifs["color"].tolist(),
-            )
+
+            if label_motifs:
+                ax.annotate(
+                    group_info_oi["label"],
+                    (1.0, 0.5),
+                    xycoords="axes fraction",
+                    xytext=(2, 0),
+                    textcoords="offset points",
+                    va="center",
+                    fontsize=9,
+                    ha="left",
+                )
+
+                # ax.set_yticks(range(len(group_motifs)))
+                # ax.set_yticklabels(group_motifs["label"].tolist(), fontsize=9)
+                # ax.tick_params(axis="y", which="major", pad=0.5)
+
+                # rainbow_text(
+                #     ax=ax,
+                #     x=1.0,
+                #     y=0.5,
+                #     strings=group_motifs["label"].tolist(),
+                #     colors=group_motifs["color"].tolist(),
+                # )
 
             # plot the motifs
             for motif in group_motifs.itertuples():
@@ -141,13 +158,17 @@ def _process_grouped_motifs(gene, motifs_oi, motifscan, window=None, group_info=
     elif not motifs_oi.index.isin(motifscan.motifs.index).all():
         raise ValueError("motifs_oi should be a dataframe with indices in motifscan.motifs")
     elif "group" not in motifs_oi.columns:
-        raise ValueError("motifs_oi should have a 'group' column")
+        motifs_oi["group"] = motifs_oi.index
+        # raise ValueError("motifs_oi should have a 'group' column")
 
     # get group info
     if group_info is None:
         group_info = motifs_oi.groupby("group").first()[[]]
         group_info = group_info.loc[motifs_oi["group"].unique()]
         group_info["label"] = group_info.index
+
+    if "label" not in motifs_oi.columns:
+        motifs_oi["label"] = motifs_oi["group"]
 
     if "color" not in motifs_oi.columns:
         group_info["color"] = [mpl.colors.rgb2hex(x) for x in mpl.cm.tab20(np.arange(group_info.shape[0]) % 20)]

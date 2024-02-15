@@ -270,6 +270,7 @@ class MotifscanView(Flow):
             total=len(slices),
             leave=False,
             desc="Counting slices",
+            mininterval=1,
         )
 
         motif_counts = np.zeros((len(slices), self.n_motifs), dtype=int)
@@ -298,3 +299,6 @@ class MotifscanView(Flow):
         if self.o.parent.exists(self):
             return self.parent.scanned
         return False
+
+    select_motif = Motifscan.select_motif
+    select_motifs = Motifscan.select_motifs

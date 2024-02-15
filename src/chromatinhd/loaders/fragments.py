@@ -57,11 +57,11 @@ class FragmentsResult:
     localcellxregion_ix: torch.Tensor = None
     "Local cell x region index, in the same order as cells_oi and regions_oi"
 
-    lib: torch.Tensor = None
-    "Library size for each cell"
-
     doublet_idx: torch.Tensor = None
     "Indices of doublets"
+
+    libsize: torch.Tensor = None
+    "Library size for each cell"
 
     @property
     def n_cells(self):
@@ -76,8 +76,8 @@ class FragmentsResult:
         self.local_cellxregion_ix = self.local_cellxregion_ix.to(device)
         if self.regionmapping is not None:
             self.regionmapping = self.regionmapping.to(device)
-        if self.lib is not None:
-            self.lib = self.lib.to(device)
+        if self.libsize is not None:
+            self.libsize = self.libsize.to(device)
         return self
 
     @property
@@ -154,7 +154,7 @@ class Fragments:
         cellxregion_batch_size: int,
         n_fragment_per_cellxregion: int = None,
         buffer_size_multiplier=10,  # increase this if crashing
-        provide_lib=False,
+        provide_libsize=False,
         provide_multiplets=True,
     ):
         """
@@ -213,6 +213,11 @@ class Fragments:
         self.n_cells = fragments.n_cells
 
         self.provide_multiplets = provide_multiplets
+        self.provide_libsize = provide_libsize
+
+        if provide_libsize:
+            library_size = fragments.libsize
+            self.library_size = torch.from_numpy((library_size - library_size.mean()) / library_size.std()).float()
 
     def preload(self):
         self.out_fragmentixs = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
@@ -289,6 +294,12 @@ class Fragments:
             doublet_idx = None
             triplet_idx = None
 
+        # libsize
+        if self.provide_libsize:
+            libsize = self.library_size[minibatch.cells_oi]
+        else:
+            libsize = None
+
         return FragmentsResult(
             coordinates=torch.from_numpy(coordinates),
             local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
@@ -299,6 +310,7 @@ class Fragments:
             cells_oi=minibatch.cells_oi,
             regions_oi=minibatch.regions_oi,
             doublet_idx=doublet_idx,
+            libsize=libsize,
         )
 
 
@@ -389,7 +401,7 @@ class FragmentsRegional:
         region_oi,
         n_fragment_per_cellxregion: int = None,
         buffer_size_multiplier=10,  # increase this if crashing
-        provide_lib=False,
+        provide_libsize=False,
         provide_multiplets=False,
     ):
         """
@@ -429,6 +441,11 @@ class FragmentsRegional:
             self.center = int(fragments.regions.coordinates.loc[region_oi]["tss"])
             self.strand = int(fragments.regions.coordinates.loc[region_oi]["strand"])
 
+        self.provide_libsize = provide_libsize
+        if provide_libsize:
+            library_size = fragments.libsize
+            self.library_size = torch.from_numpy((library_size - library_size.mean()) / library_size.std()).float()
+
     def preload(self):
         self.out_fragmentixs = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
         self.out_local_cellxregion_ix = np.zeros((self.fragment_buffer_size,), dtype=np.int64)
@@ -467,6 +484,11 @@ class FragmentsRegional:
         if self.is_view:
             coordinates = (coordinates - self.center) * self.strand  # .astype(np.int32)
 
+        if self.provide_libsize:
+            libsize = self.library_size[minibatch.cells_oi]
+        else:
+            libsize = None
+
         return FragmentsResult(
             coordinates=torch.from_numpy(coordinates),
             local_cellxregion_ix=torch.from_numpy(local_cellxregion_ix),
@@ -475,6 +497,7 @@ class FragmentsRegional:
             n_total_regions=self.n_regions,
             cells_oi=minibatch.cells_oi,
             regions_oi=minibatch.regions_oi,
+            libsize=libsize,
         )
 
 

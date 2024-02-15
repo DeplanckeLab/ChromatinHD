@@ -105,7 +105,12 @@ class Performance(chd.flow.Flow):
 
                 for region_ix, region_oi in enumerate(regions_oi):
                     predicted, expected, n_fragments = models.get_prediction(
-                        region=region_oi, fold_ix=fold_ix, cell_ixs=cells_oi, return_raw=True
+                        region=region_oi,
+                        fold_ix=fold_ix,
+                        cell_ixs=cells_oi,
+                        return_raw=True,
+                        fragments=self.fragments,
+                        transcriptome=self.transcriptome,
                     )
 
                     cor = chd.utils.paircor(predicted, expected)

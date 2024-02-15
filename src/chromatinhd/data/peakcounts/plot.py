@@ -23,10 +23,31 @@ def center_peaks(peaks, promoter, columns=["start", "end"]):
     return peaks
 
 
+def center_multiple_peaks(slices, coordinates):
+    assert coordinates.index.name in slices.columns
+
+    slices = slices[[col for col in slices.columns if col != "strand"]].join(
+        coordinates[["tss", "strand"]], on=coordinates.index.name, rsuffix="_genome"
+    )
+    slices[["start", "end"]] = [
+        [
+            (slice["start"] - slice["tss"]) * int(slice["strand"]),
+            (slice["end"] - slice["tss"]) * int(slice["strand"]),
+        ][:: int(slice["strand"])]
+        for _, slice in slices.iterrows()
+    ]
+    return slices
+
+
 def uncenter_peaks(peaks, promoter, columns=["start", "end"]):
     peaks = peaks.copy()
     if peaks.shape[0] == 0:
         peaks = pd.DataFrame(columns=["start", "end"])
+    elif isinstance(peaks, pd.Series):
+        peaks[columns] = [
+            (peaks["start"] * int(promoter["strand"]) + promoter["tss"]),
+            (peaks["end"] * int(promoter["strand"]) + promoter["tss"]),
+        ][:: int(promoter["strand"])]
     else:
         peaks[columns] = [
             [
@@ -35,6 +56,7 @@ def uncenter_peaks(peaks, promoter, columns=["start", "end"]):
             ][:: int(promoter["strand"])]
             for _, peak in peaks.iterrows()
         ]
+    peaks["chrom"] = promoter["chrom"]
     return peaks
 
 
@@ -69,11 +91,15 @@ def get_usecols_and_names(peakcaller):
 
 
 def extract_peaks(peaks_bed, promoter, peakcaller):
+    if peaks_bed is None:
+        return pd.DataFrame({"start": [], "end": [], "method": [], "peak": []})
+
     promoter_bed = pybedtools.BedTool.from_dataframe(pd.DataFrame(promoter).T[["chrom", "start", "end"]])
 
     usecols, names = get_usecols_and_names(peakcaller)
     peaks = promoter_bed.intersect(peaks_bed, wb=True, nonamecheck=True).to_dataframe(usecols=usecols, names=names)
 
+    # print(peaks)
     if peakcaller in ["macs2_leiden_0.1"]:
         peaks = peaks.rename(columns={"name": "cluster"})
         peaks["cluster"] = peaks["cluster"].astype(int)
@@ -84,6 +110,7 @@ def extract_peaks(peaks_bed, promoter, peakcaller):
         peaks = peaks.set_index("peak")
     else:
         peaks = pd.DataFrame({"start": [], "end": [], "method": [], "peak": []})
+
     return peaks
 
 
@@ -98,6 +125,8 @@ class Peaks(chromatinhd.grid.Ax):
         label_rows=True,
         label_methods_side="right",
         row_height=0.6,
+        fc="#555",
+        lw=0.5,
     ):
         super().__init__((width, row_height * len(peakcallers) / 5))
 
@@ -106,9 +135,12 @@ class Peaks(chromatinhd.grid.Ax):
         for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
             y = peakcallers.index.get_loc(peakcaller)
 
-            _plot_peaks(ax, peaks_peakcaller, y)
+            _plot_peaks(ax, peaks_peakcaller, y, lw=lw, fc=fc)
             if y > 0:
                 ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
 
         ax.set_ylim(len(peakcallers), 0)
         if label_methods:
@@ -116,8 +148,9 @@ class Peaks(chromatinhd.grid.Ax):
             ax.set_yticks(np.arange(len(peakcallers) + 1), minor=True)
             ax.set_yticklabels(
                 peakcallers["label"],
-                fontsize=min(16 * row_height, 10),
+                fontsize=min(16 * row_height, 8),
                 va="center",
+                ha="right" if label_methods_side == "left" else "right",
             )
         else:
             ax.set_yticks([])
@@ -134,7 +167,7 @@ class Peaks(chromatinhd.grid.Ax):
             length=0,
             pad=1,
             right=label_methods_side == "right",
-            left=not label_methods_side == "left",
+            left=label_methods_side == "left",
         )
         ax.tick_params(
             axis="y",
@@ -142,17 +175,40 @@ class Peaks(chromatinhd.grid.Ax):
             length=1,
             pad=1,
             right=label_methods_side == "right",
-            left=not label_methods_side == "left",
+            left=label_methods_side == "left",
         )
-        ax.yaxis.tick_right()
+        if label_methods_side == "right":
+            ax.yaxis.tick_right()
 
         ax.set_xticks([])
 
     @classmethod
-    def from_bed(cls, region, peakcallers, **kwargs):
+    def from_bed(cls, region, peakcallers, window=None, **kwargs):
         peaks = _get_peaks(region, peakcallers)
 
-        return cls(peaks, peakcallers, **kwargs)
+        return cls(peaks, peakcallers, window=window, **kwargs)
+
+    @classmethod
+    def from_preloaded(cls, region, peakcallers, peakcaller_data, window=None, **kwargs):
+        peaks = []
+        for peakcaller_name, peakcaller in peakcallers.iterrows():
+            data = peakcaller_data[peakcaller_name]
+            peaks_peakcaller = (
+                data.query("chrom == @region.chrom").query("start <= @region.end").query("end >= @region.start")
+            ).assign(peakcaller=peakcaller_name)
+            peaks_peakcaller["peak"] = (
+                peaks_peakcaller["chrom"]
+                + ":"
+                + peaks_peakcaller["start"].astype(str)
+                + "-"
+                + peaks_peakcaller["end"].astype(str)
+            )
+            peaks.append(peaks_peakcaller.set_index(["peakcaller", "peak"]))
+        peaks = pd.concat(peaks)
+        if len(peaks) > 0:
+            peaks = center_peaks(peaks, region)
+
+        return cls(peaks, peakcallers, window=window, **kwargs)
 
 
 class PeaksBroken(chromatinhd.grid.Broken):
@@ -165,12 +221,19 @@ class PeaksBroken(chromatinhd.grid.Broken):
         label_rows=True,
         label_methods_side="right",
         row_height=0.6,
+        lw=0.5,
     ):
         super().__init__(breaking, height=row_height * len(peakcallers) / 5)
 
         # y axis
-        panel, ax = self[0, -1]
+        if label_methods_side == "right":
+            panel, ax = self[0, -1]
 
+            self[0, 0].ax.set_yticks([])
+        else:
+            panel, ax = self[0, 0]
+
+            self[0, -1].ax.set_yticks([])
         # label methods
         if label_methods:
             ax.set_yticks(np.arange(len(peakcallers)) + 0.5)
@@ -179,6 +242,7 @@ class PeaksBroken(chromatinhd.grid.Broken):
                 peakcallers["label"],
                 fontsize=min(16 * row_height, 10),
                 va="center",
+                ha="right" if label_methods_side == "left" else "right",
             )
         else:
             ax.set_yticks([])
@@ -200,7 +264,8 @@ class PeaksBroken(chromatinhd.grid.Broken):
             right=label_methods_side == "right",
             left=not label_methods_side == "left",
         )
-        ax.yaxis.tick_right()
+        if label_methods_side == "right":
+            ax.yaxis.tick_right()
 
         # label y
         panel, ax = self[0, 0]
@@ -212,7 +277,9 @@ class PeaksBroken(chromatinhd.grid.Broken):
             ax.set_ylabel("")
 
         # set ylim for each panel
-        for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), self):
+        for i, (region, region_info), (panel, ax) in zip(
+            range(len(breaking.regions)), breaking.regions.iterrows(), self
+        ):
             ax.set_xticks([])
             ax.set_ylim(len(peakcallers), 0)
 
@@ -227,7 +294,7 @@ class PeaksBroken(chromatinhd.grid.Broken):
                     )
                 ]
 
-                _plot_peaks(ax, plotdata, y)
+                _plot_peaks(ax, plotdata, y, lw=lw)
                 if y > 0:
                     ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
 
@@ -260,7 +327,7 @@ def _get_peaks(region, peakcallers):
     return peaks
 
 
-def _plot_peaks(ax, plotdata, y):
+def _plot_peaks(ax, plotdata, y, lw=0.5, fc="#555"):
     if len(plotdata) == 0:
         return
     if ("cluster" not in plotdata.columns) or pd.isnull(plotdata["cluster"]).all():
@@ -269,12 +336,12 @@ def _plot_peaks(ax, plotdata, y):
                 (peak["start"], y),
                 peak["end"] - peak["start"],
                 1,
-                fc="#333",
+                fc=fc,
                 lw=0,
             )
             ax.add_patch(rect)
-            ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=0.5)
-            ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=0.5)
+            # ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=lw)
+            # ax.plot([peak["end"]] * 2, [y, y + 1], color="grey", lw=lw)
     else:
         n_clusters = plotdata["cluster"].max() + 1
         h = 1 / n_clusters
@@ -283,7 +350,7 @@ def _plot_peaks(ax, plotdata, y):
                 (peak["start"], y + peak["cluster"] / n_clusters),
                 peak["end"] - peak["start"],
                 h,
-                fc="#333",
+                fc=fc,
                 lw=0,
             )
             ax.add_patch(rect)

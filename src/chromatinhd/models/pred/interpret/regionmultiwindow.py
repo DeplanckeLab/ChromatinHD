@@ -22,6 +22,13 @@ def fdr(p_vals):
     return qval
 
 
+def fdr_nan(p_vals):
+    qvals = np.zeros_like(p_vals)
+    qvals[~np.isnan(p_vals)] = fdr(p_vals[~np.isnan(p_vals)])
+    qvals[np.isnan(p_vals)] = np.nan
+    return qvals
+
+
 class RegionMultiWindow(chd.flow.Flow):
     """
     Interpret a *pred* model positionally by censoring windows of across multiple window sizes.
@@ -169,7 +176,7 @@ class RegionMultiWindow(chd.flow.Flow):
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         regions=[region],
                         device=device,
-                        min_fragments=10,
+                        min_fragments=3,
                     )
 
                     # select 1st region, given that we're working with one region anyway
@@ -195,16 +202,19 @@ class RegionMultiWindow(chd.flow.Flow):
     def design(self):
         return self.censorer.design.iloc[1:]
 
-    def interpolate(self, regions=None, force=False):
+    def interpolate(self, regions=None, force=False, pbar=True):
         force_ = force
 
         if regions is None:
             regions = self.scores.coords_pointed[list(self.scores.coords_pointed)[0]]
 
-        pbar = tqdm.tqdm(regions, leave=False)
+        progress = regions
+        if pbar:
+            progress = tqdm.tqdm(progress, leave=False)
 
-        for region in pbar:
-            pbar.set_description(region)
+        for region in progress:
+            if pbar:
+                progress.set_description(region)
 
             if not all([self.scores["scored"][region, fold_ix] for fold_ix in self.scores.coords_pointed["fold"]]):
                 continue
@@ -234,6 +244,8 @@ class RegionMultiWindow(chd.flow.Flow):
         effects = np.stack(effects)
         losts = np.stack(losts)
 
+        print(deltacors.min())
+
         scores_statistical = []
         for i in range(deltacors.shape[1]):
             if deltacors.shape[0] > 1:
@@ -241,7 +253,7 @@ class RegionMultiWindow(chd.flow.Flow):
             else:
                 scores_statistical.append(0.0)
         scores_statistical = pd.DataFrame({"pvalue": scores_statistical})
-        scores_statistical["qval"] = fdr(scores_statistical["pvalue"])
+        scores_statistical["qval"] = fdr_nan(scores_statistical["pvalue"])
 
         plotdata = pd.DataFrame(
             {
@@ -272,7 +284,7 @@ class RegionMultiWindow(chd.flow.Flow):
             plotdata_oi = plotdata.query("window_size == @window_size")
             x = plotdata_oi["window_mid"].values.copy()
             y = plotdata_oi["deltacor"].values.copy()
-            y[plotdata_oi["qval"] > 0.1] = 0.0
+            # y[(plotdata_oi["qval"] > 0.2) | pd.isnull(plotdata_oi["qval"])] = 0.0
             deltacor_interpolated_ = np.clip(
                 np.interp(positions_oi, x, y) / window_size * 1000,
                 -np.inf,
@@ -309,3 +321,51 @@ class RegionMultiWindow(chd.flow.Flow):
         path = self.path / f"{region}"
         path.mkdir(parents=True, exist_ok=True)
         return path
+
+    def select_regions(self, region_id, max_merge_distance=500, min_length=50, padding=500, lost_cutoff=0.5):
+        from scipy.ndimage import convolve
+
+        def spread_true(arr, width=5):
+            kernel = np.ones(width, dtype=bool)
+            result = convolve(arr, kernel, mode="constant", cval=False)
+            result = result != 0
+            return result
+
+        plotdata = self.get_plotdata(region_id)
+        selection = pd.DataFrame({"chosen": (plotdata["lost"] > lost_cutoff)})
+
+        # add padding
+        step = plotdata.index.get_level_values("position")[1] - plotdata.index.get_level_values("position")[0]
+        k_padding = int(padding // step)
+        selection["chosen"] = spread_true(selection["chosen"], width=k_padding)
+
+        # select all contiguous regions where chosen is true
+        selection["selection"] = selection["chosen"].cumsum()
+
+        regions = pd.DataFrame(
+            {
+                "start": selection.index[
+                    (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
+                ],
+                "end": selection.index[
+                    (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == -1)[1:]
+                ],
+            }
+        )
+
+        # merge regions that are close to each other
+        regions["distance_to_next"] = regions["start"].shift(-1) - regions["end"]
+
+        regions["merge"] = (regions["distance_to_next"] < max_merge_distance).fillna(False)
+        regions["group"] = (~regions["merge"]).cumsum().shift(1).fillna(0).astype(int)
+        regions = (
+            regions.groupby("group")
+            .agg({"start": "min", "end": "max", "distance_to_next": "last"})
+            .reset_index(drop=True)
+        )
+
+        # filter on length
+        regions["length"] = regions["end"] - regions["start"]
+        regions = regions[regions["length"] > min_length]
+
+        return regions

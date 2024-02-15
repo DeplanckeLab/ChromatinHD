@@ -25,10 +25,16 @@ class Transcriptome(Flow):
     adata = Stored()
     "Anndata object containing the transcriptome data."
 
-    def gene_id(self, symbol, column="symbol"):
+    def gene_id(self, symbol, column="symbol", optional=False, found=False):
         """
         Get the gene id for a given gene symbol.
         """
+        if found:
+            gene_id = self.var.reset_index().groupby(column).first().reindex(symbol)["gene"]
+            return gene_id
+        if optional:
+            symbol = pd.Series(symbol)[pd.Series(symbol).isin(self.var[column])]
+
         assert all(pd.Series(symbol).isin(self.var[column])), set(
             pd.Series(symbol)[~pd.Series(symbol).isin(self.var[column])]
         )

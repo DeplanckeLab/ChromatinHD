@@ -401,3 +401,11 @@ class FragmentsView(Flow):
         }
 
         return self._cache[region_oi]
+
+    _libsize = None
+
+    @property
+    def libsize(self):
+        if self._libsize is None:
+            self._libsize = np.bincount(self.mapping[:, 0], minlength=self.n_cells)
+        return self._libsize

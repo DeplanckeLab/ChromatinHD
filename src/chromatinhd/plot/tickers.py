@@ -21,6 +21,9 @@ def round_significant(value, significant=2):
     For example round_significant(15400, 2) = 15000
     """
 
+    if value == 0:
+        return 0
+
     n = math.log10(abs(value))
     return round(value, significant - int(n) - 1)
 

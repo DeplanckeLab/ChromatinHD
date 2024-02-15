@@ -179,36 +179,174 @@ class Fragments(Flow):
 
         for region_ix, (region_id, region_info) in pbar:
             pbar.set_description(f"{region_id}")
-            fetched = fragments_tabix.fetch(
-                region_info["chrom"],
-                max(region_info["start"], 0),
-                region_info["end"],
-                parser=pysam.asTuple(),
-            )
+
             strand = region_info["strand"]
             if "tss" in region_info:
                 tss = region_info["tss"]
             else:
                 tss = region_info["start"]
 
-            coordinates_raw = []
+            coordinates_raw, mapping_raw = _fetch_fragments_region(
+                fragments_tabix=fragments_tabix,
+                chrom=region_info["chrom"],
+                start=region_info["start"],
+                end=region_info["end"],
+                tss=tss,
+                strand=strand,
+                cell_to_cell_ix=cell_to_cell_ix,
+                region_ix=region_ix,
+            )
+
+            mapping_processed.append(mapping_raw)
+            coordinates_processed.append(coordinates_raw)
+
+            if sum(mapping_raw.shape[0] for mapping_raw in mapping_processed) >= batch_size:
+                self.mapping.extend(np.concatenate(mapping_processed).astype(np.int32))
+                self.coordinates.extend(np.concatenate(coordinates_processed).astype(np.int32))
+                mapping_processed = []
+                coordinates_processed = []
+
+            del mapping_raw
+            del coordinates_raw
+
+        if len(mapping_processed) > 0:
+            self.mapping.extend(np.concatenate(mapping_processed).astype(np.int32))
+            self.coordinates.extend(np.concatenate(coordinates_processed).astype(np.int32))
+
+        return self
+
+    @class_or_instancemethod
+    def from_multiple_fragments_tsv(
+        cls,
+        fragments_files: [PathLike],
+        regions: Regions,
+        obs: pd.DataFrame,
+        cell_column: str = "cell_original",
+        batch_column: str = "batch",
+        path: PathLike = None,
+        overwrite: bool = False,
+        reuse: bool = True,
+        batch_size: int = 1e6,
+    ) -> Fragments:
+        """
+        Create a Fragments object from multiple fragments tsv file
+
+        Parameters:
+            fragments_files:
+                Location of the fragments tab-separate file created by e.g. CellRanger or sinto
+            obs:
+                DataFrame containing information about cells.
+                The index should be the cell names as present in the fragments file.
+                Alternatively, the column containing cell ids can be specified using the `cell_column` argument.
+            regions:
+                Regions from which the fragments will be extracted.
+            cell_column:
+                Column name in the `obs` DataFrame containing the cell names.
+            batch_column:
+                Column name in the `obs` DataFrame containing the batch indices.
+                If None,
+            path:
+                Folder in which the fragments data will be stored.
+            overwrite:
+                Whether to overwrite the data if it already exists.
+            reuse:
+                Whether to reuse existing data if it exists.
+            batch_size:
+                Number of fragments to process before saving. Lower this number if you run out of memory.
+        Returns:
+            A new Fragments object
+        """
+
+        if not isinstance(fragments_files, (list, tuple)):
+            fragments_files = [fragments_files]
+
+        fragments_files_ = []
+        for fragments_file in fragments_files:
+            if isinstance(fragments_file, str):
+                fragments_file = pathlib.Path(fragments_file)
+            if not fragments_file.exists():
+                raise FileNotFoundError(f"File {fragments_file} does not exist")
+            fragments_files_.append(fragments_file)
+        fragments_files = fragments_files_
+
+        if not overwrite and path.exists() and not reuse:
+            raise FileExistsError(
+                f"Folder {path} already exists, use `overwrite=True` to overwrite, or `reuse=True` to reuse existing data"
+            )
+
+        # regions information
+        var = pd.DataFrame(index=regions.coordinates.index)
+        var["ix"] = np.arange(var.shape[0])
+
+        # cell information
+        obs = obs.copy()
+        obs["ix"] = np.arange(obs.shape[0])
+
+        if batch_column is None:
+            raise ValueError("batch_column should be specified")
+        if batch_column not in obs.columns:
+            raise ValueError(f"Column {batch_column} not in obs")
+        if obs[batch_column].dtype != "int":
+            raise ValueError(f"Column {batch_column} should be an integer column")
+        if not obs[batch_column].max() == len(fragments_files) - 1:
+            raise ValueError(f"Column {batch_column} should contain values between 0 and {len(fragments_files) - 1}")
+        cell_to_cell_ix_batches = [
+            obs.loc[obs[batch_column] == batch].set_index(cell_column)["ix"] for batch in obs[batch_column].unique()
+        ]
+
+        self = cls.create(path=path, obs=obs, var=var, regions=regions, reset=overwrite)
+
+        # read the fragments file
+        try:
+            import pysam
+        except ImportError as e:
+            raise ImportError(
+                "pysam is required to read fragments files. Install using `pip install pysam` or `conda install -c bioconda pysam`"
+            ) from e
+        fragments_tabix_batches = [pysam.TabixFile(str(fragments_file)) for fragments_file in fragments_files]
+
+        # process regions
+        pbar = tqdm.tqdm(
+            enumerate(regions.coordinates.iterrows()),
+            total=regions.coordinates.shape[0],
+            leave=False,
+            desc="Processing fragments",
+        )
+
+        self.mapping.open_creator()
+        self.coordinates.open_creator()
+
+        mapping_processed = []
+        coordinates_processed = []
+
+        for region_ix, (region_id, region_info) in pbar:
+            pbar.set_description(f"{region_id}")
+
+            strand = region_info["strand"]
+            if "tss" in region_info:
+                tss = region_info["tss"]
+            else:
+                tss = region_info["start"]
+
             mapping_raw = []
+            coordinates_raw = []
 
-            fetched = fetched
+            for fragments_tabix, cell_to_cell_ix in zip(fragments_tabix_batches, cell_to_cell_ix_batches):
+                coordinates_raw_batch, mapping_raw_batch = _fetch_fragments_region(
+                    fragments_tabix=fragments_tabix,
+                    chrom=region_info["chrom"],
+                    start=region_info["start"],
+                    end=region_info["end"],
+                    tss=tss,
+                    strand=strand,
+                    cell_to_cell_ix=cell_to_cell_ix,
+                    region_ix=region_ix,
+                )
+                mapping_raw.append(mapping_raw_batch)
+                coordinates_raw.append(coordinates_raw_batch)
 
-            for fragment in fetched:
-                cell = fragment[3]
-
-                # only store the fragment if the cell is actually of interest
-                if cell in cell_to_cell_ix:
-                    coordinates_raw.append(int(fragment[1]))
-                    coordinates_raw.append(int(fragment[2]))
-
-                    # add mapping of cell/region
-                    mapping_raw.append(cell_to_cell_ix[fragment[3]])
-                    mapping_raw.append(region_ix)
-            coordinates_raw = (np.array(coordinates_raw).reshape(-1, 2).astype(np.int32) - tss) * strand
-            mapping_raw = np.array(mapping_raw).reshape(-1, 2).astype(np.int32)
+            mapping_raw = np.concatenate(mapping_raw)
+            coordinates_raw = np.concatenate(coordinates_raw)
 
             # sort by region, coordinate (of left cut sites), and cell
             sorted_idx = np.lexsort((coordinates_raw[:, 0], mapping_raw[:, 0], mapping_raw[:, 1]))
@@ -514,6 +652,14 @@ class Fragments(Flow):
             }
         return self._single_region_cache[region_oi]
 
+    _libsize = None
+
+    @property
+    def libsize(self):
+        if self._libsize is None:
+            self._libsize = np.bincount(self.mapping[:, 0], minlength=self.n_cells)
+        return self._libsize
+
 
 def _process_paired(chrom, start, end, alignment, remove_duplicates=True):
     fragments_dict = {}
@@ -650,3 +796,40 @@ def add_to_fragments(fragments, qname, chromosome, rstart, rend, is_reverse, max
         else:
             fragments[qname][1] = rstart
     return fragments
+
+
+def _fetch_fragments_region(fragments_tabix, chrom, start, end, tss, strand, cell_to_cell_ix, region_ix):
+    import pysam
+
+    fetched = fragments_tabix.fetch(
+        chrom,
+        max(start, 0),
+        end,
+        parser=pysam.asTuple(),
+    )
+
+    coordinates_raw = []
+    mapping_raw = []
+
+    fetched = fetched
+
+    for fragment in fetched:
+        cell = fragment[3]
+
+        # only store the fragment if the cell is actually of interest
+        if cell in cell_to_cell_ix:
+            coordinates_raw.append(int(fragment[1]))
+            coordinates_raw.append(int(fragment[2]))
+
+            # add mapping of cell/region
+            mapping_raw.append(cell_to_cell_ix[fragment[3]])
+            mapping_raw.append(region_ix)
+    coordinates_raw = (np.array(coordinates_raw).reshape(-1, 2).astype(np.int32) - tss) * strand
+    mapping_raw = np.array(mapping_raw).reshape(-1, 2).astype(np.int32)
+
+    # sort by region, coordinate (of left cut sites), and cell
+    sorted_idx = np.lexsort((coordinates_raw[:, 0], mapping_raw[:, 0], mapping_raw[:, 1]))
+    mapping_raw = mapping_raw[sorted_idx]
+    coordinates_raw = coordinates_raw[sorted_idx]
+
+    return coordinates_raw, mapping_raw

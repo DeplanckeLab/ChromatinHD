@@ -33,11 +33,19 @@ class TranscriptomeFragments:
             raise ValueError("Transcriptome and fragments should have the same var index. ")
 
         if region_oi is None:
-            self.fragments = Fragments(fragments, cellxregion_batch_size=cellxregion_batch_size)
+            self.fragments = Fragments(
+                fragments,
+                cellxregion_batch_size=cellxregion_batch_size,
+                provide_multiplets=False,
+                provide_libsize=True,
+            )
             self.transcriptome = Transcriptome(transcriptome, layer=layer)
         else:
             self.fragments = FragmentsRegional(
-                fragments, cellxregion_batch_size=cellxregion_batch_size, region_oi=region_oi
+                fragments,
+                cellxregion_batch_size=cellxregion_batch_size,
+                region_oi=region_oi,
+                provide_libsize=True,
             )
             self.transcriptome = TranscriptomeGene(transcriptome, gene_oi=region_oi, layer=layer)
 

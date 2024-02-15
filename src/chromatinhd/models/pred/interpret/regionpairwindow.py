@@ -104,6 +104,8 @@ class RegionPairWindow(chd.flow.Flow):
 
                     model = models[model_name]
                     predicted, expected, n_fragments = model.get_prediction_censored(
+                        # fragments=fragments,
+                        # transcriptome=transcriptome,
                         censorer=censorer,
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         regions=[region],
@@ -116,7 +118,6 @@ class RegionPairWindow(chd.flow.Flow):
                     n_fragments = n_fragments[..., 0]
 
                     # calculate delta cor per cell
-                    # calculate effect per cellxregion combination
                     predicted_censored = predicted[1:]
                     predicted_full = predicted[0][None, ...]
                     predicted_full_norm = zscore(predicted_full, 1)

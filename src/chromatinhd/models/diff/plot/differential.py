@@ -30,6 +30,9 @@ class Differential(chromatinhd.grid.Wrap):
         ymax=100,
         order=False,
         relative_to=None,
+        label_accessibility=True,
+        label_cluster=True,
+        show_tss=True,
         **kwargs,
     ):
         """
@@ -70,70 +73,34 @@ class Differential(chromatinhd.grid.Wrap):
         self.window = window
         self.cluster_info = cluster_info
 
-        plotdata = plotdata.query("cluster in @cluster_info.index")
+        plotdata, plotdata_mean, order, window = _process_plotdata(
+            plotdata,
+            plotdata_mean,
+            cluster_info,
+            order,
+            relative_to,
+            window=window,
+        )
 
-        if order is True:
-            self.order = plotdata.groupby(level=0).mean().sort_values(ascending=False).index
-        elif order is False:
-            self.order = cluster_info.index
-        else:
-            self.order = order
-
-        # check plotdata
-        plotdata = plotdata.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["cluster", "coord"])
-        plotdata_mean = plotdata_mean.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["coord"])
-
-        # if "prob_diff" not in plotdata.loc[self.order].columns:
-        if relative_to is None:
-            plotdata["prob_diff"] = plotdata["prob"] - plotdata_mean["prob"]
-        elif isinstance(relative_to, (list, tuple, np.ndarray, pd.Series, pd.Index)):
-            plotdata["prob_diff"] = (
-                plotdata["prob"]
-                - plotdata.loc[relative_to]
-                .groupby(level="coord")
-                .mean()["prob"][plotdata.index.get_level_values("coord")]
-                .values
-            )
-            plotdata_mean = plotdata.loc[relative_to].groupby(level="coord").mean()
-        else:
-            plotdata["prob_diff"] = plotdata["prob"] - plotdata.loc[relative_to]["prob"]
-            plotdata_mean = plotdata.loc[relative_to]
-
-        if window is None:
-            window = (
-                plotdata.index.get_level_values("coord").min(),
-                plotdata.index.get_level_values("coord").max(),
-            )
+        self.order = order
 
         for cluster, cluster_info_oi in self.cluster_info.loc[self.order].iterrows():
             panel, ax = chromatinhd.grid.Ax((width, panel_height))
             self.add(panel)
 
-            ax.set_yscale("symlog", linthresh=5)
-            ax.set_yticks([2.5, 5, 7.5, 25, 50, 75, 250, 500], minor=True)
-            ax.tick_params(axis="y", which="minor", length=2, color="#33333333")
-            ax.set_yticks([0, 10, 100], minor=False)
-            ax.set_ylim(0, ymax)
+            _scale_differential(ax, ymax)
+            _setup_differential(
+                ax,
+                ymax,
+                cluster_info_oi,
+                label=label_accessibility and (cluster == self.order[0]),
+                label_cluster=label_cluster,
+                show_tss=show_tss,
+            )
             ax.set_xlim(*window)
-            ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1, lw=1)
 
-            text = ax.annotate(
-                text=f"{cluster_info_oi['label']}",
-                xy=(0, 1),
-                xytext=(2, -2),
-                textcoords="offset points",
-                xycoords="axes fraction",
-                ha="left",
-                va="top",
-                fontsize=10,
-                color="#333",
-            )
-            text.set_path_effects(
-                [
-                    mpl.patheffects.Stroke(linewidth=2, foreground="white"),
-                    mpl.patheffects.Normal(),
-                ]
-            )
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
 
             if plotdata_empirical is not None:
                 # empirical distribution of atac-seq cuts
@@ -147,10 +114,10 @@ class Differential(chromatinhd.grid.Wrap):
 
             ax.set_xticks([])
 
-            if cluster != self.order[0]:
-                ax.set_yticklabels([])
-            else:
-                ax.set_ylabel("Accessibility\nper 100 cells\nper 100bp", rotation=0, ha="right", va="center")
+            # if cluster != self.order[0]:
+            #     ax.set_yticklabels([])
+            # elif label_accessibility is not False:
+            #     ax.set_ylabel("Accessibility\nper 100 cells\nper 100bp", rotation=0, ha="right", va="center")
 
         self.draw(plotdata, plotdata_mean)
 
@@ -212,12 +179,11 @@ class Differential(chromatinhd.grid.Wrap):
                 self.artists.extend([gradient, polygon, background, differential])
 
     @classmethod
-    def from_regionpositional(cls, region_id, regionpositional, width, **kwargs):
-        plotdata, plotdata_mean = regionpositional.get_plotdata(region_id)
+    def from_regionpositional(cls, region_id, regionpositional, width, relative_to=None, **kwargs):
+        plotdata, plotdata_mean = regionpositional.get_plotdata(region_id, relative_to=relative_to)
         self = cls(
             plotdata=plotdata,
             plotdata_mean=plotdata_mean,
-            cluster_info=regionpositional.clustering.var,
             width=width,
             **kwargs,
         )
@@ -308,31 +274,9 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
         else:
             self.order = order
 
-        # check plotdata
-        plotdata = plotdata.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["cluster", "coord"])
-        plotdata_mean = plotdata_mean.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["coord"])
+        plotdata, plotdata_mean, order, _ = _process_plotdata(plotdata, plotdata_mean, cluster_info, order, relative_to)
 
-        # if "prob_diff" not in plotdata.loc[self.order].columns:
-        if relative_to is None:
-            plotdata["prob_diff"] = plotdata["prob"] - plotdata_mean["prob"]
-        elif isinstance(relative_to, (list, tuple, np.ndarray, pd.Series, pd.Index)):
-            plotdata["prob_diff"] = (
-                plotdata["prob"]
-                - plotdata.loc[relative_to]
-                .groupby(level="coord")
-                .mean()["prob"][plotdata.index.get_level_values("coord")]
-                .values
-            )
-            plotdata_mean = plotdata.loc[relative_to].groupby(level="coord").mean()
-        else:
-            plotdata["prob_diff"] = plotdata["prob"] - plotdata.loc[relative_to]["prob"]
-            plotdata_mean = plotdata.loc[relative_to]
-
-        if window is None:
-            window = (
-                plotdata.index.get_level_values("coord").min(),
-                plotdata.index.get_level_values("coord").max(),
-            )
+        self.order = order
 
         for cluster, cluster_info_oi in self.cluster_info.loc[self.order].iterrows():
             broken = self.add(
@@ -362,12 +306,14 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
                     )
 
     @classmethod
-    def from_regionpositional(cls, region_id, regionpositional, breaking, cluster_info=None, **kwargs):
-        plotdata, plotdata_mean = regionpositional.get_plotdata(region_id)
+    def from_regionpositional(
+        cls, region_id, regionpositional, breaking, cluster_info=None, relative_to=None, **kwargs
+    ):
+        plotdata, plotdata_mean = regionpositional.get_plotdata(region_id, relative_to=relative_to)
         self = cls(
             plotdata=plotdata,
             plotdata_mean=plotdata_mean,
-            cluster_info=regionpositional.clustering.var if cluster_info is None else cluster_info,
+            cluster_info=cluster_info,
             breaking=breaking,
             **kwargs,
         )
@@ -429,29 +375,39 @@ def _scale_differential(ax, ymax):
     ax.set_ylim(0, ymax)
 
 
-def _setup_differential(ax, ymax, cluster_info_oi, label=False):
-    ax.set_yticks([2.5, 5, 7.5, 25, 50, 75, 250, 500], minor=True)
-    ax.tick_params(axis="y", which="minor", length=2, color="#33333333")
-    ax.set_yticks([0, 10, 100], minor=False)
-    ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1, lw=1)
+def _setup_differential(ax, ymax, cluster_info_oi, label=False, label_cluster=True, show_tss=True):
+    minor_ticks = np.array([2.5, 5, 7.5, 25, 50, 75, 250, 500])
+    minor_ticks = minor_ticks[minor_ticks <= ymax]
 
-    text = ax.annotate(
-        text=f"{cluster_info_oi['label']}",
-        xy=(0, 1),
-        xytext=(2, -2),
-        textcoords="offset points",
-        xycoords="axes fraction",
-        ha="left",
-        va="top",
-        fontsize=10,
-        color="#333",
-    )
-    text.set_path_effects(
-        [
-            mpl.patheffects.Stroke(linewidth=2, foreground="white"),
-            mpl.patheffects.Normal(),
-        ]
-    )
+    ax.set_yticks(minor_ticks, minor=True)
+    ax.tick_params(axis="y", which="minor", length=2, color="#33333333")
+
+    major_ticks = np.array([0, 10, 100])
+    major_ticks = major_ticks[major_ticks <= ymax]
+    ax.set_yticks(major_ticks, minor=False)
+
+    if show_tss:
+        ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1, lw=1)
+
+    if label_cluster:
+        text = ax.annotate(
+            text=f"{cluster_info_oi['label']}",
+            xy=(0, 1),
+            xytext=(2, -2),
+            textcoords="offset points",
+            xycoords="axes fraction",
+            ha="left",
+            va="top",
+            fontsize=10,
+            color="#333",
+            zorder=30,
+        )
+        text.set_path_effects(
+            [
+                mpl.patheffects.Stroke(linewidth=2, foreground="white"),
+                mpl.patheffects.Normal(),
+            ]
+        )
 
     ax.set_xticks([])
 
@@ -459,3 +415,52 @@ def _setup_differential(ax, ymax, cluster_info_oi, label=False):
         ax.set_ylabel("Accessibility\nper 100 cells\nper 100bp", rotation=0, ha="right", va="center")
     else:
         ax.set_yticklabels([])
+
+
+def _process_plotdata(plotdata, plotdata_mean, cluster_info, order, relative_to, window=None):
+    # check plotdata
+    plotdata = plotdata.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["cluster", "coord"])
+    plotdata_mean = plotdata_mean.reset_index().assign(coord=lambda x: x.coord.astype(int)).set_index(["coord"])
+
+    # determine relative to
+    # if "prob_diff" not in plotdata.loc[self.order].columns:
+    if relative_to is None:
+        plotdata["prob_diff"] = plotdata["prob"] - plotdata_mean["prob"]
+    elif isinstance(relative_to, (list, tuple, np.ndarray, pd.Series, pd.Index)):
+        plotdata["prob_diff"] = (
+            plotdata["prob"]
+            - plotdata.loc[relative_to]
+            .groupby(level="coord")
+            .mean()["prob"][plotdata.index.get_level_values("coord")]
+            .values
+        )
+        plotdata_mean = plotdata.loc[relative_to].groupby(level="coord").mean()
+    else:
+        plotdata["prob_diff"] = plotdata["prob"] - plotdata.loc[relative_to]["prob"]
+        plotdata_mean = plotdata.loc[relative_to]
+
+    # subset on requested clusters
+    plotdata = plotdata.query("cluster in @cluster_info.index")
+
+    # determine order
+    if order is True:
+        order = plotdata.groupby(level=0).mean().sort_values(ascending=False).index
+    elif order is False:
+        order = cluster_info.index
+    else:
+        order = order
+
+    if window is None:
+        window = (
+            plotdata.index.get_level_values("coord").min(),
+            plotdata.index.get_level_values("coord").max(),
+        )
+
+    if window is not None:
+        plotdata = plotdata.loc[
+            (plotdata.index.get_level_values("coord") >= window[0])
+            & (plotdata.index.get_level_values("coord") <= window[1])
+        ]
+        plotdata_mean = plotdata_mean.loc[(plotdata_mean.index >= window[0]) & (plotdata_mean.index <= window[1])]
+
+    return plotdata, plotdata_mean, order, window

@@ -510,7 +510,7 @@ class TophatEncoding(torch.nn.Module):
 
 
 class DirectDistanceEncoding(torch.nn.Module):
-    def __init__(self, max=1000):
+    def __init__(self, max=800):
         super().__init__()
 
         self.max = max
@@ -518,7 +518,7 @@ class DirectDistanceEncoding(torch.nn.Module):
         self.n_embedding_dimensions = 1
 
     def forward(self, coordinates):
-        return torch.clamp(coordinates[:, 1] - coordinates[:, 0], max=self.max).unsqueeze(-1) / self.max
+        return torch.clamp(torch.abs(coordinates[:, 1] - coordinates[:, 0]), max=self.max).unsqueeze(-1) / self.max
 
 
 class SplitDistanceEncoding(torch.nn.Module):

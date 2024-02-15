@@ -1,6 +1,7 @@
 """
 Additive model for predicting region expression from fragments
 """
+
 from __future__ import annotations
 
 import torch
@@ -284,7 +285,8 @@ class LibrarySizeEncoder(torch.nn.Module):
         self.n_embedding_dimensions = 1
 
     def forward(self, data):
-        return self.differential_library_size[data.minibatch.cells_oi].reshape(-1, 1)
+        # return self.differential_library_size[data.minibatch.cells_oi].reshape(-1, 1)
+        return data.fragments.libsize.reshape(-1, 1)
 
 
 class EmbeddingToExpression(torch.nn.Module):
@@ -505,9 +507,8 @@ class Model(FlowModel):
             data.minibatch.n_regions,
         )
         if hasattr(self, "library_size_encoder"):
-            cell_region_embedding = torch.cat(
-                [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
-            )
+            library_size_encoding = self.library_size_encoder(data).unsqueeze(-2)
+            cell_region_embedding = torch.cat([cell_region_embedding, library_size_encoding], dim=-1)
         expression_predicted = self.embedding_to_expression(cell_region_embedding)
         self.expression_predicted = expression_predicted
 
@@ -735,7 +736,8 @@ class Model(FlowModel):
             cell_ixs,
             region_ixs,
             n_regions_step=500,
-            n_cells_step=200,
+            n_cells_step=1000,
+            # n_cells_step=200,
             use_all_cells=True,
             use_all_regions=True,
             permute_cells=False,
@@ -823,7 +825,7 @@ class Model(FlowModel):
         regions=None,
         region_ixs=None,
         device=None,
-        min_fragments=10,
+        min_fragments=5,
     ):
         """
         Returns the prediction of multiple censored dataset
@@ -879,7 +881,8 @@ class Model(FlowModel):
         for minibatch in minibatcher:
             data = loader.load(minibatch)
             data = data.to(device)
-            fragments_oi = censorer(data.fragments.coordinates)
+            # fragments_oi = censorer(data.fragments.coordinates)
+            fragments_oi = censorer(data)
 
             with torch.no_grad():
                 for design_ix, (
@@ -1022,3 +1025,6 @@ class Models(Flow):
     def get_prediction(self, region, fold_ix, **kwargs):
         model = self[f"{region}_{fold_ix}"]
         return model.get_prediction(**kwargs)
+
+    def trained(self, region):
+        return all([f"{region}_{fold_ix}" in self.models for fold_ix in range(len(self.folds))])

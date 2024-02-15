@@ -105,6 +105,7 @@ def get_canonical_transcripts(
     filter_canonical: bool = True,
     filter_chromosomes: bool = True,
     filter_protein_coding: bool = True,
+    use_cache=True,
 ) -> pd.DataFrame:
     """
     Get all canonical transcripts
@@ -144,11 +145,13 @@ def get_canonical_transcripts(
         genes = biomart_dataset.get_batched(
             attributes,
             filters=filters,
+            use_cache=use_cache,
         )
     else:
         genes = biomart_dataset.get(
             attributes,
             filters=filters,
+            use_cache=use_cache,
         )
     genes["chrom"] = "chr" + genes["chromosome_name"].astype(str)
 
@@ -203,6 +206,8 @@ def get_canonical_transcripts(
 
 def get_exons(biomart_dataset: Dataset, chrom, start, end):
     canonical_transcripts = get_canonical_transcripts(biomart_dataset, chrom=chrom, start=start, end=end)
+    if len(canonical_transcripts) == 0:
+        return pd.DataFrame()
     exons = biomart_dataset.get(
         [
             biomart_dataset.attribute("ensembl_gene_id"),

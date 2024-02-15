@@ -139,7 +139,7 @@ class Dataset:
     def filter(self, name, **kwargs):
         return Filter(name, **kwargs)
 
-    def get(self, attributes=[], filters=[]) -> pd.DataFrame:
+    def get(self, attributes=[], filters=[], use_cache=True) -> pd.DataFrame:
         """
         Get the result with a given set of attributes and filters
 
@@ -150,6 +150,8 @@ class Dataset:
                 list of attributes to return
             filters:
                 list of filters to apply
+            use_cache:
+                whether to use the cache
         """
 
         xml = ET.Element(
@@ -170,17 +172,23 @@ class Dataset:
         query = query.replace("\t", "").replace("\n", "")
         url = f"{self.baseurl}query={query}"
 
-        if url in cache:
+        if use_cache and (url in cache):
             result = cache[url]
         else:
-            response = requests.get(url)
+            try:
+                response = requests.get(url, timeout=10)
+            except requests.exceptions.Timeout:
+                raise ValueError("Ensembl web service timed out")
             # check response status
             if response.status_code != 200:
                 raise ValueError(
                     f"Response status code is {response.status_code} and not 200. Response text: {response.text}"
                 )
             if "Query ERROR: caught BioMart" in response.text:
+                print(query.replace("><", ">\n<"))
                 raise ValueError(response.text)
+            if "The Ensembl web service you requested is temporarily unavailable." in response.text:
+                raise ValueError("Ensembl web service is temporarily unavailable")
             result = pd.read_table(
                 io.StringIO(response.text),
                 sep="\t",
@@ -189,7 +197,7 @@ class Dataset:
             cache[url] = result
         return result
 
-    def get_batched(self, attributes=[], filters=[], batch_size=50) -> pd.DataFrame:
+    def get_batched(self, attributes=[], filters=[], batch_size=50, use_cache=True) -> pd.DataFrame:
         """
         Get the result with a given set of attributes and filters, but batched
 
@@ -207,7 +215,7 @@ class Dataset:
         result = []
         for i in tqdm.tqdm(range(0, len(filter), batch_size), leave=False):
             filters_ = [filter[i : i + batch_size]]
-            result.append(self.get(attributes=attributes, filters=filters_))
+            result.append(self.get(attributes=attributes, filters=filters_, use_cache=use_cache))
         result = pd.concat(result)
         return result
 

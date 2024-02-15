@@ -37,6 +37,7 @@ def count(peaks, tabix_location, fragments_location, barcode_idxs):
         stdout=sp.PIPE,
     )
     # counter = tqdm.tqdm(total=len(peak_idxs), smoothing=0)
+    missing = 0
     for line in process.stdout:
         line = line.decode("utf-8")
         if line.startswith("#"):
@@ -49,6 +50,8 @@ def count(peaks, tabix_location, fragments_location, barcode_idxs):
 
             if barcode in barcode_idxs:
                 counts[(barcode_idxs[barcode], peak_idx)] += 1
+            else:
+                missing += 1
 
     # convert to sparse
     import scipy.sparse
@@ -111,7 +114,9 @@ class PeakCounts(Flow):
             peaks, tabix_location=tabix_location, fragments_location=fragments_location, barcode_idxs=barcode_idxs
         )
 
-    def get_peak_counts(self, region_oi, fragments_location=None, tabix_location=None, counts=None):
+    _counts_dense = None
+
+    def get_peak_counts(self, region_oi, fragments_location=None, tabix_location=None, counts=None, densify=True):
         peak_gene_links_oi = self.peaks.loc[self.peaks["gene"] == region_oi].copy()
         peak_gene_links_oi["region"] = region_oi
 
@@ -119,10 +124,16 @@ class PeakCounts(Flow):
 
         if (counts is None) and (self.o.counts.exists(self)):
             counts = self.counts
+            if densify and (self._counts_dense is None):
+                self._counts_dense = np.array(counts.todense())
 
-        if counts is not None:
+        if self._counts_dense is not None:
+            return peak_gene_links_oi, self._counts_dense[:, var_oi["ix"]]
+        elif counts is not None:
             return peak_gene_links_oi, np.array(counts[:, var_oi["ix"]].todense())
+            # return peak_gene_links_oi, np.array(counts[:, var_oi["ix"]].todense())
         else:
+            print("COUNTING!!")
             return peak_gene_links_oi, np.array(
                 self._count(var_oi, tabix_location=tabix_location, fragments_location=fragments_location).todense()
             )
@@ -177,7 +188,7 @@ class Windows(Flow):
 
     counted = True
 
-    def get_peak_counts(self, region_oi, fragments_location=None, tabix_location=None):
+    def get_peak_counts(self, region_oi, fragments_location=None, tabix_location=None, densify=None):
         region = self.fragments.regions.coordinates.loc[region_oi]
         starts = np.arange(region["start"], region["end"], step=self.window_size)
         ends = np.hstack([starts[1:], [region["end"]]])
@@ -187,7 +198,7 @@ class Windows(Flow):
 
         barcode_idxs = self.fragments.obs["ix"].to_dict()
 
-        return peaks, np.array(
+        counts = np.array(
             count(
                 peaks,
                 tabix_location=self.tabix_location,
@@ -196,7 +207,9 @@ class Windows(Flow):
             ).todense()
         )
 
-    def get_peaks_counts(self, regions_oi, fragments_location=None, tabix_location=None):
+        return peaks, counts
+
+    def get_peaks_counts(self, regions_oi, fragments_location=None, tabix_location=None, densify=None):
         peaks = []
         counts = []
         for region_oi in tqdm.tqdm(regions_oi, leave=False):
