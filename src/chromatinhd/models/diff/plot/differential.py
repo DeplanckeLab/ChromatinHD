@@ -144,6 +144,7 @@ class Differential(chromatinhd.grid.Wrap):
                     lw=0.5,
                     zorder=1,
                 )
+
                 polygon = ax.fill_between(
                     plotdata_mean.index,
                     np.exp(plotdata_mean["prob"]),

@@ -207,13 +207,18 @@ class Genes(chromatinhd.grid.Ax):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_region(cls, region, genome="GRCh38", window=None, use_cache=True, **kwargs):
+    def from_region(cls, region, genome="GRCh38", window=None, use_cache=True, show_genes=True, **kwargs):
         if window is None:
             assert "tss" in region
             window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
         plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
             region, genome=genome, window=window, use_cache=use_cache
         )
+
+        if not show_genes:
+            plotdata_genes = plotdata_genes.iloc[0:0]
+            plotdata_exons = plotdata_exons.iloc[0:0]
+            plotdata_coding = plotdata_coding.iloc[0:0]
 
         return cls(
             plotdata_genes=plotdata_genes,

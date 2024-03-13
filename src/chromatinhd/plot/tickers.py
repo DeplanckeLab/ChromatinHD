@@ -28,7 +28,7 @@ def round_significant(value, significant=2):
     return round(value, significant - int(n) - 1)
 
 
-def format_distance(value, tick_pos):
+def format_distance(value, tick_pos=None, add_sign=True):
     abs_value = int(abs(value))
     if abs_value >= 1000000:
         # zeros = 0
@@ -48,6 +48,9 @@ def format_distance(value, tick_pos):
         suffix = "b"
 
     formatted_value = ("{abs_value:." + str(zeros) + "f}{suffix}").format(abs_value=abs_value, suffix=suffix)
+
+    if not add_sign:
+        return formatted_value
     return f"-{formatted_value}" if value < 0 else f"+{formatted_value}"
 
 

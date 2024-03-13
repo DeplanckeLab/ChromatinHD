@@ -12,6 +12,7 @@ import xarray as xr
 import pandas as pd
 import itertools
 import tqdm.auto as tqdm
+import time
 
 import pickle
 
@@ -53,6 +54,8 @@ from .encoders import (
     DirectDistanceEncoding,
     SplitDistanceEncoding,
     LinearDistanceEncoding,
+    TophatBinaryEncoding,
+    OneEncoding,
 )
 
 
@@ -119,6 +122,12 @@ class FragmentEmbedder(torch.nn.Module):
             )
         elif encoder == "spline_binary":
             self.encoder = SplineBinaryEncoding(window=fragments.regions.window, **encoder_kwargs)
+        elif encoder == "tophat_binary":
+            self.encoder = TophatBinaryEncoding(
+                n_frequencies=n_frequencies, window=fragments.regions.window, **encoder_kwargs
+            )
+        elif encoder == "nothing":
+            self.encoder = OneEncoding()
         elif isinstance(encoder, str):
             raise ValueError(encoder + " is not a valid encoder")
         elif encoder is None:
@@ -163,12 +172,14 @@ class FragmentEmbedder(torch.nn.Module):
             if (i > 0) and (layernorm):
                 sublayers.append(torch.nn.LayerNorm((n_output_embedding_dimensions,)))
             if nonlinear is not False:
-                if nonlinear is True:
+                if (nonlinear is True) or nonlinear == "gelu":
                     sublayers.append(torch.nn.GELU())
                 elif nonlinear == "relu":
                     sublayers.append(torch.nn.ReLU())
                 elif nonlinear == "silu":
                     sublayers.append(torch.nn.SiLU())
+                elif nonlinear == "tanh":
+                    sublayers.append(torch.nn.Tanh())
                 elif nonlinear == "sigmoid":
                     sublayers.append(torch.nn.Sigmoid())
                 else:
@@ -274,19 +285,20 @@ class EmbeddingGenePooler(torch.nn.Module):
 
 
 class LibrarySizeEncoder(torch.nn.Module):
-    def __init__(self, fragments, n_layers=1):
+    def __init__(self, fragments, n_layers=1, scale=1.0):
         super().__init__()
 
-        library_size = np.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells)
-        self.register_buffer(
-            "differential_library_size",
-            torch.from_numpy((library_size - library_size.mean()) / library_size.std()).float(),
-        )
+        # library_size = np.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells)
+        # self.register_buffer(
+        #     "differential_library_size",
+        #     torch.from_numpy((library_size - library_size.mean()) / library_size.std()).float() * scale,
+        # )
+        self.scale = scale
         self.n_embedding_dimensions = 1
 
     def forward(self, data):
         # return self.differential_library_size[data.minibatch.cells_oi].reshape(-1, 1)
-        return data.fragments.libsize.reshape(-1, 1)
+        return data.fragments.libsize.reshape(-1, 1) * self.scale
 
 
 class EmbeddingToExpression(torch.nn.Module):
@@ -327,7 +339,7 @@ class EmbeddingToExpression(torch.nn.Module):
                 )
             )
 
-            if nonlinear is True:
+            if (nonlinear is True) or nonlinear == "gelu":
                 sublayers.append(torch.nn.GELU())
             elif nonlinear == "relu":
                 sublayers.append(torch.nn.ReLU())
@@ -335,6 +347,8 @@ class EmbeddingToExpression(torch.nn.Module):
                 sublayers.append(torch.nn.SiLU())
             elif nonlinear == "sigmoid":
                 sublayers.append(torch.nn.Sigmoid())
+            elif nonlinear == "tanh":
+                sublayers.append(torch.nn.Tanh())
             else:
                 sublayers.append(nonlinear())
             if i > 0 and batchnorm:
@@ -366,6 +380,31 @@ class EmbeddingToExpression(torch.nn.Module):
                 embedding = embedding2
 
         return embedding.reshape(cell_region_embedding.shape[:-1])
+
+
+class catchtime(object):
+    def __init__(self, dict, name):
+        self.name = name
+        self.dict = dict
+
+    def __enter__(self):
+        self.t = time.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.t = time.time() - self.t
+        self.dict[self.name] += self.t
+
+
+import collections
+
+
+class timer(object):
+    def __init__(self):
+        self.times = collections.defaultdict(float)
+
+    def catch(self, name):
+        return catchtime(self.times, name)
 
 
 class Model(FlowModel):
@@ -429,6 +468,7 @@ class Model(FlowModel):
         pooler=None,
         distance_encoder=None,
         library_size_encoder=None,
+        library_size_encoder_kwargs=None,
         region_oi=None,
         encoder_kwargs=None,
         fragment_embedder_kwargs=None,
@@ -479,7 +519,8 @@ class Model(FlowModel):
 
             n_input_embedding_dimensions = self.fragment_embedder.n_embedding_dimensions
             if library_size_encoder == "linear":
-                self.library_size_encoder = LibrarySizeEncoder(fragments)
+                library_size_encoder_kwargs = library_size_encoder_kwargs or {}
+                self.library_size_encoder = LibrarySizeEncoder(fragments, **library_size_encoder_kwargs)
                 n_input_embedding_dimensions += self.library_size_encoder.n_embedding_dimensions
 
             self.embedding_to_expression = EmbeddingToExpression(
@@ -533,6 +574,83 @@ class Model(FlowModel):
         # return region_pairzmse_loss(expression_predicted, expression_true)
 
     def forward_multiple(self, data, fragments_oi, min_fragments=1):
+        timing = timer()
+
+        with timing.catch("prep"):
+            fragment_embedding = self.fragment_embedder(data)
+
+            total_n_fragments = torch.bincount(
+                data.fragments.local_cellxregion_ix,
+                minlength=data.minibatch.n_regions * data.minibatch.n_cells,
+            ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
+
+            total_cell_region_embedding = self.embedding_region_pooler.forward(
+                fragment_embedding,
+                data.fragments.local_cellxregion_ix,
+                data.minibatch.n_cells,
+                data.minibatch.n_regions,
+            )
+            cell_region_embedding = total_cell_region_embedding
+
+            if hasattr(self, "library_size_encoder"):
+                cell_region_embedding = torch.cat(
+                    [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
+                )
+
+            total_expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
+
+        # with timing.catch("selecting_fragments"):
+        #     for fragments_oi_ in fragments_oi:
+        #         pass
+
+        with timing.catch("main_loop"):
+            for fragments_oi_ in fragments_oi:
+                with timing.catch("within"):
+                    if (fragments_oi_ is not None) and ((~fragments_oi_).sum().item() > min_fragments):
+                        with timing.catch("lost"):
+                            with timing.catch("selector"):
+                                lost_fragments_oi = ~fragments_oi_
+                                lost_local_cellxregion_ix = data.fragments.local_cellxregion_ix[lost_fragments_oi]
+                            with timing.catch("counter"):
+                                n_fragments = total_n_fragments - torch.bincount(
+                                    lost_local_cellxregion_ix,
+                                    minlength=data.minibatch.n_regions * data.minibatch.n_cells,
+                                ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
+
+                            with timing.catch("pooler"):
+                                cell_region_embedding = (
+                                    total_cell_region_embedding
+                                    - self.embedding_region_pooler.forward(
+                                        fragment_embedding[lost_fragments_oi],
+                                        lost_local_cellxregion_ix,
+                                        data.minibatch.n_cells,
+                                        data.minibatch.n_regions,
+                                    )
+                                )
+
+                            with timing.catch("libsize"):
+                                if hasattr(self, "library_size_encoder"):
+                                    cell_region_embedding = torch.cat(
+                                        [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
+                                    )
+
+                        with timing.catch("embedding_to_expression"):
+                            # changed = torch.where((n_fragments != total_n_fragments).any(1))[0]
+                            # print(expression_predicted.shape)
+
+                            expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
+                        # expression_predicted = total_expression_predicted.clone()
+                        # expression_predicted[changed] = self.embedding_to_expression.forward(cell_region_embedding[changed])
+                    else:
+                        n_fragments = total_n_fragments
+                        expression_predicted = total_expression_predicted
+
+                with timing.catch("yield"):
+                    yield expression_predicted, n_fragments
+
+        print(timing.times)
+
+    def forward_multiple2(self, data, fragments_oi, min_fragments=1):
         fragment_embedding = self.fragment_embedder(data)
 
         total_n_fragments = torch.bincount(
@@ -555,6 +673,12 @@ class Model(FlowModel):
 
         total_expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
 
+        tot = 0.0
+
+        cell_region_embeddings = []
+
+        start = time.time()
+
         for fragments_oi_ in fragments_oi:
             if (fragments_oi_ is not None) and ((~fragments_oi_).sum().item() > min_fragments):
                 lost_fragments_oi = ~fragments_oi_
@@ -563,6 +687,7 @@ class Model(FlowModel):
                     lost_local_cellxregion_ix,
                     minlength=data.minibatch.n_regions * data.minibatch.n_cells,
                 ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
+
                 cell_region_embedding = total_cell_region_embedding - self.embedding_region_pooler.forward(
                     fragment_embedding[lost_fragments_oi],
                     lost_local_cellxregion_ix,
@@ -575,12 +700,28 @@ class Model(FlowModel):
                         [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
                     )
 
-                expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
-            else:
-                n_fragments = total_n_fragments
-                expression_predicted = total_expression_predicted
+                cell_region_embeddings.append(cell_region_embedding)
 
-            yield expression_predicted, n_fragments
+                # expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
+                # end = time.time()
+                # tot += end - start
+            else:
+                cell_region_embedding = total_cell_region_embedding
+                if hasattr(self, "library_size_encoder"):
+                    cell_region_embedding = torch.cat(
+                        [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
+                    )
+                cell_region_embeddings.append(cell_region_embedding)
+                # n_fragments = total_n_fragments
+                # expression_predicted = total_expression_predicted
+        cell_region_embeddings = torch.stack(cell_region_embeddings, dim=0)
+        expression_predicted = self.embedding_to_expression.forward(cell_region_embeddings)
+
+        for expression_predicted_, n_fragments in zip(expression_predicted, total_n_fragments):
+            yield expression_predicted_, n_fragments
+
+        tot = time.time() - start
+        print(tot)
 
     def train_model(
         self,
@@ -596,6 +737,7 @@ class Model(FlowModel):
         weight_decay=1e-2,
         checkpoint_every_epoch=1,
         optimizer="adam",
+        n_cells_train=None,
         **kwargs,
     ):
         """
@@ -617,8 +759,13 @@ class Model(FlowModel):
         else:
             region_ixs = range(fragments.n_regions)
 
+        if n_cells_train is not None:
+            cells_train = fold["cells_train"][:n_cells_train]
+        else:
+            cells_train = fold["cells_train"]
+
         minibatcher_train = Minibatcher(
-            fold["cells_train"],
+            cells_train,
             region_ixs,
             n_regions_step=n_regions_step,
             n_cells_step=n_cells_step,
@@ -871,6 +1018,9 @@ class Model(FlowModel):
         expected = np.zeros((len(cell_ixs), len(region_ixs)), dtype=float)
         n_fragments = np.zeros((len(censorer), len(cell_ixs), len(region_ixs)), dtype=int)
 
+        predicted = []
+        n_fragments = []
+
         cell_mapping = np.zeros(fragments.n_cells, dtype=np.int64)
         cell_mapping[cell_ixs] = np.arange(len(cell_ixs))
         region_mapping = np.zeros(fragments.n_regions, dtype=np.int64)
@@ -878,10 +1028,10 @@ class Model(FlowModel):
 
         self.eval()
         self.to(device)
+        assert len(minibatcher) == 1
         for minibatch in minibatcher:
             data = loader.load(minibatch)
             data = data.to(device)
-            # fragments_oi = censorer(data.fragments.coordinates)
             fragments_oi = censorer(data)
 
             with torch.no_grad():
@@ -889,23 +1039,110 @@ class Model(FlowModel):
                     pred_mb,
                     n_fragments_oi_mb,
                 ) in enumerate(self.forward_multiple(data, fragments_oi, min_fragments=min_fragments)):
-                    ix = np.ix_(
-                        [design_ix],
-                        cell_mapping[data.minibatch.cells_oi],
-                        region_mapping[data.minibatch.regions_oi],
-                    )
-                    predicted[ix] = pred_mb.cpu().numpy()
-                    n_fragments[ix] = n_fragments_oi_mb.cpu().numpy()
-            expected[
-                np.ix_(
-                    cell_mapping[data.minibatch.cells_oi],
-                    region_mapping[data.minibatch.regions_oi],
-                )
-            ] = data.transcriptome.value.cpu().numpy()
+                    # predicted.append(pred_mb.cpu().numpy())
+                    # n_fragments.append(n_fragments_oi_mb.cpu().numpy())
+                    predicted.append(pred_mb)
+                    n_fragments.append(n_fragments_oi_mb)
+            expected = data.transcriptome.value.cpu().numpy()
+
+        self.to("cpu")
+        # predicted = np.stack(predicted, axis=0)
+        # n_fragments = np.stack(n_fragments, axis=0)
+        predicted = torch.stack(predicted, axis=0).cpu().numpy()
+        n_fragments = torch.stack(n_fragments, axis=0).cpu().numpy()
+
+        return predicted, expected, n_fragments
+
+    def get_performance_censored(
+        self,
+        censorer,
+        fragments=None,
+        transcriptome=None,
+        cells=None,
+        cell_ixs=None,
+        regions=None,
+        region_ixs=None,
+        device=None,
+        min_fragments=5,
+    ):
+        """
+        Returns the prediction of multiple censored dataset
+        """
+        if fragments is None:
+            fragments = self.fragments
+        if transcriptome is None:
+            transcriptome = self.transcriptome
+
+        if cell_ixs is None:
+            if cells is None:
+                cells = fragments.obs.index
+            fragments.obs["ix"] = np.arange(len(fragments.obs))
+            cell_ixs = fragments.obs.loc[cells]["ix"].values
+        if cells is None:
+            cells = fragments.obs.index[cell_ixs]
+
+        region_ixs = [fragments.var.index.get_loc(self.region_oi)]
+
+        if device is None:
+            device = get_default_device()
+
+        minibatcher = Minibatcher(
+            cell_ixs,
+            region_ixs,
+            n_regions_step=500,
+            n_cells_step=5000,
+            use_all_cells=True,
+            use_all_regions=True,
+            permute_cells=False,
+            permute_regions=False,
+        )
+
+        loader = TranscriptomeFragments(
+            transcriptome=transcriptome,
+            fragments=fragments,
+            cellxregion_batch_size=minibatcher.cellxregion_batch_size,
+            layer=self.layer,
+            region_oi=self.region_oi,
+        )
+
+        deltacors = []
+        losts = []
+        effects = []
+
+        self.eval()
+        self.to(device)
+        for minibatch in minibatcher:
+            data = loader.load(minibatch).to(device)
+            fragments_oi = censorer(data)
+
+            with torch.no_grad():
+                for design_ix, (
+                    pred_mb,
+                    n_fragments_oi_mb,
+                ) in enumerate(self.forward_multiple(data, fragments_oi, min_fragments=min_fragments)):
+                    if design_ix == 0:
+                        cor_baseline = paircor(pred_mb, data.transcriptome.value).cpu().numpy()
+                        deltacor = 0
+                        n_fragments_baseline = n_fragments_oi_mb.sum().cpu().numpy()
+                        prediction_baseline = pred_mb.cpu().numpy()
+                        lost = 0
+                        effect = 0
+                    else:
+                        cor = paircor(pred_mb, data.transcriptome.value).cpu().numpy()
+                        deltacor = cor - cor_baseline
+                        lost = n_fragments_baseline - n_fragments_oi_mb.sum().cpu().numpy()
+                        effect = (pred_mb.cpu().numpy() - prediction_baseline).mean()
+
+                        deltacors.append(deltacor)
+                        losts.append(lost)
+                        effects.append(effect)
 
         self.to("cpu")
 
-        return predicted, expected, n_fragments
+        deltacors = np.concatenate(deltacors)
+        print(deltacors)
+
+        return deltacors, losts, effects
 
 
 class Models(Flow):
@@ -932,6 +1169,9 @@ class Models(Flow):
         return path
 
     def train_models(self, device=None, pbar=True, regions_oi=None, **kwargs):
+        if "device" in self.train_params and device is None:
+            device = self.train_params["device"]
+
         fragments = self.fragments
         transcriptome = self.transcriptome
         folds = self.folds
@@ -964,7 +1204,9 @@ class Models(Flow):
                     path=model_folder,
                     **self.model_params,
                 )
-                model.train_model(device=device, pbar=False, **self.train_params)
+                model.train_model(
+                    device=device, pbar=False, **{k: v for k, v in self.train_params.items() if k not in ["device"]}
+                )
                 model.save_state()
 
                 model = model.to("cpu")

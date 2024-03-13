@@ -60,6 +60,8 @@ class RegionMultiWindow(chd.flow.Flow):
 
         regions = fragments.regions.var.index
 
+        print(len(folds))
+
         coords_pointed = {
             regions.name: regions,
             "fold": pd.Index(range(len(folds)), name="fold"),
@@ -138,6 +140,7 @@ class RegionMultiWindow(chd.flow.Flow):
         regions=None,
         force=False,
         device=None,
+        min_fragments=3,
     ):
         force_ = force
 
@@ -176,7 +179,7 @@ class RegionMultiWindow(chd.flow.Flow):
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         regions=[region],
                         device=device,
-                        min_fragments=3,
+                        min_fragments=min_fragments,
                     )
 
                     # select 1st region, given that we're working with one region anyway
@@ -190,6 +193,64 @@ class RegionMultiWindow(chd.flow.Flow):
                     lost = (n_fragments[0] - n_fragments[1:]).mean(-1)
 
                     effect = (predicted[0] - predicted[1:]).mean(-1)
+
+                    self.scores["deltacor"][region, fold_ix, "test"] = deltacor
+                    self.scores["lost"][region, fold_ix, "test"] = lost
+                    self.scores["effect"][region, fold_ix, "test"] = effect
+                    self.scores["scored"][region, fold_ix] = True
+
+        return self
+
+    def score2(
+        self,
+        models,
+        folds=None,
+        fragments=None,
+        transcriptome=None,
+        regions=None,
+        force=False,
+        device=None,
+        min_fragments=3,
+    ):
+        force_ = force
+
+        if regions is None:
+            # get regions from models
+            if models.regions_oi is not None:
+                regions = models.regions_oi
+            else:
+                regions = self.scores.coords_pointed[list(self.scores.coords_pointed)[0]]
+
+        if folds is None:
+            folds = models.folds
+
+        pbar = tqdm.tqdm(regions, leave=False)
+
+        for region in pbar:
+            pbar.set_description(region)
+
+            for fold_ix, fold in enumerate(folds):
+                force = force_
+                if not self.scores["scored"][region, fold_ix]:
+                    force = True
+
+                if force:
+                    model_name = f"{region}_{fold_ix}"
+                    if model_name not in models:
+                        continue
+
+                    pbar.set_description(region + " " + str(fold_ix))
+
+                    model = models[model_name]
+                    deltacor, lost, effect = model.get_performance_censored(
+                        fragments=fragments,
+                        transcriptome=transcriptome,
+                        censorer=self.censorer,
+                        cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
+                        regions=[region],
+                        device=device,
+                        min_fragments=min_fragments,
+                    )
 
                     self.scores["deltacor"][region, fold_ix, "test"] = deltacor
                     self.scores["lost"][region, fold_ix, "test"] = lost

@@ -57,6 +57,15 @@ def xgboost_cv(x_train, y_train, x_validation, y_validation):
     return lm
 
 
+def xgboost_cv_gpu(x_train, y_train, x_validation, y_validation):
+    import xgboost
+
+    lm = xgboost.XGBRegressor(n_estimators=100, early_stopping_rounds=50, tree_method="gpu_hist")
+    eval_set = [(x_train, y_train)]
+    lm.fit(x_train, y_train, eval_set=eval_set, verbose=False)
+    return lm
+
+
 class Prediction(Flow):
     scores = chd.flow.SparseDataset()
 
@@ -150,6 +159,10 @@ class Prediction(Flow):
                         import xgboost
 
                         lm = xgboost_cv(x_train, y_train, x_validation, y_validation)
+                    elif predictor == "xgboost_gpu":
+                        import xgboost
+
+                        lm = xgboost_cv_gpu(x_train, y_train, x_validation, y_validation)
                     else:
                         raise ValueError(f"predictor {predictor} not recognized")
 

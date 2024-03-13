@@ -509,6 +509,51 @@ class TophatEncoding(torch.nn.Module):
         return embedding
 
 
+class TophatBinaryEncoding(torch.nn.Module):
+    requires_grad = False
+
+    def __init__(
+        self,
+        n_frequencies,
+        window=[-100000, 100000],
+        n_features=2,
+        scale=1,
+    ):
+        super().__init__()
+
+        # create frequencies
+        if isinstance(n_frequencies, (tuple, list, np.ndarray)):
+            pass
+        else:
+            n = n_frequencies
+            n_frequencies = []
+            while n > 1:
+                n_frequencies.append(n)
+                n = n // 2
+
+        locs = []
+        scales = []
+
+        for n in n_frequencies:
+            locs.extend(torch.linspace(*window, n + 1))
+            scales.extend(((window[1] - window[0]) / n * scale) * np.ones(n + 1))
+
+        self.register_buffer("locs", torch.tensor(locs).float())
+        self.register_buffer("scales", torch.tensor(scales).float())
+
+        self.n_embedding_dimensions = len(locs) * n_features
+
+    def forward(self, coordinates):
+        coordinates = coordinates[..., None]
+        normalized = ((coordinates - self.locs) / self.scales).flatten(-2)
+        embedding = (normalized > 0) & (normalized <= 1)
+
+        if self.requires_grad:
+            embedding.requires_grad = True
+            self.embedding = embedding
+        return embedding
+
+
 class DirectDistanceEncoding(torch.nn.Module):
     def __init__(self, max=800):
         super().__init__()

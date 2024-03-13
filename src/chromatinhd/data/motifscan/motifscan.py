@@ -612,13 +612,16 @@ def create_onehots(sequences):
     return torch.stack(onehots).to(torch.float32)
 
 
-def create_region_onehots(regions: Regions, fasta_file: PathLike):
+def create_region_onehots(regions: Regions, fasta_file: PathLike, coordinates=None):
     import pysam
 
     region_onehots = {}
     fasta = pysam.FastaFile(fasta_file)
 
-    for region_id, region in tqdm.tqdm(regions.coordinates.iterrows()):
+    if coordinates is None:
+        coordinates = regions.coordinates
+
+    for region_id, region in tqdm.tqdm(coordinates.iterrows()):
         # clip start if needed
         start = int(region["start"])
         sequences = fasta.fetch(region["chrom"], np.clip(start, 0, 999999999), region["end"])

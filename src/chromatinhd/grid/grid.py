@@ -431,6 +431,8 @@ class Grid(Element):
                 column = np.array(self.elements).flatten().tolist().index(column) % self.ncol
             except ValueError as e:
                 raise ValueError("The panel specified as column was not found in the grid") from e
+        if not isinstance(column, int):
+            raise TypeError("column must be an integer, not " + str(column))
         self[row, column] = el
         if padding is not None:
             self.paddings_height[row] = padding

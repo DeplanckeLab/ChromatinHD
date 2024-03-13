@@ -52,6 +52,8 @@ class RegionPairWindow(chd.flow.Flow):
         censorer,
         regions: Optional[List] = None,
         folds=None,
+        transcriptome=None,
+        fragments=None,
         force=False,
         device=None,
     ):
@@ -104,8 +106,8 @@ class RegionPairWindow(chd.flow.Flow):
 
                     model = models[model_name]
                     predicted, expected, n_fragments = model.get_prediction_censored(
-                        # fragments=fragments,
-                        # transcriptome=transcriptome,
+                        fragments=fragments,
+                        transcriptome=transcriptome,
                         censorer=censorer,
                         cell_ixs=np.concatenate([fold["cells_validation"], fold["cells_test"]]),
                         regions=[region],
