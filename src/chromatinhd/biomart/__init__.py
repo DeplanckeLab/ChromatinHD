@@ -1,5 +1,5 @@
 from .dataset import Dataset
-from .tss import get_canonical_transcripts, get_exons, get_transcripts, map_symbols
+from .tss import get_canonical_transcripts, get_exons, get_transcripts, map_symbols, get_genes
 from . import tss
 from .homology import get_orthologs
 

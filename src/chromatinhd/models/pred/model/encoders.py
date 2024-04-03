@@ -274,6 +274,31 @@ class SplineBinaryEncoding(torch.nn.Module):
         return out
 
 
+class SplineBinaryFullEncoding(torch.nn.Module):
+    def __init__(self, binwidths=(100, 200, 500, 1000, 2000, 5000), window=(-100000, 100000)):
+        super().__init__()
+        self.register_buffer("binwidths", torch.tensor(binwidths))
+        self.register_buffer("binshifts", window[0] // self.binwidths)
+        self.nbins = torch.tensor([(window[1] - window[0]) // binwidth + 1 for binwidth in self.binwidths])
+        self.register_buffer(
+            "bincumstarts", torch.cat([torch.zeros(1, dtype=torch.int64), torch.cumsum(self.nbins, 0)[:-1]])
+        )
+        self.window = window
+
+        self.register_buffer(
+            "binpositions", torch.concatenate([torch.arange(window[0], window[1] + 1, bw) for bw in binwidths])
+        )
+        self.register_buffer(
+            "binscales",
+            torch.concatenate([torch.tensor([bw] * math.ceil((window[1] - window[0] + 1) / bw)) for bw in binwidths]),
+        )
+
+    def forward(self, coordinates):
+        coordinates = coordinates[..., None]
+        embedding = torch.clamp(1 - torch.abs((self.binpositions - coordinates) / self.binscales), 0, 1).flatten(-2)
+        return embedding
+
+
 import time
 
 

@@ -574,6 +574,7 @@ class RegionPositional(chd.flow.Flow):
 
         plotdata, plotdata_mean = self.get_plotdata(region_id)
         selection = pd.DataFrame({"chosen": (plotdata["prob"].unstack() > prob_cutoff).any()})
+        print(selection.max())
 
         # add padding
         step = plotdata.index.get_level_values("coord")[1] - plotdata.index.get_level_values("coord")[0]

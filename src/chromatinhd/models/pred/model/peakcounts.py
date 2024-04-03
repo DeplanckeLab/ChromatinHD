@@ -188,6 +188,51 @@ class Prediction(Flow):
         end = time.time()
         self.scores["time"][gene_oi] = end - start
 
+    def get_prediction(self, gene_oi, predictor, layer, fold_ix):
+        peaks, x = self.peakcounts.get_peak_counts(gene_oi)
+
+        fold_ix, fold = fold_ix, self.folds[fold_ix]
+
+        if layer is None:
+            layer = list(self.transcriptome.layers.keys())[0]
+        y = self.transcriptome.layers[layer][:, self.transcriptome.var.index == gene_oi][:, 0]
+        if x.shape[1] > 0:
+            cells_train = np.hstack([fold["cells_train"]])
+
+            x_train = x[cells_train]
+            x_validation = x[fold["cells_validation"]]
+            x_test = x[fold["cells_test"]]
+
+            y_train = y[cells_train]
+            y_validation = y[fold["cells_validation"]]
+            y_test = y[fold["cells_test"]]
+
+            if predictor == "linear":
+                lm = sklearn.linear_model.LinearRegression()
+                lm.fit(x_train, y_train)
+            else:
+                if predictor == "lasso":
+                    lm = lasso_cv(x_train, y_train, x_validation, y_validation)
+                elif predictor == "rf":
+                    lm = rf_cv(x_train, y_train, x_validation, y_validation)
+                elif predictor == "ridge":
+                    lm = sklearn.linear_model.RidgeCV(alphas=10)
+                elif predictor == "xgboost":
+                    import xgboost
+
+                    lm = xgboost_cv(x_train, y_train, x_validation, y_validation)
+                elif predictor == "xgboost_gpu":
+                    import xgboost
+
+                    lm = xgboost_cv_gpu(x_train, y_train, x_validation, y_validation)
+                else:
+                    raise ValueError(f"predictor {predictor} not recognized")
+
+            cors = []
+
+            y_predicted = lm.predict(x_test)
+            return y_predicted, y_test
+
 
 class PredictionTest(Flow):
     scores = chd.flow.SparseDataset()

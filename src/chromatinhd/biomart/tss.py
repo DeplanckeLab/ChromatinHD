@@ -19,6 +19,22 @@ def map_symbols(biomart_dataset: Dataset, symbols):
     return mapping
 
 
+def get_genes(
+    biomart_dataset: Dataset,
+) -> pd.DataFrame:
+    """
+    Get all canonical transcripts
+    """
+    genes = biomart_dataset.get(
+        [
+            biomart_dataset.attribute("ensembl_gene_id"),
+            biomart_dataset.attribute("external_gene_name"),
+        ],
+    )
+
+    return genes
+
+
 def get_transcripts(
     biomart_dataset: Dataset,
     gene_ids=None,

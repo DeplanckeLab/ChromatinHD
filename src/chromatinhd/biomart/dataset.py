@@ -245,7 +245,7 @@ class Dataset:
         elif genome in ["GRCm39"]:
             return Dataset(
                 "mmusculus_gene_ensembl",
-                "https://nov2020.archive.ensembl.org/biomart/martservice?",
+                "http://www.ensembl.org/biomart/martservice?",
                 "ENSEMBL_MART_ENSEMBL",
             )
         else:
