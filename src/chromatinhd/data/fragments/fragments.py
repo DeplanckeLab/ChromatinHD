@@ -244,7 +244,7 @@ class Fragments(Flow):
                 Column name in the `obs` DataFrame containing the cell names.
             batch_column:
                 Column name in the `obs` DataFrame containing the batch indices.
-                If None,
+                If None, will default to batch
             path:
                 Folder in which the fragments data will be stored.
             overwrite:
@@ -342,6 +342,7 @@ class Fragments(Flow):
                     cell_to_cell_ix=cell_to_cell_ix,
                     region_ix=region_ix,
                 )
+                print(len(coordinates_raw_batch))
                 mapping_raw.append(mapping_raw_batch)
                 coordinates_raw.append(coordinates_raw_batch)
 

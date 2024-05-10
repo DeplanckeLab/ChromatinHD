@@ -260,6 +260,11 @@ class Motifscan(Flow):
                     np.searchsorted(self.regions.cumulative_region_lengths, positions + 1).astype(np.int32) - 1
                 )
 
+                coordinates = (
+                    coordinates
+                    + (self.regions.coordinates["start"] - self.regions.coordinates["tss"]).values[region_indices]
+                )
+
                 positions_raw.append(positions)
                 coordinates_raw.append(coordinates)
                 indices_raw.append(np.full_like(coordinates, motif_ix, dtype=np.int32))

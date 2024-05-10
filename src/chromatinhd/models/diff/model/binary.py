@@ -118,8 +118,6 @@ class Model(FlowModel):
             data.cuts.local_cellxregion_ix, minlength=data.minibatch.n_cells * data.minibatch.n_regions
         ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
 
-        # print(count)
-
         if libsize is None:
             libsize = self.libsize
         mu = torch.exp(
@@ -172,6 +170,8 @@ class Model(FlowModel):
         do_validation=True,
         n_cells_step=250,
         n_regions_step=100,
+        n_workers_validation=5,
+        n_workers_train=10,
     ):
         """
         Trains the model
@@ -211,7 +211,7 @@ class Model(FlowModel):
                 fragments=fragments,
                 cellxregion_batch_size=minibatcher_train.cellxregion_batch_size,
             ),
-            n_workers=10,
+            n_workers=n_workers_train,
         )
         loaders_validation = LoaderPool(
             ClusteringCuts,
@@ -220,7 +220,7 @@ class Model(FlowModel):
                 fragments=fragments,
                 cellxregion_batch_size=minibatcher_validation.cellxregion_batch_size,
             ),
-            n_workers=5,
+            n_workers=n_workers_validation,
         )
 
         trainer = Trainer(

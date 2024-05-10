@@ -82,14 +82,27 @@ class Motifs(Grid):
 
 
 class GroupedMotifs(Grid):
-    def __init__(self, motifscan, gene, motifs_oi, window=None, width=1.0, panel_height=0.1, label_motifs=True):
+    def __init__(
+        self,
+        motifscan,
+        gene,
+        motifs_oi,
+        window=None,
+        width=1.0,
+        panel_height=0.1,
+        label_motifs=True,
+        label_motifs_side="right",
+        group_info=None,
+    ):
         """
         Plot the location of motifs in a region.
         """
 
         super().__init__()
 
-        motifs_oi, group_info, motifdata = _process_grouped_motifs(gene, motifs_oi, motifscan)
+        motifs_oi, group_info, motifdata = _process_grouped_motifs(
+            gene, motifs_oi, motifscan, group_info=group_info, window=window
+        )
 
         for group, group_info_oi in group_info.iterrows():
             group_motifs = motifs_oi.query("group == @group")
@@ -98,16 +111,28 @@ class GroupedMotifs(Grid):
             ax.set_xticks([])
             ax.set_yticks([])
 
+            ax.axis("off")
+            ax.axhspan(0, 1, color=group_motifs["color"][0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
+
             if label_motifs:
+                if label_motifs_side == "right":
+                    xy = (1.0, 0.5)
+                    ha = "left"
+                    xytext = (2, 0)
+                else:
+                    xy = (0.0, 0.5)
+                    ha = "right"
+                    xytext = (-2, 0)
                 ax.annotate(
                     group_info_oi["label"],
-                    (1.0, 0.5),
+                    xy,
                     xycoords="axes fraction",
-                    xytext=(2, 0),
+                    xytext=xytext,
                     textcoords="offset points",
+                    color=group_motifs["color"][0],
                     va="center",
                     fontsize=9,
-                    ha="left",
+                    ha=ha,
                 )
 
                 # ax.set_yticks(range(len(group_motifs)))
@@ -234,17 +259,20 @@ def _setup_group(ax, group_info_oi, group_motifs):
     ax.set_xticks([])
     ax.set_yticks([])
 
-    rainbow_text(
-        ax=ax,
-        x=1.0,
-        y=0.0,
-        strings=group_motifs["label"].tolist(),
-        colors=group_motifs["color"].tolist(),
-        transform=ax.transAxes,
-        ha="left",
-        va="bottom",
-        fontsize=9,
-    )
+    if "label" in group_info_oi.keys():
+        ax.text(s=group_info_oi["label"], color=group_motifs["color"].tolist()[0], x=1.0, y=0.0, transform=ax.transAxes)
+    else:
+        rainbow_text(
+            ax=ax,
+            x=1.0,
+            y=0.0,
+            strings=group_motifs["label"].tolist(),
+            colors=group_motifs["color"].tolist(),
+            transform=ax.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=9,
+        )
 
 
 def rainbow_text(x, y, strings, colors, ax, transform=None, **kw):

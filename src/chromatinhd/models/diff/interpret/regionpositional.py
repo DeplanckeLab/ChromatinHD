@@ -588,10 +588,10 @@ class RegionPositional(chd.flow.Flow):
             {
                 "start": selection.index[
                     (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
-                ],
+                ].astype(int),
                 "end": selection.index[
                     (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == -1)[1:]
-                ],
+                ].astype(int),
             }
         )
 

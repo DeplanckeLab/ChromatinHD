@@ -32,7 +32,9 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             self.order = plotdata_expression_clusters.index
 
         if norm_expression is None:
-            norm_expression = mpl.colors.Normalize(0.0, plotdata_expression_clusters.max(), clip=True)
+            norm_expression = mpl.colors.Normalize(
+                min(0.0, plotdata_expression_clusters.min()), plotdata_expression_clusters.max(), clip=True
+            )
 
         cmap_expression = get_cmap_rna_diff()
 
@@ -43,6 +45,8 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             sns.despine(ax=ax, left=True, right=True, top=True, bottom=True)
             ax.set_yticks([])
             ax.set_xticks([])
+
+            print(plotdata_expression_clusters[cluster_id])
 
             circle = mpl.patches.Circle(
                 (0, 0),
@@ -88,13 +92,14 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
     @classmethod
     def from_transcriptome(
-        cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, cluster_info=None, **kwargs
+        cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, cluster_info=None, layer=None, **kwargs
     ):
         import pandas as pd
 
-        transcriptome.var.index.get_loc(gene)
         plotdata_expression_clusters = (
-            pd.Series(transcriptome.get_X(gene), index=transcriptome.obs.index).groupby(clustering.labels.values).mean()
+            pd.Series(transcriptome.get_X(gene, layer=layer), index=transcriptome.obs.index)
+            .groupby(clustering.labels.values)
+            .mean()
         )
 
         if cluster_info is None:

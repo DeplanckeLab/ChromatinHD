@@ -266,6 +266,8 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
         self.window = window
         self.cluster_info = cluster_info
 
+        if cluster_info is None:
+            raise ValueError("cluster_info should not be None")
         plotdata = plotdata.query("cluster in @cluster_info.index")
 
         if order is True:
@@ -307,9 +309,7 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
                     )
 
     @classmethod
-    def from_regionpositional(
-        cls, region_id, regionpositional, breaking, cluster_info=None, relative_to=None, **kwargs
-    ):
+    def from_regionpositional(cls, region_id, regionpositional, breaking, cluster_info, relative_to=None, **kwargs):
         plotdata, plotdata_mean = regionpositional.get_plotdata(region_id, relative_to=relative_to)
         self = cls(
             plotdata=plotdata,
