@@ -26,7 +26,7 @@ def select_cutwindow_multiple(coordinates, window_start, window_end):
 
 
 class WindowCensorer:
-    def __init__(self, window, window_size=100):
+    def __init__(self, window, window_size=200):
         design = [{"window": "control"}]
         cuts = np.arange(*window, step=int(window_size))
 

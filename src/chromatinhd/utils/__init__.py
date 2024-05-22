@@ -8,6 +8,7 @@ from .numpy import indices_to_indptr, indptr_to_indices, indices_to_indptr_chunk
 from .testing import repeated_kfold_corrected_t_test, fdr
 from . import interleave
 from . import ecdf
+from . import intervals
 
 __all__ = [
     "get_git_root",

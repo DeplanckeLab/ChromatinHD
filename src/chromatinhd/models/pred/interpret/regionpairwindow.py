@@ -16,6 +16,8 @@ from chromatinhd.models.pred.model.additive import Models
 
 from chromatinhd.flow.objects import StoredDict, Dataset, DataArray
 
+import chromatinhd.utils
+
 
 def zscore(x, dim=0):
     return (x - x.mean(axis=dim, keepdims=True)) / x.std(axis=dim, keepdims=True)
@@ -77,6 +79,9 @@ class RegionPairWindow(chd.flow.Flow):
         design = censorer.design.iloc[1:].copy()
         self.design = design
 
+        if regions is None:
+            regions = fragments.var.index
+
         if device is None:
             device = get_default_device()
 
@@ -100,6 +105,7 @@ class RegionPairWindow(chd.flow.Flow):
                 for fold_ix, fold in enumerate(folds):
                     model_name = f"{region}_{fold_ix}"
                     if model_name not in models:
+                        continue
                         raise ValueError(f"Model {model_name} not found")
 
                     pbar.set_description(region + " " + str(fold_ix))
@@ -144,6 +150,9 @@ class RegionPairWindow(chd.flow.Flow):
                     deltacor_folds.append(deltacor)
                     lost_folds.append(lost)
 
+                if len(lost_folds) == 0:
+                    continue
+
                 lost_folds = np.stack(lost_folds, 0)
                 deltacor_folds = np.stack(deltacor_folds, 0)
                 copredictivity_folds = np.stack(copredictivity_folds, 0)
@@ -184,44 +193,42 @@ class RegionPairWindow(chd.flow.Flow):
 
         return self
 
-    def get_plotdata(self, region):
+    def get_plotdata(self, region, regions=None):
         """
         Get plotdata for a region
         """
 
-        interaction = self.interaction[region]
+        if regions is None:
+            regions = self.design
+        else:
+            x = self.design[["window_start", "window_end"]].values
+            y = regions[["start", "end"]].values
 
-        plotdata = interaction.mean("model").to_dataframe("cor").reset_index()
-        plotdata["window1"] = plotdata["window1"].astype("category")
-        plotdata["window2"] = plotdata["window2"].astype("category")
+            regions = self.design.loc[chromatinhd.utils.intervals.interval_contains_inclusive(x, y)]
 
-        plotdata = (
-            pd.DataFrame(
-                itertools.combinations(self.design.index, 2),
-                columns=["window1", "window2"],
-            )
-            .set_index(["window1", "window2"])
-            .join(plotdata.set_index(["window1", "window2"]))
+        plotdata_windows = self.scores[region].mean("fold").to_dataframe()
+        plotdata_interaction = self.interaction[region].mean("fold").to_pandas().unstack().to_frame("cor")
+
+        plotdata_interaction = (
+            plotdata_interaction.copy()
+            .join(plotdata_windows.rename(columns=lambda x: x + "1"), on="window1")
+            .join(plotdata_windows.rename(columns=lambda x: x + "2"), on="window2")
         )
-        plotdata = plotdata.reset_index().fillna({"cor": 0.0})
-        plotdata["window_mid1"] = self.design.loc[plotdata["window1"]]["window_mid"].values
-        plotdata["window_mid2"] = self.design.loc[plotdata["window2"]]["window_mid"].values
-        plotdata["dist"] = np.abs(plotdata["window_mid1"] - plotdata["window_mid2"])
-        plotdata = plotdata.query("(window_mid1 < window_mid2)")
-        # plotdata = plotdata.query("dist > 1000")
 
-        # x = interaction.stack({"window1_window2": ["window1", "window2"]}).values
-        # print(x.shape)
-        # scores_statistical = []
-        # for i in range(x.shape[1]):
-        #     scores_statistical.append(scipy.stats.ttest_1samp(x[:, i], 0).pvalue)
-        # scores_statistical = pd.DataFrame({"pval": scores_statistical})
-        # scores_statistical["pval"] = scores_statistical["pval"].fillna(1.0)
-        # scores_statistical["qval"] = fdr(scores_statistical["pval"])
-
-        # plotdata["pval"] = scores_statistical["pval"].values
-        # plotdata["qval"] = scores_statistical["qval"].values
+        # make plotdata, making sure we have all window combinations, otherwise nan
+        plotdata = (
+            pd.DataFrame(itertools.combinations(regions.index, 2), columns=["window1", "window2"])
+            .set_index(["window1", "window2"])
+            .join(plotdata_interaction)
+        )
+        plotdata.loc[np.isnan(plotdata["cor"]), "cor"] = 0.0
+        plotdata["dist"] = (
+            regions.loc[plotdata.index.get_level_values("window2"), "window_mid"].values
+            - regions.loc[plotdata.index.get_level_values("window1"), "window_mid"].values
+        )
 
         plotdata.loc[plotdata["dist"] < 1000, "cor"] = 0.0
+
+        plotdata = plotdata.query("dist > 0")
 
         return plotdata

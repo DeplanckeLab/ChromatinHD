@@ -426,3 +426,54 @@ class RegionMultiWindow(chd.flow.Flow):
         regions = regions[regions["length"] > min_length]
 
         return regions
+
+    def extract_predictive_regions(self, region_id=None, deltacor_cutoff=-0.001):
+        """
+        Extract predictive regions for one (or more) regions
+        """
+
+        feature_name = list(self.scores.coords_pointed.keys())[0]
+
+        if region_id is None:
+            region_id = self.scores.coords_pointed[feature_name]
+
+        if isinstance(region_id, str):
+            region_id = [region_id]
+
+        extracted = []
+
+        for region_id in region_id:
+            if self.interpolation["interpolated"][region_id]:
+                plotdata = self.get_plotdata(region_id)
+                plotdata["chosen"] = (plotdata["deltacor"] < deltacor_cutoff) & (plotdata["effect"] > 0)
+
+                extracted_region_positive = pd.DataFrame(
+                    {
+                        "start": plotdata.index[
+                            (np.diff(np.pad(plotdata["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
+                        ],
+                        "end": plotdata.index[
+                            (np.diff(np.pad(plotdata["chosen"], (1, 1), constant_values=False).astype(int)) == -1)[1:]
+                        ],
+                        feature_name: region_id,
+                        "effect_direction": +1,
+                    }
+                )
+                extracted.append(extracted_region_positive)
+
+                plotdata["chosen"] = (plotdata["deltacor"] < deltacor_cutoff) & (plotdata["effect"] < 0)
+                extracted_region_negative = pd.DataFrame(
+                    {
+                        "start": plotdata.index[
+                            (np.diff(np.pad(plotdata["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
+                        ],
+                        "end": plotdata.index[
+                            (np.diff(np.pad(plotdata["chosen"], (1, 1), constant_values=False).astype(int)) == -1)[1:]
+                        ],
+                        feature_name: region_id,
+                        "effect_direction": -1,
+                    }
+                )
+                extracted.append(extracted_region_negative)
+
+        return pd.concat(extracted)

@@ -7,8 +7,8 @@ import dataclasses
 @dataclasses.dataclass
 class Breaking:
     regions: pd.DataFrame
-    gap: int = 0.1
-    resolution: int = 5000
+    gap: int = 0.05
+    resolution: int = 2500
 
     @property
     def width(self):
