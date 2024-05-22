@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.14.7
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
@@ -49,10 +49,10 @@ clustering = chd.data.Clustering(dataset_folder / "clustering")
 # The basic ChromatinHD-*diff* model
 
 # %%
-models = chd.models.diff.model.cutnf.Models(dataset_folder / "models" / "cutnf", reset=True)
+models = chd.models.diff.model.binary.Models(dataset_folder / "models" / "cutnf", reset=True)
 
 # %% tags=["hide_output"]
-models.train_models(fragments, clustering, folds)
+models.train_models(fragments = fragments, clustering = clustering, folds = folds)
 
 # %% [markdown]
 # ## Interpret positionally
@@ -61,35 +61,45 @@ models.train_models(fragments, clustering, folds)
 # Currently, the ChromatinHD-model is purely positional, i.e. it only looks whether Tn5 insertion sites increase or decrease within a region. As such, we can only interpret it positionally:
 
 # %%
-import chromatinhd.models.diff.interpret.genepositional
+import chromatinhd.models.diff.interpret.regionpositional
 
 # %%
 clustering.cluster_info.index.name = "cluster"
 
 # %%
-genepositional = chromatinhd.models.diff.interpret.genepositional.GenePositional(
-    path=models.path / "interpret" / "genepositional"
+regionpositional = chromatinhd.models.diff.interpret.regionpositional.RegionPositional(
+    path=models.path / "interpret" / "regionpositional"
 )
-genepositional.score(
-    fragments,
-    clustering,
-    models,
+regionpositional.score(
+    fragments = fragments,
+    clustering = clustering,
+    models = models,
     force=True,
 )
 
-# %%
-symbol = "EBF1"
+# %% [markdown]
+# ### Plot differential accessibility at a specific window
 
+# %% [markdown]
+# To avoid overplotting, we will plot only the window close to the TSS.
+
+# %%
+symbol = "IRF1"
+gene_id = transcriptome.gene_id(symbol)
+
+# %%
+window = [-10000, 10000]
+
+# %%
 fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05, padding_width=0.05))
 width = 10
 
 region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
-panel_genes = chd.plot.genome.genes.Genes.from_region(region, width=width)
+panel_genes = chd.plot.genome.genes.Genes.from_region(region, width=width, window = window)
 fig.main.add_under(panel_genes)
 
-plotdata, plotdata_mean = genepositional.get_plotdata(transcriptome.gene_id(symbol))
-panel_differential = chd.models.diff.plot.Differential(
-    plotdata, plotdata_mean, cluster_info=clustering.cluster_info, panel_height=0.5, width=width
+panel_differential = chd.models.diff.plot.Differential.from_regionpositional(
+    transcriptome.gene_id(symbol), regionpositional, cluster_info=clustering.cluster_info, panel_height=0.5, width=width, window = window
 )
 fig.main.add_under(panel_differential)
 
@@ -99,5 +109,35 @@ panel_expression = chd.models.diff.plot.DifferentialExpression.from_transcriptom
 fig.main.add_right(panel_expression, row=panel_differential)
 
 fig.plot()
+
+# %% [markdown]
+# ### Plot differential accessibility for all windows
+
+# %%
+windows = regionpositional.select_windows(gene_id)
+breaking = chd.grid.Breaking(windows)
+
+# %%
+fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05, padding_width=0.05))
+width = 10
+
+region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
+panel_genes = chd.plot.genome.genes.GenesBroken.from_region(region, breaking=breaking)
+fig.main.add_under(panel_genes)
+
+panel_differential = chd.models.diff.plot.DifferentialBroken.from_regionpositional(
+    transcriptome.gene_id(symbol), regionpositional, cluster_info=clustering.cluster_info, panel_height=0.5, breaking=breaking, window = window
+)
+fig.main.add_under(panel_differential)
+
+panel_expression = chd.models.diff.plot.DifferentialExpression.from_transcriptome(
+    transcriptome=transcriptome, clustering=clustering, gene=transcriptome.gene_id(symbol), panel_height=0.5
+)
+fig.main.add_right(panel_expression, row=panel_differential)
+
+fig.plot()
+
+# %% [markdown]
+# ## Differential TFBSs
 
 # %%
