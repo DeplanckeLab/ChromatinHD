@@ -288,16 +288,10 @@ class LibrarySizeEncoder(torch.nn.Module):
     def __init__(self, fragments, n_layers=1, scale=1.0):
         super().__init__()
 
-        # library_size = np.bincount(fragments.mapping[:, 0], minlength=fragments.n_cells)
-        # self.register_buffer(
-        #     "differential_library_size",
-        #     torch.from_numpy((library_size - library_size.mean()) / library_size.std()).float() * scale,
-        # )
         self.scale = scale
         self.n_embedding_dimensions = 1
 
     def forward(self, data):
-        # return self.differential_library_size[data.minibatch.cells_oi].reshape(-1, 1)
         return data.fragments.libsize.reshape(-1, 1) * self.scale
 
 
@@ -321,8 +315,7 @@ class EmbeddingToExpression(torch.nn.Module):
         **kwargs,
     ):
         self.n_input_embedding_dimensions = n_input_embedding_dimensions
-        # self.n_embedding_dimensions = n_embedding_dimensions
-        self.n_embedding_dimensions = n_input_embedding_dimensions  # required for residual layers, sorry..
+        self.n_embedding_dimensions = n_input_embedding_dimensions
         self.residual = residual
 
         super().__init__()
@@ -382,31 +375,6 @@ class EmbeddingToExpression(torch.nn.Module):
         return embedding.reshape(cell_region_embedding.shape[:-1])
 
 
-class catchtime(object):
-    def __init__(self, dict, name):
-        self.name = name
-        self.dict = dict
-
-    def __enter__(self):
-        self.t = time.time()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.t = time.time() - self.t
-        self.dict[self.name] += self.t
-
-
-import collections
-
-
-class timer(object):
-    def __init__(self):
-        self.times = collections.defaultdict(float)
-
-    def catch(self, name):
-        return catchtime(self.times, name)
-
-
 class Model(FlowModel):
     """
     Predicting region expression from raw fragments using an additive model across fragments from the same cell
@@ -447,27 +415,27 @@ class Model(FlowModel):
         transcriptome: Transcriptome | None = None,
         fold=None,
         dummy: bool = False,
-        n_frequencies: int = 50,
+        n_frequencies: int = (1000, 500, 250, 125, 63, 31),
         reduce: str = "sum",
-        nonlinear: bool = True,
-        n_embedding_dimensions: int = 10,
+        nonlinear: bool = "silu",
+        n_embedding_dimensions: int = 100,
         embedding_to_expression_initialization: str = "default",
         dropout_rate_fragment_embedder: float = 0.0,
         n_layers_fragment_embedder=1,
-        residual_fragment_embedder=False,
+        residual_fragment_embedder=True,
         batchnorm_fragment_embedder=False,
         layernorm_fragment_embedder=False,
-        n_layers_embedding2expression=1,
+        n_layers_embedding2expression=5,
         dropout_rate_embedding2expression: float = 0.0,
-        residual_embedding2expression=False,
+        residual_embedding2expression=True,
         batchnorm_embedding2expression=False,
-        layernorm_embedding2expression=False,
+        layernorm_embedding2expression=True,
         layer=None,
         reset=False,
         encoder=None,
         pooler=None,
-        distance_encoder=None,
-        library_size_encoder=None,
+        distance_encoder="direct",
+        library_size_encoder="linear",
         library_size_encoder_kwargs=None,
         region_oi=None,
         encoder_kwargs=None,
@@ -574,81 +542,55 @@ class Model(FlowModel):
         # return region_pairzmse_loss(expression_predicted, expression_true)
 
     def forward_multiple(self, data, fragments_oi, min_fragments=1):
-        timing = timer()
+        fragment_embedding = self.fragment_embedder(data)
 
-        with timing.catch("prep"):
-            fragment_embedding = self.fragment_embedder(data)
+        total_n_fragments = torch.bincount(
+            data.fragments.local_cellxregion_ix,
+            minlength=data.minibatch.n_regions * data.minibatch.n_cells,
+        ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
 
-            total_n_fragments = torch.bincount(
-                data.fragments.local_cellxregion_ix,
-                minlength=data.minibatch.n_regions * data.minibatch.n_cells,
-            ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
+        total_cell_region_embedding = self.embedding_region_pooler.forward(
+            fragment_embedding,
+            data.fragments.local_cellxregion_ix,
+            data.minibatch.n_cells,
+            data.minibatch.n_regions,
+        )
+        cell_region_embedding = total_cell_region_embedding
 
-            total_cell_region_embedding = self.embedding_region_pooler.forward(
-                fragment_embedding,
-                data.fragments.local_cellxregion_ix,
-                data.minibatch.n_cells,
-                data.minibatch.n_regions,
+        if hasattr(self, "library_size_encoder"):
+            cell_region_embedding = torch.cat(
+                [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
             )
-            cell_region_embedding = total_cell_region_embedding
 
-            if hasattr(self, "library_size_encoder"):
-                cell_region_embedding = torch.cat(
-                    [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
+        total_expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
+
+        for fragments_oi_ in fragments_oi:
+            if (fragments_oi_ is not None) and ((~fragments_oi_).sum().item() > min_fragments):
+                lost_fragments_oi = ~fragments_oi_
+                lost_local_cellxregion_ix = data.fragments.local_cellxregion_ix[lost_fragments_oi]
+                n_fragments = total_n_fragments - torch.bincount(
+                    lost_local_cellxregion_ix,
+                    minlength=data.minibatch.n_regions * data.minibatch.n_cells,
+                ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
+
+                cell_region_embedding = total_cell_region_embedding - self.embedding_region_pooler.forward(
+                    fragment_embedding[lost_fragments_oi],
+                    lost_local_cellxregion_ix,
+                    data.minibatch.n_cells,
+                    data.minibatch.n_regions,
                 )
 
-            total_expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
+                if hasattr(self, "library_size_encoder"):
+                    cell_region_embedding = torch.cat(
+                        [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
+                    )
 
-        # with timing.catch("selecting_fragments"):
-        #     for fragments_oi_ in fragments_oi:
-        #         pass
+                expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
+            else:
+                n_fragments = total_n_fragments
+                expression_predicted = total_expression_predicted
 
-        with timing.catch("main_loop"):
-            for fragments_oi_ in fragments_oi:
-                with timing.catch("within"):
-                    if (fragments_oi_ is not None) and ((~fragments_oi_).sum().item() > min_fragments):
-                        with timing.catch("lost"):
-                            with timing.catch("selector"):
-                                lost_fragments_oi = ~fragments_oi_
-                                lost_local_cellxregion_ix = data.fragments.local_cellxregion_ix[lost_fragments_oi]
-                            with timing.catch("counter"):
-                                n_fragments = total_n_fragments - torch.bincount(
-                                    lost_local_cellxregion_ix,
-                                    minlength=data.minibatch.n_regions * data.minibatch.n_cells,
-                                ).reshape((data.minibatch.n_cells, data.minibatch.n_regions))
-
-                            with timing.catch("pooler"):
-                                cell_region_embedding = (
-                                    total_cell_region_embedding
-                                    - self.embedding_region_pooler.forward(
-                                        fragment_embedding[lost_fragments_oi],
-                                        lost_local_cellxregion_ix,
-                                        data.minibatch.n_cells,
-                                        data.minibatch.n_regions,
-                                    )
-                                )
-
-                            with timing.catch("libsize"):
-                                if hasattr(self, "library_size_encoder"):
-                                    cell_region_embedding = torch.cat(
-                                        [cell_region_embedding, self.library_size_encoder(data).unsqueeze(-2)], dim=-1
-                                    )
-
-                        with timing.catch("embedding_to_expression"):
-                            # changed = torch.where((n_fragments != total_n_fragments).any(1))[0]
-                            # print(expression_predicted.shape)
-
-                            expression_predicted = self.embedding_to_expression.forward(cell_region_embedding)
-                        # expression_predicted = total_expression_predicted.clone()
-                        # expression_predicted[changed] = self.embedding_to_expression.forward(cell_region_embedding[changed])
-                    else:
-                        n_fragments = total_n_fragments
-                        expression_predicted = total_expression_predicted
-
-                with timing.catch("yield"):
-                    yield expression_predicted, n_fragments
-
-        print(timing.times)
+            yield expression_predicted, n_fragments
 
     def forward_multiple2(self, data, fragments_oi, min_fragments=1):
         fragment_embedding = self.fragment_embedder(data)
@@ -734,7 +676,7 @@ class Model(FlowModel):
         pbar=True,
         n_regions_step=1,
         n_cells_step=20000,
-        weight_decay=1e-2,
+        weight_decay=1e-1,
         checkpoint_every_epoch=1,
         optimizer="adam",
         n_cells_train=None,
@@ -846,7 +788,6 @@ class Model(FlowModel):
         self.trace = trainer.trace
 
         trainer.train()
-        # trainer.trace.plot()
 
     def get_prediction(
         self,
@@ -1039,15 +980,11 @@ class Model(FlowModel):
                     pred_mb,
                     n_fragments_oi_mb,
                 ) in enumerate(self.forward_multiple(data, fragments_oi, min_fragments=min_fragments)):
-                    # predicted.append(pred_mb.cpu().numpy())
-                    # n_fragments.append(n_fragments_oi_mb.cpu().numpy())
                     predicted.append(pred_mb)
                     n_fragments.append(n_fragments_oi_mb)
             expected = data.transcriptome.value.cpu().numpy()
 
         self.to("cpu")
-        # predicted = np.stack(predicted, axis=0)
-        # n_fragments = np.stack(n_fragments, axis=0)
         predicted = torch.stack(predicted, axis=0).cpu().numpy()
         n_fragments = torch.stack(n_fragments, axis=0).cpu().numpy()
 
@@ -1168,13 +1105,18 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(self, device=None, pbar=True, regions_oi=None, **kwargs):
+    def train_models(
+        self, device=None, pbar=True, transcriptome=None, fragments=None, folds=None, regions_oi=None, **kwargs
+    ):
         if "device" in self.train_params and device is None:
             device = self.train_params["device"]
 
-        fragments = self.fragments
-        transcriptome = self.transcriptome
-        folds = self.folds
+        if fragments is None:
+            fragments = self.fragments
+        if transcriptome is None:
+            transcriptome = self.transcriptome
+        if folds is None:
+            folds = self.folds
 
         if regions_oi is None:
             if self.regions_oi is None:
@@ -1234,22 +1176,35 @@ class Models(Flow):
         cor_n_fragments = np.zeros((len(fragments.var.index), len(folds)))
         n_fragments = np.zeros((len(fragments.var.index), len(folds)))
 
+        regions_oi = fragments.var.index if self.regions_oi is None else self.regions_oi
+
+        from itertools import product
+
+        cors = []
+
         if device is None:
             device = get_default_device()
-        for model_ix, (model, fold) in enumerate(zip(self, folds)):
-            prediction = model.get_prediction(fragments, transcriptome, cell_ixs=fold["cells_test"], device=device)
+        for region_id, (fold_ix, fold) in product(regions_oi, enumerate(folds)):
+            if region_id + "_" + str(fold_ix) in self:
+                model = self[region_id + "_" + str(fold_ix)]
+                prediction = model.get_prediction(fragments, transcriptome, cell_ixs=fold["cells_test"], device=device)
 
-            cor_predicted[:, model_ix] = paircor(prediction["predicted"].values, prediction["expected"].values)
-            cor_n_fragments[:, model_ix] = paircor(prediction["n_fragments"].values, prediction["expected"].values)
+                cors.append(
+                    {
+                        fragments.var.index.name: region_id,
+                        "cor": np.corrcoef(prediction["predicted"].values[:, 0], prediction["expected"].values[:, 0])[
+                            0, 1
+                        ],
+                        "cor_n_fragments": np.corrcoef(
+                            prediction["n_fragments"].values[:, 0], prediction["expected"].values[:, 0]
+                        )[0, 1],
+                    }
+                )
 
-            n_fragments[:, model_ix] = prediction["n_fragments"].values.sum(0)
-        cor_predicted = pd.Series(cor_predicted.mean(1), index=fragments.var.index, name="cor_predicted")
-        cor_n_fragments = pd.Series(cor_n_fragments.mean(1), index=fragments.var.index, name="cor_n_fragments")
-        n_fragments = pd.Series(n_fragments.mean(1), index=fragments.var.index, name="n_fragments")
-        result = pd.concat([cor_predicted, cor_n_fragments, n_fragments], axis=1)
-        result["deltacor"] = result["cor_predicted"] - result["cor_n_fragments"]
+        cors = pd.DataFrame(cors).set_index(fragments.var.index.name)
+        cors["deltacor"] = cors["cor"] - cors["cor_n_fragments"]
 
-        return result
+        return cors
 
     @property
     def design(self):

@@ -82,6 +82,7 @@ class Genes(chromatinhd.grid.Ax):
         width,
         full_ticks=False,
         label_genome=False,
+        annotate_tss=True,
         symbol=None,
     ):
         super().__init__((width, len(plotdata_genes) * 0.08 + 0.01))
@@ -204,7 +205,8 @@ class Genes(chromatinhd.grid.Ax):
                 ax.add_patch(rect)
 
         # vline at tss
-        ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
+        if annotate_tss:
+            ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
     def from_region(cls, region, genome="GRCh38", window=None, use_cache=True, show_genes=True, **kwargs):

@@ -104,6 +104,10 @@ def extract_peaks(peaks_bed, promoter, peakcaller):
         peaks = peaks.rename(columns={"name": "cluster"})
         peaks["cluster"] = peaks["cluster"].astype(int)
 
+    if peakcaller == "rolling_500":
+        peaks["start"] = peaks["start"] + 250
+        peaks["end"] = peaks["end"] + 250
+
     if len(peaks) > 0:
         peaks["peak"] = peaks["chrom"] + ":" + peaks["start"].astype(str) + "-" + peaks["end"].astype(str)
         peaks = center_peaks(peaks, promoter)
@@ -337,7 +341,7 @@ def _plot_peaks(ax, plotdata, y, lw=0.5, fc="#555"):
                 peak["end"] - peak["start"],
                 1,
                 fc=fc,
-                lw=0,
+                lw=0.5,
             )
             ax.add_patch(rect)
             # ax.plot([peak["start"]] * 2, [y, y + 1], color="grey", lw=lw)

@@ -60,8 +60,6 @@ class RegionMultiWindow(chd.flow.Flow):
 
         regions = fragments.regions.var.index
 
-        print(len(folds))
-
         coords_pointed = {
             regions.name: regions,
             "fold": pd.Index(range(len(folds)), name="fold"),
@@ -304,8 +302,6 @@ class RegionMultiWindow(chd.flow.Flow):
         deltacors = np.stack(deltacors)
         effects = np.stack(effects)
         losts = np.stack(losts)
-
-        print(deltacors.min())
 
         scores_statistical = []
         for i in range(deltacors.shape[1]):

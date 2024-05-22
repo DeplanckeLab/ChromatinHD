@@ -7,7 +7,7 @@ import dataclasses
 @dataclasses.dataclass
 class Breaking:
     regions: pd.DataFrame
-    gap: int
+    gap: int = 0.1
     resolution: int = 5000
 
     @property
@@ -29,7 +29,11 @@ class Broken(Grid):
         regions["ix"] = np.arange(len(regions))
 
         for i, (region, region_info) in enumerate(regions.iterrows()):
-            subpanel_width = region_info["width"] / breaking.resolution
+            if "resolution" in region_info.index:
+                resolution = region_info["resolution"]
+            else:
+                resolution = breaking.resolution
+            subpanel_width = region_info["width"] / resolution
             panel, ax = self.add_right(
                 Panel((subpanel_width, height + 1e-4)),
             )
