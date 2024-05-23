@@ -178,8 +178,6 @@ class Model(FlowModel):
         Trains the model
         """
 
-        # print(regions_oi, n_epochs)
-
         if fragments is None:
             fragments = self.fragments
         if clustering is None:
@@ -515,7 +513,7 @@ class Models(Flow):
                     path=model_folder,
                     **self.model_params,
                 )
-                model.train_model(device=device, pbar=True, regions_oi=regions_oi, **self.train_params)
+                model.train_model(device=device, pbar=True, regions_oi=regions_oi, **{**self.train_params, **kwargs})
                 model.save_state()
 
                 model = model.to("cpu")

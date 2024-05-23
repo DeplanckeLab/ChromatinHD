@@ -63,7 +63,7 @@ def test_scan():
         scores, positions, strands = chd.data.motifscan.motifscan.scan(onehot, pwm, cutoff=1.5)
 
         assert np.allclose(scores, test["expected_scores"]), (test["sequence"], scores)
-        assert np.allclose(positions, test["expected_positions"].astype(np.int))
+        assert np.allclose(positions, test["expected_positions"].astype(positions.dtype))
         assert np.allclose(strands, test["expected_strands"].astype(np.int8))
 
 

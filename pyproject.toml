@@ -31,6 +31,7 @@ dependencies = [
     "tensorstore",
     "requests",
     "zarr",
+    "pathlibfs",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
