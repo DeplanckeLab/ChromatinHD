@@ -30,6 +30,7 @@ dependencies = [
     "pysam",
     "tensorstore",
     "requests",
+    "zarr",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
@@ -58,9 +59,7 @@ dev = [
     "pillow",  # for mkdocs social
     "mkdocs-awesome-pages-plugin",
     "setuptools_scm",
-    # "faiss-cpu",
     "Cython",
-    "zarr",
 ]
 test = [
     "pytest",
