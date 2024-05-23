@@ -2116,7 +2116,7 @@ import tqdm.auto as tqdm</div>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[3]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[2]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
         
         
         <div class="CodeMirror cm-s-jupyter">
@@ -2155,7 +2155,7 @@ chd.get_default_device()</div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
     
-    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[3]:</div>
+    <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[2]:</div>
 
 
 
@@ -2177,7 +2177,7 @@ chd.get_default_device()</div>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[4]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[3]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
         
         
         <div class="CodeMirror cm-s-jupyter">
@@ -2213,7 +2213,7 @@ fragments_original = chd.data.Fragments(dataset_folder_original / "fragments" / 
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[7]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[4]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
         
         
         <div class="CodeMirror cm-s-jupyter">
@@ -2268,22 +2268,22 @@ transcriptome = transcriptome_original.filter_genes(regions.coordinates.index)</
 <span class="ansi-green-intense-fg ansi-bold">      &lt;a href=&#39;vscode-notebook-cell://ssh-remote%2Bgpu/home/wsaelens/projects/chromatinhd/chromatinhd/docs/source/benchmark/diff/models.ipynb#W3sdnNjb2RlLXJlbW90ZQ%3D%3D?line=3&#39;&gt;4&lt;/a&gt;</span> fragments.create_cellxgene_indptr()
 <span class="ansi-green-intense-fg ansi-bold">      &lt;a href=&#39;vscode-notebook-cell://ssh-remote%2Bgpu/home/wsaelens/projects/chromatinhd/chromatinhd/docs/source/benchmark/diff/models.ipynb#W3sdnNjb2RlLXJlbW90ZQ%3D%3D?line=4&#39;&gt;5&lt;/a&gt;</span> transcriptome = transcriptome_original.filter_genes(regions.coordinates.index)
 
-File <span class="ansi-green-fg">~/projects/chromatinhd/chromatinhd/src/chromatinhd/data/fragments/fragments.py:285</span>, in <span class="ansi-cyan-fg">Fragments.filter_regions</span><span class="ansi-blue-fg">(self, regions, path)</span>
-<span class="ansi-green-intense-fg ansi-bold">    283</span> self.regions.coordinates[&#34;ix&#34;] = np.arange(self.regions.coordinates.shape[0])
-<span class="ansi-green-intense-fg ansi-bold">    284</span> regions.coordinates[&#34;ix&#34;] = self.regions.coordinates[&#34;ix&#34;].loc[regions.coordinates.index]
-<span class="ansi-green-fg">--&gt; 285</span> fragments_oi = np.isin(self.mapping[:, 1].numpy(), regions.coordinates[&#34;ix&#34;])
-<span class="ansi-green-intense-fg ansi-bold">    287</span> mapping = self.mapping[fragments_oi]
-<span class="ansi-green-intense-fg ansi-bold">    288</span> coordinates = self.coordinates[fragments_oi]
+File <span class="ansi-green-fg">~/projects/chromatinhd/chromatinhd/src/chromatinhd/data/fragments/fragments.py:246</span>, in <span class="ansi-cyan-fg">Fragments.filter_regions</span><span class="ansi-blue-fg">(self, regions, path)</span>
+<span class="ansi-green-intense-fg ansi-bold">    244</span> self.regions.coordinates[&#34;ix&#34;] = np.arange(self.regions.coordinates.shape[0])
+<span class="ansi-green-intense-fg ansi-bold">    245</span> regions.coordinates[&#34;ix&#34;] = self.regions.coordinates[&#34;ix&#34;].loc[regions.coordinates.index]
+<span class="ansi-green-fg">--&gt; 246</span> fragments_oi = np.isin(self.mapping[:, 1].numpy(), regions.coordinates[&#34;ix&#34;])
+<span class="ansi-green-intense-fg ansi-bold">    248</span> mapping = self.mapping[fragments_oi]
+<span class="ansi-green-intense-fg ansi-bold">    249</span> coordinates = self.coordinates[fragments_oi]
 
-File <span class="ansi-green-fg">~/projects/chromatinhd/chromatinhd/src/chromatinhd/flow/tensorstore.py:134</span>, in <span class="ansi-cyan-fg">TensorstoreInstance.__getitem__</span><span class="ansi-blue-fg">(self, key)</span>
-<span class="ansi-green-intense-fg ansi-bold">    133</span> def __getitem__(self, key):
-<span class="ansi-green-fg">--&gt; 134</span>     return self.open_reader()[key].read().result()
+File <span class="ansi-green-fg">~/projects/chromatinhd/chromatinhd/src/chromatinhd/flow/tensorstore.py:150</span>, in <span class="ansi-cyan-fg">TensorstoreInstance.__getitem__</span><span class="ansi-blue-fg">(self, key)</span>
+<span class="ansi-green-intense-fg ansi-bold">    149</span> def __getitem__(self, key):
+<span class="ansi-green-fg">--&gt; 150</span>     return self.open_reader()[key].read().result()
 
-File <span class="ansi-green-fg">~/projects/chromatinhd/chromatinhd/src/chromatinhd/flow/tensorstore.py:115</span>, in <span class="ansi-cyan-fg">TensorstoreInstance.open_reader</span><span class="ansi-blue-fg">(self, spec)</span>
-<span class="ansi-green-intense-fg ansi-bold">    114</span> def open_reader(self, spec=None):
-<span class="ansi-green-fg">--&gt; 115</span>     return ts.open(self.spec_read, read=True).result()
+File <span class="ansi-green-fg">~/projects/chromatinhd/chromatinhd/src/chromatinhd/flow/tensorstore.py:131</span>, in <span class="ansi-cyan-fg">TensorstoreInstance.open_reader</span><span class="ansi-blue-fg">(self, spec)</span>
+<span class="ansi-green-intense-fg ansi-bold">    130</span> def open_reader(self, spec=None):
+<span class="ansi-green-fg">--&gt; 131</span>     return ts.open(self.spec_read, read=True).result()
 
-<span class="ansi-red-fg">ValueError</span>: NOT_FOUND: Error opening &#34;zarr&#34; driver: Metadata at local file &#34;/home/wsaelens/projects/chromatinhd/chromatinhd/output/datasets/pbmc10k/fragments/10k10k/mapping.zarr/.zarray&#34; does not exist [source locations=&#39;tensorstore/driver/kvs_backed_chunk_driver.cc:1180\ntensorstore/driver/driver.cc:114&#39;] [tensorstore_spec=&#39;{\&#34;context\&#34;:{\&#34;cache_pool\&#34;:{},\&#34;data_copy_concurrency\&#34;:{},\&#34;file_io_concurrency\&#34;:{},\&#34;file_io_sync\&#34;:true},\&#34;driver\&#34;:\&#34;zarr\&#34;,\&#34;kvstore\&#34;:{\&#34;driver\&#34;:\&#34;file\&#34;,\&#34;path\&#34;:\&#34;/home/wsaelens/projects/chromatinhd/chromatinhd/output/datasets/pbmc10k/fragments/10k10k/mapping.zarr/\&#34;}}&#39;]</pre>
+<span class="ansi-red-fg">ValueError</span>: NOT_FOUND: Error opening &#34;zarr&#34; driver: Metadata at local file &#34;/home/wsaelens/projects/chromatinhd/chromatinhd/output/datasets/pbmc10k/fragments/10k10k/mapping.zarr/.zarray&#34; does not exist [tensorstore_spec=&#39;{\&#34;context\&#34;:{\&#34;cache_pool\&#34;:{},\&#34;data_copy_concurrency\&#34;:{},\&#34;file_io_concurrency\&#34;:{},\&#34;file_io_sync\&#34;:true},\&#34;driver\&#34;:\&#34;zarr\&#34;,\&#34;kvstore\&#34;:{\&#34;driver\&#34;:\&#34;file\&#34;,\&#34;path\&#34;:\&#34;/home/wsaelens/projects/chromatinhd/chromatinhd/output/datasets/pbmc10k/fragments/10k10k/mapping.zarr/\&#34;}}&#39;] [source locations=&#39;tensorstore/driver/kvs_backed_chunk_driver.cc:1180\ntensorstore/driver/driver.cc:114&#39;]</pre>
 </div>
 </div>
 

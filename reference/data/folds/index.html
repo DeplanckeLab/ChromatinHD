@@ -559,8 +559,8 @@ You're not viewing the latest version.
 </li>
         
           <li class="md-nav__item">
-  <a href="#chromatinhd.data.folds.folds.Folds.sample_cellxgene" class="md-nav__link">
-    sample_cellxgene()
+  <a href="#chromatinhd.data.folds.folds.Folds.sample_cellxregion" class="md-nav__link">
+    sample_cellxregion()
   </a>
   
 </li>
@@ -1049,7 +1049,7 @@ You're not viewing the latest version.
         Bases: <code><span title="chromatinhd.flow.Flow">Flow</span></code></p>
 
   
-      <p>Folds of multiple cell and gene combinations</p>
+      <p>Folds of multiple cell and reion combinations</p>
 
 
         <details class="quote">
@@ -1185,9 +1185,11 @@ You're not viewing the latest version.
 <span class="normal">140</span>
 <span class="normal">141</span>
 <span class="normal">142</span>
-<span class="normal">143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Folds</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Folds</span><span class="p">(</span><span class="n">Flow</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Folds of multiple cell and gene combinations</span>
+<span class="sd">    Folds of multiple cell and reion combinations</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">folds</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">Stored</span><span class="p">()</span>
@@ -1199,9 +1201,10 @@ You're not viewing the latest version.
         <span class="n">n_folds</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">n_repeats</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Sample cells and genes into folds</span>
+<span class="sd">        Sample cells and regions into folds</span>
 
 <span class="sd">        Parameters:</span>
 <span class="sd">            fragments:</span>
@@ -1219,7 +1222,7 @@ You're not viewing the latest version.
         <span class="n">folds</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">for</span> <span class="n">repeat_ix</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_repeats</span><span class="p">):</span>
-            <span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">repeat_ix</span><span class="p">)</span>
+            <span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">repeat_ix</span> <span class="o">*</span> <span class="n">seed</span><span class="p">)</span>
 
             <span class="n">cells_all</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span><span class="p">)</span>
 
@@ -1243,7 +1246,7 @@ You're not viewing the latest version.
 
         <span class="k">return</span> <span class="bp">self</span>
 
-    <span class="k">def</span> <span class="nf">sample_cellxgene</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">sample_cellxregion</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
         <span class="n">n_folds</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -1252,7 +1255,7 @@ You're not viewing the latest version.
         <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Sample cells and genes into folds</span>
+<span class="sd">        Sample cells and regions into folds</span>
 
 <span class="sd">        Parameters:</span>
 <span class="sd">            fragments:</span>
@@ -1265,7 +1268,7 @@ You're not viewing the latest version.
 <span class="sd">                whether to overwrite existing folds</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;folds&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="k">return</span>
+            <span class="k">return</span> <span class="bp">self</span>
 
         <span class="n">folds</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -1276,17 +1279,17 @@ You're not viewing the latest version.
 
             <span class="n">cell_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_all</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_all</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span>
 
-            <span class="n">genes_all</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">)</span>
+            <span class="n">regions_all</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">stratify_by_chromosome</span><span class="p">:</span>
                 <span class="n">chr_column</span> <span class="o">=</span> <span class="s2">&quot;chr&quot;</span> <span class="k">if</span> <span class="s2">&quot;chr&quot;</span> <span class="ow">in</span> <span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="o">.</span><span class="n">columns</span> <span class="k">else</span> <span class="s2">&quot;chrom&quot;</span>
                 <span class="n">chr_order</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[</span><span class="n">chr_column</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
-                <span class="n">gene_chrs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Categorical</span><span class="p">(</span>
+                <span class="n">region_chrs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Categorical</span><span class="p">(</span>
                     <span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[</span><span class="n">chr_column</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">categories</span><span class="o">=</span><span class="n">chr_order</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">codes</span>
-                <span class="n">gene_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">gene_chrs</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chr_order</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">region_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">region_chrs</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chr_order</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">gene_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_all</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_all</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span>
+                <span class="n">region_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_all</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_all</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span>
 
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_folds</span><span class="p">):</span>
                 <span class="n">cells_train</span> <span class="o">=</span> <span class="n">cells_all</span><span class="p">[</span><span class="n">cell_bins</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
@@ -1294,23 +1297,24 @@ You're not viewing the latest version.
                 <span class="n">cells_validation</span> <span class="o">=</span> <span class="n">cells_validation_test</span><span class="p">[:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
                 <span class="n">cells_test</span> <span class="o">=</span> <span class="n">cells_validation_test</span><span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
 
-                <span class="n">genes_train</span> <span class="o">=</span> <span class="n">genes_all</span><span class="p">[</span><span class="n">gene_bins</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
-                <span class="n">genes_validation_test</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">genes_all</span><span class="p">[</span><span class="n">gene_bins</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span>
-                <span class="n">genes_validation</span> <span class="o">=</span> <span class="n">genes_validation_test</span><span class="p">[:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
-                <span class="n">genes_test</span> <span class="o">=</span> <span class="n">genes_validation_test</span><span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
+                <span class="n">regions_train</span> <span class="o">=</span> <span class="n">regions_all</span><span class="p">[</span><span class="n">region_bins</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
+                <span class="n">regions_validation_test</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">regions_all</span><span class="p">[</span><span class="n">region_bins</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span>
+                <span class="n">regions_validation</span> <span class="o">=</span> <span class="n">regions_validation_test</span><span class="p">[:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
+                <span class="n">regions_test</span> <span class="o">=</span> <span class="n">regions_validation_test</span><span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
 
                 <span class="n">folds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                     <span class="p">{</span>
                         <span class="s2">&quot;cells_train&quot;</span><span class="p">:</span> <span class="n">cells_train</span><span class="p">,</span>
                         <span class="s2">&quot;cells_validation&quot;</span><span class="p">:</span> <span class="n">cells_validation</span><span class="p">,</span>
                         <span class="s2">&quot;cells_test&quot;</span><span class="p">:</span> <span class="n">cells_test</span><span class="p">,</span>
-                        <span class="s2">&quot;genes_train&quot;</span><span class="p">:</span> <span class="n">genes_train</span><span class="p">,</span>
-                        <span class="s2">&quot;genes_validation&quot;</span><span class="p">:</span> <span class="n">genes_validation</span><span class="p">,</span>
-                        <span class="s2">&quot;genes_test&quot;</span><span class="p">:</span> <span class="n">genes_test</span><span class="p">,</span>
+                        <span class="s2">&quot;regions_train&quot;</span><span class="p">:</span> <span class="n">regions_train</span><span class="p">,</span>
+                        <span class="s2">&quot;regions_validation&quot;</span><span class="p">:</span> <span class="n">regions_validation</span><span class="p">,</span>
+                        <span class="s2">&quot;regions_test&quot;</span><span class="p">:</span> <span class="n">regions_test</span><span class="p">,</span>
                         <span class="s2">&quot;repeat&quot;</span><span class="p">:</span> <span class="n">repeat_ix</span><span class="p">,</span>
                     <span class="p">}</span>
                 <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">folds</span> <span class="o">=</span> <span class="n">folds</span>
+        <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">folds</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
@@ -1359,14 +1363,14 @@ You're not viewing the latest version.
 
 
 <h3 id="chromatinhd.data.folds.folds.Folds.sample_cells" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">sample_cells</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">n_folds</span><span class="p">,</span> <span class="n">n_repeats</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">sample_cells</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">n_folds</span><span class="p">,</span> <span class="n">n_repeats</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
 
 </h3>
 
 
   <div class="doc doc-contents ">
   
-      <p>Sample cells and genes into folds</p>
+      <p>Sample cells and regions into folds</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1488,15 +1492,17 @@ You're not viewing the latest version.
 <span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
-<span class="normal">68</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">sample_cells</span><span class="p">(</span>
+<span class="normal">68</span>
+<span class="normal">69</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">sample_cells</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">n_folds</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">n_repeats</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Sample cells and genes into folds</span>
+<span class="sd">    Sample cells and regions into folds</span>
 
 <span class="sd">    Parameters:</span>
 <span class="sd">        fragments:</span>
@@ -1514,7 +1520,7 @@ You're not viewing the latest version.
     <span class="n">folds</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">for</span> <span class="n">repeat_ix</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_repeats</span><span class="p">):</span>
-        <span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">repeat_ix</span><span class="p">)</span>
+        <span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">repeat_ix</span> <span class="o">*</span> <span class="n">seed</span><span class="p">)</span>
 
         <span class="n">cells_all</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_cells</span><span class="p">)</span>
 
@@ -1547,15 +1553,15 @@ You're not viewing the latest version.
 
 
 
-<h3 id="chromatinhd.data.folds.folds.Folds.sample_cellxgene" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">sample_cellxgene</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">n_folds</span><span class="p">,</span> <span class="n">n_repeats</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">stratify_by_chromosome</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+<h3 id="chromatinhd.data.folds.folds.Folds.sample_cellxregion" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">sample_cellxregion</span><span class="p">(</span><span class="n">fragments</span><span class="p">,</span> <span class="n">n_folds</span><span class="p">,</span> <span class="n">n_repeats</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">stratify_by_chromosome</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h3>
 
 
   <div class="doc doc-contents ">
   
-      <p>Sample cells and genes into folds</p>
+      <p>Sample cells and regions into folds</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1629,8 +1635,7 @@ You're not viewing the latest version.
 
       <details class="quote">
         <summary>Source code in <code>src/chromatinhd/data/folds/folds.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 70</span>
-<span class="normal"> 71</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 71</span>
 <span class="normal"> 72</span>
 <span class="normal"> 73</span>
 <span class="normal"> 74</span>
@@ -1696,7 +1701,9 @@ You're not viewing the latest version.
 <span class="normal">134</span>
 <span class="normal">135</span>
 <span class="normal">136</span>
-<span class="normal">137</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">sample_cellxgene</span><span class="p">(</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">sample_cellxregion</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">fragments</span><span class="p">:</span> <span class="n">Fragments</span><span class="p">,</span>
     <span class="n">n_folds</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -1705,7 +1712,7 @@ You're not viewing the latest version.
     <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Sample cells and genes into folds</span>
+<span class="sd">    Sample cells and regions into folds</span>
 
 <span class="sd">    Parameters:</span>
 <span class="sd">        fragments:</span>
@@ -1718,7 +1725,7 @@ You're not viewing the latest version.
 <span class="sd">            whether to overwrite existing folds</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;folds&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span>
+        <span class="k">return</span> <span class="bp">self</span>
 
     <span class="n">folds</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -1729,17 +1736,17 @@ You're not viewing the latest version.
 
         <span class="n">cell_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_all</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_all</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span>
 
-        <span class="n">genes_all</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">)</span>
+        <span class="n">regions_all</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">n_regions</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">stratify_by_chromosome</span><span class="p">:</span>
             <span class="n">chr_column</span> <span class="o">=</span> <span class="s2">&quot;chr&quot;</span> <span class="k">if</span> <span class="s2">&quot;chr&quot;</span> <span class="ow">in</span> <span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="o">.</span><span class="n">columns</span> <span class="k">else</span> <span class="s2">&quot;chrom&quot;</span>
             <span class="n">chr_order</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[</span><span class="n">chr_column</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
-            <span class="n">gene_chrs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Categorical</span><span class="p">(</span>
+            <span class="n">region_chrs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Categorical</span><span class="p">(</span>
                 <span class="n">fragments</span><span class="o">.</span><span class="n">regions</span><span class="o">.</span><span class="n">coordinates</span><span class="p">[</span><span class="n">chr_column</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">categories</span><span class="o">=</span><span class="n">chr_order</span>
             <span class="p">)</span><span class="o">.</span><span class="n">codes</span>
-            <span class="n">gene_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">gene_chrs</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chr_order</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+            <span class="n">region_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">region_chrs</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chr_order</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">gene_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_all</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_all</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span>
+            <span class="n">region_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_all</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_all</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_folds</span><span class="p">)))</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_folds</span><span class="p">):</span>
             <span class="n">cells_train</span> <span class="o">=</span> <span class="n">cells_all</span><span class="p">[</span><span class="n">cell_bins</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
@@ -1747,23 +1754,24 @@ You're not viewing the latest version.
             <span class="n">cells_validation</span> <span class="o">=</span> <span class="n">cells_validation_test</span><span class="p">[:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
             <span class="n">cells_test</span> <span class="o">=</span> <span class="n">cells_validation_test</span><span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">cells_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
 
-            <span class="n">genes_train</span> <span class="o">=</span> <span class="n">genes_all</span><span class="p">[</span><span class="n">gene_bins</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
-            <span class="n">genes_validation_test</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">genes_all</span><span class="p">[</span><span class="n">gene_bins</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span>
-            <span class="n">genes_validation</span> <span class="o">=</span> <span class="n">genes_validation_test</span><span class="p">[:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
-            <span class="n">genes_test</span> <span class="o">=</span> <span class="n">genes_validation_test</span><span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">genes_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
+            <span class="n">regions_train</span> <span class="o">=</span> <span class="n">regions_all</span><span class="p">[</span><span class="n">region_bins</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
+            <span class="n">regions_validation_test</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">regions_all</span><span class="p">[</span><span class="n">region_bins</span> <span class="o">==</span> <span class="n">i</span><span class="p">])</span>
+            <span class="n">regions_validation</span> <span class="o">=</span> <span class="n">regions_validation_test</span><span class="p">[:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)]</span>
+            <span class="n">regions_test</span> <span class="o">=</span> <span class="n">regions_validation_test</span><span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">regions_validation_test</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
 
             <span class="n">folds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="p">{</span>
                     <span class="s2">&quot;cells_train&quot;</span><span class="p">:</span> <span class="n">cells_train</span><span class="p">,</span>
                     <span class="s2">&quot;cells_validation&quot;</span><span class="p">:</span> <span class="n">cells_validation</span><span class="p">,</span>
                     <span class="s2">&quot;cells_test&quot;</span><span class="p">:</span> <span class="n">cells_test</span><span class="p">,</span>
-                    <span class="s2">&quot;genes_train&quot;</span><span class="p">:</span> <span class="n">genes_train</span><span class="p">,</span>
-                    <span class="s2">&quot;genes_validation&quot;</span><span class="p">:</span> <span class="n">genes_validation</span><span class="p">,</span>
-                    <span class="s2">&quot;genes_test&quot;</span><span class="p">:</span> <span class="n">genes_test</span><span class="p">,</span>
+                    <span class="s2">&quot;regions_train&quot;</span><span class="p">:</span> <span class="n">regions_train</span><span class="p">,</span>
+                    <span class="s2">&quot;regions_validation&quot;</span><span class="p">:</span> <span class="n">regions_validation</span><span class="p">,</span>
+                    <span class="s2">&quot;regions_test&quot;</span><span class="p">:</span> <span class="n">regions_test</span><span class="p">,</span>
                     <span class="s2">&quot;repeat&quot;</span><span class="p">:</span> <span class="n">repeat_ix</span><span class="p">,</span>
                 <span class="p">}</span>
             <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">folds</span> <span class="o">=</span> <span class="n">folds</span>
+    <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>
