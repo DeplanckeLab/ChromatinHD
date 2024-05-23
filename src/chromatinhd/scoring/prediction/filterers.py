@@ -231,8 +231,6 @@ class WindowDirectionFilterer(WindowFilterer):
     def __init__(self, windows_oi, window, window_size=100):
         from chromatinhd.utils import crossing
 
-        cuts = np.arange(*window, step=window_size).tolist() + [window[-1]]
-
         design = crossing(windows_oi, pd.DataFrame({"direction": ["forward", "reverse"]}))
         design.index = design["window_mid"].astype(str) + "_" + design["direction"]
         design.index.names = ["window_direction"]
@@ -258,7 +256,6 @@ class WindowDirectionAll(WindowFilterer):
         from chromatinhd.utils import crossing
 
         cuts = np.arange(*window, step=window_size).tolist() + [window[-1]]
-        cuts = cuts
 
         design_windows = []
         for window_start, window_end in zip(cuts[:-1], cuts[1:]):

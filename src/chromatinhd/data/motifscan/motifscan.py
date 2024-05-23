@@ -222,7 +222,6 @@ class Motifscan(Flow):
                 region_coordinates_batch["len"].iloc[0],
             )
 
-            positions_raw = []
             scores_raw = []
             indices_raw = []
             coordinates_raw = []
@@ -233,9 +232,6 @@ class Motifscan(Flow):
 
                 if cutoff < min_cutoff:
                     cutoff = min_cutoff
-
-                # if cutoff < 0:
-                #     raise ValueError(f"Cutoff for motif {motif} is negative, but should be positive.")
 
                 # get pwm
                 pwm = pwms[motif]
@@ -563,8 +559,6 @@ def scan(onehot, pwm, cutoff=0.0):
     """
     assert onehot.shape[1] == 4
     assert pwm.shape[0] == 4
-
-    k = pwm.shape[1]
 
     onehot = onehot.float()
     pwm = pwm.float()

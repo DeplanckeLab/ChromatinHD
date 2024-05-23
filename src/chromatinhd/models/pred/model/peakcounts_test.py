@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 
-import xgboost as xgb
+try:
+    import xgboost as xgb
+except ImportError:
+    xgb = None
 
 import tqdm.auto as tqdm
 import typing

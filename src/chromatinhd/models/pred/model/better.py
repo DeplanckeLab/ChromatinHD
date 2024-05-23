@@ -471,9 +471,11 @@ class Model(FlowModel):
             self.layer = layer
         else:
             layer = list(self.transcriptome.layers.keys())[0]
+        self.layer = layer
 
         if region_oi is None:
             region_oi = fragments.var.index[0]
+        self.region_oi = region_oi
 
         if fragment_embedder_kwargs is None:
             fragment_embedder_kwargs = {}
@@ -518,6 +520,8 @@ class Model(FlowModel):
             layernorm=layernorm_embedding2expression,
             nonlinear=nonlinear,
         )
+
+        return self
 
     def forward(self, data):
         """
@@ -1205,7 +1209,7 @@ class Models(Flow):
                 force = True
 
             if force:
-                model = Model(
+                model = Model.create(
                     fragments=fragments,
                     transcriptome=transcriptome,
                     fold=fold,

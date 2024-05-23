@@ -285,18 +285,18 @@ class Fragments:
         region_indptr = torch.from_numpy(indices_to_indptr(local_region_ix, minibatch.n_regions))
 
         # multiplets
-        if self.provide_multiplets:
-            indptr = indices_to_indptr(local_regionxcell_ix, minibatch.n_cells * minibatch.n_regions)
-            indptr_diff = np.diff(indptr)
+        # if self.provide_multiplets:
+        #     indptr = indices_to_indptr(local_regionxcell_ix, minibatch.n_cells * minibatch.n_regions)
+        #     indptr_diff = np.diff(indptr)
 
-            doublets = np.where(indptr_diff == 2)[0]
-            doublet_idx = torch.from_numpy(np.stack([indptr[doublets], indptr[doublets] + 1], -1).flatten())
+        #     doublets = np.where(indptr_diff == 2)[0]
+        #     doublet_idx = torch.from_numpy(np.stack([indptr[doublets], indptr[doublets] + 1], -1).flatten())
 
-            triplets = np.where(indptr_diff == 2)[0]
-            triplet_idx = np.stack([indptr[triplets], indptr[triplets] + 1, indptr[triplets] + 2], -1).flatten()
-        else:
-            doublet_idx = None
-            triplet_idx = None
+        #     triplets = np.where(indptr_diff == 2)[0]
+        #     triplet_idx = np.stack([indptr[triplets], indptr[triplets] + 1, indptr[triplets] + 2], -1).flatten()
+        # else:
+        #     doublet_idx = None
+        #     triplet_idx = None
 
         return FragmentsResult(
             coordinates=torch.from_numpy(coordinates),

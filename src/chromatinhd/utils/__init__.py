@@ -2,6 +2,7 @@ import os
 import pathlib
 import pickle
 import pandas as pd
+import numpy as np
 
 from .torch import interpolate_1d
 from .numpy import indices_to_indptr, indptr_to_indices, indices_to_indptr_chunked
@@ -114,9 +115,6 @@ def pairzmse(x, y, dim=0):
     x = (x - x.mean(dim, keepdims=True)) / x_std
     y = (y - y.mean(dim, keepdims=True)) / y_std
     return ((x - y) ** 2).mean(dim)
-
-
-import numpy as np
 
 
 def pairzmae(x, y, dim=0):

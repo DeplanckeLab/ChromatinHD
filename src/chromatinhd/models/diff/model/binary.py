@@ -172,10 +172,13 @@ class Model(FlowModel):
         n_regions_step=100,
         n_workers_validation=5,
         n_workers_train=10,
+        regions_oi=None,
     ):
         """
         Trains the model
         """
+
+        # print(regions_oi, n_epochs)
 
         if fragments is None:
             fragments = self.fragments
@@ -187,16 +190,21 @@ class Model(FlowModel):
         if device is None:
             device = get_default_device()
 
+        if regions_oi is not None:
+            region_ixs = fragments.var.index.get_indexer(regions_oi)
+        else:
+            region_ixs = range(fragments.n_regions)
+
         # set up minibatchers and loaders
         minibatcher_train = Minibatcher(
             fold["cells_train"],
-            range(fragments.n_regions),
+            region_ixs,
             n_regions_step=n_regions_step,
             n_cells_step=n_cells_step,
         )
         minibatcher_validation = Minibatcher(
             fold["cells_validation"],
-            range(fragments.n_regions),
+            region_ixs,
             n_regions_step=n_regions_step,
             n_cells_step=n_cells_step,
             permute_cells=False,
@@ -478,7 +486,9 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(self, fragments=None, clustering=None, folds=None, device=None, pbar=True, **kwargs):
+    def train_models(
+        self, fragments=None, clustering=None, folds=None, device=None, pbar=True, regions_oi=None, **kwargs
+    ):
         if fragments is None:
             fragments = self.fragments
         if clustering is None:
@@ -505,7 +515,7 @@ class Models(Flow):
                     path=model_folder,
                     **self.model_params,
                 )
-                model.train_model(device=device, pbar=True, **self.train_params)
+                model.train_model(device=device, pbar=True, regions_oi=regions_oi, **self.train_params)
                 model.save_state()
 
                 model = model.to("cpu")

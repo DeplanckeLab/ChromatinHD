@@ -71,7 +71,7 @@ class BrokenGrid(Grid):
         self.panel_widths = regions["panel_width"].values
 
         for i, (region, region_info) in enumerate(regions.iterrows()):
-            panel = self.add_right(
+            _ = self.add_right(
                 Grid(padding_height=padding_height, margin_height=0.0),
             )
 
