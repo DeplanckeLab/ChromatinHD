@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
+import torch
+import xarray as xr
 
 
 def filter_slices_probs(prob_cutoff=0.0):
-    import xarray as xr
-
     prob_cutoff = 0.0
     # prob_cutoff = -1.
     # prob_cutoff = -4.
