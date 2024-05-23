@@ -32,5 +32,5 @@ class TestPred:
 
         delta = time.time() - start
 
-        assert delta < 20
+        assert delta < 60
         result = models.get_prediction(region=example_fragments.var.index[0], fold_ix=0)

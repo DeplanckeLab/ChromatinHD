@@ -1220,7 +1220,7 @@ class Models(Flow):
                 model.train_model(
                     device=device,
                     pbar=False,
-                    **{k: v for k, v in self.train_params.items() if k not in ["device"]},
+                    **{**{k: v for k, v in self.train_params.items() if k not in ["device"]}, **kwargs},
                 )
                 model.save_state()
 
