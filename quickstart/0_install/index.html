@@ -403,6 +403,20 @@ You're not viewing the latest version.
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#using-pip" class="md-nav__link">
+    Using pip
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-conda" class="md-nav__link">
+    Using conda
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#frequently-asked-questions" class="md-nav__link">
     Frequently asked questions
   </a>
@@ -2050,6 +2064,29 @@ Licensed under the Apache License, Version 2.0.
 
 </div>
 </div>
+<div id="cell-id=5ab47983" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h2 id="using-pip">Using pip<a class="anchor-link" href="#using-pip">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div>
+<div id="cell-id=be1eb896" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>First, make sure torch and torch_scatter are installed.</p>
+
+</div>
+</div>
+</div>
+</div>
 <div id="cell-id=19fee885" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
@@ -2198,6 +2235,17 @@ torch.cuda.device_count()  # should be >= 1</div>
 
 </div>
 </div>
+<div id="cell-id=c1c44f8a" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<h2 id="using-conda">Using conda<a class="anchor-link" href="#using-conda">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div>
 <div id="cell-id=7671af61" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
@@ -2215,6 +2263,9 @@ torch.cuda.device_count()  # should be >= 1</div>
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p><strong>I get an error <code>ModuleNotFoundError: No module named 'torch'</code></strong></p>
+<p><a href="https://github.com/rusty1s/pytorch_scatter/issues/265">An open issue with one our dependencies</a>, <code>torch-scatter</code>, is that it requires to have torch installed.</p>
+<p>This can be fixed by first installing torch (<a href="https://pytorch.org/get-started/locally/">https://pytorch.org/get-started/locally/</a>), followed by installing pytorch-scatter</p>
 
 </div>
 </div>
