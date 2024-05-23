@@ -370,7 +370,7 @@ class RegionPositional(chd.flow.Flow):
     def scored(self):
         return len(self.probs) > 0
 
-    def calculate_slices(self, prob_cutoff=0.0, clusters_oi=None, cluster_grouping=None, step=1):
+    def calculate_slices(self, prob_cutoff=1.5, clusters_oi=None, cluster_grouping=None, step=1):
         start_position_ixs = []
         end_position_ixs = []
         data = []
@@ -530,7 +530,7 @@ class RegionPositional(chd.flow.Flow):
         )
         return differential_slices
 
-    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=0.5):
+    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=1.5):
         """
         Select windows based on the number of fragments
 

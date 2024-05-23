@@ -372,7 +372,7 @@ def _draw_differential(ax, plotdata_cluster, plotdata_mean, cmap_atac_diff, norm
 
 
 def _scale_differential(ax, ymax):
-    ax.set_yscale("symlog", linthresh=5)
+    ax.set_yscale("symlog", linthresh=25)
     ax.set_ylim(0, ymax)
 
 
