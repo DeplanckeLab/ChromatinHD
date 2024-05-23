@@ -1,1 +1,1 @@
-::: chromatinhd.models.diff.interpret.GenePositional
+::: chromatinhd.models.diff.interpret.RegionPositional

@@ -43,8 +43,8 @@ fragments_original = chd.data.Fragments(dataset_folder_original / "fragments" / 
 
 # %%
 genes_oi = transcriptome_original.var.sort_values("dispersions_norm", ascending=False).head(50).index
-regions = fragments_original.regions.filter_genes(genes_oi)
-fragments = fragments_original.filter_genes(regions)
+regions = fragments_original.regions.filter(genes_oi)
+fragments = fragments_original.filter_regions(regions)
 fragments.create_cellxgene_indptr()
 transcriptome = transcriptome_original.filter_genes(regions.coordinates.index)
 
