@@ -60,6 +60,7 @@ dev = [
     "setuptools_scm",
     # "faiss-cpu",
     "Cython",
+    "zarr",
 ]
 test = [
     "pytest",
