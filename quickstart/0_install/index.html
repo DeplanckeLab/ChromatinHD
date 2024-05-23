@@ -2064,6 +2064,18 @@ Licensed under the Apache License, Version 2.0.
 
 </div>
 </div>
+<div id="cell-id=ae6af7b5" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>ChromatinHD requires python 3.8. Currently, installation is only possible using pip. A conda version is coming soon.</p>
+
+</div>
+</div>
+</div>
+</div>
 <div id="cell-id=5ab47983" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
@@ -2081,28 +2093,10 @@ Licensed under the Apache License, Version 2.0.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>First, make sure torch and torch_scatter are installed.</p>
-
-</div>
-</div>
-</div>
-</div>
-<div id="cell-id=19fee885" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<pre class="bash">
-# using pip
-pip install chromatinhd
-
-# (soon) using conda
-conda install -c bioconda chromatinhd
-
-# from github
-pip install git+https://github.com/DeplanckeLab/ChromatinHD
-</pre>
+<p><code>torch</code> and <code>torch-scatter</code> dependencies require special care, because their installation depends on the cuda version. As such, an installation in the form of <code>pip install torch</code> is prone to fail.</p>
+<p>First, follow instructions at <a href="https://pytorch.org/get-started/locally/">https://pytorch.org/get-started/locally/</a> to install torch, given your cuda version.</p>
+<p>Second, follow instructions at <a href="https://github.com/rusty1s/pytorch_scatter?tab=readme-ov-file#binaries">https://github.com/rusty1s/pytorch_scatter?tab=readme-ov-file#binaries</a> to install torch-scatter, given your pytorch and cuda version.</p>
+<p>Finally, ChromatinHD can be installed using <code>pip install chromatinhd</code></p>
 
 </div>
 </div>
@@ -2114,7 +2108,7 @@ pip install git+https://github.com/DeplanckeLab/ChromatinHD
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p>To use the GPU, ensure that a PyTorch version was installed with cuda enabled:</p>
+<p>To use GPU acceleration, ensure that a PyTorch version was installed with cuda enabled:</p>
 
 </div>
 </div>
@@ -2242,6 +2236,18 @@ torch.cuda.device_count()  # should be >= 1</div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <h2 id="using-conda">Using conda<a class="anchor-link" href="#using-conda">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div>
+<div id="cell-id=b7e9a554" class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
+<p>Coming soon</p>
+
 </div>
 </div>
 </div>
