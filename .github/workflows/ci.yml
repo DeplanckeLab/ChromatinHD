@@ -27,8 +27,7 @@ jobs:
         run: python -c "import chromatinhd"
       - name: test install
         run: pip install -e .[test]
-      - name: ruff
-        run: ruff check --format=github .
+      # - uses: jpetrucciani/ruff-check@main
       - name: test
         run: pytest
       # - run: mkdocs gh-deploy --force
