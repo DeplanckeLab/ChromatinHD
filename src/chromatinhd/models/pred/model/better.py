@@ -408,12 +408,13 @@ class Model(FlowModel):
 
     region_oi = Stored()
 
-    def __init__(
-        self,
+    @classmethod
+    def create(
+        cls,
+        fragments: Fragments,
+        transcriptome: Transcriptome,
+        fold,
         path=None,
-        fragments: Fragments | None = None,
-        transcriptome: Transcriptome | None = None,
-        fold=None,
         dummy: bool = False,
         n_frequencies: int = (1000, 500, 250, 125, 63, 31),
         reduce: str = "sum",
@@ -431,7 +432,7 @@ class Model(FlowModel):
         batchnorm_embedding2expression=False,
         layernorm_embedding2expression=True,
         layer=None,
-        reset=False,
+        overwrite=False,
         encoder=None,
         pooler=None,
         distance_encoder="direct",
@@ -442,72 +443,70 @@ class Model(FlowModel):
         fragment_embedder_kwargs=None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(path=path, reset=reset, **kwargs)
+        self = super(Model, cls).create(path=path, fragments=fragments, clustering=clustering, reset=overwrite)
 
-        if fragments is not None:
-            self.fragments = fragments
-        if transcriptome is not None:
-            self.transcriptome = transcriptome
-        if fold is not None:
-            self.fold = fold
+        self.fragments = fragments
+        self.transcriptome = transcriptome
+        self.fold = fold
+
         if layer is not None:
             self.layer = layer
-        elif not self.o.layer.exists(self):
-            if transcriptome is not None:
-                self.layer = list(self.transcriptome.layers.keys())[0]
+        else:
+            layer = list(self.transcriptome.layers.keys())[0]
 
-        if not self.o.region_oi.exists(self):
-            self.region_oi = region_oi
+        if region_oi is None:
+            region_oi = fragments.var.index[0]
 
-        if not self.o.state.exists(self):
-            if fragment_embedder_kwargs is None:
-                fragment_embedder_kwargs = {}
+        if fragment_embedder_kwargs is None:
+            fragment_embedder_kwargs = {}
 
-            if dummy is True:
-                self.fragment_embedder = FragmentEmbedderCounter()
-            else:
-                self.fragment_embedder = FragmentEmbedder(
-                    n_frequencies=n_frequencies,
-                    nonlinear=nonlinear,
-                    n_layers=n_layers_fragment_embedder,
-                    n_embedding_dimensions=n_embedding_dimensions,
-                    dropout_rate=dropout_rate_fragment_embedder,
-                    residual=residual_fragment_embedder,
-                    batchnorm=batchnorm_fragment_embedder,
-                    layernorm=layernorm_fragment_embedder,
-                    fragments=self.fragments,
-                    encoder=encoder,
-                    distance_encoder=distance_encoder,
-                    encoder_kwargs=encoder_kwargs,
-                    **fragment_embedder_kwargs,
-                )
-            self.embedding_region_pooler = EmbeddingGenePooler(
-                self.fragment_embedder.n_embedding_dimensions, reduce=reduce, pooler=pooler
-            )
-
-            n_input_embedding_dimensions = self.fragment_embedder.n_embedding_dimensions
-            if library_size_encoder == "linear":
-                library_size_encoder_kwargs = library_size_encoder_kwargs or {}
-                self.library_size_encoder = LibrarySizeEncoder(fragments, **library_size_encoder_kwargs)
-                n_input_embedding_dimensions += self.library_size_encoder.n_embedding_dimensions
-
-            self.embedding_to_expression = EmbeddingToExpression(
-                fragments=fragments,
-                n_input_embedding_dimensions=n_input_embedding_dimensions,
-                n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
-                initialization=embedding_to_expression_initialization,
-                n_layers=n_layers_embedding2expression,
-                residual=residual_embedding2expression,
-                dropout_rate=dropout_rate_embedding2expression,
-                batchnorm=batchnorm_embedding2expression,
-                layernorm=layernorm_embedding2expression,
+        if dummy is True:
+            self.fragment_embedder = FragmentEmbedderCounter()
+        else:
+            self.fragment_embedder = FragmentEmbedder(
+                n_frequencies=n_frequencies,
                 nonlinear=nonlinear,
+                n_layers=n_layers_fragment_embedder,
+                n_embedding_dimensions=n_embedding_dimensions,
+                dropout_rate=dropout_rate_fragment_embedder,
+                residual=residual_fragment_embedder,
+                batchnorm=batchnorm_fragment_embedder,
+                layernorm=layernorm_fragment_embedder,
+                fragments=self.fragments,
+                encoder=encoder,
+                distance_encoder=distance_encoder,
+                encoder_kwargs=encoder_kwargs,
+                **fragment_embedder_kwargs,
             )
+        self.embedding_region_pooler = EmbeddingGenePooler(
+            self.fragment_embedder.n_embedding_dimensions, reduce=reduce, pooler=pooler
+        )
+
+        n_input_embedding_dimensions = self.fragment_embedder.n_embedding_dimensions
+        if library_size_encoder == "linear":
+            library_size_encoder_kwargs = library_size_encoder_kwargs or {}
+            self.library_size_encoder = LibrarySizeEncoder(fragments, **library_size_encoder_kwargs)
+            n_input_embedding_dimensions += self.library_size_encoder.n_embedding_dimensions
+
+        self.embedding_to_expression = EmbeddingToExpression(
+            fragments=fragments,
+            n_input_embedding_dimensions=n_input_embedding_dimensions,
+            n_embedding_dimensions=self.fragment_embedder.n_embedding_dimensions,
+            initialization=embedding_to_expression_initialization,
+            n_layers=n_layers_embedding2expression,
+            residual=residual_embedding2expression,
+            dropout_rate=dropout_rate_embedding2expression,
+            batchnorm=batchnorm_embedding2expression,
+            layernorm=layernorm_embedding2expression,
+            nonlinear=nonlinear,
+        )
 
     def forward(self, data):
         """
         Make a prediction given a data object
         """
+        assert data.minibatch.n_regions == 1
+
         fragment_embedding = self.fragment_embedder(data)
         cell_region_embedding = self.embedding_region_pooler(
             fragment_embedding,

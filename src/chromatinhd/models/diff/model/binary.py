@@ -478,10 +478,13 @@ class Models(Flow):
         path.mkdir(exist_ok=True)
         return path
 
-    def train_models(self, device=None, pbar=True, **kwargs):
-        fragments = self.fragments
-        clustering = self.clustering
-        folds = self.folds
+    def train_models(self, fragments=None, clustering=None, folds=None, device=None, pbar=True, **kwargs):
+        if fragments is None:
+            fragments = self.fragments
+        if clustering is None:
+            clustering = self.clustering
+        if folds is None:
+            folds = self.folds
 
         progress = tqdm.tqdm(enumerate(folds), total=len(folds)) if pbar else enumerate(folds)
 

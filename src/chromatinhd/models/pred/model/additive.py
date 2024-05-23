@@ -282,8 +282,6 @@ class Model(FlowModel):
             if transcriptome is not None:
                 self.layer = list(self.transcriptome.layers.keys())[0]
 
-        self.layer = "magic"
-
         if not self.o.state.exists(self):
             assert fragments is not None
             assert transcriptome is not None

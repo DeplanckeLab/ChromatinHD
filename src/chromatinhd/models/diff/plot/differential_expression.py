@@ -46,8 +46,6 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             ax.set_yticks([])
             ax.set_xticks([])
 
-            print(plotdata_expression_clusters[cluster_id])
-
             circle = mpl.patches.Circle(
                 (0, 0),
                 norm_expression(plotdata_expression_clusters[cluster_id]) * 0.9 + 0.1,

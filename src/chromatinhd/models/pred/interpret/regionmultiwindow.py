@@ -379,7 +379,7 @@ class RegionMultiWindow(chd.flow.Flow):
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    def select_regions(self, region_id, max_merge_distance=500, min_length=50, padding=500, lost_cutoff=0.5):
+    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, lost_cutoff=0.5):
         from scipy.ndimage import convolve
 
         def spread_true(arr, width=5):
@@ -427,9 +427,9 @@ class RegionMultiWindow(chd.flow.Flow):
 
         return regions
 
-    def extract_predictive_regions(self, region_id=None, deltacor_cutoff=-0.001):
+    def extract_predictive_windows(self, region_id=None, deltacor_cutoff=-0.001):
         """
-        Extract predictive regions for one (or more) regions
+        Extract predictive windows for one (or more) regions
         """
 
         feature_name = list(self.scores.coords_pointed.keys())[0]
@@ -451,10 +451,10 @@ class RegionMultiWindow(chd.flow.Flow):
                     {
                         "start": plotdata.index[
                             (np.diff(np.pad(plotdata["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
-                        ],
+                        ].astype(int),
                         "end": plotdata.index[
                             (np.diff(np.pad(plotdata["chosen"], (1, 1), constant_values=False).astype(int)) == -1)[1:]
-                        ],
+                        ].astype(int),
                         feature_name: region_id,
                         "effect_direction": +1,
                     }

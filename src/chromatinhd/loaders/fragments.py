@@ -355,9 +355,9 @@ class Cuts(Fragments):
         n_cuts_per_fragment = result.coordinates.shape[1]
         local_cellxregion_ix = result.local_cellxregion_ix.expand(n_cuts_per_fragment, -1).T.flatten()
 
-        selected = np.random.rand(len(cut_coordinates)) < 0.2
-        cut_coordinates = cut_coordinates[selected]
-        local_cellxregion_ix = local_cellxregion_ix[selected]
+        # selected = np.random.rand(len(cut_coordinates)) < 0.2
+        # cut_coordinates = cut_coordinates[selected]
+        # local_cellxregion_ix = local_cellxregion_ix[selected]
 
         return CutsResult(
             coordinates=cut_coordinates,

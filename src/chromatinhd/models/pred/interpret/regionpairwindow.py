@@ -193,18 +193,18 @@ class RegionPairWindow(chd.flow.Flow):
 
         return self
 
-    def get_plotdata(self, region, regions=None):
+    def get_plotdata(self, region, windows=None):
         """
         Get plotdata for a region
         """
 
-        if regions is None:
-            regions = self.design
+        if windows is None:
+            windows = self.design
         else:
             x = self.design[["window_start", "window_end"]].values
-            y = regions[["start", "end"]].values
+            y = windows[["start", "end"]].values
 
-            regions = self.design.loc[chromatinhd.utils.intervals.interval_contains_inclusive(x, y)]
+            windows = self.design.loc[chromatinhd.utils.intervals.interval_contains_inclusive(x, y)]
 
         plotdata_windows = self.scores[region].mean("fold").to_dataframe()
         plotdata_interaction = self.interaction[region].mean("fold").to_pandas().unstack().to_frame("cor")
@@ -217,14 +217,14 @@ class RegionPairWindow(chd.flow.Flow):
 
         # make plotdata, making sure we have all window combinations, otherwise nan
         plotdata = (
-            pd.DataFrame(itertools.combinations(regions.index, 2), columns=["window1", "window2"])
+            pd.DataFrame(itertools.combinations(windows.index, 2), columns=["window1", "window2"])
             .set_index(["window1", "window2"])
             .join(plotdata_interaction)
         )
         plotdata.loc[np.isnan(plotdata["cor"]), "cor"] = 0.0
         plotdata["dist"] = (
-            regions.loc[plotdata.index.get_level_values("window2"), "window_mid"].values
-            - regions.loc[plotdata.index.get_level_values("window1"), "window_mid"].values
+            windows.loc[plotdata.index.get_level_values("window2"), "window_mid"].values
+            - windows.loc[plotdata.index.get_level_values("window1"), "window_mid"].values
         )
 
         plotdata.loc[plotdata["dist"] < 1000, "cor"] = 0.0

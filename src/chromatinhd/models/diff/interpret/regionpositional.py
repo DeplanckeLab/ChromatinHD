@@ -261,6 +261,8 @@ class RegionPositional(chd.flow.Flow):
         if regions is None:
             regions = fragments.var.index
 
+        self.regions = fragments.regions
+
         pbar = tqdm.tqdm(regions, leave=False)
 
         window = fragments.regions.window
@@ -368,8 +370,6 @@ class RegionPositional(chd.flow.Flow):
     def scored(self):
         return len(self.probs) > 0
 
-    slices = Stored(Slices)
-
     def calculate_slices(self, prob_cutoff=0.0, clusters_oi=None, cluster_grouping=None, step=1):
         start_position_ixs = []
         end_position_ixs = []
@@ -419,27 +419,6 @@ class RegionPositional(chd.flow.Flow):
             window=self.regions.window,
         )
         return slices
-
-    def get_slices(self, prob_cutoff=0.0, store=True, overwrite=False):
-        """
-        Get slices from the probabilities where the probability of seeing a fragment is above a certain cutoff for at least one cluster.
-
-        Parameters:
-            prob_cutoff:
-                the probability cutoff
-            store:
-                whether to store the slices
-        """
-        if self.o.slices.exists(self) and not overwrite:
-            return self.slices
-        slices = self.calculate_slices(prob_cutoff=prob_cutoff)
-
-        if store:
-            self.slices = slices
-
-        return slices
-
-    differential_slices = Stored(DifferentialSlices)
 
     def calculate_differential_slices(self, slices, fc_cutoff=2.0, score="diff", a=None, b=None, n=None):
         if score == "diff":
@@ -516,18 +495,6 @@ class RegionPositional(chd.flow.Flow):
         )
         return differential_slices
 
-    def get_differential_slices(self, fc_cutoff=2.0, store=True, overwrite=False):
-        slices = self.get_slices()
-
-        if self.o.differential_slices.exists(self) and not overwrite:
-            return self.differential_slices
-        differential_slices = self.calculate_differential_slices(slices, fc_cutoff=fc_cutoff)
-
-        if store:
-            self.differential_slices = differential_slices
-
-        return differential_slices
-
     def calculate_top_slices(self, slices, fc_cutoff=2.0):
         data_diff = slices.data - slices.data.mean(1, keepdims=True)
 
@@ -563,7 +530,23 @@ class RegionPositional(chd.flow.Flow):
         )
         return differential_slices
 
-    def select_regions(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=0.5):
+    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=0.5):
+        """
+        Select windows based on the number of fragments
+
+        Parameters:
+            region_id:
+                the identifier of the region of interest
+            max_merge_distance:
+                the maximum distance between windows before merging
+            min_length:
+                the minimum length of a window
+            padding:
+                the padding to add to each window
+            prob_cutoff:
+                the probability cutoff
+        """
+
         from scipy.ndimage import convolve
 
         def spread_true(arr, width=5):
@@ -574,7 +557,6 @@ class RegionPositional(chd.flow.Flow):
 
         plotdata, plotdata_mean = self.get_plotdata(region_id)
         selection = pd.DataFrame({"chosen": (plotdata["prob"].unstack() > prob_cutoff).any()})
-        print(selection.max())
 
         # add padding
         step = plotdata.index.get_level_values("coord")[1] - plotdata.index.get_level_values("coord")[0]
@@ -584,7 +566,7 @@ class RegionPositional(chd.flow.Flow):
         # select all contiguous regions where chosen is true
         selection["selection"] = selection["chosen"].cumsum()
 
-        regions = pd.DataFrame(
+        windows = pd.DataFrame(
             {
                 "start": selection.index[
                     (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
@@ -595,21 +577,21 @@ class RegionPositional(chd.flow.Flow):
             }
         )
 
-        # merge regions that are close to each other
-        regions["distance_to_next"] = regions["start"].shift(-1) - regions["end"]
+        # merge windows that are close to each other
+        windows["distance_to_next"] = windows["start"].shift(-1) - windows["end"]
 
-        regions["merge"] = (regions["distance_to_next"] < max_merge_distance).fillna(False)
-        regions["group"] = (~regions["merge"]).cumsum().shift(1).fillna(0).astype(int)
-        regions = (
-            regions.groupby("group")
+        windows["merge"] = (windows["distance_to_next"] < max_merge_distance).fillna(False)
+        windows["group"] = (~windows["merge"]).cumsum().shift(1).fillna(0).astype(int)
+        windows = (
+            windows.groupby("group")
             .agg({"start": "min", "end": "max", "distance_to_next": "last"})
             .reset_index(drop=True)
         )
 
         # filter on length
-        regions["length"] = regions["end"] - regions["start"]
-        regions = regions[regions["length"] > min_length]
-        return regions
+        windows["length"] = windows["end"] - windows["start"]
+        windows = windows[windows["length"] > min_length]
+        return windows
 
     def get_interpolated(self, region_id, clusters=None, desired_x=None, step=1):
         probs = self.probs[region_id]

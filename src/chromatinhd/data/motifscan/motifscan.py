@@ -188,7 +188,6 @@ class Motifscan(Flow):
         self.strands.open_creator()
         self.coordinates.open_creator()
         self.region_indices.open_creator()
-        # self.positions.open_creator()
 
         # do the actual counting by looping over the batches, extract the sequences and scanning
         progress = tqdm.tqdm(region_coordinates.groupby("batch"))
@@ -250,22 +249,15 @@ class Motifscan(Flow):
                     strands,
                 ) = scan(onehot, pwm2, cutoff=cutoff)
 
-                coordinates = positions[1].astype(np.int32)
-                positions = (
-                    self.regions.cumulative_region_lengths[(positions[0] + region_coordinates_batch["ix"].values[0])]
-                    + positions[1]
-                )
+                coordinates = positions.astype(np.int32) % onehot.shape[1]
 
-                region_indices = (
-                    np.searchsorted(self.regions.cumulative_region_lengths, positions + 1).astype(np.int32) - 1
-                )
+                region_indices = positions // onehot.shape[1]
 
                 coordinates = (
                     coordinates
                     + (self.regions.coordinates["start"] - self.regions.coordinates["tss"]).values[region_indices]
                 )
 
-                positions_raw.append(positions)
                 coordinates_raw.append(coordinates)
                 indices_raw.append(np.full_like(coordinates, motif_ix, dtype=np.int32))
                 strands_raw.append(strands)
@@ -273,7 +265,6 @@ class Motifscan(Flow):
                 region_indices_raw.append(region_indices)
 
             # concatenate raw values (sorted by motif)
-            positions = np.concatenate(positions_raw)
             coordinates = np.concatenate(coordinates_raw)
             indices = np.concatenate(indices_raw)
             strands = np.concatenate(strands_raw)
@@ -281,13 +272,12 @@ class Motifscan(Flow):
             region_indices = np.concatenate(region_indices_raw)
 
             # sort according to position
-            sorted_idx = np.argsort(positions)
+            sorted_idx = np.lexsort([coordinates, region_indices])
             indices = indices[sorted_idx]
             scores = scores[sorted_idx]
             strands = strands[sorted_idx]
             coordinates = coordinates[sorted_idx]
             region_indices = region_indices[sorted_idx]
-            # positions = positions[sorted_idx]
 
             # store batch
             self.indices.extend(indices)
@@ -295,7 +285,6 @@ class Motifscan(Flow):
             self.strands.extend(strands)
             self.coordinates.extend(coordinates)
             self.region_indices.extend(region_indices)
-            # self.positions.extend(positions)
 
         return self
 
@@ -586,13 +575,14 @@ def scan(onehot, pwm, cutoff=0.0):
     found_positive = positive >= cutoff
     scores_positive = positive[found_positive]
     positions_positive = torch.stack(torch.where(found_positive)).to(torch.int64)
+    positions_positive = positions_positive[0] * (onehot.shape[1]) + positions_positive[1]
 
     negative = torch.nn.functional.conv1d(onehot_comp, pwm_rev.unsqueeze(0))[:, 0]
 
     found_negative = negative >= cutoff
     scores_negative = negative[found_negative]
     positions_negative = torch.stack(torch.where(found_negative)).to(torch.int64)
-    positions_negative[-1, :] = positions_negative[-1, :] + k - 1
+    positions_negative = (positions_negative[0]) * (onehot.shape[1]) + positions_negative[1]
 
     return (
         torch.cat([scores_positive, scores_negative]).cpu().numpy(),

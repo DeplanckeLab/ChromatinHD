@@ -189,7 +189,7 @@ class Differential(chromatinhd.grid.Wrap):
             **kwargs,
         )
         self.region_id = region_id
-        self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
+        # self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
         return self
 
     def add_differential_slices(self, differential_slices):
@@ -319,7 +319,7 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
             **kwargs,
         )
         self.region_id = region_id
-        self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
+        # self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
         return self
 
 

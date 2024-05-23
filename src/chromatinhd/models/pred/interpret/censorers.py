@@ -61,7 +61,7 @@ class WindowCensorer:
 
 
 class MultiWindowCensorer:
-    def __init__(self, window, window_sizes=(25, 50, 100, 200, 500), relative_stride=0.5):
+    def __init__(self, window, window_sizes=(50, 100, 200, 500), relative_stride=0.5):
         design = [{"window": "control"}]
         for window_size in window_sizes:
             cuts = np.arange(*window, step=int(window_size * relative_stride))
