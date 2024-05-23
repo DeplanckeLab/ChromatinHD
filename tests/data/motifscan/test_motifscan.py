@@ -30,28 +30,28 @@ def test_scan():
             "sequence": "ACGT",
             "pwm": pwm,
             "expected_scores": np.array([3.0, 3.0]),
-            "expected_positions": np.array([[0, 0], [0, 3]]),
+            "expected_positions": np.array([0, 1]),
             "expected_strands": np.array([1, -1]),
         },
         {
             "sequence": "AAAA",
             "pwm": pwm,
             "expected_scores": np.array([]),
-            "expected_positions": np.array([]).reshape(2, 0),
+            "expected_positions": np.array([]),
             "expected_strands": np.array([]),
         },
         {
             "sequence": "CGT",
             "pwm": pwm,
             "expected_scores": np.array([3.0]),
-            "expected_positions": np.array([[0], [2]]),
+            "expected_positions": np.array([0]),
             "expected_strands": np.array([-1]),
         },
         {
             "sequence": "CGTCGT",
             "pwm": pwm,
             "expected_scores": np.array([2.0, 3.0, 3.0]),
-            "expected_positions": np.array([[0, 0, 0], [2, 2, 5]]),
+            "expected_positions": np.array([2, 0, 3]),
             "expected_strands": np.array([1, -1, -1]),
         },
     ]
@@ -72,7 +72,7 @@ class TestMotifscan:
         # create sequence
         sequence_1 = "CGTT"
         sequence_2 = "ACGA"
-        sequence_3 = "ACAA"
+        sequence_3 = "AACG"
 
         fa_file = f"{tmp_path}/test.fa"
         with open(fa_file, "w", encoding="utf8") as f:
@@ -90,7 +90,7 @@ class TestMotifscan:
                 "chrom": ["chr1", "chr2", "chr3"],
                 "start": [0, 0, 0],
                 "end": [region_size, region_size, region_size],
-                "tss": [1, 1, 1],
+                "tss": [0, 0, 0],
                 "strand": [1, 1, -1],
             }
         )
@@ -99,8 +99,6 @@ class TestMotifscan:
             coordinates=region_coordinates,
             window=(0, region_size),
         )
-
-        motifscan = chd.data.motifscan.Motifscan(f"{tmp_path}/motifscan")
 
         # create motifs
         pwms = {
@@ -126,26 +124,34 @@ class TestMotifscan:
         cutoffs = [1.5, 1.5]
         motifs["cutoff"] = cutoffs
 
-        motifscan = motifscan.from_pwms(
+        motifscan = chd.data.motifscan.Motifscan.from_pwms(
             pwms=pwms,
             regions=regions,
             fasta_file=fa_file,
             cutoffs=motifs["cutoff"],
             path=f"{tmp_path}/motifscan",
+            min_cutoff=0.0,
         )
 
         assert np.array_equal(
-            motifscan.positions[:],
-            np.array([2, 3, 4, 7, 8, 10], dtype=int),
+            motifscan.coordinates[:],
+            np.array([0, 2, 0, 1, 0, 2], dtype=int),
         )
         assert np.array_equal(
             motifscan.scores[:],
-            np.array([3.0, 2.0, 3.0, 2.0, 2.0, 2.0]),
+            np.array([3.0, 2.0, 3.0, 2.0, 3.0, 2.0]),
         )
         assert np.array_equal(
             motifscan.strands[:],
-            np.array([-1, -1, 1, -1, 1, 1], dtype=np.int8),
+            np.array([-1, -1, 1, -1, -1, -1], dtype=np.int8),
         )
+        assert np.array_equal(
+            motifscan.region_indices[:],
+            np.array([0, 0, 1, 1, 2, 2], dtype=np.int8),
+        )
+
+        motifscan.create_region_indptr()
+        motifscan.create_indptr()
         assert len(motifscan.indptr) == (region_size * len(region_coordinates) + 1)
 
         # get all sites
@@ -154,6 +160,9 @@ class TestMotifscan:
             regions=regions,
             fasta_file=fa_file,
             cutoffs=-99999,
+            min_cutoff=-9999,
             path=f"{tmp_path}/motifscan",
         )
+        motifscan.create_region_indptr()
+        motifscan.create_indptr()
         assert len(motifscan.indptr) == (region_size * len(region_coordinates) + 1)
