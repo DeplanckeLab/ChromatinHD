@@ -1609,7 +1609,7 @@ You're not viewing the latest version.
     <span class="k">def</span> <span class="nf">scored</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">probs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
 
-    <span class="k">def</span> <span class="nf">calculate_slices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">clusters_oi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cluster_grouping</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">calculate_slices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">clusters_oi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cluster_grouping</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="n">start_position_ixs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">end_position_ixs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1769,7 +1769,7 @@ You're not viewing the latest version.
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">differential_slices</span>
 
-    <span class="k">def</span> <span class="nf">select_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">region_id</span><span class="p">,</span> <span class="n">max_merge_distance</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">select_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">region_id</span><span class="p">,</span> <span class="n">max_merge_distance</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">1.5</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Select windows based on the number of fragments</span>
 
@@ -2341,7 +2341,7 @@ You're not viewing the latest version.
 
 
 <h3 id="chromatinhd.models.diff.interpret.regionpositional.RegionPositional.select_windows" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">select_windows</span><span class="p">(</span><span class="n">region_id</span><span class="p">,</span> <span class="n">max_merge_distance</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">select_windows</span><span class="p">(</span><span class="n">region_id</span><span class="p">,</span> <span class="n">max_merge_distance</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2423,7 +2423,7 @@ You're not viewing the latest version.
             </div>
           </td>
           <td>
-                <code>0.5</code>
+                <code>1.5</code>
           </td>
         </tr>
     </tbody>
@@ -2492,7 +2492,7 @@ You're not viewing the latest version.
 <span class="normal">591</span>
 <span class="normal">592</span>
 <span class="normal">593</span>
-<span class="normal">594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">select_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">region_id</span><span class="p">,</span> <span class="n">max_merge_distance</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="normal">594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">select_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">region_id</span><span class="p">,</span> <span class="n">max_merge_distance</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">prob_cutoff</span><span class="o">=</span><span class="mf">1.5</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Select windows based on the number of fragments</span>
 
