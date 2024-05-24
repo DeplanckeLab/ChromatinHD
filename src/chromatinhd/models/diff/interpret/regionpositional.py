@@ -227,7 +227,7 @@ class RegionPositional(chd.flow.Flow):
         models: Models,
         fragments: Fragments = None,
         clustering: Clustering = None,
-        regions: list = None,
+        regions_oi: list = None,
         force: bool = False,
         device: str = "cpu",
         step: int = 50,
@@ -244,7 +244,7 @@ class RegionPositional(chd.flow.Flow):
                 the clustering
             models:
                 the models
-            regions:
+            regions_oi:
                 the regions to score, if None, all regions are scored
             force:
                 whether to force rescoring even if the scores already exist
@@ -258,12 +258,12 @@ class RegionPositional(chd.flow.Flow):
         if clustering is None:
             clustering = models.clustering
 
-        if regions is None:
-            regions = fragments.var.index
+        if regions_oi is None:
+            regions_oi = fragments.var.index
 
         self.regions = fragments.regions
 
-        pbar = tqdm.tqdm(regions, leave=False)
+        pbar = tqdm.tqdm(regions_oi, leave=False)
 
         window = fragments.regions.window
 
@@ -362,7 +362,7 @@ class RegionPositional(chd.flow.Flow):
         if relative_to is not None:
             plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord").mean()
         else:
-            plotdata_mean = plotdata[["prob"]].groupby("coord").mean()
+            plotdata_mean = plotdata[["prob"]].groupby("coord", observed=True).mean()
 
         return plotdata, plotdata_mean
 

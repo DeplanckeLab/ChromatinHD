@@ -96,7 +96,7 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
         plotdata_expression_clusters = (
             pd.Series(transcriptome.get_X(gene, layer=layer), index=transcriptome.obs.index)
-            .groupby(clustering.labels.values)
+            .groupby(clustering.labels.values, observed=True)
             .mean()
         )
 

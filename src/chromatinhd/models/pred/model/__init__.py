@@ -1,3 +1,2 @@
-from . import additive
-from . import nonadditive
-from . import better as multiscale
+from . import better
+from . import multiscale

@@ -112,7 +112,7 @@ class GroupedMotifs(Grid):
             ax.set_yticks([])
 
             ax.axis("off")
-            ax.axhspan(0, 1, color=group_motifs["color"][0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
+            ax.axhspan(0, 1, color=group_motifs["color"].iloc[0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
 
             if label_motifs:
                 if label_motifs_side == "right":
@@ -230,7 +230,7 @@ class GroupedMotifsBroken(Grid):
 
             for panel, ax in broken:
                 ax.axis("off")
-                ax.axhspan(0, 1, color=group_motifs["color"][0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
+                ax.axhspan(0, 1, color=group_motifs["color"].iloc[0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
 
             # plot the motifs
             for motif in group_motifs.itertuples():

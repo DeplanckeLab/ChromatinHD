@@ -13,6 +13,7 @@ import pandas as pd
 import itertools
 import tqdm.auto as tqdm
 import time
+import os
 
 import pickle
 
@@ -91,8 +92,7 @@ class FragmentEmbedder(torch.nn.Module):
 
         super().__init__(**kwargs)
 
-        # make encoding
-
+        # make positional encoding
         if encoder is None:
             encoder = "spline_binary"
 
@@ -299,6 +299,10 @@ class EmbeddingGenePooler(torch.nn.Module):
 
 
 class LibrarySizeEncoder(torch.nn.Module):
+    """
+    Encodes library size as a linear transformation
+    """
+
     def __init__(self, fragments, n_layers=1, scale=1.0):
         super().__init__()
 
@@ -425,14 +429,16 @@ class Model(FlowModel):
     """The layer of the transcriptome"""
 
     region_oi = Stored()
+    """The region of interest"""
 
     @classmethod
     def create(
         cls,
         fragments: Fragments,
         transcriptome: Transcriptome,
-        fold,
-        path=None,
+        fold=None,
+        layer: str | None = None,
+        path: str | os.PathLike = None,
         dummy: bool = False,
         n_frequencies: int = (1000, 500, 250, 125, 63, 31),
         reduce: str = "sum",
@@ -449,7 +455,6 @@ class Model(FlowModel):
         residual_embedding2expression=True,
         batchnorm_embedding2expression=False,
         layernorm_embedding2expression=True,
-        layer=None,
         overwrite=False,
         encoder=None,
         pooler=None,
@@ -461,10 +466,37 @@ class Model(FlowModel):
         fragment_embedder_kwargs=None,
         **kwargs: Any,
     ) -> None:
-        self = super(Model, cls).create(path=path, fragments=fragments, transcriptome=transcriptome, reset=overwrite)
+        """
+        Create the model
 
-        self.fragments = fragments
-        self.transcriptome = transcriptome
+        Parameters:
+            fragments:
+                the fragments
+            transcriptome:
+                the transcriptome
+            fold:
+                the fold
+            layer:
+                which layer from the transcriptome to use for training and inference, will use the first layer if None
+            path:
+                the path to save the model
+            dummy:
+                whether to use a dummy model that just counts fragments.
+            n_frequencies:
+                the number of frequencies to use for the encoding
+            reduce:
+                the reduction to use for pooling fragments across regions and cells
+            nonlinear:
+                whether to use a non-linear activation function
+            n_embedding_dimensions:
+                the number of embedding dimensions
+            dropout_rate:
+                the dropout rate
+        """
+        self = super(Model, cls).create(
+            path=path, fragments=fragments, transcriptome=transcriptome, fold=fold, reset=overwrite
+        )
+
         self.fold = fold
 
         if layer is not None:
@@ -503,11 +535,18 @@ class Model(FlowModel):
         )
 
         n_input_embedding_dimensions = self.fragment_embedder.n_embedding_dimensions
+
+        # library size encoder
         if library_size_encoder == "linear":
             library_size_encoder_kwargs = library_size_encoder_kwargs or {}
             self.library_size_encoder = LibrarySizeEncoder(fragments, **library_size_encoder_kwargs)
             n_input_embedding_dimensions += self.library_size_encoder.n_embedding_dimensions
+        elif library_size_encoder is None:
+            self.library_size_encoder = None
+        else:
+            raise ValueError(library_size_encoder + " is not a valid library size encoder")
 
+        # embedding to expression
         self.embedding_to_expression = EmbeddingToExpression(
             fragments=fragments,
             n_input_embedding_dimensions=n_input_embedding_dimensions,
@@ -546,7 +585,7 @@ class Model(FlowModel):
 
     def forward_loss(self, data):
         """
-        Make a prediction and calculate the loss given a data object
+        Make a prediction and calculate the loss
         """
         expression_predicted = self.forward(data)
         expression_true = data.transcriptome.value
@@ -555,14 +594,24 @@ class Model(FlowModel):
 
     def forward_region_loss(self, data):
         """
-        Make a prediction and calculate the loss given a data object
+        Make a prediction and calculate the loss on a per region basis
         """
         expression_predicted = self.forward(data)
         expression_true = data.transcriptome.value
         return region_paircor_loss(expression_predicted, expression_true)
-        # return region_pairzmse_loss(expression_predicted, expression_true)
 
     def forward_multiple(self, data, fragments_oi, min_fragments=1):
+        """
+        Make multiple predictions based on different sets of fragments
+
+        Parameters:
+            data:
+                the data object
+            fragments_oi:
+                an iterator of boolean arrays indicating which fragments to use
+            min_fragments:
+                the minimum number of fragments that have to remove before re-calculating the prediction
+        """
         fragment_embedding = self.fragment_embedder(data)
 
         total_n_fragments = torch.bincount(

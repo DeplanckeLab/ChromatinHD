@@ -131,7 +131,6 @@ class PeakCounts(Flow):
             return peak_gene_links_oi, self._counts_dense[:, var_oi["ix"]]
         elif counts is not None:
             return peak_gene_links_oi, np.array(counts[:, var_oi["ix"]].todense())
-            # return peak_gene_links_oi, np.array(counts[:, var_oi["ix"]].todense())
         else:
             print("COUNTING!!")
             return peak_gene_links_oi, np.array(

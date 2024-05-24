@@ -12,7 +12,7 @@ from chromatinhd import get_default_device
 from chromatinhd.data.folds import Folds
 from chromatinhd.data.fragments import Fragments
 from chromatinhd.data.transcriptome import Transcriptome
-from chromatinhd.models.pred.model.additive import Models
+from chromatinhd.models.pred.model.multiscale import Models
 
 from chromatinhd.flow.objects import StoredDict, Dataset, DataArray
 

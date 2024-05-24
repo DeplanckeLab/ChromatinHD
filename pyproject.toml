@@ -23,12 +23,9 @@ dependencies = [
     "matplotlib",
     "numpy",
     "seaborn",
-    "fisher",
     "diskcache",
     "appdirs",
     "xarray",
-    "pysam",
-    "tensorstore",
     "requests",
     "zarr",
     "pathlibfs",
@@ -44,6 +41,9 @@ license = {text = "MIT"}
 readme = {file = "README.md", content-type = "text/markdown"}
 
 [project.optional-dependencies]
+sam = [
+    "pysam",
+]
 dev = [
     "pre-commit",
     "pytest",

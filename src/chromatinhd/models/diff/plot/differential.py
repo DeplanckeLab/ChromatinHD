@@ -224,6 +224,7 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
         order=False,
         relative_to=None,
         label_accessibility=True,
+        label_cluster=True,
         **kwargs,
     ):
         """
@@ -265,6 +266,7 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
         self.norm_atac_diff = norm_atac_diff
         self.window = window
         self.cluster_info = cluster_info
+        self.breaking = breaking
 
         if cluster_info is None:
             raise ValueError("cluster_info should not be None")
@@ -287,26 +289,39 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
             )
 
             panel, ax = broken[0, 0]
-            _setup_differential(ax, ymax, cluster_info_oi, label=label_accessibility and (cluster == self.order[0]))
+            _setup_differential(
+                ax,
+                ymax,
+                cluster_info_oi,
+                label=label_accessibility and (cluster == self.order[0]),
+                label_cluster=label_cluster,
+            )
 
             for panel, ax in broken:
                 _scale_differential(ax, ymax)
                 ax.set_yticks([])
                 ax.set_yticks([], minor=True)
 
-            for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), broken):
-                if self.show_atac_diff:
-                    plotdata_cluster = plotdata.xs(cluster, level="cluster")
-                    plotdata_cluster_break = plotdata_cluster.loc[
-                        (plotdata_cluster.index.get_level_values("coord") >= region_info["start"])
-                        & (plotdata_cluster.index.get_level_values("coord") <= region_info["end"])
-                    ]
-                    plotdata_mean_break = plotdata_mean.loc[
-                        (plotdata_mean.index >= region_info["start"]) & (plotdata_mean.index <= region_info["end"])
-                    ]
-                    _draw_differential(
-                        ax, plotdata_cluster_break, plotdata_mean_break, self.cmap_atac_diff, self.norm_atac_diff
-                    )
+        if self.show_atac_diff:
+            self.draw(plotdata, plotdata_mean)
+
+    def draw(self, plotdata, plotdata_mean):
+        artists = []
+        for (cluster, cluster_info_oi), broken in zip(self.cluster_info.loc[self.order].iterrows(), self):
+            for (region, region_info), (panel, ax) in zip(self.breaking.regions.iterrows(), broken):
+                plotdata_cluster = plotdata.xs(cluster, level="cluster")
+                plotdata_cluster_break = plotdata_cluster.loc[
+                    (plotdata_cluster.index.get_level_values("coord") >= region_info["start"])
+                    & (plotdata_cluster.index.get_level_values("coord") <= region_info["end"])
+                ]
+                plotdata_mean_break = plotdata_mean.loc[
+                    (plotdata_mean.index >= region_info["start"]) & (plotdata_mean.index <= region_info["end"])
+                ]
+                artists_cluster_region = _draw_differential(
+                    ax, plotdata_cluster_break, plotdata_mean_break, self.cmap_atac_diff, self.norm_atac_diff
+                )
+                artists.extend(artists_cluster_region)
+        return artists
 
     @classmethod
     def from_regionpositional(cls, region_id, regionpositional, breaking, cluster_info, relative_to=None, **kwargs):
