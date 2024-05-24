@@ -66,6 +66,7 @@ test = [
     "pytest",
     "ruff",
 ]
+full = ["chromatinhd[sam]"]
 
 [tool.setuptools_scm]
 

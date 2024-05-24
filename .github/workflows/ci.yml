@@ -22,7 +22,7 @@ jobs:
       - run: pip install torch==2.3.0 # because torch_scatter contains import torch in the setup.py, we have to install torch first
       - run: pip install torch-scatter -f https://data.pyg.org/whl/torch-2.3.0+cpu.html # it seems a wheel is necessary to install torch-scatter
       - name: regular install
-        run: pip install .
+        run: pip install .[full]
       - name: attempt import
         run: python -c "import chromatinhd"
       - name: test install
