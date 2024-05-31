@@ -360,7 +360,7 @@ class RegionPositional(chd.flow.Flow):
         plotdata["prob"] = plotdata["prob"]
 
         if relative_to is not None:
-            plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord").mean()
+            plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord", observed=False).mean()
         else:
             plotdata_mean = plotdata[["prob"]].groupby("coord", observed=True).mean()
 

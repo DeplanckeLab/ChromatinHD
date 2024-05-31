@@ -3,7 +3,7 @@
     <img src="https://raw.githubusercontent.com/DeplanckeLab/ChromatinHD/main/docs/source/static/logo.png" width="300" />
   </a>
   <a href="https://chromatinhd.eu">
-    <img src="https://raw.githubusercontent.com/DeplanckeLab/ChromatinHD/main/docs/source/static/anim.gif" />
+    <img src="https://raw.githubusercontent.com/DeplanckeLab/ChromatinHD/main/docs/source/static/comparison.gif" />
   </a>
 </p>
 

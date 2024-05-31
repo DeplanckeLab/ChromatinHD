@@ -100,7 +100,7 @@ def get_hocomoco(path, organism="hs", variant="CORE", overwrite=False):
     motifs = pd.DataFrame(motifs).set_index("name")
     motifs.index.name = "motif"
 
-    for thresh in motifs["standard_thresholds"][0].keys():
+    for thresh in motifs["standard_thresholds"].iloc[0].keys():
         motifs["cutoff_" + thresh] = [thresholds[thresh] for _, thresholds in motifs["standard_thresholds"].items()]
     for species in ["HUMAN", "MOUSE"]:
         motifs[species + "_gene_symbol"] = [

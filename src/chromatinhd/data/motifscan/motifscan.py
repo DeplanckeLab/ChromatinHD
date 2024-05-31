@@ -191,6 +191,7 @@ class Motifscan(Flow):
 
         # do the actual counting by looping over the batches, extract the sequences and scanning
         progress = tqdm.tqdm(region_coordinates.groupby("batch"))
+        cur_region_index = 0
         for batch, region_coordinates_batch in progress:
             # extract onehot
             if fasta is None:
@@ -245,9 +246,9 @@ class Motifscan(Flow):
                     strands,
                 ) = scan(onehot, pwm2, cutoff=cutoff)
 
-                coordinates = positions.astype(np.int32) % onehot.shape[1]
+                coordinates = positions.astype(np.int32) % onehot.shape[-1]
 
-                region_indices = positions // onehot.shape[1]
+                region_indices = positions // onehot.shape[-1] + cur_region_index
 
                 coordinates = (
                     coordinates
@@ -281,6 +282,9 @@ class Motifscan(Flow):
             self.strands.extend(strands)
             self.coordinates.extend(coordinates)
             self.region_indices.extend(region_indices)
+
+            # update current region index
+            cur_region_index += len(region_coordinates_batch)
 
         return self
 
@@ -569,14 +573,14 @@ def scan(onehot, pwm, cutoff=0.0):
     found_positive = positive >= cutoff
     scores_positive = positive[found_positive]
     positions_positive = torch.stack(torch.where(found_positive)).to(torch.int64)
-    positions_positive = positions_positive[0] * (onehot.shape[1]) + positions_positive[1]
+    positions_positive = positions_positive[0] * (onehot.shape[-1]) + positions_positive[1]
 
     negative = torch.nn.functional.conv1d(onehot_comp, pwm_rev.unsqueeze(0))[:, 0]
 
     found_negative = negative >= cutoff
     scores_negative = negative[found_negative]
     positions_negative = torch.stack(torch.where(found_negative)).to(torch.int64)
-    positions_negative = (positions_negative[0]) * (onehot.shape[1]) + positions_negative[1]
+    positions_negative = (positions_negative[0]) * (onehot.shape[-1]) + positions_negative[1]
 
     return (
         torch.cat([scores_positive, scores_negative]).cpu().numpy(),

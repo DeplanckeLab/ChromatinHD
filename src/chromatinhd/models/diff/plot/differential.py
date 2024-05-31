@@ -471,8 +471,9 @@ def _process_plotdata(plotdata, plotdata_mean, cluster_info, order, relative_to,
             plotdata.index.get_level_values("coord").min(),
             plotdata.index.get_level_values("coord").max(),
         )
-
-    if window is not None:
+    else:
+        if isinstance(window, pd.Series):
+            window = window.values.tolist()
         plotdata = plotdata.loc[
             (plotdata.index.get_level_values("coord") >= window[0])
             & (plotdata.index.get_level_values("coord") <= window[1])

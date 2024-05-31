@@ -112,7 +112,8 @@ class GroupedMotifs(Grid):
             ax.set_yticks([])
 
             ax.axis("off")
-            ax.axhspan(0, 1, color=group_motifs["color"].iloc[0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
+            color = group_motifs["color"].iloc[0] if group_motifs.shape[0] == 1 else "black"
+            ax.axhspan(0, 1, color=color, zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
 
             if label_motifs:
                 if label_motifs_side == "right":
@@ -129,7 +130,7 @@ class GroupedMotifs(Grid):
                     xycoords="axes fraction",
                     xytext=xytext,
                     textcoords="offset points",
-                    color=group_motifs["color"][0],
+                    color=group_motifs["color"].iloc[0] if group_motifs.shape[0] == 1 else "black",
                     va="center",
                     fontsize=9,
                     ha=ha,
@@ -228,9 +229,11 @@ class GroupedMotifsBroken(Grid):
             panel, ax = broken[0, -1]
             _setup_group(ax, group_info_oi, group_motifs)
 
+            color = group_motifs["color"].iloc[0] if group_motifs.shape[0] == 1 else "black"
+
             for panel, ax in broken:
                 ax.axis("off")
-                ax.axhspan(0, 1, color=group_motifs["color"].iloc[0], zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
+                ax.axhspan(0, 1, color=color, zorder=0, alpha=0.1, transform=ax.transAxes, lw=0)
 
             # plot the motifs
             for motif in group_motifs.itertuples():
@@ -260,7 +263,8 @@ def _setup_group(ax, group_info_oi, group_motifs):
     ax.set_yticks([])
 
     if "label" in group_info_oi.keys():
-        ax.text(s=group_info_oi["label"], color=group_motifs["color"].tolist()[0], x=1.0, y=0.0, transform=ax.transAxes)
+        color = group_motifs["color"].tolist()[0] if group_motifs.shape[0] == 1 else "black"
+        ax.text(s=group_info_oi["label"], color=color, x=1.0, y=0.0, transform=ax.transAxes)
     else:
         rainbow_text(
             ax=ax,
