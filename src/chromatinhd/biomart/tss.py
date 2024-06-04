@@ -38,6 +38,7 @@ def get_genes(
 def get_transcripts(
     biomart_dataset: Dataset,
     gene_ids=None,
+    symbols=None,
     chrom=None,
     start=None,
     end=None,
@@ -46,11 +47,31 @@ def get_transcripts(
 ) -> pd.DataFrame:
     """
     Get all canonical transcripts
+
+    Parameters:
+        dataset:
+            A biomart dataset
+        gene_ids:
+            List of ensembl gene ids
+        symbols:
+            List of gene symbols
+        chrom:
+            Chromosome
+        start:
+            Start position
+        end:
+            End position
+        filter_chromosomes:
+            Filter out irregular chromosomes
+        filter_protein_coding:
+            Filter out non-protein coding transcripts
     """
 
     filters = []
     if gene_ids is not None:
         filters.append(biomart_dataset.filter("ensembl_gene_id", value=gene_ids))
+    if symbols is not None:
+        filters.append(biomart_dataset.filter("external_gene_name", value=symbols))
     if chrom is not None:
         filters.append(biomart_dataset.filter("chromosome_name", value=str(chrom).replace("chr", "")))
     if start is not None:

@@ -186,9 +186,17 @@ def select_tss_from_fragments(
     if not ([col in transcripts.columns for col in ["chrom", "tss", "ensembl_gene_id"]]):
         raise ValueError("Transcripts should have columns chrom, tss, ensembl_gene_id. ")
 
-    import pysam
+    try:
+        import pysam
+    except ImportError:
+        raise ImportError("Please install the pysam package `pip install pysam` or `conda install pysam`")
 
-    fragments_tabix = pysam.TabixFile(str(fragments_file))
+    try:
+        fragments_tabix = pysam.TabixFile(str(fragments_file))
+    except OSError as error:
+        raise ValueError(
+            "fragments file is not indexed, please run `pysam.tabix_index(file, preset = 'bed')`"
+        ) from error
 
     nfrags = []
     for chrom, tss in tqdm.tqdm(zip(transcripts["chrom"], transcripts["tss"]), total=transcripts.shape[0]):
