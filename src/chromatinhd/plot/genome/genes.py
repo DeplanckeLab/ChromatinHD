@@ -36,17 +36,25 @@ def center(coords: pd.DataFrame, region: pd.Series, window: np.ndarray = None):
     return coords
 
 
-def get_genes_plotdata(region, genome="GRCh38", window=None, use_cache=True):
+def get_genes_plotdata(region, genome="GRCh38", window=None, use_cache=True, only_canonical=True):
     biomart_dataset = chd.biomart.Dataset.from_genome(genome)
     if "chrom" not in region.index:
         region = region.copy()
         region["chrom"] = region["chr"]
-    canonical_transcripts = chd.biomart.get_canonical_transcripts(
-        biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"], use_cache=use_cache
-    )
+    if only_canonical:
+        transcripts = chd.biomart.get_canonical_transcripts(
+            biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"], use_cache=use_cache
+        )
+    else:
+        transcripts = chd.biomart.get_transcripts(
+            biomart_dataset,
+            chrom=region["chrom"],
+            start=region["start"],
+            end=region["end"],
+        )
     exons = chd.biomart.get_exons(biomart_dataset, chrom=region["chrom"], start=region["start"], end=region["end"])
 
-    plotdata_genes = canonical_transcripts
+    plotdata_genes = transcripts
     plotdata_genes = center(plotdata_genes, region, window=window)
 
     plotdata_exons = exons.rename(
@@ -54,6 +62,7 @@ def get_genes_plotdata(region, genome="GRCh38", window=None, use_cache=True):
             "exon_chrom_start": "start",
             "exon_chrom_end": "end",
             "ensembl_gene_id": "gene",
+            "ensembl_transcript_id": "transcript",
         }
     )
     plotdata_exons = center(plotdata_exons, region, window=window)
@@ -63,6 +72,7 @@ def get_genes_plotdata(region, genome="GRCh38", window=None, use_cache=True):
             "genomic_coding_start": "start",
             "genomic_coding_end": "end",
             "ensembl_gene_id": "gene",
+            "ensembl_transcript_id": "transcript",
         }
     )
     plotdata_coding = center(plotdata_coding, region, window=window)
@@ -122,7 +132,7 @@ class Genes(chromatinhd.grid.Ax):
                 width=0.5,
                 labelrotation=90,
             )
-        for gene, gene_info in plotdata_genes.iterrows():
+        for gene, gene_info in plotdata_genes.reset_index().set_index("transcript").iterrows():
             y = gene_info["ix"]
             is_oi = gene == gene_id
             ax.plot(
@@ -177,7 +187,7 @@ class Genes(chromatinhd.grid.Ax):
                     bbox=dict(facecolor="#FFFFFF", boxstyle="square,pad=0", lw=0),
                 )
 
-            plotdata_exons_gene = plotdata_exons.query("gene == @gene")
+            plotdata_exons_gene = plotdata_exons.query("transcript == @gene")
             h = 1
             for exon, exon_info in plotdata_exons_gene.iterrows():
                 rect = mpl.patches.Rectangle(
@@ -191,7 +201,7 @@ class Genes(chromatinhd.grid.Ax):
                 )
                 ax.add_patch(rect)
 
-            plotdata_coding_gene = plotdata_coding.query("gene == @gene")
+            plotdata_coding_gene = plotdata_coding.query("transcript == @gene")
             for coding, coding_info in plotdata_coding_gene.iterrows():
                 rect = mpl.patches.Rectangle(
                     (coding_info["start"], y - h / 2),
@@ -209,12 +219,14 @@ class Genes(chromatinhd.grid.Ax):
             ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_region(cls, region, genome="GRCh38", window=None, use_cache=True, show_genes=True, **kwargs):
+    def from_region(
+        cls, region, genome="GRCh38", window=None, use_cache=True, show_genes=True, only_canonical=True, **kwargs
+    ):
         if window is None:
             assert "tss" in region
             window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
         plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
-            region, genome=genome, window=window, use_cache=use_cache
+            region, genome=genome, window=window, use_cache=use_cache, only_canonical=only_canonical
         )
 
         if not show_genes:
@@ -251,8 +263,6 @@ class GenesBroken(Broken):
         plotdata_coding,
         breaking,
         gene_id,
-        region,
-        window,
         *args,
         label_positions=True,
         label_positions_minlength=500,
@@ -333,7 +343,7 @@ class GenesBroken(Broken):
             # plot genes
             plotdata_genes_region = filter_start_end(plotdata_genes, region_info["start"], region_info["end"])
 
-            for gene, gene_info in plotdata_genes_region.iterrows():
+            for gene, gene_info in plotdata_genes_region.reset_index().set_index("transcript").iterrows():
                 y = gene_info["ix"]
                 is_oi = gene == gene_id
                 if is_oi:
@@ -346,7 +356,7 @@ class GenesBroken(Broken):
                     color=color,
                 )
 
-                plotdata_exons_gene = plotdata_exons.query("gene == @gene")
+                plotdata_exons_gene = plotdata_exons.query("transcript == @gene")
                 plotdata_exons_gene = filter_start_end(plotdata_exons_gene, region_info["start"], region_info["end"])
                 h = 1
                 for exon, exon_info in plotdata_exons_gene.iterrows():
@@ -361,7 +371,7 @@ class GenesBroken(Broken):
                     )
                     ax.add_patch(rect)
 
-                plotdata_coding_gene = plotdata_coding.query("gene == @gene")
+                plotdata_coding_gene = plotdata_coding.query("transcript == @gene")
                 plotdata_coding_gene = filter_start_end(plotdata_coding_gene, region_info["start"], region_info["end"])
                 for coding, coding_info in plotdata_coding_gene.iterrows():
                     rect = mpl.patches.Rectangle(
@@ -384,21 +394,16 @@ class GenesBroken(Broken):
         ax.tick_params(axis="y", length=0, pad=2, width=0.5)
 
     @classmethod
-    def from_region(cls, region, breaking, genome="GRCh38", window=None, use_cache=True, **kwargs):
-        if window is None:
-            assert "tss" in region
-            window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
+    def from_region(cls, region, breaking, genome="GRCh38", use_cache=True, only_canonical=True, **kwargs):
         plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
-            region, genome=genome, window=window, use_cache=use_cache
+            region, genome=genome, use_cache=use_cache, only_canonical=only_canonical
         )
 
         return cls(
             plotdata_genes=plotdata_genes,
             plotdata_exons=plotdata_exons,
             plotdata_coding=plotdata_coding,
-            region=region,
             gene_id=region.name,
-            window=window,
             breaking=breaking,
             **kwargs,
         )

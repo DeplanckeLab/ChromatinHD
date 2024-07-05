@@ -78,21 +78,27 @@ def get_transcripts(
         filters.append(biomart_dataset.filter("start", value=str(start)))
     if end is not None:
         filters.append(biomart_dataset.filter("end", value=str(end)))
-    transcripts = biomart_dataset.get_batched(
-        [
-            biomart_dataset.attribute("ensembl_gene_id"),
-            biomart_dataset.attribute("transcript_start"),
-            biomart_dataset.attribute("transcript_end"),
-            biomart_dataset.attribute("end_position"),
-            biomart_dataset.attribute("start_position"),
-            biomart_dataset.attribute("ensembl_transcript_id"),
-            biomart_dataset.attribute("chromosome_name"),
-            biomart_dataset.attribute("strand"),
-            biomart_dataset.attribute("external_gene_name"),
-            biomart_dataset.attribute("transcript_biotype"),
-        ],
-        filters=filters,
-    )
+
+    attributes = [
+        biomart_dataset.attribute("ensembl_gene_id"),
+        biomart_dataset.attribute("transcript_start"),
+        biomart_dataset.attribute("transcript_end"),
+        biomart_dataset.attribute("end_position"),
+        biomart_dataset.attribute("start_position"),
+        biomart_dataset.attribute("ensembl_transcript_id"),
+        biomart_dataset.attribute("chromosome_name"),
+        biomart_dataset.attribute("strand"),
+        biomart_dataset.attribute("external_gene_name"),
+        biomart_dataset.attribute("transcript_biotype"),
+    ]
+
+    if len(filters) == 1:
+        transcripts = biomart_dataset.get_batched(
+            attributes,
+            filters=filters,
+        )
+    else:
+        transcripts = biomart_dataset.get(attributes, filters=filters)
     transcripts["chrom"] = "chr" + transcripts["chromosome_name"].astype(str)
     transcripts = transcripts.set_index("ensembl_transcript_id")
     transcripts = transcripts.rename(
@@ -100,6 +106,7 @@ def get_transcripts(
             "transcript_start": "start",
             "transcript_end": "end",
             "external_gene_name": "symbol",
+            "ensembl_transcript_id": "transcript",
         }
     )
     transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (
@@ -114,6 +121,7 @@ def get_transcripts(
         ],
         axis=1,
     )
+    transcripts.index.name = "transcript"
 
     # filter on protein coding
     if filter_protein_coding:
@@ -214,6 +222,7 @@ def get_canonical_transcripts(
             "transcript_start": "start",
             "transcript_end": "end",
             "external_gene_name": "symbol",
+            "ensembl_transcript_id": "transcript",
         }
     )
     genes.index.name = "gene"
@@ -260,7 +269,7 @@ def get_exons(biomart_dataset: Dataset, chrom, start, end):
             biomart_dataset.filter("chromosome_name", value=str(chrom).replace("chr", "")),
             biomart_dataset.filter(
                 "ensembl_transcript_id",
-                value=canonical_transcripts["ensembl_transcript_id"],
+                value=canonical_transcripts["transcript"],
             ),
         ],
     )
