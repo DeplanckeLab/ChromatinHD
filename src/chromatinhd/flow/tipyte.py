@@ -47,24 +47,24 @@ __all__ = [
 ]
 
 OPEN_TAGS = [
-    "(?:{{|\s*{{-) ",
-    "(?:{%|\s*{%-) ",
-    "(?:{=|\s*{=-) ",
-    "(?:{#|\s*{#-) ",
+    r"(?:{{|\s*{{-) ",
+    r"(?:{%|\s*{%-) ",
+    r"(?:{=|\s*{=-) ",
+    r"(?:{#|\s*{#-) ",
 ]
 CLOSE_TAGS = [
-    " (?:}}|-}}\s*)",
-    " (?:%}|-%}\s*)",
-    " (?:=}|-=}\s*)",
-    " (?:#}|-#}\s*)",
+    r" (?:}}|-}}\s*)",
+    r" (?:%}|-%}\s*)",
+    r" (?:=}|-=}\s*)",
+    r" (?:#}|-#}\s*)",
 ]
 
 CAPTURE_BLOCKS = (opn + ".*?" + cls for opn, cls in zip(OPEN_TAGS, CLOSE_TAGS))
-CAPTURE_EXPRESSION = "(.*?)(%s)(.*?)|(.+?)\Z" % ("|".join(CAPTURE_BLOCKS),)
+CAPTURE_EXPRESSION = r"(.*?)(%s)(.*?)|(.+?)\Z" % ("|".join(CAPTURE_BLOCKS),)
 CAPTURE_REGEX = re.compile(CAPTURE_EXPRESSION.encode("utf-8"), re.MULTILINE | re.DOTALL)
 
 END_BLOCK_EXPRESSION_REGEX = re.compile("end(for|while|if|with|try)$")
-BLOCK_EXPRESSION_REGEX = re.compile("(for|while|(el)?if|with)\s|(try|else|finally)\s*:?|except(\s*:|\s)")
+BLOCK_EXPRESSION_REGEX = re.compile(r"(for|while|(el)?if|with)\s|(try|else|finally)\s*:?|except(\s*:|\s)")
 
 TEMPLATE_PATH_PREFIX = "/._/python-templates/"
 WHITESPACE_BYTES = frozenset(b" \t\n\r\x0b\x0c") | {32, 8, 9, 10, 11, 12, 13}
@@ -267,9 +267,7 @@ def template_to_function(path, escaper=html_escape):
 
     def function(_template_symbol_dictionary=None, **symbols):
         if _template_symbol_dictionary is not None and symbols:
-            raise ValueError(
-                "Cannot specify _template_symbol_dictionary when using " "keyword arguments as template variables."
-            )
+            raise ValueError("Cannot specify _template_symbol_dictionary when using " "keyword arguments as template variables.")
         elif _template_symbol_dictionary:
             symbols = _template_symbol_dictionary
 

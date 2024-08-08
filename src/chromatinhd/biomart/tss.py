@@ -14,6 +14,7 @@ def map_symbols(biomart_dataset: Dataset, symbols):
         filters=[
             biomart_dataset.filter("external_gene_name", value=symbols),
         ],
+        batch_size=500,
     )
     mapping = mapping.set_index("external_gene_name")
     return mapping
@@ -44,6 +45,7 @@ def get_transcripts(
     end=None,
     filter_chromosomes=True,
     filter_protein_coding=True,
+    batch_size=100,
 ) -> pd.DataFrame:
     """
     Get all canonical transcripts
@@ -65,6 +67,8 @@ def get_transcripts(
             Filter out irregular chromosomes
         filter_protein_coding:
             Filter out non-protein coding transcripts
+        batch_size:
+            Batch size for fetching. Reduce if you get a timeout error
     """
 
     filters = []
@@ -92,6 +96,7 @@ def get_transcripts(
             biomart_dataset.attribute("transcript_biotype"),
         ],
         filters=filters,
+        batch_size=batch_size,
     )
     transcripts["chrom"] = "chr" + transcripts["chromosome_name"].astype(str)
     transcripts = transcripts.set_index("ensembl_transcript_id")
@@ -102,9 +107,7 @@ def get_transcripts(
             "external_gene_name": "symbol",
         }
     )
-    transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (
-        transcripts["strand"] == -1
-    )
+    transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (transcripts["strand"] == -1)
 
     transcripts = transcripts.drop(
         [
@@ -117,14 +120,12 @@ def get_transcripts(
 
     # filter on protein coding
     if filter_protein_coding:
-        transcripts = transcripts.loc[
-            transcripts["transcript_biotype"].isin(["protein_coding", "protein_coding_CDS_not_defined"])
-        ]
+        transcripts = transcripts.loc[transcripts["transcript_biotype"].isin(["protein_coding", "protein_coding_CDS_not_defined"])]
 
     if filter_chromosomes:
         transcripts = transcripts.loc[~transcripts["chrom"].isin(["chrM", "chrMT"])]
         transcripts = transcripts.loc[~transcripts["chrom"].str.contains("_")]
-        transcripts = transcripts.loc[~transcripts["chrom"].str.contains("\.")]
+        transcripts = transcripts.loc[~transcripts["chrom"].str.contains(r"\.")]
 
     # sort by gene_ids
     transcripts["ensembl_gene_id"] = pd.Categorical(transcripts["ensembl_gene_id"], categories=gene_ids, ordered=True)

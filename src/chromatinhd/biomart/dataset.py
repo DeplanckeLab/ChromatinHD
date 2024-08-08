@@ -6,9 +6,7 @@ import xml.etree.cElementTree as ET
 import tqdm.auto as tqdm
 
 
-def get_datasets(
-    mart: str = "ENSEMBL_MART_ENSEMBL", baseurl: str = "http://www.ensembl.org/biomart/martservice?"
-) -> pd.DataFrame:
+def get_datasets(mart: str = "ENSEMBL_MART_ENSEMBL", baseurl: str = "http://www.ensembl.org/biomart/martservice?") -> pd.DataFrame:
     """
     List all datasets available within a mart and baseurl
     """
@@ -56,6 +54,8 @@ class Filter:
         if isinstance(self.value, str):
             value = self.value
         else:
+            if not all(isinstance(v, str) for v in self.value):
+                raise ValueError("Filter value must be a string")
             value = ",".join(self.value)
         return ET.Element("Filter", name=self.name, value=value, **self.kwargs)
 
@@ -181,9 +181,7 @@ class Dataset:
                 raise ValueError("Ensembl web service timed out")
             # check response status
             if response.status_code != 200:
-                raise ValueError(
-                    f"Response status code is {response.status_code} and not 200. Response text: {response.text}"
-                )
+                raise ValueError(f"Response status code is {response.status_code} and not 200. Response text: {response.text}")
             if "Query ERROR: caught BioMart" in response.text:
                 print(query.replace("><", ">\n<"))
                 raise ValueError(response.text)

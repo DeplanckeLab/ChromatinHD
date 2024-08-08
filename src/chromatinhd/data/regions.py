@@ -46,9 +46,7 @@ class Regions(Flow):
         Returns:
             Regions
         """
-        transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (
-            transcripts["strand"] == -1
-        )
+        transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (transcripts["strand"] == -1)
 
         regions = transcripts[["chrom", "tss", "ensembl_transcript_id"]].copy()
 
@@ -57,12 +55,8 @@ class Regions(Flow):
         regions["negative_strand"] = (regions["strand"] == -1).astype(int)
         regions["chrom"] = transcripts.loc[regions.index, "chrom"]
 
-        regions["start"] = (
-            regions["tss"] + window[0] * (regions["strand"] == 1) - window[1] * (regions["strand"] == -1)
-        ).astype(int)
-        regions["end"] = (
-            regions["tss"] + window[1] * (regions["strand"] == -1) - window[0] * (regions["strand"] == 1)
-        ).astype(int)
+        regions["start"] = (regions["tss"] + window[0] * (regions["strand"] == 1) - window[1] * (regions["strand"] == -1)).astype(int)
+        regions["end"] = (regions["tss"] + window[1] * (regions["strand"] == -1) - window[0] * (regions["strand"] == 1)).astype(int)
 
         if max_n_regions is not None:
             regions = regions.iloc[:max_n_regions]
@@ -87,9 +81,7 @@ class Regions(Flow):
             Regions with only the specified region_ids
         """
 
-        return Regions.create(
-            coordinates=self.coordinates.loc[region_ids], window=self.window, path=path, reset=overwrite
-        )
+        return Regions.create(coordinates=self.coordinates.loc[region_ids], window=self.window, path=path, reset=overwrite)
 
     @property
     def window_width(self):
@@ -102,9 +94,7 @@ class Regions(Flow):
     "Width of the regions, None if regions do not have a fixed width"
 
     @classmethod
-    def from_chromosomes_file(
-        cls, chromosomes_file: PathLike, path: PathLike = None, filter_chromosomes=True, overwrite: bool = True
-    ) -> Regions:
+    def from_chromosomes_file(cls, chromosomes_file: PathLike, path: PathLike = None, filter_chromosomes=True, overwrite: bool = True) -> Regions:
         """
         Create regions based on a chromosomes file, e.g. hg38.chrom.sizes
 
@@ -128,7 +118,7 @@ class Regions(Flow):
         if filter_chromosomes:
             chromosomes = chromosomes.loc[~chromosomes["chrom"].isin(["chrM", "chrMT"])]
             chromosomes = chromosomes.loc[~chromosomes["chrom"].str.contains("_")]
-            chromosomes = chromosomes.loc[~chromosomes["chrom"].str.contains("\.")]
+            chromosomes = chromosomes.loc[~chromosomes["chrom"].str.contains(r"\.")]
 
         chromosomes = chromosomes.sort_values("chrom")
 
@@ -167,9 +157,7 @@ class Regions(Flow):
         return self.n_regions
 
 
-def select_tss_from_fragments(
-    transcripts: pd.DataFrame, fragments_file: PathLike, window: [np.ndarray, tuple] = (-100, 100)
-) -> pd.DataFrame:
+def select_tss_from_fragments(transcripts: pd.DataFrame, fragments_file: PathLike, window: [np.ndarray, tuple] = (-100, 100)) -> pd.DataFrame:
     """
     Select the TSS with the most fragments within a window of the TSS
 
@@ -194,17 +182,13 @@ def select_tss_from_fragments(
     try:
         fragments_tabix = pysam.TabixFile(str(fragments_file))
     except OSError as error:
-        raise ValueError(
-            "fragments file is not indexed, please run `pysam.tabix_index(file, preset = 'bed')`"
-        ) from error
+        raise ValueError("fragments file is not indexed, please run `pysam.tabix_index(file, preset = 'bed')`") from error
 
     nfrags = []
     for chrom, tss in tqdm.tqdm(zip(transcripts["chrom"], transcripts["tss"]), total=transcripts.shape[0]):
         frags = list(fragments_tabix.fetch(chrom, tss + window[0], tss + window[1]))
         nfrags.append(len(frags))
     transcripts["n_fragments"] = nfrags
-    selected_transcripts = (
-        transcripts.reset_index().sort_values("n_fragments", ascending=False).groupby("ensembl_gene_id").first()
-    )
+    selected_transcripts = transcripts.reset_index().sort_values("n_fragments", ascending=False).groupby("ensembl_gene_id").first()
     selected_transcripts.index.name = "gene"
     return selected_transcripts
