@@ -246,5 +246,11 @@ class Dataset:
                 "http://www.ensembl.org/biomart/martservice?",
                 "ENSEMBL_MART_ENSEMBL",
             )
+        elif genome in ["GRCz11"]:
+            return Dataset(
+                "drerio_gene_ensembl",
+                "http://www.ensembl.org/biomart/martservice?",
+                "ENSEMBL_MART_ENSEMBL",
+            )
         else:
             raise ValueError("Genome not supported")
