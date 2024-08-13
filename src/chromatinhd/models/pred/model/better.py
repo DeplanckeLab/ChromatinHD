@@ -575,7 +575,7 @@ class Model(FlowModel):
             data.minibatch.n_cells,
             data.minibatch.n_regions,
         )
-        if hasattr(self, "library_size_encoder"):
+        if hasattr(self, "library_size_encoder") and (self.library_size_encoder is not None):
             library_size_encoding = self.library_size_encoder(data).unsqueeze(-2)
             cell_region_embedding = torch.cat([cell_region_embedding, library_size_encoding], dim=-1)
         expression_predicted = self.embedding_to_expression(cell_region_embedding)
