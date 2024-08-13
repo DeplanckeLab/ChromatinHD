@@ -172,26 +172,13 @@ class Fragments:
         # create buffers for coordinates
         if n_fragment_per_cellxregion is None:
             n_fragment_per_cellxregion = fragments.estimate_fragment_per_cellxregion()
-        fragment_buffer_size = n_fragment_per_cellxregion * cellxregion_batch_size * buffer_size_multiplier
+        fragment_buffer_size = int(n_fragment_per_cellxregion * cellxregion_batch_size * buffer_size_multiplier)
         self.fragment_buffer_size = fragment_buffer_size
 
         self.n_regions = fragments.n_regions
 
         # set up readers and determine if we are dealing with a view or not
-        if isinstance(fragments, chromatinhd.data.fragments.Fragments):
-            self.regionxcell_indptr_reader = fragments.regionxcell_indptr.open_reader(
-                {"context": {"data_copy_concurrency": {"limit": 1}}}
-            )
-            self.coordinates_reader = fragments.coordinates.open_reader(
-                {
-                    "context": {
-                        "data_copy_concurrency": {"limit": 1},
-                    }
-                }
-            )
-            self.is_view = False
-
-        elif isinstance(fragments, chromatinhd.data.fragments.view.FragmentsView):
+        if isinstance(fragments, chromatinhd.data.fragments.view.FragmentsView):
             self.regionxcell_indptr_reader = fragments.regionxcell_indptr.open_reader()
             self.coordinates_reader = fragments.coordinates.open_reader()
 
@@ -207,8 +194,20 @@ class Fragments:
                 int
             )
             self.is_view = True
+        # elif isinstance(fragments, chromatinhd.data.fragments.Fragments):
         else:
-            raise ValueError("fragments must be either a Fragments or FragmentsView object", type(fragments))
+            self.is_view = False
+            # raise ValueError("fragments must be either a Fragments or FragmentsView object", type(fragments))
+            self.regionxcell_indptr_reader = fragments.regionxcell_indptr.open_reader(
+                {"context": {"data_copy_concurrency": {"limit": 1}}}
+            )
+            self.coordinates_reader = fragments.coordinates.open_reader(
+                {
+                    "context": {
+                        "data_copy_concurrency": {"limit": 1},
+                    }
+                }
+            )
 
         self.n_cells = fragments.n_cells
 
@@ -419,7 +418,7 @@ class FragmentsRegional:
         # create buffers for coordinates
         if n_fragment_per_cellxregion is None:
             n_fragment_per_cellxregion = fragments.estimate_fragment_per_cellxregion()
-        fragment_buffer_size = n_fragment_per_cellxregion * cellxregion_batch_size * buffer_size_multiplier
+        fragment_buffer_size = int(n_fragment_per_cellxregion * cellxregion_batch_size * buffer_size_multiplier)
         self.fragment_buffer_size = fragment_buffer_size
 
         self.n_regions = fragments.n_regions
