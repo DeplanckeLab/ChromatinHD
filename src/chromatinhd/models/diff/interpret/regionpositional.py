@@ -83,6 +83,14 @@ class Slices:
             )
         slicescores["length"] = slicescores["end"] - slicescores["start"]
         slicescores = slicescores.loc[slicescores["length"] >= min_length]
+
+        slicescores.index = (
+            slicescores["region_ix"].astype(str)
+            + ":"
+            + slicescores["start"].astype(str)
+            + "-"
+            + slicescores["end"].astype(str)
+        )
         return slicescores
 
 
@@ -155,6 +163,14 @@ class DifferentialSlices:
             )
         slicescores["length"] = slicescores["end"] - slicescores["start"]
         slicescores = slicescores.loc[slicescores["length"] >= min_length]
+        slicescores.index = (
+            slicescores["region_ix"].astype(str)
+            + ":"
+            + slicescores["start"].astype(str)
+            + "-"
+            + slicescores["end"].astype(str)
+        )
+        slicescores.index.name = "slice"
         return slicescores
 
 
@@ -209,6 +225,13 @@ class DifferentialPeaks:
             )
         slicescores["length"] = slicescores["end"] - slicescores["start"]
         slicescores = slicescores.loc[slicescores["length"] >= min_length]
+        slicescores.index = (
+            slicescores["region_ix"].astype(str)
+            + ":"
+            + slicescores["start"].astype(str)
+            + "-"
+            + slicescores["end"].astype(str)
+        )
         return slicescores
 
 
@@ -339,7 +362,7 @@ class RegionPositional(chd.flow.Flow):
 
         return self
 
-    def get_plotdata(self, region: str, clusters=None, relative_to=None) -> (pd.DataFrame, pd.DataFrame):
+    def get_plotdata(self, region: str, clusters=None, relative_to=None, scale = 1.) -> (pd.DataFrame, pd.DataFrame):
         """
         Returns average and differential probabilities for a particular region.
 
@@ -356,13 +379,13 @@ class RegionPositional(chd.flow.Flow):
             probs = probs.sel(cluster=clusters)
 
         plotdata = probs.to_dataframe("prob")
-
-        plotdata["prob"] = plotdata["prob"]
+        # plotdata["prob"] = plotdata["prob"] * scale - plotdata["prob"].mean() * scale
 
         if relative_to is not None:
             plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord", observed=False).mean()
         else:
             plotdata_mean = plotdata[["prob"]].groupby("coord", observed=True).mean()
+
 
         return plotdata, plotdata_mean
 
@@ -420,7 +443,7 @@ class RegionPositional(chd.flow.Flow):
         )
         return slices
 
-    def calculate_differential_slices(self, slices, fc_cutoff=2.0, score="diff", a=None, b=None, n=None):
+    def calculate_differential_slices(self, slices, fc_cutoff=2.0, score="diff", a=None, b=None, n=None, expand = 0):
         if score == "diff":
             data_diff = slices.data - slices.data.mean(1, keepdims=True)
             data_selected = data_diff > np.log(fc_cutoff)
@@ -483,6 +506,10 @@ class RegionPositional(chd.flow.Flow):
         region_ixs = np.concatenate(region_ixs, axis=0)
         cluster_ixs = np.concatenate(cluster_ixs, axis=0)
 
+        if expand > 0:
+            start_position_ixs = start_position_ixs - expand
+            end_position_ixs = end_position_ixs + expand
+
         differential_slices = DifferentialSlices(
             region_ixs,
             cluster_ixs,
@@ -530,7 +557,7 @@ class RegionPositional(chd.flow.Flow):
         )
         return differential_slices
 
-    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=1.5):
+    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=1.5, differential_prob_cutoff=None, keep_tss = False):
         """
         Select windows based on the number of fragments
 
@@ -545,6 +572,8 @@ class RegionPositional(chd.flow.Flow):
                 the padding to add to each window
             prob_cutoff:
                 the probability cutoff
+            differential_prob_cutoff:
+                the differential probability cutoff
         """
 
         from scipy.ndimage import convolve
@@ -557,6 +586,10 @@ class RegionPositional(chd.flow.Flow):
 
         plotdata, plotdata_mean = self.get_plotdata(region_id)
         selection = pd.DataFrame({"chosen": (plotdata["prob"].unstack() > prob_cutoff).any()})
+
+        if differential_prob_cutoff is not None:
+            plotdata_diff = (plotdata - plotdata_mean)["prob"].unstack()
+            selection["chosen_differential"] = selection["chosen"] & (np.exp(plotdata_diff.values) > differential_prob_cutoff).any(0)
 
         # add padding
         step = plotdata.index.get_level_values("coord")[1] - plotdata.index.get_level_values("coord")[0]
@@ -587,6 +620,16 @@ class RegionPositional(chd.flow.Flow):
             .agg({"start": "min", "end": "max", "distance_to_next": "last"})
             .reset_index(drop=True)
         )
+
+        if differential_prob_cutoff is not None:
+            windows["extra_selection"] = windows.apply(
+                lambda x: (plotdata_diff.iloc[:, plotdata_diff.columns.get_loc(x["start"]) : plotdata_diff.columns.get_loc(x["end"])] > np.log(differential_prob_cutoff)).any().any(), axis=1
+            )
+            if keep_tss:
+                windows.loc[
+                    (windows["start"] < 0) & (windows["end"] > 0), "extra_selection"
+                ] = True
+            windows = windows.loc[windows["extra_selection"]]
 
         # filter on length
         windows["length"] = windows["end"] - windows["start"]

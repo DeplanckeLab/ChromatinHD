@@ -1,8 +1,8 @@
-import chromatinhd.grid
+import polyptich.grid
 import numpy as np
 
 
-class Effect(chromatinhd.grid.Panel):
+class Effect(polyptich.grid.Panel):
     def __init__(self, plotdata, window, width, show_accessibility=False):
         super().__init__((width, 0.5))
         if "position" not in plotdata.columns:

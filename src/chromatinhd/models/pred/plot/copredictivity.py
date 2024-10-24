@@ -1,4 +1,4 @@
-import chromatinhd.grid
+import polyptich.grid
 import chromatinhd.plot
 import chromatinhd.utils
 import chromatinhd.plot
@@ -9,7 +9,7 @@ import pandas as pd
 import itertools
 
 
-class Copredictivity(chromatinhd.grid.Panel):
+class Copredictivity(polyptich.grid.Panel):
     """
     Plot co-predictivity of a gene.
     """
@@ -30,7 +30,7 @@ class Copredictivity(chromatinhd.grid.Panel):
         self.ax.invert_yaxis()
 
         panel_copredictivity_legend = self.add_inset(
-            chromatinhd.grid.Panel((0.05, 0.8)), pos=(0.0, 0.0), offset=(0.0, 0.2)
+            polyptich.grid.Panel((0.05, 0.8)), pos=(0.0, 0.0), offset=(0.0, 0.2)
         )
         plt.colorbar(
             mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
@@ -55,7 +55,7 @@ class Copredictivity(chromatinhd.grid.Panel):
         return cls(plotdata, width)
 
 
-class CopredictivityBroken(chromatinhd.grid.Panel):
+class CopredictivityBroken(polyptich.grid.Panel):
     """
     Plot co-predictivity for different regions
     """
@@ -64,7 +64,7 @@ class CopredictivityBroken(chromatinhd.grid.Panel):
         super().__init__((breaking.width, breaking.width / 2))
         ax = self.ax
 
-        transform = chromatinhd.grid.broken.TransformBroken(breaking)
+        transform = polyptich.grid.broken.TransformBroken(breaking)
 
         plotdata["window1_broken"] = transform(
             windows.loc[plotdata.index.get_level_values("window1"), "window_mid"].values
@@ -112,7 +112,7 @@ class CopredictivityBroken(chromatinhd.grid.Panel):
             - windows.loc[plotdata.index.get_level_values("window1"), "window_mid"].values
         )
 
-        transform = chromatinhd.grid.broken.TransformBroken(breaking)
+        transform = polyptich.grid.broken.TransformBroken(breaking)
         plotdata["window1_broken"] = transform(
             windows.loc[plotdata.index.get_level_values("window1"), "window_mid"].values
         )

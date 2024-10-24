@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 import torch
-import torch_scatter
+# import torch_scatter
 import tqdm.auto as tqdm
 import xarray as xr
 

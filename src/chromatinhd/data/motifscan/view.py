@@ -13,7 +13,7 @@ from chromatinhd.flow.tensorstore import Tensorstore, TensorstoreInstance
 
 class MotifscanView(Flow):
     """
-    A view of motifscan based on regions that are a subset of the parent motifscan. In a typical use case, the parent contains motifscan for all chromosomes, while this the view focuses on specific regions.
+    A view of a motifscan, based on regions that are a subset of the parent motifscan. In a typical use case, the parent contains motifs for all chromosomes, while this view focuses on specific regions.
     """
 
     parent: Motifscan = Linked()
@@ -111,7 +111,7 @@ class MotifscanView(Flow):
                 f"Not all regions are present in the parent motifscan. Missing regions: {self.regions.coordinates[parentregion_column][~self.regions.coordinates[parentregion_column].isin(self.parent.regions.coordinates[parentregion_column])]}"
             )
 
-        # # convert regions in parent to parent region ixs
+        # convert regions in parent to parent region ixs
         self.parent.regions.coordinates["ix"] = np.arange(len(self.parent.regions.coordinates))
         parentregion_to_parentregion_ix = self.parent.regions.coordinates["ix"].to_dict()
 

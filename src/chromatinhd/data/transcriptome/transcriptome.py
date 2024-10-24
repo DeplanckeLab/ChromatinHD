@@ -13,6 +13,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import scanpy as sc
 
+def get_diffexp(adata, key = "rank_genes_groups", groups = None):
+    import scanpy as sc
+    groups = adata.uns[key]["names"].dtype.names
+    diffexp = pd.concat(
+        [
+            sc.get.rank_genes_groups_df(adata, group=group, key = key)
+            .assign(symbol=lambda x: adata.var.loc[x.names]["symbol"].values)
+            .assign(group=group)
+            .rename(columns={"names": "gene"})
+            for group in groups
+        ]
+    ).set_index(["group", "gene"])
+    return diffexp
 
 class Transcriptome(Flow):
     """
@@ -170,6 +183,9 @@ class Transcriptome(Flow):
             if isinstance(gene_ids, str):
                 value = value[:, 0]
         return value
+
+    def get_diffexp(self, key = "rank_genes_groups", groups = None):
+        return get_diffexp(self.adata, key, groups)
 
 
 class ClusterTranscriptome(Flow):

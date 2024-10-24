@@ -5,7 +5,7 @@ Additive model for predicting region expression from fragments
 from __future__ import annotations
 
 import torch
-import torch_scatter
+# import torch_scatter
 import math
 import numpy as np
 import xarray as xr

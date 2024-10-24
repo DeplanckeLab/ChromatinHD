@@ -86,15 +86,9 @@ disable = [
 ]
 
 [tool.ruff]
-line-length = 500
-ignore-init-module-imports = true
-ignore = ['F401']
+line-length = 90
 include = ['src/**/*.py']
 exclude = ['scripts/*']
-
-[tool.black]
-line-length = 120
-target-version = ['py37', 'py38']
 
 
 [tool.jupytext]

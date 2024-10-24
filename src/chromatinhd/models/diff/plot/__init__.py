@@ -1,5 +1,5 @@
 import chromatinhd
-import chromatinhd.grid
+import polyptich.grid
 import matplotlib as mpl
 import seaborn as sns
 import numpy as np
@@ -9,14 +9,14 @@ from .differential import Differential, DifferentialBroken
 from .differential_expression import DifferentialExpression
 
 
-class MotifsLegend(chromatinhd.grid.Wrap):
+class MotifsLegend(polyptich.grid.Wrap):
     def __init__(self, motifs_oi, cluster_info, width, panel_height, **kwargs):
         super().__init__(ncol=1, **kwargs)
 
         motifs_shown = set()
 
         for cluster in cluster_info.index:
-            ax = chromatinhd.grid.Ax((width, panel_height))
+            ax = polyptich.grid.Panel((width, panel_height))
             self.add(ax)
             ax = ax.ax
 
@@ -89,7 +89,7 @@ class MotifsHighlighting:
             # adjustText.adjust_text(texts, ax=ax, autoalign="x", va="top", ha="center")
 
 
-class Conservation(chromatinhd.grid.Ax):
+class Conservation(polyptich.grid.Panel):
     def __init__(self, plotdata_conservation, window, width):
         super().__init__((width, 0.3))
 
@@ -108,7 +108,7 @@ class Conservation(chromatinhd.grid.Ax):
         ax.set_xticks([])
 
 
-class GC(chromatinhd.grid.Ax):
+class GC(polyptich.grid.Panel):
     def __init__(self, plotdata_gc, window, width):
         super().__init__((width, 0.3))
 
@@ -305,7 +305,7 @@ chromstate_info = pd.read_table(
 chromstate_info["color"] = [np.array(c.split(","), dtype=float) / 255 for c in chromstate_info["color_code"]]
 
 
-class Annot(chromatinhd.grid.Ax):
+class Annot(polyptich.grid.Panel):
     def __init__(self, plotdata, window, width, cluster_info):
         super().__init__((width, len(cluster_info) * 0.15))
 
@@ -339,7 +339,7 @@ class Annot(chromatinhd.grid.Ax):
         # ax.set_xticks([])
 
 
-class AnnotLegend(chromatinhd.grid.Ax):
+class AnnotLegend(polyptich.grid.Panel):
     def __init__(self, ax_annot, width=3):
         super().__init__((width, ax_annot.dim[1]))
 

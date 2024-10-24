@@ -1,8 +1,8 @@
-from chromatinhd.grid.broken import Broken, Panel
+from polyptich.grid.broken import Broken, Panel
 import pandas as pd
 import adjustText
 import seaborn as sns
-
+import matplotlib as mpl
 
 def center_position(peaks, region):
     peaks = peaks.copy()
@@ -136,7 +136,7 @@ class AssociationsBroken(Broken):
                 )
 
                 for i, (index, row) in enumerate(plotdata_region.iterrows()):
-                    ax.text(
+                    text = ax.text(
                         row["pos"],
                         0.8,
                         row["rsid"],
@@ -144,6 +144,11 @@ class AssociationsBroken(Broken):
                         ha="center",
                         va="bottom",
                         color=colors[i],
+                    )
+                    text.set_path_effects(
+                        [
+                            mpl.patheffects.withStroke(linewidth=2, foreground="white"),
+                        ]
                     )
                 # ax.scatter(
                 #     plotdata_region["position"],

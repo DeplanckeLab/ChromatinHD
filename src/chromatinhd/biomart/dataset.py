@@ -139,7 +139,7 @@ class Dataset:
     def filter(self, name, **kwargs):
         return Filter(name, **kwargs)
 
-    def get(self, attributes=[], filters=[], use_cache=True) -> pd.DataFrame:
+    def get(self, attributes=[], filters=[], use_cache=True, timeout = 20) -> pd.DataFrame:
         """
         Get the result with a given set of attributes and filters
 
@@ -176,7 +176,7 @@ class Dataset:
             result = cache[url]
         else:
             try:
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, timeout=timeout)
             except requests.exceptions.Timeout:
                 raise ValueError("Ensembl web service timed out")
             # check response status

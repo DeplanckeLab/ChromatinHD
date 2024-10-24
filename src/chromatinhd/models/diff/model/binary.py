@@ -5,7 +5,6 @@ from typing import List
 import numpy as np
 import pandas as pd
 import torch
-import torch_scatter
 import tqdm.auto as tqdm
 import xarray as xr
 
@@ -254,9 +253,12 @@ class Model(FlowModel):
         trainer.train()
 
     def _get_likelihood_cell_region(self, likelihood, local_cellxregion_ix, n_cells, n_regions):
-        return torch_scatter.segment_sum_coo(likelihood, local_cellxregion_ix, dim_size=n_cells * n_regions).reshape(
-            (n_cells, n_regions)
-        )
+        likelihood_cell_region = torch.zeros(n_cells * n_regions, device=likelihood.device)
+        likelihood_cell_region.scatter_add_(0, local_cellxregion_ix, likelihood)
+        return likelihood_cell_region.reshape((n_cells, n_regions))
+        # return torch_scatter.segment_sum_coo(likelihood, local_cellxregion_ix, dim_size=n_cells * n_regions).reshape(
+        #     (n_cells, n_regions)
+        # )
 
     def get_prediction(
         self,

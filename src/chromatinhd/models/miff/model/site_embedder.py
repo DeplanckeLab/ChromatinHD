@@ -4,7 +4,7 @@ Embed motif sites
 
 
 import torch
-import torch_scatter
+# import torch_scatter
 import math
 import numpy as np
 

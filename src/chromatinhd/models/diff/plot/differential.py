@@ -1,5 +1,5 @@
 import chromatinhd
-import chromatinhd.grid
+import polyptich.grid
 import matplotlib as mpl
 import matplotlib.patheffects
 import numpy as np
@@ -14,7 +14,7 @@ def get_norm_atac_diff():
     return mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True)
 
 
-class Differential(chromatinhd.grid.Wrap):
+class Differential(polyptich.grid.Wrap):
     def __init__(
         self,
         plotdata,
@@ -28,6 +28,7 @@ class Differential(chromatinhd.grid.Wrap):
         cmap_atac_diff=mpl.cm.RdBu_r,
         norm_atac_diff=mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True),
         ymax=100,
+        ylintresh=25,
         order=False,
         relative_to=None,
         label_accessibility=True,
@@ -60,6 +61,8 @@ class Differential(chromatinhd.grid.Wrap):
             normalization for the differential accessibility
         ymax:
             maximum y value
+        ylintresh:
+            linear threshold for the symlog scale
         order:
             order of the clusters
         relative_to:
@@ -85,7 +88,7 @@ class Differential(chromatinhd.grid.Wrap):
         self.order = order
 
         for cluster, cluster_info_oi in self.cluster_info.loc[self.order].iterrows():
-            panel, ax = chromatinhd.grid.Ax((width, panel_height))
+            panel, ax = polyptich.grid.Panel((width, panel_height))
             self.add(panel)
 
             _scale_differential(ax, ymax)
@@ -189,7 +192,7 @@ class Differential(chromatinhd.grid.Wrap):
             **kwargs,
         )
         self.region_id = region_id
-        # self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
+        self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
         return self
 
     def add_differential_slices(self, differential_slices):
@@ -207,7 +210,7 @@ class Differential(chromatinhd.grid.Wrap):
         return self.artists
 
 
-class DifferentialBroken(chromatinhd.grid.Wrap):
+class DifferentialBroken(polyptich.grid.Wrap):
     def __init__(
         self,
         plotdata,
@@ -216,11 +219,11 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
         breaking,
         window=None,
         panel_height=0.5,
-        plotdata_empirical=None,
         show_atac_diff=True,
         cmap_atac_diff=mpl.cm.RdBu_r,
         norm_atac_diff=mpl.colors.Normalize(np.log(1 / 4), np.log(4.0), clip=True),
         ymax=100,
+        ylintresh=25,
         order=False,
         relative_to=None,
         label_accessibility=True,
@@ -285,7 +288,7 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
 
         for cluster, cluster_info_oi in self.cluster_info.loc[self.order].iterrows():
             broken = self.add(
-                chromatinhd.grid.Broken(breaking, height=panel_height, margin_height=0.0, padding_height=0.0)
+                polyptich.grid.Broken(breaking, height=panel_height, margin_top=0.0, padding_height=0.0)
             )
 
             panel, ax = broken[0, 0]
@@ -298,9 +301,10 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
             )
 
             for panel, ax in broken:
-                _scale_differential(ax, ymax)
+                _scale_differential(ax, ymax, lintresh = ylintresh)
                 ax.set_yticks([])
                 ax.set_yticks([], minor=True)
+                ax.axvline(0, dashes=(1, 1), color="#AAA", zorder=-1, lw=1)
 
         if self.show_atac_diff:
             self.draw(plotdata, plotdata_mean)
@@ -321,6 +325,8 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
                     ax, plotdata_cluster_break, plotdata_mean_break, self.cmap_atac_diff, self.norm_atac_diff
                 )
                 artists.extend(artists_cluster_region)
+                ax.axvline(region_info["start"], color="#AAA", zorder=-1, lw=1)
+                ax.axvline(region_info["end"], color="#AAA", zorder=-1, lw=1)
         return artists
 
     @classmethod
@@ -334,8 +340,22 @@ class DifferentialBroken(chromatinhd.grid.Wrap):
             **kwargs,
         )
         self.region_id = region_id
-        # self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
+        self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
         return self
+
+    def add_differential_slices(self, differential_slices):
+        slicescores = differential_slices.get_slice_scores()
+        slicescores = slicescores.loc[slicescores["region_ix"] == self.region_ix]
+
+        for (cluster, cluster_info_oi), broken in zip(self.cluster_info.loc[self.order].iterrows(), self):
+            for (region, region_info), (panel, ax) in zip(self.breaking.regions.iterrows(), broken):
+                # find slicescores that (partially) overlap
+                slicescores_oi = slicescores.loc[
+                    ~((slicescores["start"] >= region_info["end"]) & (slicescores["end"] <= region_info["start"]))
+                ]
+                # slicescores_oi = slicescores.loc[(slicescores["start"] >= region_info["start"]) & (slicescores["end"] <= region_info["end"])]
+                for start, end in zip(slicescores_oi["start"], slicescores_oi["end"]):
+                    ax.axvspan(start, end, color="#33333333", zorder=0, lw=0)
 
 
 def _draw_differential(ax, plotdata_cluster, plotdata_mean, cmap_atac_diff, norm_atac_diff):
@@ -386,8 +406,8 @@ def _draw_differential(ax, plotdata_cluster, plotdata_mean, cmap_atac_diff, norm
     return gradient, polygon, background, differential
 
 
-def _scale_differential(ax, ymax):
-    ax.set_yscale("symlog", linthresh=25)
+def _scale_differential(ax, ymax, lintresh = 25):
+    ax.set_yscale("symlog", linthresh=lintresh)
     ax.set_ylim(0, ymax)
 
 
@@ -431,6 +451,7 @@ def _setup_differential(ax, ymax, cluster_info_oi, label=False, label_cluster=Tr
         ax.set_ylabel("Accessibility\nper 100 cells\nper 100bp", rotation=0, ha="right", va="center")
     else:
         ax.set_yticklabels([])
+        ax.set_yticklabels([], minor=True)
 
 
 def _process_plotdata(plotdata, plotdata_mean, cluster_info, order, relative_to, window=None):

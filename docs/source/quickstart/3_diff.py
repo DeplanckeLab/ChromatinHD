@@ -91,7 +91,7 @@ gene_id = transcriptome.gene_id(symbol)
 window = [-10000, 10000]
 
 # %%
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05, padding_width=0.05))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0.05, padding_width=0.05))
 width = 10
 
 region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
@@ -115,10 +115,10 @@ fig.plot()
 
 # %%
 windows = regionpositional.select_windows(gene_id)
-breaking = chd.grid.Breaking(windows)
+breaking = polyptich.grid.Breaking(windows)
 
 # %%
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05, padding_width=0.05))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0.05, padding_width=0.05))
 width = 10
 
 region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]

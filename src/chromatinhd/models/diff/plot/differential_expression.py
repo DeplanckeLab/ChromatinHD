@@ -1,13 +1,16 @@
 import matplotlib as mpl
 import seaborn as sns
-import chromatinhd
+import polyptich
+import numpy as np
 
-
-def get_cmap_rna_diff():
+def get_cmap_rna():
     return mpl.cm.BuGn
 
 
-class DifferentialExpression(chromatinhd.grid.Wrap):
+def get_cmap_rna_diff():
+    return mpl.cm.RdBu_r
+
+class DifferentialExpression(polyptich.grid.Wrap):
     def __init__(
         self,
         plotdata_expression_clusters,
@@ -16,11 +19,25 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
         panel_height=0.5,
         norm_expression=None,
         symbol=None,
+        show_cluster=True,
         show_n_cells=True,
         order=False,
+        relative_to = None,
+        annotate_expression=False,
         **kwargs,
     ):
         super().__init__(ncol=1, **{"padding_height": 0, **kwargs})
+
+        if relative_to is None:
+            cmap_expression = get_cmap_rna()
+            if norm_expression is None:
+                norm_expression = mpl.colors.Normalize(
+                    min(0.0, plotdata_expression_clusters.min()), plotdata_expression_clusters.max(), clip=True
+                )
+        else:
+            cmap_expression = get_cmap_rna_diff()
+            plotdata_expression_clusters = plotdata_expression_clusters - plotdata_expression_clusters.loc[relative_to]     
+            norm_expression = mpl.colors.Normalize(np.log(0.25), np.log(4), clip=True)   
 
         plotdata_expression_clusters = plotdata_expression_clusters.loc[cluster_info.index]
 
@@ -31,15 +48,8 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
         else:
             self.order = plotdata_expression_clusters.index
 
-        if norm_expression is None:
-            norm_expression = mpl.colors.Normalize(
-                min(0.0, plotdata_expression_clusters.min()), plotdata_expression_clusters.max(), clip=True
-            )
-
-        cmap_expression = get_cmap_rna_diff()
-
         for cluster_id in self.order:
-            panel, ax = chromatinhd.grid.Ax((width, panel_height))
+            panel, ax = polyptich.grid.Panel((width, panel_height))
             self.add(panel)
 
             sns.despine(ax=ax, left=True, right=True, top=True, bottom=True)
@@ -58,24 +68,35 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             ax.set_ylim(-1.05, 1.05)
             ax.set_aspect(1)
 
-            label = cluster_info.loc[cluster_id, "label"]
+            if show_cluster:
+                label = cluster_info.loc[cluster_id, "label"]
 
-            if show_n_cells and "n_cells" in cluster_info.columns:
-                label += f" ({cluster_info.loc[cluster_id, 'n_cells']})"
-            ax.text(
-                1.05,
-                0,
-                label,
-                ha="left",
-                va="center",
-                color="#333",
-            )
-            # text.set_path_effects(
-            #     [
-            #         mpl.patheffects.Stroke(linewidth=2, foreground="#333333"),
-            #         mpl.patheffects.Normal(),
-            #     ]
-            # )
+                if show_n_cells and "n_cells" in cluster_info.columns:
+                    label += f" ({cluster_info.loc[cluster_id, 'n_cells']})"
+                ax.text(
+                    1.05,
+                    0,
+                    label,
+                    ha="left",
+                    va="center",
+                    color="#333",
+                )
+
+            if annotate_expression:
+                text = ax.text(
+                    0,
+                    0,
+                    f"{np.exp(plotdata_expression_clusters[cluster_id]):.2f}",
+                    ha="center",
+                    va="center",
+                    color="#FFF",
+                )
+                text.set_path_effects(
+                    [
+                        mpl.patheffects.Stroke(linewidth=2, foreground="#33333388"),
+                        mpl.patheffects.Normal(),
+                    ]
+                )
 
         if symbol is not None:
             ax.annotate(
@@ -90,12 +111,12 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
 
     @classmethod
     def from_transcriptome(
-        cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, cluster_info=None, layer=None, **kwargs
+        cls, transcriptome, clustering, gene, width=0.5, panel_height=0.5, cluster_info=None, layer="counts", **kwargs
     ):
         import pandas as pd
 
-        plotdata_expression_clusters = (
-            pd.Series(transcriptome.get_X(gene, layer=layer), index=transcriptome.obs.index)
+        plotdata_expression_clusters = np.log(
+            (np.exp(pd.Series(transcriptome.get_X(gene, layer=layer), index=transcriptome.obs.index))-1)
             .groupby(clustering.labels.values, observed=True)
             .mean()
         )
@@ -109,4 +130,4 @@ class DifferentialExpression(chromatinhd.grid.Wrap):
             width=width,
             panel_height=panel_height,
             **kwargs,
-        )
+        ) 

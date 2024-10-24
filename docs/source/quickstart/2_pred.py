@@ -133,7 +133,7 @@ regionmultiwindow.interpolate()
 # %%
 symbol = "IRF1"
 
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0.05))
 width = 10
 
 region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
@@ -166,10 +166,10 @@ gene_id = transcriptome.gene_id(symbol)
 # %%
 # decrease the lost_cutoff to see more regions
 regions = regionmultiwindow.select_regions(gene_id, lost_cutoff = 0.15)
-breaking = chd.grid.Breaking(regions)
+breaking = polyptich.grid.Breaking(regions)
 
 # %%
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0.05))
 
 region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]
 panel_genes = chd.plot.genome.genes.GenesBroken.from_region(region, breaking=breaking, genome = "GRCh38")
@@ -208,10 +208,10 @@ gene_id = transcriptome.gene_id(symbol)
 
 # %%
 windows = regionmultiwindow.select_regions(gene_id, lost_cutoff = 0.2)
-breaking = chd.grid.Breaking(windows)
+breaking = polyptich.grid.Breaking(windows)
 
 # %%
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0.05))
 width = 10
 
 # genes

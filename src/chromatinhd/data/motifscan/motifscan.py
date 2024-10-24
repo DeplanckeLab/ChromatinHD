@@ -1,4 +1,5 @@
 import pathlib
+from re import A
 from typing import Union, Dict
 
 import numpy as np
@@ -399,45 +400,80 @@ class Motifscan(Flow):
         if region_ix is None:
             region_ix = self.regions.coordinates.index.get_indexer([region_id])[0]
 
-        if self.regions.width is None:
-            raise NotImplementedError("get_slice is only implemented for fixed width regions")
-        width = self.regions.width
+        if self.regions.width is not None:
+            # get slice for fixed width regions
+            width = self.regions.width
 
-        if start is None:
-            start = self.regions.window[0]
-        if end is None:
-            end = self.regions.window[1]
+            if start is None:
+                start = self.regions.window[0]
+            if end is None:
+                end = self.regions.window[1]
 
-        if self.o.indptr.exists(self):
-            start = region_ix * width + start
-            end = region_ix * width + end
-            indptr = self.indptr[start : end + 1]
-            indptr_start, indptr_end = indptr[0], indptr[-1]
-            indptr = indptr - indptr[0]
+            if self.o.indptr.exists(self):
+                start = region_ix * width + start
+                end = region_ix * width + end
+                indptr = self.indptr[start : end + 1]
+                indptr_start, indptr_end = indptr[0], indptr[-1]
+                indptr = indptr - indptr[0]
+            else:
+                region_start = self.region_indptr[region_ix]
+                region_end = self.region_indptr[region_ix + 1]
+                coordinates = self.coordinates[region_start:region_end]
+                indptr_start = coordinates.searchsorted(start - 1) + region_start
+                indptr_end = coordinates.searchsorted(end) + region_start
+
+            coordinates = self.coordinates[indptr_start:indptr_end]
+            indices = self.indices[indptr_start:indptr_end]
+
+            out = [coordinates, indices]
+            if return_scores:
+                out.append(self.scores[indptr_start:indptr_end])
+            if return_strands:
+                out.append(self.strands[indptr_start:indptr_end])
+
+            if motif_ixs is not None:
+                selection = np.isin(indices, motif_ixs)
+                out = [x[selection] for x in out]
+
+            if return_indptr:
+                out.append(indptr)
+
+            return out
         else:
-            region_start = self.region_indptr[region_ix]
-            region_end = self.region_indptr[region_ix + 1]
-            coordinates = self.coordinates[region_start:region_end]
-            indptr_start = coordinates.searchsorted(start - 1) + region_start
-            indptr_end = coordinates.searchsorted(end) + region_start
+            # get slice for variable width regions
+            assert start is not None
+            assert end is not None
 
-        coordinates = self.coordinates[indptr_start:indptr_end]
-        indices = self.indices[indptr_start:indptr_end]
+            if self.o.indptr.exists(self):
+                start = self.regions.cumulative_region_lengths[region_ix] + start
+                end = self.regions.cumulative_region_lengths[region_ix] + end
+                indptr = self.indptr[start : end + 1]
+                indptr_start, indptr_end = indptr[0], indptr[-1]
+                indptr = indptr - indptr[0]
+            else:
+                region_start = self.region_indptr[region_ix]
+                region_end = self.region_indptr[region_ix + 1]
+                coordinates = self.coordinates[region_start:region_end]
+                indptr_start = coordinates.searchsorted(start - 1) + region_start
+                indptr_end = coordinates.searchsorted(end) + region_start
 
-        out = [coordinates, indices]
-        if return_scores:
-            out.append(self.scores[indptr_start:indptr_end])
-        if return_strands:
-            out.append(self.strands[indptr_start:indptr_end])
+            coordinates = self.coordinates[indptr_start:indptr_end]
+            indices = self.indices[indptr_start:indptr_end]
 
-        if motif_ixs is not None:
-            selection = np.isin(indices, motif_ixs)
-            out = [x[selection] for x in out]
+            out = [coordinates, indices]
+            if return_scores:
+                out.append(self.scores[indptr_start:indptr_end])
+            if return_strands:
+                out.append(self.strands[indptr_start:indptr_end])
 
-        if return_indptr:
-            out.append(indptr)
+            if motif_ixs is not None:
+                selection = np.isin(indices, motif_ixs)
+                out = [x[selection] for x in out]
 
-        return out
+            if return_indptr:
+                out.append(indptr)
+
+            return out
 
     def count_slices(self, slices: pd.DataFrame) -> pd.DataFrame:
         """
@@ -451,8 +487,8 @@ class Motifscan(Flow):
             DataFrame containing the counts of each motif (columns) in each slice (rows)
         """
 
-        if self.regions.window is None:
-            raise NotImplementedError("count_slices is only implemented for regions with a window")
+        # if self.regions.window is None:
+        #     raise NotImplementedError("count_slices is only implemented for regions with a window")
 
         if "region_ix" not in slices:
             slices["region_ix"] = self.regions.coordinates.index.get_indexer(slices["region"])

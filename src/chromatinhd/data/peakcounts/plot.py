@@ -7,78 +7,9 @@ import chromatinhd
 import matplotlib as mpl
 import pathlib
 
+import polyptich
 
-def center_peaks(peaks, promoter, columns=["start", "end"]):
-    peaks = peaks.copy()
-    if peaks.shape[0] == 0:
-        peaks = pd.DataFrame(columns=["start", "end"])
-    else:
-        peaks[columns] = [
-            [
-                (peak["start"] - promoter["tss"]) * int(promoter["strand"]),
-                (peak["end"] - promoter["tss"]) * int(promoter["strand"]),
-            ][:: int(promoter["strand"])]
-            for _, peak in peaks.iterrows()
-        ]
-    return peaks
-
-
-def center_multiple_peaks(slices, coordinates):
-    assert coordinates.index.name in slices.columns
-
-    slices = slices[[col for col in slices.columns if col != "strand"]].join(
-        coordinates[["tss", "strand"]], on=coordinates.index.name, rsuffix="_genome"
-    )
-    slices[["start", "end"]] = [
-        [
-            (slice["start"] - slice["tss"]) * int(slice["strand"]),
-            (slice["end"] - slice["tss"]) * int(slice["strand"]),
-        ][:: int(slice["strand"])]
-        for _, slice in slices.iterrows()
-    ]
-    return slices
-
-
-def uncenter_peaks(peaks, promoter, columns=["start", "end"]):
-    peaks = peaks.copy()
-    if peaks.shape[0] == 0:
-        peaks = pd.DataFrame(columns=["start", "end"])
-    elif isinstance(peaks, pd.Series):
-        peaks[columns] = [
-            (peaks["start"] * int(promoter["strand"]) + promoter["tss"]),
-            (peaks["end"] * int(promoter["strand"]) + promoter["tss"]),
-        ][:: int(promoter["strand"])]
-    else:
-        peaks[columns] = [
-            [
-                (peak["start"] * int(promoter["strand"]) + promoter["tss"]),
-                (peak["end"] * int(promoter["strand"]) + promoter["tss"]),
-            ][:: int(promoter["strand"])]
-            for _, peak in peaks.iterrows()
-        ]
-    peaks["chrom"] = promoter["chrom"]
-    return peaks
-
-
-def uncenter_multiple_peaks(slices, coordinates):
-    if "region_ix" not in slices.columns:
-        slices["region_ix"] = coordinates.index.get_indexer(slices["region"])
-    coordinates_oi = coordinates.iloc[slices["region_ix"]].copy()
-
-    slices["chrom"] = coordinates_oi["chrom"].values
-
-    slices["start_genome"] = np.where(
-        coordinates_oi["strand"] == 1,
-        (slices["start"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
-        (slices["end"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
-    )
-    slices["end_genome"] = np.where(
-        coordinates_oi["strand"] == 1,
-        (slices["end"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
-        (slices["start"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
-    )
-    return slices
-
+from chromatinhd.data.regions import center as center_peaks
 
 def get_usecols_and_names(peakcaller):
     if peakcaller in ["macs2_leiden_0.1"]:
@@ -118,7 +49,7 @@ def extract_peaks(peaks_bed, promoter, peakcaller):
     return peaks
 
 
-class Peaks(chromatinhd.grid.Ax):
+class Peaks(polyptich.grid.Panel):
     def __init__(
         self,
         peaks,
@@ -145,6 +76,7 @@ class Peaks(chromatinhd.grid.Ax):
 
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
 
         ax.set_ylim(len(peakcallers), 0)
         if label_methods:
@@ -215,7 +147,7 @@ class Peaks(chromatinhd.grid.Ax):
         return cls(peaks, peakcallers, window=window, **kwargs)
 
 
-class PeaksBroken(chromatinhd.grid.Broken):
+class PeaksBroken(polyptich.grid.Broken):
     def __init__(
         self,
         peaks,
@@ -231,13 +163,14 @@ class PeaksBroken(chromatinhd.grid.Broken):
 
         # y axis
         if label_methods_side == "right":
-            panel, ax = self[0, -1]
+            ax = self[0, -1]
 
-            self[0, 0].ax.set_yticks([])
+            self[0, 0].set_yticks([])
         else:
-            panel, ax = self[0, 0]
+            ax = self[0, 0]
 
-            self[0, -1].ax.set_yticks([])
+            self[0, -1].set_yticks([])
+
         # label methods
         if label_methods:
             ax.set_yticks(np.arange(len(peakcallers)) + 0.5)
@@ -287,7 +220,10 @@ class PeaksBroken(chromatinhd.grid.Broken):
             ax.set_xticks([])
             ax.set_ylim(len(peakcallers), 0)
 
-        # plot peaks
+            for i in range(0, len(peakcallers)+1):
+                ax.axhline(i, color="#DDD", zorder=10, lw=0.5, clip_on = False)
+
+        # plot peaks per broken panel
         for peakcaller, peaks_peakcaller in peaks.groupby("peakcaller"):
             y = peakcallers.index.get_loc(peakcaller)
             for (region, region_info), (panel, ax) in zip(breaking.regions.iterrows(), self):
@@ -298,12 +234,25 @@ class PeaksBroken(chromatinhd.grid.Broken):
                     )
                 ]
 
+                ax.spines["bottom"].set_visible(False)
+
                 _plot_peaks(ax, plotdata, y, lw=lw)
-                if y > 0:
-                    ax.axhline(y, color="#DDD", zorder=10, lw=0.5)
 
     @classmethod
     def from_bed(cls, region, peakcallers, breaking, **kwargs):
+        """
+        Plot peaks from bed files
+
+        Parameters
+        ----------
+        region : pd.Series
+            Genomic region to plot peaks in
+        peakcallers : pd.DataFrame
+            Peak calling methods to plot, with columns
+            - label: label for the method
+            - path: path to the bed file
+        
+        """
         peaks = _get_peaks(region, peakcallers)
 
         return cls(peaks, peakcallers, breaking=breaking, **kwargs)

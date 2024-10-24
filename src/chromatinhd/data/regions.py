@@ -11,6 +11,78 @@ import functools
 from chromatinhd.flow import TSV, Flow, PathLike, Stored
 
 
+def center(slices, promoter, columns=["start", "end"]):
+    slices = slices.copy()
+    if slices.shape[0] == 0:
+        slices = pd.DataFrame(columns=["start", "end"])
+    else:
+        slices[columns] = [
+            [
+                (peak["start"] - promoter["tss"]) * int(promoter["strand"]),
+                (peak["end"] - promoter["tss"]) * int(promoter["strand"]),
+            ][:: int(promoter["strand"])]
+            for _, peak in slices.iterrows()
+        ]
+    return slices
+
+
+def center_multiple(slices, coordinates):
+    assert coordinates.index.name in slices.columns
+
+    slices = slices[[col for col in slices.columns if col != "strand"]].join(
+        coordinates[["tss", "strand"]], on=coordinates.index.name, rsuffix="_genome"
+    )
+    slices[["start", "end"]] = [
+        [
+            (slice["start"] - slice["tss"]) * int(slice["strand"]),
+            (slice["end"] - slice["tss"]) * int(slice["strand"]),
+        ][:: int(slice["strand"])]
+        for _, slice in slices.iterrows()
+    ]
+    return slices
+
+
+def uncenter(slices, promoter, columns=["start", "end"]):
+    slices = slices.copy()
+    if slices.shape[0] == 0:
+        slices = pd.DataFrame(columns=["start", "end"])
+    elif isinstance(slices, pd.Series):
+        slices[columns] = [
+            (slices["start"] * int(promoter["strand"]) + promoter["tss"]),
+            (slices["end"] * int(promoter["strand"]) + promoter["tss"]),
+        ][:: int(promoter["strand"])]
+    else:
+        slices[columns] = [
+            [
+                (peak["start"] * int(promoter["strand"]) + promoter["tss"]),
+                (peak["end"] * int(promoter["strand"]) + promoter["tss"]),
+            ][:: int(promoter["strand"])]
+            for _, peak in slices.iterrows()
+        ]
+    slices["chrom"] = promoter["chrom"]
+    return slices
+
+
+def uncenter_multiple(slices, coordinates):
+    if "region_ix" not in slices.columns:
+        slices["region_ix"] = coordinates.index.get_indexer(slices["region"])
+    coordinates_oi = coordinates.iloc[slices["region_ix"]].copy()
+
+    slices["chrom"] = coordinates_oi["chrom"].values
+
+    slices["start_genome"] = np.where(
+        coordinates_oi["strand"] == 1,
+        (slices["start"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+        (slices["end"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+    )
+    slices["end_genome"] = np.where(
+        coordinates_oi["strand"] == 1,
+        (slices["end"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+        (slices["start"] * coordinates_oi["strand"].astype(int).values + coordinates_oi["tss"].values),
+    )
+    return slices
+
+
 class Regions(Flow):
     """
     Regions in the genome
@@ -36,7 +108,7 @@ class Regions(Flow):
 
         Parameters:
             transcripts:
-                Dataframe of transcripts, with columns chrom, start, end, strand, ensembl_transcript_id
+                Dataframe of transcripts, with columns chrom, start, end, strand, transcript
             window:
                 Window around each transcription start site. Should be a 2-element array, e.g. [-10000, 10000]
             path:
@@ -48,7 +120,7 @@ class Regions(Flow):
         """
         transcripts["tss"] = transcripts["start"] * (transcripts["strand"] == 1) + transcripts["end"] * (transcripts["strand"] == -1)
 
-        regions = transcripts[["chrom", "tss", "ensembl_transcript_id"]].copy()
+        regions = transcripts[["chrom", "tss", "transcript"]].copy()
 
         regions["strand"] = transcripts["strand"]
         regions["positive_strand"] = (regions["strand"] == 1).astype(int)
@@ -63,7 +135,7 @@ class Regions(Flow):
 
         return cls.create(
             path=path,
-            coordinates=regions[["chrom", "start", "end", "tss", "strand", "ensembl_transcript_id"]],
+            coordinates=regions[["chrom", "start", "end", "tss", "strand", "transcript"]],
             window=window,
             reset=overwrite,
         )

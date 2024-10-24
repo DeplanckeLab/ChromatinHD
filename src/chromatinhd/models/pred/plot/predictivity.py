@@ -1,10 +1,10 @@
-import chromatinhd.grid
+import polyptich.grid
 import matplotlib as mpl
-from chromatinhd.grid.broken import Broken
+from polyptich.grid.broken import Broken
 import numpy as np
 
 
-class Predictivity(chromatinhd.grid.Panel):
+class Predictivity(polyptich.grid.Panel):
     """
     Plot predictivity of a gene.
     """
@@ -145,7 +145,7 @@ class Predictivity(chromatinhd.grid.Panel):
         )
 
 
-class Pileup(chromatinhd.grid.Panel):
+class Pileup(polyptich.grid.Panel):
     def __init__(
         self,
         plotdata,
