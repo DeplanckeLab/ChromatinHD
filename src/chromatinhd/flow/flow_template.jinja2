@@ -1,0 +1,40 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.js" integrity="sha512-vRqhAr2wsn+/cSsyz80psBbCcqzz2GTuhGk3bq3dAyytz4J/8XwFqMjiAGFBj+WM95lHBJ9cDf87T3P8yMrY7A==" crossorigin="anonymous" referrerpolicy="no-referrer" id="script{{div_id}}" onload="loaded{{ div_id }}"></script>
+<style>
+.la-flow {
+    font-size:15px;
+}
+.la-flow>ul {
+    margin-top:0;
+    list-style: none;
+    padding: 0;
+    padding-left: 0;
+    margin-left:0;
+    margin-bottom:0;
+
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px; /* Gap between each card */
+    list-style-type: none; /* Remove bullet points from <li> */
+    padding-left: 0; /* Remove default padding from <ul> */
+    justify-content: flex-start; /* Align items to the start */
+}
+.la-flow>ul.instances>li {
+    flex: 0 0 auto; /* Allow items to grow and shrink */
+    min-width: 10px; /* Minimum width of each card. Adjust as needed. */
+    background-color: #f9f9f9; /* Sample background color */
+    padding: 5px;
+    border: 1px dashed #ccc;
+    border-radius: 2px;
+    margin-bottom:0;
+    margin-left:0;
+}
+.la-flow .soft {
+    opacity:0.5;
+}
+
+
+</style>
+
+<script src="//code.iconify.design/1/1.0.6/iconify.min.js"></script>
+
+{{ html }}

@@ -10,6 +10,16 @@ def ecdf(data):
     return sorted_data, y
 
 
+def weighted_ecdf(data, weights):
+    sorting = np.argsort(data)
+    sorted_data = data[sorting]
+    y = np.cumsum(weights[sorting] / weights.sum())
+
+    sorted_data = np.vstack([sorted_data - 1e-5, sorted_data]).T.flatten()
+    y = np.vstack([np.hstack([[0], y[:-1]]), y]).T.flatten()
+    return sorted_data, y
+
+
 def area_under_ecdf(list1):
     x1, y1 = ecdf(list1)
     area = np.trapz(y1, x1)
@@ -20,9 +30,7 @@ def area_between_ecdfs(list1, list2):
     x1, y1 = ecdf(list1)
     x2, y2 = ecdf(list2)
 
-    combined_x = np.concatenate(
-        [[-0.001], np.sort(np.unique(np.concatenate((x1, x2))))]
-    )
+    combined_x = np.concatenate([[-0.001], np.sort(np.unique(np.concatenate((x1, x2))))])
 
     y1_interp = np.interp(combined_x, x1, y1, left=0, right=1)
     y2_interp = np.interp(combined_x, x2, y2, left=0, right=1)

@@ -1,2 +1,3 @@
-::: chromatinhd.models.pred.interpret.GeneMultiWindow
-::: chromatinhd.models.pred.interpret.GenePairWindow
+::: chromatinhd.models.pred.interpret.RegionMultiWindow
+::: chromatinhd.models.pred.interpret.RegionPairWindow
+

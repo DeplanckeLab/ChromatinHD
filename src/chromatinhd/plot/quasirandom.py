@@ -20,12 +20,7 @@ def number2digits(n, base=2):
 
 
 def vanDerCorput(n, base=2, start=1):
-    out = np.array(
-        [
-            digits2number(number2digits(ii, base)[::-1], base, True)
-            for ii in range(1, n + start)
-        ]
-    )
+    out = np.array([digits2number(number2digits(ii, base)[::-1], base, True) for ii in range(1, n + start)])
     return out
 
 
@@ -77,3 +72,15 @@ def offset(
     out = (offset - 0.5) * 2 * pointDensities * subgroup_width * 0.5
 
     return out
+
+
+def offsetr(y, **kwargs):
+    from rpy2.robjects import pandas2ri
+    import rpy2.robjects as ro
+    from rpy2.robjects.packages import importr
+    from rpy2.robjects import numpy2ri
+    from rpy2.robjects import default_converter
+
+    ro.numpy2ri.activate()
+    vipor = ro.packages.importr("vipor")
+    return vipor.offsetSingleGroup(y, method="quasi", **kwargs) * 0.5

@@ -57,6 +57,16 @@ This file was automatically generated - do not edit
   {% endif %}
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+        <div class="md-copyright__highlight">
+          <div class="container" style="display: flex;align-items: center;">
+              <img src="{{ base_url }}/static/eu.png" alt="European Flag" style="max-width: 100%;height: auto;margin-right: 20px;" width="100" height="70">
+              <div style="flex: 0 0 400px;">
+                  This work was supported by the European Union's Horizon 2020 research and innovation program (Grant agreement 101028476).
+              </div>
+          </div>
+        </div>
+      </div>
       {% include "partials/copyright.html" %}
       {% if config.extra.social %}
       {% include "partials/social.html" %}

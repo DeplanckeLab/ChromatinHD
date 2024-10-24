@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2", "numpy"]
+requires = ["setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2", "numpy", "Cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools-git-versioning]
@@ -18,17 +18,16 @@ classifiers = [
 ]
 dependencies = [
     "torch",  # --extra-index-url https://download.pytorch.org/whl/cu113
-    "torch-scatter", # --find-links https://data.pyg.org/whl/torch-1.12.1+cu113.html
     "scanpy",
     "matplotlib",
     "numpy",
     "seaborn",
-    "fisher",
     "diskcache",
     "appdirs",
     "xarray",
-    "pysam",
     "requests",
+    "zarr",
+    "pathlibfs",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
@@ -41,10 +40,14 @@ license = {text = "MIT"}
 readme = {file = "README.md", content-type = "text/markdown"}
 
 [project.optional-dependencies]
+sam = [
+    "pysam",
+]
 dev = [
     "pre-commit",
     "pytest",
     "coverage",
+    "polyptich",
     "black",
     "pylint",
     "jupytext",
@@ -57,13 +60,13 @@ dev = [
     "pillow",  # for mkdocs social
     "mkdocs-awesome-pages-plugin",
     "setuptools_scm",
-    # "faiss-cpu",
     "Cython",
 ]
 test = [
     "pytest",
     "ruff",
 ]
+full = ["chromatinhd[sam]"]
 
 [tool.setuptools_scm]
 
@@ -82,15 +85,8 @@ disable = [
 ]
 
 [tool.ruff]
-line-length = 500
-ignore-init-module-imports = true
-ignore = ['F401']
+line-length = 90
 include = ['src/**/*.py']
-exclude = ['scripts/*']
-
-[tool.black]
-line-length = 120
-target-version = ['py37', 'py38']
 exclude = ['scripts/*']
 
 

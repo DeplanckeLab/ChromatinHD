@@ -13,21 +13,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
           cache: 'pip'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
-      - run: pip install torch # because torch_scatter contains import torch in the setup.py, we have to install torch first
+      - run: pip install torch==2.3.0 # because torch_scatter contains import torch in the setup.py, we have to install torch first
+      - run: pip install torch-scatter -f https://data.pyg.org/whl/torch-2.3.0+cpu.html # it seems a wheel is necessary to install torch-scatter
       - name: regular install
-        run: pip install .
+        run: pip install .[full]
       - name: attempt import
         run: python -c "import chromatinhd"
       - name: test install
         run: pip install -e .[test]
-      - name: ruff
-        run: ruff check --format=github .
+      # - uses: jpetrucciani/ruff-check@main
       - name: test
         run: pytest
       # - run: mkdocs gh-deploy --force

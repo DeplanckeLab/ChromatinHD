@@ -2,11 +2,14 @@ import os
 import pathlib
 import pickle
 import pandas as pd
+import numpy as np
 
 from .torch import interpolate_1d
-from .numpy import indices_to_indptr, indptr_to_indices
-from .testing import repeated_kfold_corrected_t_test
+from .numpy import indices_to_indptr, indptr_to_indices, indices_to_indptr_chunked
+from .testing import repeated_kfold_corrected_t_test, fdr
+from . import interleave
 from . import ecdf
+from . import intervals
 
 __all__ = [
     "get_git_root",
@@ -106,6 +109,30 @@ def paircos(x, y, dim=0):
     return cos
 
 
+def pairzmse(x, y, dim=0):
+    x_std = x.std(dim, keepdims=True) + 1e-8
+    y_std = y.std(dim, keepdims=True) + 1e-8
+    x = (x - x.mean(dim, keepdims=True)) / x_std
+    y = (y - y.mean(dim, keepdims=True)) / y_std
+    return ((x - y) ** 2).mean(dim)
+
+
+def pairzmae(x, y, dim=0):
+    x_std = x.std(dim, keepdims=True) + 1e-8
+    y_std = y.std(dim, keepdims=True) + 1e-8
+    x = (x - x.mean(dim, keepdims=True)) / x_std
+    y = (y - y.mean(dim, keepdims=True)) / y_std
+    return (np.abs(x - y)).mean(dim)
+
+
+def paircmse(x, y, dim=0):
+    x_std = x.std(dim, keepdims=True) + 1e-8
+    y_std = y.std(dim, keepdims=True) + 1e-8
+    x = (x - x.mean(dim, keepdims=True)) / x_std * y_std
+    y = y - y.mean(dim, keepdims=True)
+    return ((x - y) ** 2).mean(dim)
+
+
 def fix_class(obj):
     import importlib
 
@@ -134,8 +161,9 @@ def save(obj, fh, pickler=None, **kwargs):
     return pickler(fh).dump(obj)
 
 
-def crossing(*dfs):
+def crossing(*dfs, **kwargs):
     dfs = [df.copy() if isinstance(df, pd.DataFrame) else df.to_frame() for df in dfs]
+    dfs.extend(pd.DataFrame({k: v}) for k, v in kwargs.items())
     for df in dfs:
         df["___key"] = 0
     if len(dfs) == 0:

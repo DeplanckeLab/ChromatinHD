@@ -116,6 +116,8 @@ def quadratic_spline(
 
     if bin_locations is None:
         bin_locations = calculate_bin_locations(widths)
+    elif bin_locations.ndim == inputs.ndim:
+        bin_locations = bin_locations.expand(inputs.shape[0], -1)
 
     if inverse:
         bin_idx = torch.searchsorted(bin_left_cdf, inputs.unsqueeze(-1)).squeeze(-1) - 1
@@ -148,6 +150,7 @@ def quadratic_spline(
     if inverse:
         c_ = c - inputs
         alpha = torch.clamp((-b + torch.sqrt(b.pow(2) - 4 * a * c_)) / (2 * a), 0, 1)
+
         # avoids alpha = -inf due to perfectly horizontal curve (i.e. a = 0)
         alpha[alpha.isnan()] = 0.0
 

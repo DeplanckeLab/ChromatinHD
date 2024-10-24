@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.14.7
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
@@ -45,7 +45,7 @@ for file in dataset_folder.iterdir():
         shutil.rmtree(file)
 
 # %% [markdown]
-# For this quickstart, we will use a tiny example dataset extracted from the 10X multiome PBMC example data. We'll copy over both the h5ad for the transcriptomics data, and the fragments.tsv for the accessibility data.
+# For this quickstart, we will use a tiny example dataset extracted from the 10X multiome PBMC example data, in which we only retained 50 genes. In your real situations, we typically want to use all genes. We'll copy over both the h5ad for the transcriptomics data, and the fragments.tsv for the accessibility data.
 
 # %%
 import pkg_resources
@@ -73,7 +73,7 @@ adata = sc.read(dataset_folder / "transcriptome.h5ad")
 transcriptome = chd.data.Transcriptome.from_adata(adata, path=dataset_folder / "transcriptome")
 
 # %%
-# !ls {dataset_folder}/*
+transcriptome
 
 # %% [markdown]
 # <div class="result">
@@ -96,12 +96,13 @@ transcriptome = chd.data.Transcriptome.from_adata(adata, path=dataset_folder / "
 # ChromatinHD defines a set of regions of interest, typically surrounding transcription start sites of a gene. Since we typically do not know which transcription start sites are used, we can either use the canonical ones (as determined by e.g. ENCODE) or use the ATAC-seq data to select the one that is most open. We will use the latter option here.
 
 # %% [markdown]
-# We first get the transcripts for each gene.
+# We first get the transcripts for each gene. We extract this from biomart using the ensembl gene ids, which in this case are used as the index of the `transcriptome.var`.
 
 # %%
 transcripts = chd.biomart.get_transcripts(chd.biomart.Dataset.from_genome("GRCh38"), gene_ids=transcriptome.var.index)
 fragments_file = dataset_folder / "fragments.tsv.gz"
 transcripts = chd.data.regions.select_tss_from_fragments(transcripts, fragments_file)
+transcripts.head()
 
 # %% [markdown]
 # Now we can define the regions around the TSS. In this case we choose -10kb and +10kb around a TSS, although in real situations this will typically be much bigger (e.g. -100kb - +100kb)
@@ -110,11 +111,9 @@ transcripts = chd.data.regions.select_tss_from_fragments(transcripts, fragments_
 regions = chd.data.Regions.from_transcripts(
     transcripts,
     path=dataset_folder / "regions",
-    window=[-10000, 10000],
+    window=[-100000, 100000],
 )
-
-# %%
-# !ls {dataset_folder}/*
+regions
 
 # %% [markdown]
 # <div class="result">
@@ -140,14 +139,11 @@ regions = chd.data.Regions.from_transcripts(
 
 # %%
 if not (dataset_folder / "fragments.tsv.gz.tbi").exists():
-    import subprocess
+    import pysam
+    pysam.tabix_index(str(dataset_folder / "fragments.tsv.gz"), preset = "bed")
 
-    subprocess.run(
-        [
-            "tabix",
-            dataset_folder / "fragments.tsv.gz",
-        ]
-    )
+# %% [markdown]
+# We now create a ChromatinHD fragments object using the `fragments.tsv` file and a set of regions. This will populate a set of tensors on disk containing information on where each fragment lies within the region and to which cell and region it belongs:
 
 # %%
 fragments = chd.data.Fragments.from_fragments_tsv(
@@ -156,12 +152,22 @@ fragments = chd.data.Fragments.from_fragments_tsv(
     obs=transcriptome.obs,
     path=dataset_folder / "fragments",
 )
+fragments
+
+# %% [markdown]
+# During training or inference of any models, we often require fast access to all fragments belong to a particular cell and region. This can be sped up by precalculating pointers to each region and cell combination:
 
 # %%
-fragments.create_cellxgene_indptr()
+fragments.create_regionxcell_indptr()
 
-# %%
-# !ls {dataset_folder}/*
+# %% [markdown]
+# <div class="result">
+#   <details class="note">
+#   <summary><strong>How data is stored in ChromatinHD</strong></summary>
+#   <p>We use zarr <https://zarr.readthedocs.io> format to store data, and either TensorStore <https://google.github.io/tensorstore/> or Xarray <https://xarray.dev/> to load data as needed.
+#   </p>
+#   </details>
+# </div>
 
 # %% [markdown]
 # ### Training folds
@@ -171,6 +177,7 @@ fragments.create_cellxgene_indptr()
 
 # %%
 folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(fragments, 5, 1)
+folds
 
 # %% [markdown]
 # ## Optional data¶
@@ -183,67 +190,20 @@ folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(frag
 
 # %%
 clustering = chd.data.Clustering.from_labels(adata.obs["celltype"], path=dataset_folder / "clustering")
-
-# %%
-# !ls {clustering.path}
+clustering
 
 # %% [markdown]
 # ### Motif scan¶
 
 # %% [markdown]
-# <details class="note" open="">
-#   <summary><strong>This functionality is still under construction and is only used for visualization/interpretation use cases for now.</strong></summary>
-# </details>
+# We can also scan for motifs and store it on disk, to be used to link transcription factors to particular regions of interest. Models that use this data directly are forthcoming.
 
 # %% [markdown]
-# Let's first download the HOCOMOCO motif data:
+# Let's first download the HOCOMOCO motif data. This is a simple wrapper function that downloads and processes relevant motif data from the HOCOMOCO website.
 
 # %%
-motifs_folder = dataset_folder / "motifs"
-motifs_folder.mkdir(exist_ok=True, parents=True)
-
-# download cutoffs, pwms and annotations
-# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_standard_thresholds_HUMAN_mono.txt -O {motifs_folder}/pwm_cutoffs.txt
-# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_pwms_HUMAN_mono.txt -O {motifs_folder}/pwms.txt
-# !wget https://hocomoco11.autosome.org/final_bundle/hocomoco11/core/HUMAN/mono/HOCOMOCOv11_core_annotation_HUMAN_mono.tsv -O {motifs_folder}/annot.txt
-
-# %%
-import numpy as np
-import pandas as pd
-
-# %% [markdown]
-# We read in all PWMs:
-
-# %%
-pwms = {}
-motif = None
-for line in (motifs_folder / "pwms.txt").open():
-    if line.startswith(">"):
-        if motif is not None:
-            pwms[motif_id] = motif
-        motif_id = line[1:].strip("\n")
-        motif = []
-    else:
-        motif.append([float(x) for x in line.split("\t")])
-pwms = {motif_id: np.array(pwm) for motif_id, pwm in pwms.items()}
-
-# %% [markdown]
-# And gather some metadata about each motif
-
-# %%
-motifs = pd.DataFrame({"motif": pwms.keys()}).set_index("motif")
-motif_cutoffs = pd.read_table(
-    motifs_folder / "pwm_cutoffs.txt",
-    names=["motif", "cutoff_001", "cutoff_0005", "cutoff_0001"],
-    skiprows=1,
-).set_index("motif")
-motifs = motifs.join(motif_cutoffs)
-annot = (
-    pd.read_table(motifs_folder / "annot.txt")
-    .rename(columns={"Model": "motif", "Transcription factor": "gene_label"})
-    .set_index("motif")
-)
-motifs = motifs.join(annot)
+import chromatinhd.data.motifscan.download
+pwms, motifs = chd.data.motifscan.download.get_hocomoco(dataset_folder / "motifs", organism = "human")
 
 # %% [markdown]
 # You also need to provide the location where the genome fasta file is stored. In our case this is located at /data/genome/GRCh38/, which was installed using `genomepy.install_genome("GRCh38", genomes_dir = "/data/genome/")`.
@@ -251,7 +211,7 @@ motifs = motifs.join(annot)
 # %%
 import genomepy
 
-genomepy.install_genome("GRCh38", genomes_dir="/data/genome/")
+genomepy.install_genome("GRCh38", genomes_dir="/srv/data/genome/")
 
 fasta_file = "/data/genome/GRCh38/GRCh38.fa"
 
@@ -263,11 +223,8 @@ motifscan = chd.data.Motifscan.from_pwms(
     pwms,
     regions,
     motifs=motifs,
-    cutoff_col="cutoff_0001",
+    cutoff_col="cutoff_0.0001",
     fasta_file=fasta_file,
     path=dataset_folder / "motifscan",
-    device="cuda",
 )
-
-# %%
-# !ls {motifscan.path}
+motifscan

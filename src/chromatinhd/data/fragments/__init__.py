@@ -1,1 +1,2 @@
-from .fragments import Fragments, ChunkedFragments
+from .fragments import Fragments
+from .view import FragmentsView

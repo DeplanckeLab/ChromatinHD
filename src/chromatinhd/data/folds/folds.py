@@ -11,7 +11,7 @@ from chromatinhd.data.fragments import Fragments
 
 class Folds(Flow):
     """
-    Folds of multiple cell and gene combinations
+    Folds of multiple cell and reion combinations
     """
 
     folds: dict = Stored()
@@ -23,9 +23,10 @@ class Folds(Flow):
         n_folds: int,
         n_repeats: int = 1,
         overwrite: bool = False,
+        seed: int = 1,
     ):
         """
-        Sample cells and genes into folds
+        Sample cells and regions into folds
 
         Parameters:
             fragments:
@@ -38,12 +39,12 @@ class Folds(Flow):
                 whether to overwrite existing folds
         """
         if not overwrite and self.get("folds").exists(self):
-            return
+            return self
 
         folds = []
 
         for repeat_ix in range(n_repeats):
-            generator = np.random.RandomState(repeat_ix)
+            generator = np.random.RandomState(repeat_ix * seed)
 
             cells_all = generator.permutation(fragments.n_cells)
 
@@ -65,15 +66,18 @@ class Folds(Flow):
                 )
         self.folds = folds
 
-    def sample_cellxgene(
+        return self
+
+    def sample_cellxregion(
         self,
         fragments: Fragments,
         n_folds: int,
         n_repeats: int = 1,
+        stratify_by_chromosome=True,
         overwrite: bool = False,
     ):
         """
-        Sample cells and genes into folds
+        Sample cells and regions into folds
 
         Parameters:
             fragments:
@@ -86,7 +90,7 @@ class Folds(Flow):
                 whether to overwrite existing folds
         """
         if not overwrite and self.get("folds").exists(self):
-            return
+            return self
 
         folds = []
 
@@ -97,11 +101,17 @@ class Folds(Flow):
 
             cell_bins = np.floor((np.arange(len(cells_all)) / (len(cells_all) / n_folds)))
 
-            genes_all = np.arange(fragments.n_genes)
+            regions_all = np.arange(fragments.n_regions)
 
-            chr_order = generator.permutation(fragments.regions.coordinates["chr"].unique())
-            gene_chrs = pd.Categorical(fragments.regions.coordinates["chr"].astype(str), categories=chr_order).codes
-            gene_bins = np.floor((gene_chrs / (len(chr_order) / n_folds))).astype(int)
+            if stratify_by_chromosome:
+                chr_column = "chr" if "chr" in fragments.regions.coordinates.columns else "chrom"
+                chr_order = generator.permutation(fragments.regions.coordinates[chr_column].unique())
+                region_chrs = pd.Categorical(
+                    fragments.regions.coordinates[chr_column].astype(str), categories=chr_order
+                ).codes
+                region_bins = np.floor((region_chrs / (len(chr_order) / n_folds))).astype(int)
+            else:
+                region_bins = np.floor((np.arange(len(regions_all)) / (len(regions_all) / n_folds)))
 
             for i in range(n_folds):
                 cells_train = cells_all[cell_bins != i]
@@ -109,23 +119,24 @@ class Folds(Flow):
                 cells_validation = cells_validation_test[: (len(cells_validation_test) // 2)]
                 cells_test = cells_validation_test[(len(cells_validation_test) // 2) :]
 
-                genes_train = genes_all[gene_bins != i]
-                genes_validation_test = genes_all[gene_bins == i]
-                genes_validation = genes_validation_test[: (len(genes_validation_test) // 2)]
-                genes_test = genes_validation_test[(len(genes_validation_test) // 2) :]
+                regions_train = regions_all[region_bins != i]
+                regions_validation_test = generator.permutation(regions_all[region_bins == i])
+                regions_validation = regions_validation_test[: (len(regions_validation_test) // 2)]
+                regions_test = regions_validation_test[(len(regions_validation_test) // 2) :]
 
                 folds.append(
                     {
                         "cells_train": cells_train,
                         "cells_validation": cells_validation,
                         "cells_test": cells_test,
-                        "genes_train": genes_train,
-                        "genes_validation": genes_validation,
-                        "genes_test": genes_test,
+                        "regions_train": regions_train,
+                        "regions_validation": regions_validation,
+                        "regions_test": regions_test,
                         "repeat": repeat_ix,
                     }
                 )
         self.folds = folds
+        return self
 
     def __getitem__(self, ix):
         return self.folds[ix]

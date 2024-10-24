@@ -84,7 +84,7 @@ def matshow45(ax, series, radius=None, cmap=None, norm=None):
             lw = 0.5
             zorder = -1
         ax.plot(
-            [x1 + radius, x2 + radius],
+            [x1 + radius * 1.2, x2 + radius * 1.2],
             [y1, y2],
             zorder=zorder,
             color=color,
@@ -93,7 +93,7 @@ def matshow45(ax, series, radius=None, cmap=None, norm=None):
 
         x1, x2 = (xlim[1] - xlim[0]) / 2 - x2, (xlim[1] - xlim[0]) / 2 - x1
         ax.plot(
-            [-x1 - radius, -x2 - radius],
+            [-x1 - radius * 1.2, -x2 - radius * 1.2],
             [y1, y2],
             zorder=zorder,
             color=color,

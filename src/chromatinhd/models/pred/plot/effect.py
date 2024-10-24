@@ -1,10 +1,12 @@
-import chromatinhd.grid
+import polyptich.grid
 import numpy as np
 
 
-class Effect(chromatinhd.grid.Panel):
+class Effect(polyptich.grid.Panel):
     def __init__(self, plotdata, window, width, show_accessibility=False):
         super().__init__((width, 0.5))
+        if "position" not in plotdata.columns:
+            plotdata = plotdata.reset_index()
 
         ax = self.ax
         ax.set_xlim(*window)
@@ -45,7 +47,7 @@ class Effect(chromatinhd.grid.Panel):
         ax.axvline(0, color="#888888", lw=0.5, zorder=-1, dashes=(2, 2))
 
     @classmethod
-    def from_genemultiwindow(cls, genemultiwindow, gene, width, show_accessibility=False):
-        plotdata = genemultiwindow.get_plotdata(gene).reset_index()
+    def from_RegionMultiWindow(cls, RegionMultiWindow, gene, width, show_accessibility=False):
+        plotdata = RegionMultiWindow.get_plotdata(gene).reset_index()
         window = np.array([plotdata["position"].min(), plotdata["position"].max()])
         return cls(plotdata, window, width, show_accessibility=show_accessibility)

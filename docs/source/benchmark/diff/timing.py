@@ -67,13 +67,13 @@ scores = []
 # %%
 import logging
 
-logger = chromatinhd.models.diff.trainer.trainer.logger
+logger = chd.models.diff.trainer.trainer.logger
 logger.setLevel(logging.DEBUG)
 logger.handlers = []
 # logger.handlers = [logging.StreamHandler()]
 
 # %%
-devices = pd.DataFrame({"device": ["cuda:1", "cpu"]}).set_index("device")
+devices = pd.DataFrame({"device": ["cuda:0", "cuda:1", "cpu"]}).set_index("device")
 for device in devices.index:
     if device != "cpu":
         devices.loc[device, "label"] = torch.cuda.get_device_properties(device).name
@@ -86,7 +86,7 @@ scores = pd.DataFrame({"device": devices.index}).set_index("device")
 # %%
 for device in devices.index:
     start = time.time()
-    model = chromatinhd.models.diff.model.cutnf.Model(
+    model = chd.models.diff.model.cutnf.Model(
         fragments,
         clustering,
     )
@@ -97,7 +97,7 @@ for device in devices.index:
 
 # %%
 for device in devices.index:
-    genepositional = chromatinhd.models.diff.interpret.genepositional.GenePositional(
+    genepositional = chd.models.diff.interpret.genepositional.GenePositional(
         path=chd.get_output() / "interpret" / "genepositional"
     )
 
@@ -107,12 +107,12 @@ for device in devices.index:
     scores.loc[device, "inference"] = end - start
 
 # %%
-fig = chd.grid.Figure(chd.grid.Wrap(padding_width=0.1))
+fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width=0.1))
 height = len(scores) * 0.2
 
 plotdata = scores.copy().loc[devices.index]
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.barh(plotdata.index, plotdata["train"])
 ax.set_yticks(np.arange(len(devices)))
 ax.set_yticklabels(devices.label)
@@ -120,7 +120,7 @@ ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Training")
 ax.set_xlabel("seconds")
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.barh(plotdata.index, plotdata["inference"])
 ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Inference")
