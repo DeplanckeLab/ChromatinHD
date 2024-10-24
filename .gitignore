@@ -1,6 +1,7 @@
 ./data/
 output
 software
+*.c
 
 
 *.ipynb
