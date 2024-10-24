@@ -56,8 +56,6 @@ def enrichment_foreground_vs_background(slicescores_foreground, slicescores_back
 
         contingencies[:, 0, 1] = contingencies[:, 0, 1] * odds_expected
 
-        odds2 = (contingencies[:, 1, 1] * contingencies[:, 0, 0] + 1) / (contingencies[:, 1, 0] * contingencies[:, 0, 1] + 1)
-
 
     p_values = np.array(
         [
@@ -70,7 +68,6 @@ def enrichment_foreground_vs_background(slicescores_foreground, slicescores_back
     return pd.DataFrame(
         {
             "odds": odds,
-            "odds2": odds2,
             "p_value": p_values,
             "q_value": q_values,
             "motif": motifs,
