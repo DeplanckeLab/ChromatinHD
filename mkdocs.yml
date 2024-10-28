@@ -15,7 +15,7 @@ theme:
     - toc.follow
     - toc.integrate
 
-site_url: "https://chromatinhd.eu/"
+site_url: "https://chromatinhd.org/"
 repo_url: https://github.com/DeplanckeLab/ChromatinHD
 
 plugins:

@@ -1,8 +1,8 @@
 <p align="center">
-  <a href="https://chromatinhd.eu">
+  <a href="https://chromatinhd.org">
     <img src="https://raw.githubusercontent.com/DeplanckeLab/ChromatinHD/main/docs/source/static/logo.png" width="300" />
   </a>
-  <a href="https://chromatinhd.eu">
+  <a href="https://chromatinhd.org">
     <img src="https://raw.githubusercontent.com/DeplanckeLab/ChromatinHD/main/docs/source/static/comparison.gif" />
   </a>
 </p>
@@ -20,6 +20,6 @@ As we show in [our paper](https://www.biorxiv.org/content/10.1101/2023.07.21.549
 
 [📜 Manuscript](https://www.biorxiv.org/content/10.1101/2023.07.21.549899v1)
 
-[❔ Documentation](https://chromatinhd.eu)
+[❔ Documentation](https://chromatinhd.org)
 
-[▶️ Quick start](https://chromatinhd.eu/quickstart/0_install)
+[▶️ Quick start](https://chromatinhd.org/quickstart/0_install)
