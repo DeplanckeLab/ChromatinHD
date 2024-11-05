@@ -369,6 +369,8 @@ class RegionPositional(chd.flow.Flow):
         Parameters:
             region:
                 the region
+            relative_to:
+                the clusters to normalize to
 
         Returns:
             Two dataframes, one with the probabilities per cluster, one with the mean
@@ -381,7 +383,11 @@ class RegionPositional(chd.flow.Flow):
         plotdata = probs.to_dataframe("prob")
         # plotdata["prob"] = plotdata["prob"] * scale - plotdata["prob"].mean() * scale
 
-        if relative_to is not None:
+        if relative_to == "previous":
+            plotdata_mean = plotdata[["prob"]].groupby("coord", observed=True).mean()
+        elif relative_to is not None:
+            if relative_to not in plotdata.index.get_level_values("cluster"):
+                raise ValueError(f"Cluster {relative_to} not in clusters")
             plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord", observed=False).mean()
         else:
             plotdata_mean = plotdata[["prob"]].groupby("coord", observed=True).mean()
@@ -621,7 +627,7 @@ class RegionPositional(chd.flow.Flow):
             .reset_index(drop=True)
         )
 
-        if differential_prob_cutoff is not None:
+        if len(windows) and (differential_prob_cutoff is not None):
             windows["extra_selection"] = windows.apply(
                 lambda x: (plotdata_diff.iloc[:, plotdata_diff.columns.get_loc(x["start"]) : plotdata_diff.columns.get_loc(x["end"])] > np.log(differential_prob_cutoff)).any().any(), axis=1
             )

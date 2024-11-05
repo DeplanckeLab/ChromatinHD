@@ -162,7 +162,7 @@ class Model(FlowModel):
         n_epochs=30,
         lr=1e-2,
         pbar=True,
-        early_stopping=True,
+        early_stopping=False,
         fold=None,
         fragments: Fragments = None,
         clustering=None,
@@ -229,7 +229,6 @@ class Model(FlowModel):
         )
 
         trainer = Trainer(
-            # trainer = TrainerPerFeature(
             self,
             loaders_train,
             loaders_validation,
@@ -466,6 +465,10 @@ class Model(FlowModel):
 
 
 class Models(Flow):
+    """
+    Multiple ChromatinHD-diff models, based on different train/test/validation splits
+    """
+
     models = LinkedDict()
 
     clustering = Linked()
@@ -480,6 +483,49 @@ class Models(Flow):
     model_params = Stored(default=dict)
     train_params = Stored(default=dict)
 
+    @classmethod
+    def create(
+        cls,
+        fragments=None,
+        clustering=None,
+        folds=None,
+        model_params:dict=None,
+        train_params:dict=None,
+        path=None,
+        reset=False,
+    ):
+        """
+        Creates a new Models object
+
+        Parameters:
+            fragments:
+                Fragments object
+            clustering:
+                Clustering object
+            folds:
+                List of folds
+            model_params:
+                Parameters for the model. See Model.create
+            train_params:
+                Parameters for training. See Model.train_model
+        """
+        self = super(Models, cls).create(path=path, reset=reset)
+
+        self.fragments = fragments
+        self.clustering = clustering
+        self.folds = folds
+
+        if model_params is not None:
+            self.model_params = model_params
+        else:
+            self.model_params = dict()
+        if train_params is not None:
+            self.train_params = train_params
+        else:
+            self.train_params = dict
+
+        return self
+
     @property
     def models_path(self):
         path = self.path / "models"
@@ -489,6 +535,9 @@ class Models(Flow):
     def train_models(
         self, fragments=None, clustering=None, folds=None, device=None, pbar=True, regions_oi=None, **kwargs
     ):
+        """
+        Create and train all models
+        """
         if fragments is None:
             fragments = self.fragments
         if clustering is None:
@@ -553,5 +602,4 @@ class Models(Flow):
 
     @property
     def trained(self):
-        print(len(self))
         return len(self) > 0

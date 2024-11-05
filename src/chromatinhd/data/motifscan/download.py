@@ -81,7 +81,7 @@ def get_hocomoco(path, organism="hs", variant="CORE", overwrite=False):
     path.mkdir(parents=True, exist_ok=True)
 
     # download cutoffs, pwms and annotations
-    if overwrite or (not (path / "pwm_cutoffs.txt").exists()):
+    if overwrite or (not (path / "pwms.tar.gz").exists()):
         urllib.request.urlretrieve(
             f"https://hocomoco12.autosome.org/final_bundle/hocomoco12/H12{variant}/H12{variant}_annotation.jsonl",
             path / "annotation.jsonl",

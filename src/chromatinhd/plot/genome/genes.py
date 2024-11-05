@@ -390,9 +390,9 @@ class GenesBroken(Broken):
         ax = self[0, 0]
         ax.set_yticks(np.arange(len(plotdata_genes)))
         ax.set_yticklabels(plotdata_genes["symbol"], fontsize=6, style="italic")
-        for tick in ax.yaxis.get_major_ticks():
-            if tick.label1.get_text() == plotdata_genes.loc[gene_id, "symbol"]:
-                tick.label1.set_weight("bold")
+        # for tick in ax.yaxis.get_major_ticks():
+        #     if tick.label1.get_text() == plotdata_genes.loc[gene_id, "symbol"]:
+        #         tick.label1.set_weight("bold")
         ax.tick_params(axis="y", length=0, pad=2, width=0.5)
 
     @classmethod
@@ -491,12 +491,12 @@ class GenesExpanding(polyptich.grid.Panel):
                 xticks = np.array(xticks)
             ax.set_xticks(xticks)
         ax.xaxis.set_major_formatter(chromatinhd.plot.gene_ticker)
+        # ax.get_xticklabels()[0].set_horizontalalignment("left")
+        # ax.get_xticklabels()[-1].set_horizontalalignment("right")
 
         sns.despine(ax=ax, right=True, left=True, bottom=True, top=True)
 
         # top bar
-        ax.axhline(0.5, color = "#333", lw = 1., zorder = -10)
-
         ax.set_xlim(*window)
 
         ax.set_yticks([])
@@ -532,6 +532,8 @@ class GenesExpanding(polyptich.grid.Panel):
                 width=0.5,
                 labelrotation=90,
             )
+
+        ax.axhline(genes_max, color = "#333", lw = 1., zorder = -10)
 
         for gene, gene_info in plotdata_genes.reset_index().set_index("transcript").iterrows():
             y = gene_info["ix"]

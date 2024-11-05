@@ -178,7 +178,7 @@ class Dataset:
             try:
                 response = requests.get(url, timeout=timeout)
             except requests.exceptions.Timeout:
-                raise ValueError("Ensembl web service timed out")
+                raise ValueError("Ensembl web service timed out: ", url)
             # check response status
             if response.status_code != 200:
                 raise ValueError(f"Response status code is {response.status_code} and not 200. Response text: {response.text}")

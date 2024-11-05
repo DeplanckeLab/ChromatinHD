@@ -13,7 +13,6 @@ def interpolate_1d(x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor) -> torch
     intercept = b.index_select(a.ndim - 1, indices)
     return x * slope + intercept
 
-
 def interpolate_0d(x: torch.Tensor, xp: torch.Tensor, fp: torch.Tensor) -> torch.Tensor:
     a = (fp[..., 1:] - fp[..., :-1]) / (xp[..., 1:] - xp[..., :-1])
     b = fp[..., :-1] - (a.mul(xp[..., :-1]))

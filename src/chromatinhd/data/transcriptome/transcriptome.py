@@ -166,12 +166,15 @@ class Transcriptome(Flow):
             adata = None
 
         return Transcriptome.create(var=self.var, obs=self.obs.loc[cells], X=X, layers=layers, path=path, adata=adata)
-
     def get_X(self, gene_ids, layer=None):
         """
         Get the counts for a given set of genes.
         """
-        gene_ixs = self.var.index.get_loc(gene_ids)
+
+        if isinstance(gene_ids, str):
+            gene_ixs = self.var.index.get_loc(gene_ids)
+        else:
+            gene_ixs = self.var.index.get_indexer(gene_ids)
 
         if layer is None:
             value = self.X[:, gene_ixs]

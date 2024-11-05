@@ -29,3 +29,16 @@ def indices_to_indptr_chunked(x, n, dtype=np.int32, batch_size=10e3):
         cur_value = x_[-1]
     indptr = np.cumsum(counts, dtype=dtype)
     return indptr
+
+
+
+def interpolate_1d(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> np.ndarray:
+    a = (fp[1:] - fp[:-1]) / (xp[1:] - xp[:-1])
+    b = fp[:-1] - (a * xp[:-1])
+
+    indices = np.searchsorted(xp, x, side="left") - 1
+    indices = np.clip(indices, 0, a.shape[0] - 1)
+
+    slope = a[indices]
+    intercept = b[indices]
+    return x * slope + intercept

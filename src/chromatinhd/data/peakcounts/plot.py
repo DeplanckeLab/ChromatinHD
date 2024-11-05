@@ -1,4 +1,3 @@
-import pybedtools
 import pandas as pd
 import numpy as np
 
@@ -24,6 +23,11 @@ def get_usecols_and_names(peakcaller):
 def extract_peaks(peaks_bed, promoter, peakcaller):
     if peaks_bed is None:
         return pd.DataFrame({"start": [], "end": [], "method": [], "peak": []})
+    
+    try:
+        import pybedtools
+    except ImportError:
+        raise ImportError("pybedtools is required to plot peaks, install using `pip install pybedtools` or `conda install -c bioconda pybedtools`. You may also need to install bedtools, e.g. using `conda install -c bioconda bedtools`.")
 
     promoter_bed = pybedtools.BedTool.from_dataframe(pd.DataFrame(promoter).T[["chrom", "start", "end"]])
 
@@ -266,7 +270,10 @@ def _get_peaks(region, peakcallers):
 
     peaks = []
 
-    import pybedtools
+    try:
+        import pybedtools
+    except ImportError:
+        raise ImportError("pybedtools is required to plot peaks, install using `pip install pybedtools` or `conda install -c bioconda pybedtools`. You may also need to install bedtools, e.g. using `conda install -c bioconda bedtools`.")
 
     for peakcaller, peakcaller_info in peakcallers.iterrows():
         if not pathlib.Path(peakcaller_info["path"]).exists():

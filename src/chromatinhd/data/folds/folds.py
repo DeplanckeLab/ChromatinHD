@@ -11,7 +11,7 @@ from chromatinhd.data.fragments import Fragments
 
 class Folds(Flow):
     """
-    Folds of multiple cell and reion combinations
+    Folds of multiple cell and region combinations
     """
 
     folds: dict = Stored()
