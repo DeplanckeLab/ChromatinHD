@@ -233,10 +233,10 @@ model_info = model_info.sort_values(["model_type"])
 model_info["ix"] = np.arange(model_info.shape[0])
 
 # %%
-fig = chd.grid.Figure(chd.grid.Wrap(padding_width=0.1))
+fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width=0.1))
 height = len(model_info) * 0.2
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 plotdata = scores.xs("test", level="phase").loc[model_info.index]
 
 ax.barh(plotdata.index, plotdata["lr"])
@@ -245,7 +245,7 @@ ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Test")
 ax.set_xlabel("Log-likehood ratio")
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 plotdata = scores.xs("validation", level="phase").loc[model_info.index]
 ax.set_yticks([])
 ax.barh(plotdata.index, plotdata["lr"])
@@ -253,7 +253,7 @@ ax.barh(plotdata.index, plotdata["lr_position"], alpha=0.5)
 ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Validation")
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 plotdata = scores.xs("train", level="phase").loc[model_info.index]
 ax.set_yticks([])
 ax.barh(plotdata.index, plotdata["lr"])
@@ -296,9 +296,9 @@ design["prob_left"], design["prob_right"] = model.evaluate_right(
 )
 
 # %%
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0))
 width = 10
-panel, ax = fig.main.add_under(chd.grid.Panel((width, 0.5)))
+panel, ax = fig.main.add_under(polyptich.grid.Panel((width, 0.5)))
 plotdata = design.loc[design["size"] == 0].set_index(["cluster_ix", "coordinate"])[["prob_left"]]
 for cluster_ix, plotdata_cluster in plotdata.groupby("cluster_ix"):
     plotdata_cluster = plotdata_cluster.droplevel("cluster_ix").sort_index()
@@ -312,7 +312,7 @@ ax2 = panel.add_twinx()
 ax2.scatter(plotdata["center"], [0] * len(plotdata), c=plotdata["size_mean"])
 ax2.set_xlim(*fragments.regions.window)
 
-panel, ax = fig.main.add_under(chd.grid.Panel((width, 2)))
+panel, ax = fig.main.add_under(polyptich.grid.Panel((width, 2)))
 plotdata = np.exp(design.groupby(["size", "coordinate"]).mean()["prob_right"].unstack())
 ax.matshow(plotdata, aspect="auto", extent=(*fragments.regions.window, *plotdata.index[[-1, 0]]), cmap="viridis")
 ax.set_xticks([])
@@ -324,14 +324,14 @@ panel = fig.main.add_under(chd.data.motifscan.plot.Motifs(simulation.motifscan, 
 fig.plot()
 
 # %%
-main = chd.grid.Grid(padding_height=0.1)
-fig = chd.grid.Figure(main)
+main = polyptich.grid.Grid(padding_height=0.1)
+fig = polyptich.grid.Figure(main)
 
 nbins = np.array(model.mixture.transform.nbins)
 bincuts = np.concatenate([[0], np.cumsum(nbins)])
 binmids = bincuts[:-1] + nbins / 2
 
-ax = main[0, 0] = chd.grid.Ax((10, 0.25))
+ax = main[0, 0] = polyptich.grid.Panel((10, 0.25))
 ax = ax.ax
 plotdata = (model.mixture.transform.unnormalized_heights.data.cpu().numpy())[[gene_ix]]
 ax.imshow(plotdata, aspect="auto")
@@ -342,7 +342,7 @@ ax.set_xlim(0 - 0.5, plotdata.shape[1] - 0.5)
 ax.set_xticks([])
 ax.set_ylabel("$h_0$", rotation=0, ha="right", va="center")
 
-ax = main[1, 0] = chd.grid.Ax(dim=(10, model.n_clusters * 0.25))
+ax = main[1, 0] = polyptich.grid.Panel(dim=(10, model.n_clusters * 0.25))
 ax = ax.ax
 plotdata = model.decoder.delta_height_weight.data[gene_ix].cpu().numpy()
 ax.imshow(plotdata, aspect="auto", cmap=mpl.cm.RdBu_r, vmax=np.log(2), vmin=np.log(1 / 2))

@@ -251,24 +251,24 @@ model_info = model_info.sort_values(["model_type"])
 model_info["ix"] = np.arange(model_info.shape[0])
 
 # %%
-fig = chd.grid.Figure(chd.grid.Wrap(padding_width=0.1))
+fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width=0.1))
 height = len(scores) * 0.2
 
 plotdata = scores.copy().loc[model_info.index]
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.barh(plotdata.index, plotdata["lr_test"])
 ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Test")
 ax.set_xlabel("Log-likehood ratio")
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.set_yticks([])
 ax.barh(plotdata.index, plotdata["lr_validation"])
 ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Validation")
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.set_yticks([])
 ax.barh(plotdata.index, plotdata["lr_train"])
 ax.axvline(0, color="black", linestyle="--", lw=1)
@@ -304,7 +304,7 @@ model_id = "original"
 genepositional.score(fragments, clustering, [models[model_id]], force=True, genes=transcriptome.gene_id([symbol]))
 
 # %%
-fig = chd.grid.Figure(chd.grid.Grid(padding_height=0.05, padding_width=0.05))
+fig = polyptich.grid.Figure(polyptich.grid.Grid(padding_height=0.05, padding_width=0.05))
 width = 10
 
 region = fragments.regions.coordinates.loc[transcriptome.gene_id(symbol)]

@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.14.7
+#       jupytext_version: 1.16.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -179,10 +179,6 @@ fragments.create_regionxcell_indptr()
 folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x1").sample_cells(fragments, 5, 1)
 folds
 
-# %%
-folds = chd.data.folds.Folds(dataset_folder / "folds" / "5x5").sample_cells(fragments, 5, 5)
-folds
-
 # %% [markdown]
 # ## Optional data¶
 
@@ -215,7 +211,7 @@ pwms, motifs = chd.data.motifscan.download.get_hocomoco(dataset_folder / "motifs
 # %%
 import genomepy
 
-genomepy.install_genome("GRCh38", genomes_dir="/data/genome/")
+genomepy.install_genome("GRCh38", genomes_dir="/srv/data/genome/")
 
 fasta_file = "/data/genome/GRCh38/GRCh38.fa"
 

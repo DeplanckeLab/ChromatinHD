@@ -107,12 +107,12 @@ for device in devices.index:
     scores.loc[device, "inference"] = end - start
 
 # %%
-fig = chd.grid.Figure(chd.grid.Wrap(padding_width=0.1))
+fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width=0.1))
 height = len(scores) * 0.2
 
 plotdata = scores.copy().loc[devices.index]
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.barh(plotdata.index, plotdata["train"])
 ax.set_yticks(np.arange(len(devices)))
 ax.set_yticklabels(devices.label)
@@ -120,7 +120,7 @@ ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Training")
 ax.set_xlabel("seconds")
 
-panel, ax = fig.main.add(chd.grid.Ax((1, height)))
+panel, ax = fig.main.add(polyptich.grid.Panel((1, height)))
 ax.barh(plotdata.index, plotdata["inference"])
 ax.axvline(0, color="black", linestyle="--", lw=1)
 ax.set_title("Inference")
