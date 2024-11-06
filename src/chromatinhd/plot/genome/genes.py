@@ -533,7 +533,7 @@ class GenesExpanding(polyptich.grid.Panel):
                 labelrotation=90,
             )
 
-        ax.axhline(genes_max, color = "#333", lw = 1., zorder = -10)
+        ax.axhline(genes_max+0.025, color = "#333", lw = 0.5, zorder = 20, clip_on = False)
 
         for gene, gene_info in plotdata_genes.reset_index().set_index("transcript").iterrows():
             y = gene_info["ix"]
