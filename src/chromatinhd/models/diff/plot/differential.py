@@ -559,6 +559,8 @@ def _setup_differential(
                 color="#333",
                 zorder=30,
             )
+        elif label_cluster is False:
+            pass
         else:
             text = ax.annotate(
                 text=f"{cluster_info_oi['label']}",
@@ -572,12 +574,12 @@ def _setup_differential(
                 color="#333",
                 zorder=30,
             )
-        text.set_path_effects(
-            [
-                mpl.patheffects.Stroke(linewidth=2, foreground="white"),
-                mpl.patheffects.Normal(),
-            ]
-        )
+            text.set_path_effects(
+                [
+                    mpl.patheffects.Stroke(linewidth=2, foreground="white"),
+                    mpl.patheffects.Normal(),
+                ]
+            )
 
     ax.set_xticks([])
 
