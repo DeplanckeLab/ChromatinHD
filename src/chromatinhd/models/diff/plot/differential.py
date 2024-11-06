@@ -286,7 +286,6 @@ class DifferentialBroken(polyptich.grid.Wrap):
 
         if cluster_info is None:
             raise ValueError("cluster_info should not be None")
-        plotdata = plotdata.query("cluster in @cluster_info.index")
 
         if order is True:
             self.order = (
@@ -300,6 +299,7 @@ class DifferentialBroken(polyptich.grid.Wrap):
         plotdata, order, _ = _process_plotdata(
             plotdata, plotdata_mean, cluster_info, order, relative_to
         )
+        plotdata = plotdata.query("cluster in @cluster_info.index")
 
         self.order = order
 
