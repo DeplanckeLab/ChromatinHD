@@ -15,7 +15,7 @@ theme:
     - toc.follow
     - toc.integrate
 
-site_url: "https://chromatinhd.org/"
+site_url: "http://chromatinhd.org/"
 repo_url: https://github.com/DeplanckeLab/ChromatinHD
 
 plugins:
@@ -64,4 +64,4 @@ extra_css:
   - stylesheets/extra-reference.css
 extra_javascript:
   - javascripts/reference.js
-copyright: Copyright &copy; 2022 - 2023 Wouter Saelens
+copyright: Copyright &copy; 2022 - 2024 Wouter Saelens
