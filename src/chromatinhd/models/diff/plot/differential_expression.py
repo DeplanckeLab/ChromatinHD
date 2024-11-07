@@ -140,7 +140,7 @@ class DifferentialExpression(polyptich.grid.Wrap):
         width=0.5,
         panel_height=0.5,
         cluster_info=None,
-        layer="normalized",
+        layer=None,
         **kwargs,
     ):
         """
@@ -157,6 +157,9 @@ class DifferentialExpression(polyptich.grid.Wrap):
 
         """
         import pandas as pd
+
+        if layer is None:
+            layer = list(transcriptome.layers.keys())[0]
 
         if isinstance(gene, str):
             gene = [gene]

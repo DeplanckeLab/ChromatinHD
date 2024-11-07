@@ -381,11 +381,11 @@ class GroupedMotifsBroken(Grid):
         super().__init__()
 
         motifs_oi, group_info = _process_grouped_motifs_oi(
-            motifs_oi, motifscan, group_info=group_info
+            motifs_oi, motifscan, group_info=group_info, 
         )
 
         motifdatas = [_process_grouped_motifs(
-            gene, motifs_oi, motifscan, group_info=group_info, window=[region["start"], region["end"]]
+            gene, motifs_oi, motifscan, group_info=group_info, window=[region["start"], region["end"]], slices_oi = slices_oi
         ) for _, region in breaking.regions.iterrows()]
 
         for group, group_info_oi in group_info.iterrows():
@@ -454,23 +454,23 @@ class GroupedMotifsBroken(Grid):
                         plotdata_not_oi = plotdata.loc[~plotdata["oi"]]
 
                         # join very close
-                        plotdata_oi = plotdata_oi.sort_values("position")
-                        plotdata_oi["distance_to_next"] = plotdata_oi["position"].diff().fillna(0.)
-                        plotdata_oi["group"] = np.cumsum(plotdata_oi["distance_to_next"] > 50)
-                        plotdata_oi["n"] = 1
-                        plotdata_oi = plotdata_oi.groupby("group").agg(
-                            {"position": "mean", "n": "sum", "oi": "first"}
-                        )
+                        # plotdata_oi = plotdata_oi.sort_values("position")
+                        # plotdata_oi["distance_to_next"] = plotdata_oi["position"].diff().fillna(0.)
+                        # plotdata_oi["group"] = np.cumsum(plotdata_oi["distance_to_next"] > 50)
+                        # plotdata_oi["n"] = 1
+                        # plotdata_oi = plotdata_oi.groupby("group").agg(
+                        #     {"position": "mean", "n": "sum", "oi": "first"}
+                        # )
 
                         # oi
                         if show_triangle:
+                            # front
                             ax.scatter(
                                 plotdata_oi["position"],
                                 [0.] * len(plotdata_oi),
                                 transform=mpl.transforms.blended_transform_factory(
                                     ax.transData, ax.transAxes
                                 ),
-                                # marker="v",
                                 marker = marker,
                                 color=color,
                                 s=100,
@@ -484,20 +484,19 @@ class GroupedMotifsBroken(Grid):
                                 transform=mpl.transforms.blended_transform_factory(
                                     ax.transData, ax.transAxes
                                 ),
-                                # marker="v",
-                                marker = "|",
+                                marker = marker,
                                 color="white",
                                 s=400,
                                 zorder=19,
                                 lw = 1.
                             )
+                            # other not oi
                             ax.scatter(
                                 plotdata_not_oi["position"],
                                 [0.] * len(plotdata_not_oi),
                                 transform=mpl.transforms.blended_transform_factory(
                                     ax.transData, ax.transAxes
                                 ),
-                                # marker="v",
                                 marker = marker,
                                 color=blend_with_white(color, 0.3),
                                 s=100,
@@ -505,6 +504,7 @@ class GroupedMotifsBroken(Grid):
                                 lw = 0.
                             )
                         if show_bar:
+                            # front
                             ax.scatter(
                                 plotdata_oi["position"],
                                 [1.] * len(plotdata_oi),
@@ -519,13 +519,13 @@ class GroupedMotifsBroken(Grid):
                                 lw = 1.5
                             )
 
+                            # white back
                             ax.scatter(
                                 plotdata_oi["position"],
                                 [1.] * len(plotdata_oi),
                                 transform=mpl.transforms.blended_transform_factory(
                                     ax.transData, ax.transAxes
                                 ),
-                                # marker="v",
                                 marker = marker,
                                 color=blend_with_white(color, 0.3),
                                 s=250,

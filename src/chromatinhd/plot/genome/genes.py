@@ -100,7 +100,7 @@ class Genes(polyptich.grid.Panel):
     ):
         super().__init__((width, len(plotdata_genes) * 0.08 + 0.01), **kwargs)
 
-        ax = self.ax
+        ax = self
 
         ax.xaxis.tick_top()
         if label_genome:

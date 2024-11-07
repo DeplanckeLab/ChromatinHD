@@ -129,9 +129,9 @@ class Differential(polyptich.grid.Wrap):
             # elif label_accessibility is not False:
             #     ax.set_ylabel("Accessibility\nper 100 cells\nper 100bp", rotation=0, ha="right", va="center")
 
-        self.draw(plotdata, plotdata_mean)
+        self.draw(plotdata)
 
-    def draw(self, plotdata, plotdata_mean):
+    def draw(self, plotdata):
         self.artists = []
 
         for ax, cluster in zip(self.elements, self.order):
@@ -139,8 +139,8 @@ class Differential(polyptich.grid.Wrap):
                 # posterior distribution of atac-seq cuts
                 plotdata_cluster = plotdata.xs(cluster, level="cluster")
                 (background,) = ax.plot(
-                    plotdata_mean.index,
-                    np.exp(plotdata_mean["prob"]),
+                    plotdata_cluster.index,
+                    np.exp(plotdata_cluster["prob_reference"]),
                     color="grey",
                     lw=0.5,
                     zorder=1,
@@ -155,8 +155,8 @@ class Differential(polyptich.grid.Wrap):
                 )
 
                 polygon = ax.fill_between(
-                    plotdata_mean.index,
-                    np.exp(plotdata_mean["prob"]),
+                    plotdata_cluster.index,
+                    np.exp(plotdata_cluster["prob_reference"]),
                     np.exp(plotdata_cluster["prob"]),
                     color="black",
                     zorder=0,
@@ -248,6 +248,8 @@ class DifferentialBroken(polyptich.grid.Wrap):
             normalization for the differential accessibility
         ymax:
             maximum y value
+        ylintresh:
+            linear threshold for the symlog scale
         order:
             order of the clusters
         relative_to:
@@ -299,7 +301,7 @@ class DifferentialBroken(polyptich.grid.Wrap):
         plotdata, order, _ = _process_plotdata(
             plotdata, plotdata_mean, cluster_info, order, relative_to
         )
-        plotdata = plotdata.query("cluster in @cluster_info.index")
+        # plotdata = plotdata.query("cluster in @cluster_info.index")
 
         self.order = order
 
@@ -631,6 +633,7 @@ def _process_plotdata(
                 for i, cluster in enumerate(cluster_info.index)
             }
         )
+        plotdata = plotdata.loc[plotdata.index.get_level_values("cluster").isin(cluster_info.index)]
         plotdata["prob_reference"] = plotdata.loc[
             pd.MultiIndex.from_frame(
                 pd.DataFrame(
