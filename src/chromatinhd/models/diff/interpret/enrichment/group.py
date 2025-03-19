@@ -5,7 +5,7 @@ import numpy as np
 def group_enrichment(
     enrichment,
     slicecounts,
-    clustering,
+    cluster_info,
     merge_cutoff=0.2,
     q_value_cutoff=0.01,
     odds_cutoff=1.1,
@@ -20,7 +20,7 @@ def group_enrichment(
         DataFrame with columns "odds", "q_value", "contingency"
     slicecounts : pd.DataFrame
         DataFrame with slice counts
-    clustering : pd.DataFrame
+    cluster_info : pd.DataFrame
         DataFrame with cluster information
     merge_cutoff : float
         Correlation cutoff for merging motifs
@@ -33,7 +33,7 @@ def group_enrichment(
     """
 
     enrichment_grouped = []
-    for cluster_oi in clustering.cluster_info.index:
+    for cluster_oi in cluster_info.index:
         slicecors = pd.DataFrame(
             np.corrcoef((slicecounts.T > 0) + np.random.normal(0, 1e-6, slicecounts.shape).T),
             index=slicecounts.columns,

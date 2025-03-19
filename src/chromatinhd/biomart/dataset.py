@@ -55,7 +55,7 @@ class Filter:
             value = self.value
         else:
             if not all(isinstance(v, str) for v in self.value):
-                raise ValueError("Filter value must be a string")
+                raise ValueError("Filter value must be a string", self.value)
             value = ",".join(self.value)
         return ET.Element("Filter", name=self.name, value=value, **self.kwargs)
 

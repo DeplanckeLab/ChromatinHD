@@ -9,6 +9,11 @@ def enrichment_foreground_vs_background(slicescores_foreground, slicescores_back
     if motifs is None:
         motifs = slicecounts.columns
 
+    if "length" not in slicescores_foreground.columns:
+        slicescores_foreground["length"] = slicescores_foreground["end"] - slicescores_foreground["start"]
+    if "length" not in slicescores_background.columns:
+        slicescores_background["length"] = slicescores_background["end"] - slicescores_background["start"]
+
     x_foreground = slicecounts.loc[slicescores_foreground.index, motifs].sum(0)
     x_background = slicecounts.loc[slicescores_background.index, motifs].sum(0)
     
@@ -78,6 +83,10 @@ def enrichment_foreground_vs_background(slicescores_foreground, slicescores_back
 
 def enrichment_cluster_vs_clusters(slicescores, slicecounts, clusters=None, motifs=None, pbar=True, expected = None):
     if clusters is None:
+        if not "cluster" in slicescores.columns:
+            raise ValueError("No cluster information in slicescores")
+        elif not slicescores["cluster"].dtype.name == "category":
+            raise ValueError("Cluster column should be categorical")
         clusters = slicescores["cluster"].cat.categories
     enrichment = []
 

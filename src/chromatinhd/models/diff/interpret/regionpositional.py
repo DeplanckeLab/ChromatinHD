@@ -14,6 +14,20 @@ from chromatinhd.flow import Flow
 from chromatinhd.flow.objects import Stored, DataArray, StoredDict, Linked
 
 
+def merge_padded_windows(windows, max_merge_distance=500):
+    # merge windows that are close to each other
+    windows["distance_to_next"] = windows["start"].shift(-1) - windows["end"]
+
+    windows["merge"] = (windows["distance_to_next"] < max_merge_distance).fillna(False)
+    windows["group"] = (~windows["merge"]).cumsum().shift(1).fillna(0).astype(int)
+    windows = (
+        windows.groupby("group")
+        .agg({"start": "min", "end": "max", "distance_to_next": "last"})
+        .reset_index(drop=True)
+    )
+    return windows
+
+
 def fdr(p_vals):
     from scipy.stats import rankdata
 
@@ -48,7 +62,16 @@ class Slices:
 
     step = 1
 
-    def __init__(self, region_ixs, start_position_ixs, end_position_ixs, data, n_regions, step, window):
+    def __init__(
+        self,
+        region_ixs,
+        start_position_ixs,
+        end_position_ixs,
+        data,
+        n_regions,
+        step,
+        window,
+    ):
         self.region_ixs = region_ixs
         self.start_position_ixs = start_position_ixs
         self.end_position_ixs = end_position_ixs
@@ -120,7 +143,17 @@ class DifferentialSlices:
 
     step = 1
 
-    def __init__(self, region_ixs, cluster_ixs, start_position_ixs, end_position_ixs, data, n_regions, step, window):
+    def __init__(
+        self,
+        region_ixs,
+        cluster_ixs,
+        start_position_ixs,
+        end_position_ixs,
+        data,
+        n_regions,
+        step,
+        window,
+    ):
         self.region_ixs = region_ixs
         self.start_position_ixs = start_position_ixs
         self.end_position_ixs = end_position_ixs
@@ -138,7 +171,9 @@ class DifferentialSlices:
         )
         self.indptr = indptr
 
-    def get_slice_scores(self, regions=None, clustering=None, cluster_info=None, min_length=10):
+    def get_slice_scores(
+        self, regions=None, clustering=None, cluster_info=None, min_length=10
+    ):
         slicescores = pd.DataFrame(
             {
                 "start": self.start_position_ixs * self.step + self.window[0],
@@ -156,7 +191,9 @@ class DifferentialSlices:
             if cluster_info is None:
                 cluster_info = clustering.cluster_info
         if cluster_info is not None:
-            slicescores["cluster"] = pd.Categorical(cluster_info.index[self.cluster_ixs], cluster_info.index)
+            slicescores["cluster"] = pd.Categorical(
+                cluster_info.index[self.cluster_ixs], cluster_info.index
+            )
         if regions is not None:
             slicescores["region"] = pd.Categorical(
                 regions.coordinates.index[self.region_ixs], regions.coordinates.index
@@ -196,7 +233,15 @@ class DifferentialPeaks:
 
     step = 1
 
-    def __init__(self, region_ixs, cluster_ixs, start_position_ixs, end_position_ixs, data, n_regions):
+    def __init__(
+        self,
+        region_ixs,
+        cluster_ixs,
+        start_position_ixs,
+        end_position_ixs,
+        data,
+        n_regions,
+    ):
         self.region_ixs = region_ixs
         self.start_position_ixs = start_position_ixs
         self.end_position_ixs = end_position_ixs
@@ -204,7 +249,9 @@ class DifferentialPeaks:
         self.cluster_ixs = cluster_ixs
         self.data = data
 
-    def get_slice_scores(self, regions=None, clustering=None, cluster_info=None, min_length=10):
+    def get_slice_scores(
+        self, regions=None, clustering=None, cluster_info=None, min_length=10
+    ):
         slicescores = pd.DataFrame(
             {
                 "start": self.start_position_ixs * self.step + self.window[0],
@@ -218,7 +265,9 @@ class DifferentialPeaks:
         if clustering is not None:
             cluster_info = clustering.cluster_info
         if cluster_info is not None:
-            slicescores["cluster"] = pd.Categorical(cluster_info.index[self.cluster_ixs], cluster_info.index)
+            slicescores["cluster"] = pd.Categorical(
+                cluster_info.index[self.cluster_ixs], cluster_info.index
+            )
         if regions is not None:
             slicescores["region"] = pd.Categorical(
                 regions.coordinates.index[self.region_ixs], regions.coordinates.index
@@ -301,19 +350,25 @@ class RegionPositional(chd.flow.Flow):
                 force = True
 
             if force:
-                design_region = pd.DataFrame({"region_ix": [fragments.var.index.get_loc(region)]}).astype("category")
+                design_region = pd.DataFrame(
+                    {"region_ix": [fragments.var.index.get_loc(region)]}
+                ).astype("category")
                 design_region.index = pd.Series([region], name="region")
-                design_clustering = pd.DataFrame({"active_cluster": np.arange(clustering.n_clusters)}).astype(
-                    "category"
-                )
+                design_clustering = pd.DataFrame(
+                    {"active_cluster": np.arange(clustering.n_clusters)}
+                ).astype("category")
                 design_clustering.index = clustering.cluster_info.index
-                design_coord = pd.DataFrame({"coord": np.arange(window[0], window[1] + 1, step=step)}).astype(
-                    "category"
-                )
+                design_coord = pd.DataFrame(
+                    {"coord": np.arange(window[0], window[1] + 1, step=step)}
+                ).astype("category")
                 design_coord.index = design_coord["coord"]
-                design = chd.utils.crossing(design_region, design_clustering, design_coord)
+                design = chd.utils.crossing(
+                    design_region, design_clustering, design_coord
+                )
 
-                design["batch"] = np.floor(np.arange(design.shape[0]) / batch_size).astype(int)
+                design["batch"] = np.floor(
+                    np.arange(design.shape[0]) / batch_size
+                ).astype(int)
 
                 probs = []
 
@@ -322,13 +377,19 @@ class RegionPositional(chd.flow.Flow):
                 for model in models:
                     probs_model = []
                     for _, design_subset in design.groupby("batch"):
-                        pseudocoordinates = torch.from_numpy(design_subset["coord"].values.astype(int))
+                        pseudocoordinates = torch.from_numpy(
+                            design_subset["coord"].values.astype(int)
+                        )
                         # pseudocoordinates = (pseudocoordinates - window[0]) / (window[1] - window[0])
                         pseudocluster = torch.nn.functional.one_hot(
-                            torch.from_numpy(design_subset["active_cluster"].values.astype(int)),
+                            torch.from_numpy(
+                                design_subset["active_cluster"].values.astype(int)
+                            ),
                             clustering.n_clusters,
                         ).to(torch.float)
-                        region_ix = torch.from_numpy(design_subset["region_ix"].values.astype(int))
+                        region_ix = torch.from_numpy(
+                            design_subset["region_ix"].values.astype(int)
+                        )
 
                         prob = model.evaluate_pseudo(
                             pseudocoordinates,
@@ -362,7 +423,9 @@ class RegionPositional(chd.flow.Flow):
 
         return self
 
-    def get_plotdata(self, region: str, clusters=None, relative_to=None, scale = 1.) -> (pd.DataFrame, pd.DataFrame):
+    def get_plotdata(
+        self, region: str, clusters=None, relative_to=None, scale=1.0
+    ) -> (pd.DataFrame, pd.DataFrame):
         """
         Returns average and differential probabilities for a particular region.
 
@@ -388,10 +451,14 @@ class RegionPositional(chd.flow.Flow):
         elif relative_to is not None:
             if relative_to not in plotdata.index.get_level_values("cluster"):
                 raise ValueError(f"Cluster {relative_to} not in clusters")
-            plotdata_mean = plotdata[["prob"]].query("cluster in @relative_to").groupby("coord", observed=False).mean()
+            plotdata_mean = (
+                plotdata[["prob"]]
+                .query("cluster in @relative_to")
+                .groupby("coord", observed=False)
+                .mean()
+            )
         else:
             plotdata_mean = plotdata[["prob"]].groupby("coord", observed=True).mean()
-
 
         return plotdata, plotdata_mean
 
@@ -399,7 +466,9 @@ class RegionPositional(chd.flow.Flow):
     def scored(self):
         return len(self.probs) > 0
 
-    def calculate_slices(self, prob_cutoff=1.5, clusters_oi=None, cluster_grouping=None, step=1):
+    def calculate_slices(
+        self, prob_cutoff=1.5, clusters_oi=None, cluster_grouping=None, step=1, max_prob_cutoff=None
+    ):
         start_position_ixs = []
         end_position_ixs = []
         data = []
@@ -409,7 +478,9 @@ class RegionPositional(chd.flow.Flow):
             if isinstance(clusters_oi, (pd.Series, pd.Index)):
                 clusters_oi = clusters_oi.tolist()
 
-        for region, probs in tqdm.tqdm(self.probs.items(), leave=False, total=len(self.probs)):
+        for region, probs in tqdm.tqdm(
+            self.probs.items(), leave=False, total=len(self.probs)
+        ):
             if clusters_oi is not None:
                 probs = probs.sel(cluster=clusters_oi)
 
@@ -417,7 +488,9 @@ class RegionPositional(chd.flow.Flow):
                 probs = probs.groupby(cluster_grouping).mean()
 
             region_ix = self.regions.var.index.get_loc(region)
-            desired_x = np.arange(*self.regions.window, step=step) - self.regions.window[0]
+            desired_x = (
+                np.arange(*self.regions.window, step=step) - self.regions.window[0]
+            )
             x = probs.coords["coord"].values - self.regions.window[0]
             y = probs.values
 
@@ -426,13 +499,15 @@ class RegionPositional(chd.flow.Flow):
             ).numpy()
 
             # from y_interpolated, determine start and end positions of the relevant slices
-            start_position_ixs_region, end_position_ixs_region, data_region = extract_slices(
-                y_interpolated, prob_cutoff
+            start_position_ixs_region, end_position_ixs_region, data_region = (
+                extract_slices(y_interpolated, prob_cutoff, max_prob_cutoff = max_prob_cutoff)
             )
             start_position_ixs.append(start_position_ixs_region)
             end_position_ixs.append(end_position_ixs_region)
             data.append(data_region)
-            region_ixs.append(np.ones(len(start_position_ixs_region), dtype=int) * region_ix)
+            region_ixs.append(
+                np.ones(len(start_position_ixs_region), dtype=int) * region_ix
+            )
         data = np.concatenate(data, axis=0)
         start_position_ixs = np.concatenate(start_position_ixs, axis=0)
         end_position_ixs = np.concatenate(end_position_ixs, axis=0)
@@ -449,7 +524,10 @@ class RegionPositional(chd.flow.Flow):
         )
         return slices
 
-    def calculate_differential_slices(self, slices, fc_cutoff=2.0, score="diff", a=None, b=None, n=None, expand = 0):
+    def calculate_differential_slices(
+        self, slices, fc_cutoff=2.0, score="diff", a = None, b = None, xy1=None, xy2=None, n=None, expand=0
+    ):
+        expand = expand//slices.step
         if score == "diff":
             data_diff = slices.data - slices.data.mean(1, keepdims=True)
             data_selected = data_diff > np.log(fc_cutoff)
@@ -467,8 +545,8 @@ class RegionPositional(chd.flow.Flow):
             actual = slices.data
             diff = slices.data - probs_mean
 
-            x1, y1 = a
-            x2, y2 = b
+            x1, y1 = xy1
+            x2, y2 = xy2
 
             X = diff
             Y = actual
@@ -480,12 +558,19 @@ class RegionPositional(chd.flow.Flow):
         if n is None:
             data_selected = data_diff > np.log(fc_cutoff)
         else:
-            cutoff = np.quantile(data_diff, 1 - n / data_diff.shape[0], axis=0, keepdims=True)
+            cutoff = np.quantile(
+                data_diff, 1 - n / data_diff.shape[0], axis=0, keepdims=True
+            )
             data_selected = data_diff > cutoff
 
-        region_indices = np.repeat(slices.region_ixs, slices.end_position_ixs - slices.start_position_ixs)
+        region_indices = np.repeat(
+            slices.region_ixs, slices.end_position_ixs - slices.start_position_ixs
+        )
         position_indices = np.concatenate(
-            [np.arange(start, end) for start, end in zip(slices.start_position_ixs, slices.end_position_ixs)]
+            [
+                np.arange(start, end)
+                for start, end in zip(slices.start_position_ixs, slices.end_position_ixs)
+            ]
         )
 
         positions = []
@@ -528,12 +613,81 @@ class RegionPositional(chd.flow.Flow):
         )
         return differential_slices
 
+    def calculate_pairwise_differential_slices(
+        self, slices, fc_cutoff=2.0, cluster_ix_a = None, cluster_ix_b = None, n=None, expand=0
+    ):
+        data_diff = slices.data[:, [cluster_ix_a, cluster_ix_b]] - slices.data[:, [cluster_ix_b, cluster_ix_a]]
+        data_selected = np.abs(data_diff) > np.log(fc_cutoff)
+
+        if n is None:
+            data_selected = data_diff > np.log(fc_cutoff)
+        else:
+            cutoff = np.quantile(
+                data_diff, 1 - n / data_diff.shape[0], axis=0, keepdims=True
+            )
+            data_selected = data_diff > cutoff
+
+        region_indices = np.repeat(
+            slices.region_ixs, slices.end_position_ixs - slices.start_position_ixs
+        )
+        position_indices = np.concatenate(
+            [
+                np.arange(start, end)
+                for start, end in zip(slices.start_position_ixs, slices.end_position_ixs)
+            ]
+        )
+
+        positions = []
+        region_ixs = []
+        cluster_ixs = []
+        for ct_ix in range(data_diff.shape[1]):
+            # select which data is relevant
+            oi = data_selected[:, ct_ix]
+            if oi.sum() == 0:
+                continue
+            positions_oi = position_indices[oi]
+            regions_oi = region_indices[oi]
+
+            start = np.where(
+                np.pad(np.diff(positions_oi) != 1, (1, 0), constant_values=True)
+                | np.pad(np.diff(regions_oi) != 0, (1, 0), constant_values=True)
+            )[0]
+            end = np.pad(start[1:], (0, 1), constant_values=len(positions_oi)) - 1
+
+            positions.append(np.stack([positions_oi[start], positions_oi[end]], axis=1))
+            region_ixs.append(regions_oi[start])
+            cluster_ixs.append(np.ones(len(start), dtype=int) * [cluster_ix_a, cluster_ix_b][ct_ix])
+        start_position_ixs, end_position_ixs = np.concatenate(positions, axis=0).T
+        region_ixs = np.concatenate(region_ixs, axis=0)
+        cluster_ixs = np.concatenate(cluster_ixs, axis=0)
+
+        if expand > 0:
+            start_position_ixs = start_position_ixs - expand
+            end_position_ixs = end_position_ixs + expand
+
+        differential_slices = DifferentialSlices(
+            region_ixs,
+            cluster_ixs,
+            start_position_ixs,
+            end_position_ixs,
+            data_diff,
+            self.regions.n_regions,
+            step=slices.step,
+            window=slices.window,
+        )
+        return differential_slices
+
     def calculate_top_slices(self, slices, fc_cutoff=2.0):
         data_diff = slices.data - slices.data.mean(1, keepdims=True)
 
-        region_indices = np.repeat(slices.region_ixs, slices.end_position_ixs - slices.start_position_ixs)
+        region_indices = np.repeat(
+            slices.region_ixs, slices.end_position_ixs - slices.start_position_ixs
+        )
         position_indices = np.concatenate(
-            [np.arange(start, end) for start, end in zip(slices.start_position_ixs, slices.end_position_ixs)]
+            [
+                np.arange(start, end)
+                for start, end in zip(slices.start_position_ixs, slices.end_position_ixs)
+            ]
         )
 
         # select which data is relevant
@@ -563,7 +717,17 @@ class RegionPositional(chd.flow.Flow):
         )
         return differential_slices
 
-    def select_windows(self, region_id, max_merge_distance=500, min_length=50, padding=500, prob_cutoff=1.5, differential_prob_cutoff=None, keep_tss = False):
+    def select_windows(
+        self,
+        region_id,
+        max_merge_distance=500,
+        min_length=50,
+        padding=500,
+        prob_cutoff=1.5,
+        differential_prob_cutoff=None,
+        keep_tss=False,
+        clusters_oi=None,
+    ):
         """
         Select windows based on the number of fragments
 
@@ -579,7 +743,9 @@ class RegionPositional(chd.flow.Flow):
             prob_cutoff:
                 the probability cutoff
             differential_prob_cutoff:
-                the differential probability cutoff
+                The differential probability cutoff in natural log-fold change. Set to None to disable
+            keep_tss:
+                whether to always keep the TSS
         """
 
         from scipy.ndimage import convolve
@@ -590,15 +756,22 @@ class RegionPositional(chd.flow.Flow):
             result = result != 0
             return result
 
-        plotdata, plotdata_mean = self.get_plotdata(region_id)
-        selection = pd.DataFrame({"chosen": (plotdata["prob"].unstack() > prob_cutoff).any()})
+        plotdata, plotdata_mean = self.get_plotdata(region_id, clusters=clusters_oi)
+        selection = pd.DataFrame(
+            {"chosen": (plotdata["prob"].unstack() > prob_cutoff).any()}
+        )
 
         if differential_prob_cutoff is not None:
             plotdata_diff = (plotdata - plotdata_mean)["prob"].unstack()
-            selection["chosen_differential"] = selection["chosen"] & (np.exp(plotdata_diff.values) > differential_prob_cutoff).any(0)
+            selection["chosen_differential"] = selection["chosen"] & (
+                np.exp(plotdata_diff.values) > differential_prob_cutoff
+            ).any(0)
 
         # add padding
-        step = plotdata.index.get_level_values("coord")[1] - plotdata.index.get_level_values("coord")[0]
+        step = (
+            plotdata.index.get_level_values("coord")[1]
+            - plotdata.index.get_level_values("coord")[0]
+        )
         k_padding = padding // step
         selection["chosen"] = spread_true(selection["chosen"], width=k_padding)
 
@@ -608,28 +781,44 @@ class RegionPositional(chd.flow.Flow):
         windows = pd.DataFrame(
             {
                 "start": selection.index[
-                    (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == 1)[:-1]
+                    (
+                        np.diff(
+                            np.pad(
+                                selection["chosen"], (1, 1), constant_values=False
+                            ).astype(int)
+                        )
+                        == 1
+                    )[:-1]
                 ].astype(int),
                 "end": selection.index[
-                    (np.diff(np.pad(selection["chosen"], (1, 1), constant_values=False).astype(int)) == -1)[1:]
+                    (
+                        np.diff(
+                            np.pad(
+                                selection["chosen"], (1, 1), constant_values=False
+                            ).astype(int)
+                        )
+                        == -1
+                    )[1:]
                 ].astype(int),
             }
         )
 
-        # merge windows that are close to each other
-        windows["distance_to_next"] = windows["start"].shift(-1) - windows["end"]
-
-        windows["merge"] = (windows["distance_to_next"] < max_merge_distance).fillna(False)
-        windows["group"] = (~windows["merge"]).cumsum().shift(1).fillna(0).astype(int)
-        windows = (
-            windows.groupby("group")
-            .agg({"start": "min", "end": "max", "distance_to_next": "last"})
-            .reset_index(drop=True)
-        )
+        windows = merge_padded_windows(windows, max_merge_distance=max_merge_distance)
 
         if len(windows) and (differential_prob_cutoff is not None):
             windows["extra_selection"] = windows.apply(
-                lambda x: (plotdata_diff.iloc[:, plotdata_diff.columns.get_loc(x["start"]) : plotdata_diff.columns.get_loc(x["end"])] > np.log(differential_prob_cutoff)).any().any(), axis=1
+                lambda x: (
+                    plotdata_diff.iloc[
+                        :,
+                        plotdata_diff.columns.get_loc(
+                            x["start"]
+                        ) : plotdata_diff.columns.get_loc(x["end"]),
+                    ]
+                    > np.log(differential_prob_cutoff)
+                )
+                .any()
+                .any(),
+                axis=1,
             )
             if keep_tss:
                 windows.loc[
@@ -650,7 +839,9 @@ class RegionPositional(chd.flow.Flow):
 
         if desired_x is None:
             assert step is not None
-            desired_x = np.arange(*self.regions.window, step=step) - self.regions.window[0]
+            desired_x = (
+                np.arange(*self.regions.window, step=step) - self.regions.window[0]
+            )
 
         y = chd.utils.interpolate_1d(
             torch.from_numpy(desired_x), torch.from_numpy(x_raw), torch.from_numpy(y_raw)
@@ -659,11 +850,13 @@ class RegionPositional(chd.flow.Flow):
         return y
 
 
-def extract_slices(x, cutoff=0.0):
+def extract_slices(x, cutoff=0.0, max_prob_cutoff = None):
     """
     Given a matrix, extract the indices and values of the contiguous slices where at least one column is above a certain cutoff
     """
     selected = (x > cutoff).any(0).astype(int)
+    if max_prob_cutoff is not None:
+        selected = selected & (x < max_prob_cutoff).all(0).astype(int)
     selected_padded = np.pad(selected, ((1, 1)))
     (start_position_indices,) = np.where(np.diff(selected_padded, axis=-1) == 1)
     (end_position_indices,) = np.where(np.diff(selected_padded, axis=-1) == -1)

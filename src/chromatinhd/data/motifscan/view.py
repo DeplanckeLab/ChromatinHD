@@ -258,6 +258,9 @@ class MotifscanView(Flow):
             DataFrame containing the counts of each motif (columns) in each slice (rows)
         """
 
+        slices["start"] = slices["start"].astype(int)
+        slices["end"] = slices["end"].astype(int)
+
         if self.regions.window is None:
             raise NotImplementedError("count_slices is only implemented for regions with a window")
 

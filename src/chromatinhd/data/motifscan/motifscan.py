@@ -51,7 +51,9 @@ class Motifscan(Flow):
     indptr: TensorstoreInstance = Tensorstore(dtype="<i8", chunks=(10000,))
     "The index pointers for each position in the regions"
 
-    region_indptr: TensorstoreInstance = Tensorstore(dtype="<i8", chunks=(1000,), compression=None)
+    region_indptr: TensorstoreInstance = Tensorstore(
+        dtype="<i8", chunks=(1000,), compression=None
+    )
     "The index pointers for region"
 
     coordinates: TensorstoreInstance = Tensorstore(dtype="<i4", chunks=(10000,))
@@ -133,7 +135,9 @@ class Motifscan(Flow):
             if not reuse:
                 import warnings
 
-                warnings.warn("Motifscan already exists. Use overwrite=True to overwrite, reuse=True to ignore this warning.")
+                warnings.warn(
+                    "Motifscan already exists. Use overwrite=True to overwrite, reuse=True to ignore this warning."
+                )
             return self
 
         if overwrite:
@@ -145,9 +149,13 @@ class Motifscan(Flow):
         # check or create cutoffs
         if cutoffs is None:
             if cutoff_col is None:
-                raise ValueError("Either motifs+cutoff_col or cutoffs need to be specified.")
+                raise ValueError(
+                    "Either motifs+cutoff_col or cutoffs need to be specified."
+                )
             if motifs is None:
-                raise ValueError("Either motifs+cutoff_col or cutoffs need to be specified. motifs is not given")
+                raise ValueError(
+                    "Either motifs+cutoff_col or cutoffs need to be specified. motifs is not given"
+                )
 
             cutoffs = motifs[cutoff_col].to_dict()
         else:
@@ -170,7 +178,9 @@ class Motifscan(Flow):
         # divide regions into batches according to batch size
         region_coordinates = regions.coordinates
 
-        region_coordinates = divide_regions_in_batches(region_coordinates, batch_size=batch_size)
+        region_coordinates = divide_regions_in_batches(
+            region_coordinates, batch_size=batch_size
+        )
 
         # load in fasta file
         if fasta_file is not None:
@@ -180,7 +190,9 @@ class Motifscan(Flow):
         else:
             fasta = None
             if region_onehots is None:
-                raise ValueError("Either fasta_file or region_onehots need to be specified")
+                raise ValueError(
+                    "Either fasta_file or region_onehots need to be specified"
+                )
 
         self.indices.open_creator()
         self.scores.open_creator()
@@ -194,20 +206,31 @@ class Motifscan(Flow):
         for batch, region_coordinates_batch in progress:
             # extract onehot
             if fasta is None:
-                sequences = [fasta.fetch(chrom, start, end + 1) for chrom, start, end in region_coordinates_batch[["chrom", "start", "end"]].values]
+                sequences = [
+                    fasta.fetch(chrom, start, end + 1)
+                    for chrom, start, end in region_coordinates_batch[
+                        ["chrom", "start", "end"]
+                    ].values
+                ]
                 if not all(len(sequence) == len(sequences[0]) for sequence in sequences):
                     raise ValueError("All regions/sequences should have the same length")
                 onehot = create_onehots(sequences).permute(0, 2, 1)
             else:
                 if region_onehots is None:
                     if fasta_file is None:
-                        raise ValueError("fasta_file must be provided if fasta and region_onehots is not provided")
+                        raise ValueError(
+                            "fasta_file must be provided if fasta and region_onehots is not provided"
+                        )
                     progress.set_description("Extracting sequences")
                     region_onehots = create_region_onehots(regions, fasta_file)
-                onehot = torch.stack([region_onehots[region] for region in region_coordinates_batch.index]).permute(0, 2, 1)
+                onehot = torch.stack(
+                    [region_onehots[region] for region in region_coordinates_batch.index]
+                ).permute(0, 2, 1)
             onehot = onehot.to(device)
 
-            progress.set_description(f"Scanning batch {batch} {region_coordinates_batch.index[0]}-{region_coordinates_batch.index[-1]}")
+            progress.set_description(
+                f"Scanning batch {batch} {region_coordinates_batch.index[0]}-{region_coordinates_batch.index[-1]}"
+            )
 
             assert onehot.shape[1] == 4
             assert onehot.shape[2] == region_coordinates_batch["len"].iloc[0], (
@@ -243,7 +266,13 @@ class Motifscan(Flow):
                 region_indices = positions // onehot.shape[-1] + cur_region_index
 
                 if "tss" in regions.coordinates:
-                    coordinates = coordinates + (self.regions.coordinates["start"] - self.regions.coordinates["tss"]).values[region_indices]
+                    coordinates = (
+                        coordinates
+                        + (
+                            self.regions.coordinates["start"]
+                            - self.regions.coordinates["tss"]
+                        ).values[region_indices]
+                    )
 
                 coordinates_raw.append(coordinates)
                 indices_raw.append(np.full_like(coordinates, motif_ix, dtype=np.int32))
@@ -287,7 +316,9 @@ class Motifscan(Flow):
             return
 
         region_indices_reader = self.region_indices.open_reader()
-        self.region_indptr = indices_to_indptr_chunked(region_indices_reader, self.regions.n_regions, dtype=np.int64)
+        self.region_indptr = indices_to_indptr_chunked(
+            region_indices_reader, self.regions.n_regions, dtype=np.int64
+        )
 
     def create_indptr(self, overwrite=False):
         """
@@ -298,16 +329,35 @@ class Motifscan(Flow):
             return
 
         if self.regions.width is not None:
-            indptr = self.indptr.open_creator(shape=((self.regions.n_regions * self.regions.width) + 1,), dtype=np.int64)
+            indptr = self.indptr.open_creator(
+                shape=((self.regions.n_regions * self.regions.width) + 1,), dtype=np.int64
+            )
             region_width = self.regions.width
-            for region_ix, (region_start, region_end) in tqdm.tqdm(enumerate(zip(self.region_indptr[:-1], self.region_indptr[1:]))):
-                indptr[region_ix * region_width : (region_ix + 1) * region_width] = indices_to_indptr(self.coordinates[region_start:region_end], self.regions.width)[:-1] + region_start
+            if not self.o.region_indptr.exists(self):
+                raise ValueError(
+                    "region_indptr should be created before indptr, run motifscan.create_region_indptr() first"
+                )
+            for region_ix, (region_start, region_end) in tqdm.tqdm(
+                enumerate(zip(self.region_indptr[:-1], self.region_indptr[1:]))
+            ):
+                indptr[region_ix * region_width : (region_ix + 1) * region_width] = (
+                    indices_to_indptr(
+                        self.coordinates[region_start:region_end] - self.regions.window[0], self.regions.width
+                    )[:-1]
+                    + region_start
+                )
             indptr[-1] = region_end
         else:
-            indptr = self.indptr.open_creator(shape=(self.regions.cumulative_region_lengths[-1] + 1,), dtype=np.int64)
-            for region_ix, (region_start, region_end) in tqdm.tqdm(enumerate(zip(self.region_indptr[:-1], self.region_indptr[1:]))):
+            indptr = self.indptr.open_creator(
+                shape=(self.regions.cumulative_region_lengths[-1] + 1,), dtype=np.int64
+            )
+            for region_ix, (region_start, region_end) in tqdm.tqdm(
+                enumerate(zip(self.region_indptr[:-1], self.region_indptr[1:]))
+            ):
                 region_start_position = self.regions.cumulative_region_lengths[region_ix]
-                region_end_position = self.regions.cumulative_region_lengths[region_ix + 1]
+                region_end_position = self.regions.cumulative_region_lengths[
+                    region_ix + 1
+                ]
                 indptr[region_start_position:region_end_position] = (
                     indices_to_indptr_chunked(
                         self.coordinates[region_start:region_end],
@@ -318,7 +368,9 @@ class Motifscan(Flow):
             indptr[-1] = region_end
 
     @classmethod
-    def from_positions(cls, positions, indices, scores, strands, regions, motifs, path=None):
+    def from_positions(
+        cls, positions, indices, scores, strands, regions, motifs, path=None
+    ):
         """
         Create a motifscan object from positions, indices, scores, strands, regions and motifs
         """
@@ -405,13 +457,13 @@ class Motifscan(Flow):
             width = self.regions.width
 
             if start is None:
-                start = self.regions.window[0]
+                start = 0
             if end is None:
-                end = self.regions.window[1]
+                end = self.regions.window[1] - self.regions.window[0]
 
             if self.o.indptr.exists(self):
-                start = region_ix * width + start
-                end = region_ix * width + end
+                start = region_ix * width + start - self.regions.window[0]
+                end = region_ix * width + end - self.regions.window[0]
                 indptr = self.indptr[start : end + 1]
                 indptr_start, indptr_end = indptr[0], indptr[-1]
                 indptr = indptr - indptr[0]
@@ -491,7 +543,12 @@ class Motifscan(Flow):
         #     raise NotImplementedError("count_slices is only implemented for regions with a window")
 
         if "region_ix" not in slices:
-            slices["region_ix"] = self.regions.coordinates.index.get_indexer(slices["region"])
+            slices["region_ix"] = self.regions.coordinates.index.get_indexer(
+                slices["region"]
+            )
+
+        slices["start"] = slices["start"].astype(int)
+        slices["end"] = slices["end"].astype(int)
 
         progress = enumerate(zip(slices["start"], slices["end"], slices["region_ix"]))
         progress = tqdm.tqdm(
@@ -514,7 +571,9 @@ class Motifscan(Flow):
                 return_indptr=False,
             )
             motif_counts[i] = np.bincount(indices, minlength=self.n_motifs)
-        motif_counts = pd.DataFrame(motif_counts, index=slices.index, columns=self.motifs.index)
+        motif_counts = pd.DataFrame(
+            motif_counts, index=slices.index, columns=self.motifs.index
+        )
         return motif_counts
 
     def select_motif(self, x=None, symbol=None):
@@ -531,9 +590,15 @@ class Motifscan(Flow):
 
 def divide_regions_in_batches(region_coordinates, batch_size=10):
     region_coordinates["len"] = region_coordinates["end"] - region_coordinates["start"]
-    region_coordinates["cumlen"] = (region_coordinates["end"] - region_coordinates["start"]).cumsum()
-    region_coordinates["same_length"] = region_coordinates["len"] == region_coordinates["len"].iloc[0]
-    region_coordinates["cumlen"] = region_coordinates["cumlen"] + (batch_size * ~region_coordinates["same_length"])
+    region_coordinates["cumlen"] = (
+        region_coordinates["end"] - region_coordinates["start"]
+    ).cumsum()
+    region_coordinates["same_length"] = (
+        region_coordinates["len"] == region_coordinates["len"].iloc[0]
+    )
+    region_coordinates["cumlen"] = region_coordinates["cumlen"] + (
+        batch_size * ~region_coordinates["same_length"]
+    )
     region_coordinates["batch"] = (region_coordinates["cumlen"] // batch_size).astype(int)
     # region_coordinates["batch"] = np.argsort(region_coordinates["batch"])
 
@@ -590,18 +655,25 @@ def scan(onehot, pwm, cutoff=0.0):
     found_positive = positive >= cutoff
     scores_positive = positive[found_positive]
     positions_positive = torch.stack(torch.where(found_positive)).to(torch.int64)
-    positions_positive = positions_positive[0] * (onehot.shape[-1]) + positions_positive[1]
+    positions_positive = (
+        positions_positive[0] * (onehot.shape[-1]) + positions_positive[1]
+    )
 
     negative = torch.nn.functional.conv1d(onehot_comp, pwm_rev.unsqueeze(0))[:, 0]
 
     found_negative = negative >= cutoff
     scores_negative = negative[found_negative]
     positions_negative = torch.stack(torch.where(found_negative)).to(torch.int64)
-    positions_negative = (positions_negative[0]) * (onehot.shape[-1]) + positions_negative[1]
+    positions_negative = (
+        (positions_negative[0]) * (onehot.shape[-1]) + positions_negative[1]
+    )
 
     return (
         torch.cat([scores_positive, scores_negative]).cpu().numpy(),
-        torch.cat([positions_positive, positions_negative], -1).to(torch.int64).cpu().numpy(),
+        torch.cat([positions_positive, positions_negative], -1)
+        .to(torch.int64)
+        .cpu()
+        .numpy(),
         torch.cat(
             [
                 torch.ones_like(scores_positive, dtype=torch.int8),
@@ -634,14 +706,20 @@ def create_region_onehots(regions: Regions, fasta_file: PathLike, coordinates=No
     for region_id, region in tqdm.tqdm(coordinates.iterrows()):
         # clip start if needed
         start = int(region["start"])
-        sequences = fasta.fetch(region["chrom"], np.clip(start, 0, 999999999), region["end"])
+        sequences = fasta.fetch(
+            region["chrom"], np.clip(start, 0, 999999999), region["end"]
+        )
         onehot = create_onehots([sequences])
 
         # pad if needed
         if start < 0:
-            onehot = torch.nn.functional.pad(onehot, (0, 0, np.clip(start, 0, 999999999) - start, 0, 0, 0))
+            onehot = torch.nn.functional.pad(
+                onehot, (0, 0, np.clip(start, 0, 999999999) - start, 0, 0, 0)
+            )
         elif onehot.shape[1] < region["end"] - region["start"]:
-            onehot = torch.nn.functional.pad(onehot, (0, 0, 0, region["end"] - region["start"] - onehot.shape[1], 0, 0))
+            onehot = torch.nn.functional.pad(
+                onehot, (0, 0, 0, region["end"] - region["start"] - onehot.shape[1], 0, 0)
+            )
         assert onehot.shape[1] == region["end"] - region["start"], (
             onehot.shape,
             region["end"] - region["start"],

@@ -134,7 +134,7 @@ path_g = Path(np.array([[0.55545272, 1.        ],
         3,  3,  2,  2,  2,  2,  2,  3,  3,  3,  3,  2, 79], dtype=np.uint8))
 
 
-path_c = path_g = path_a = path_t = Path(np.array([[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]), np.array([1, 2, 2, 2, 79], dtype=np.uint8))
+# path_c = path_g = path_a = path_t = Path(np.array([[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]), np.array([1, 2, 2, 2, 79], dtype=np.uint8))
 polygon_c = mpl.patches.PathPatch(
     path_c
 )
@@ -181,12 +181,17 @@ def plot_sequence(sequence, x):
     return collection
 
 def plot_motif(pwm, x, y):
+    """
+    Plot a motif at a given x and y position.
+    """
     patches = []
     colors = []
+    characters = np.array(["A", "C", "G", "T"])
     for row in range(pwm.shape[0]):
         pos = 0
-        for col, char in zip(range(pwm.shape[1]), ["A", "C", "G", "T"]):
-            score = pwm[row, col] / np.sqrt(2)
+        pwm_position = pwm[row] / np.sqrt(2)
+        order = np.argsort(pwm_position)[::-1]
+        for score, char in zip(pwm_position[order], characters[order]):
             if score > 0:
                 patch = copy.copy(polygons[char.upper()])
                 patches.append(patch)

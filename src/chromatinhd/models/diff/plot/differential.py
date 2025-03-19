@@ -190,7 +190,7 @@ class Differential(polyptich.grid.Wrap):
 
     @classmethod
     def from_regionpositional(
-        cls, region_id, regionpositional, width, relative_to=None, **kwargs
+        cls, region_id, regionpositional, width, cluster_info, relative_to=None, **kwargs
     ):
         plotdata, plotdata_mean = regionpositional.get_plotdata(
             region_id, relative_to=relative_to
@@ -199,6 +199,7 @@ class Differential(polyptich.grid.Wrap):
             plotdata=plotdata,
             plotdata_mean=plotdata_mean,
             width=width,
+            cluster_info = cluster_info,
             **kwargs,
         )
         self.region_id = region_id
@@ -256,6 +257,8 @@ class DifferentialBroken(polyptich.grid.Wrap):
             cluster or clusters to show the differential accessibility relative to
         label_accessibility:
             label the accessibility
+        label_cluster:
+            Whether to label the clusters. If "front", the clusters are labelled as an axis label. If True, the clusters are labelled on top of the data.
     """
 
     def __init__(
@@ -451,21 +454,21 @@ class DifferentialBroken(polyptich.grid.Wrap):
         self.region_ix = regionpositional.regions.coordinates.index.get_loc(region_id)
         return self
 
-    def add_differential_slices(self, differential_slices):
-        slicescores = differential_slices.get_slice_scores()
+    def add_differential_slices(self, slicescores):
         slicescores = slicescores.loc[slicescores["region_ix"] == self.region_ix]
 
         for (cluster, cluster_info_oi), broken in zip(
             self.cluster_info.loc[self.order].iterrows(), self
         ):
+            slicescores_cluster = slicescores.loc[slicescores["cluster"] == cluster]
             for (region, region_info), (panel, ax) in zip(
                 self.breaking.regions.iterrows(), broken
             ):
                 # find slicescores that (partially) overlap
-                slicescores_oi = slicescores.loc[
+                slicescores_oi = slicescores_cluster.loc[
                     ~(
-                        (slicescores["start"] >= region_info["end"])
-                        & (slicescores["end"] <= region_info["start"])
+                        (slicescores_cluster["start"] >= region_info["end"])
+                        & (slicescores_cluster["end"] <= region_info["start"])
                     )
                 ]
                 # slicescores_oi = slicescores.loc[(slicescores["start"] >= region_info["start"]) & (slicescores["end"] <= region_info["end"])]
@@ -698,6 +701,25 @@ def create_colorbar_horizontal():
         mappable, cax=ax_colorbar, orientation="horizontal", extend="both"
     )
     colorbar.set_label("Differential accessibility")
+    colorbar.set_ticks(np.log([0.25, 0.5, 1, 2, 4]))
+    colorbar.set_ticklabels(["¼", "½", "1", "2", "4"])
+    return fig_colorbar
+
+
+
+def create_colorbar_vertical():
+    import matplotlib.pyplot as plt
+
+    fig_colorbar = plt.figure(figsize=(0.2, 1.0))
+    ax_colorbar = fig_colorbar.add_axes([0.05, 0.05, 0.5, 0.9])
+    mappable = mpl.cm.ScalarMappable(
+        norm=get_norm_atac_diff(),
+        cmap=get_cmap_atac_diff(),
+    )
+    colorbar = plt.colorbar(
+        mappable, cax=ax_colorbar, orientation="vertical", extend="both"
+    )
+    colorbar.set_label("Differential\naccessibility", rotation=0, ha="left", va="center")
     colorbar.set_ticks(np.log([0.25, 0.5, 1, 2, 4]))
     colorbar.set_ticklabels(["¼", "½", "1", "2", "4"])
     return fig_colorbar

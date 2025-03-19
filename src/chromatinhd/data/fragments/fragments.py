@@ -448,7 +448,7 @@ class Fragments(Flow):
                 raise ValueError(f"Column {file_column} not in obs")
             alignments = {}
             for cell, cell_info in obs.iterrows():
-                alignments[cell] = pysam.Samfile(cell_info[file_column], "rb")
+                alignments[cell] = pysam.Samfile(cell_info[file_column], "rb", check_sq = False)
         else:
             if alignment_column not in obs.columns:
                 raise ValueError(f"Column {alignment_column} not in obs")
