@@ -30,7 +30,7 @@ dependencies = [
     "pathlibfs",
 ]
 dynamic = ["version", "readme"]
-license = "MIT"
+license = "MIT AND (Apache-2.0 OR BSD-2-Clause)"
 
 [project.urls]
 "Homepage" = "https://github.com/DeplanckeLab/ChromatinHD"
