@@ -469,9 +469,11 @@ class GenesExpanding(polyptich.grid.Panel):
         expansion_height = 2.5,
         xticks = None,
         gene_overlap_padding = 10000,
+        width = None,
         **kwargs,
     ):
-        width = breaking.width
+        if width is None:
+            width = breaking.width
         
         super().__init__((width, (2+expansion_height+len(plotdata_genes)) * 0.08 + 0.01), **kwargs)
 

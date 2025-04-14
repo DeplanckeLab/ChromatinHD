@@ -7,10 +7,33 @@ class TracksBroken(pp.grid.broken.Broken):
     """
     Visualize multiple tracks in a broken axis plot.
 
+    Parameters
+    ----------
+    design:
+        Design of the tracks to plot. Has to have the following columns:
+        - `bw`: bigwig file path
+        - `name`: name of the track
+        optionally:
+        - `color`: color of the track
+    region:
+        Dictionary/pd.Series with the following
+        - `chrom`: chromosome
+        - `start`: start position
+        - `end`: end position
+        - `strand`: strand
+    breaking : pp.grid.Breaking
+        Breaking object
+    window:
+        Window size to plot. If None, the whole region is plotted.
+    height:
+        Height of the plot. Default is 0.6.
+    scale_per_region:
+        If True, the scale is set to the maximum value of each region. Default is False, which uses a common scale.
+
     """
 
     def __init__(
-        self, design, region, breaking, window=None, height=0.6, **kwargs
+        self, design, region, breaking, window=None, height=0.6, scale_per_region = False, **kwargs
     ):
         super().__init__(
             breaking=breaking,
@@ -50,18 +73,39 @@ class TracksBroken(pp.grid.broken.Broken):
                         lw=0.,
                         color="#33333366",
                     )
-            ax.set_yscale("symlog", linthresh=10)
             ax.set_ylim(0, 50)
             ax.set_yticks([], minor = True)
             ax.set_yticks([])
             ax.yaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
             # top ytick vertical alignment top
-            if i == 0:
+            if not scale_per_region and (i == 0):
+                ax.set_yscale("symlog", linthresh=40)
                 ax.set_yticks([0, 10, 100])
                 ax.set_yticks([0, 2.5, 5, 7.5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], minor = True)
                 ax.get_yticklabels()[0].set_verticalalignment("bottom")
                 ax.get_yticklabels()[-1].set_verticalalignment("top")
                 ax.tick_params(axis="y", length=4, labelsize=6, pad = 1)
+            elif not scale_per_region:
+                pass
+            else:
+                ax.set_yscale("linear")
+                ax.set_yticks([0, plotdata_region[k].max().round(0)-1])
+                ax.annotate(
+                    str(plotdata_region[k].max().round(0)),
+                    (0, 1),
+                    xycoords="axes fraction",
+                    xytext=(2, -5),
+                    textcoords="offset points",
+                    ha="left",
+                    va="bottom",
+                    fontsize=6,
+                )
+                ax.set_ylim(0, plotdata_region[k].max())
+                ax.set_yticklabels([])
+                ax.tick_params(axis="y", length=-4, labelsize=6, pad = 1)
+                # ax.set_yscale("symlog", linthresh=40)
+
+            
 
     @classmethod
     def from_bigwigs(

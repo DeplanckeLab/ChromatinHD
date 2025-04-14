@@ -229,22 +229,22 @@ class Fragments(Flow):
         batch_size: int = 1e6,
     ) -> Fragments:
         """
-        Create a Fragments object from multiple fragments tsv file
+        Create a Fragments object from multiple fragments tsv file, each file representing a batch of cells/nuclei.
 
         Parameters:
             fragments_files:
-                Location of the fragments tab-separate file created by e.g. CellRanger or sinto
+                List of location of the fragments tab-separate files created by e.g. CellRanger or sinto
             obs:
                 DataFrame containing information about cells.
-                The index should be the cell names as present in the fragments file.
-                Alternatively, the column containing cell ids can be specified using the `cell_column` argument.
+                Should contain a column with the cell names (strings), which should match the cell names in the fragments files. The name of this column should be specified in the `cell_column` argument, defaults to "cell_original".
+                Should also contain a column with the batch indices (integers). The name of this column should be specified in the `batch_column` argument, defaults to "batch".
             regions:
                 Regions from which the fragments will be extracted.
             cell_column:
                 Column name in the `obs` DataFrame containing the cell names.
             batch_column:
                 Column name in the `obs` DataFrame containing the batch indices.
-                If None, will default to batch
+                If None, will default to 'batch'
             path:
                 Folder in which the fragments data will be stored.
             overwrite:
@@ -293,6 +293,7 @@ class Fragments(Flow):
         cell_to_cell_ix_batches = [
             obs.loc[obs[batch_column] == batch].set_index(cell_column)["ix"] for batch in obs[batch_column].unique()
         ]
+        print(cell_to_cell_ix_batches[0])
 
         self = cls.create(path=path, obs=obs, var=var, regions=regions, reset=overwrite)
 
@@ -331,7 +332,7 @@ class Fragments(Flow):
             mapping_raw = []
             coordinates_raw = []
 
-            for fragments_tabix, cell_to_cell_ix in zip(fragments_tabix_batches, cell_to_cell_ix_batches):
+            for file_ix, (fragments_tabix, cell_to_cell_ix) in enumerate(zip(fragments_tabix_batches, cell_to_cell_ix_batches)):
                 coordinates_raw_batch, mapping_raw_batch = _fetch_fragments_region(
                     fragments_tabix=fragments_tabix,
                     chrom=region_info["chrom"],
@@ -342,7 +343,8 @@ class Fragments(Flow):
                     cell_to_cell_ix=cell_to_cell_ix,
                     region_ix=region_ix,
                 )
-                print(len(coordinates_raw_batch))
+                if len(coordinates_raw_batch) == 0:
+                    print(f"No matchings for {fragments_files[file_ix]}")
                 mapping_raw.append(mapping_raw_batch)
                 coordinates_raw.append(coordinates_raw_batch)
 

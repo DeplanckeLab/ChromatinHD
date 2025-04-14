@@ -467,12 +467,44 @@ class RegionPositional(chd.flow.Flow):
         return len(self.probs) > 0
 
     def calculate_slices(
-        self, prob_cutoff=1.5, clusters_oi=None, cluster_grouping=None, step=1, max_prob_cutoff=None
+        self, prob_cutoff=None, clusters_oi=None, cluster_grouping=None, step=1, max_prob_cutoff=None, percent_cutoff = 0.05
     ):
+        """
+        Extract slices that are accessible
+
+        Parameters:
+            prob_cutoff:
+                The probability cutoff
+            percent_cutoff:
+                Percentage of regions to select. Used if prob_cutoff is None (default).
+            clusters_oi:
+                The clusters of interest
+            cluster_grouping:
+                The cluster grouping to use
+            step:
+                The step size
+            max_prob_cutoff:
+                The maximum probability cutoff
+        Returns: 
+            Slices object
+        """
         start_position_ixs = []
         end_position_ixs = []
         data = []
         region_ixs = []
+
+        if prob_cutoff is None:
+            if percent_cutoff is None:
+                raise ValueError("Must provide either prob_cutoff or percent_cutoff")
+            prob_cutoff = np.quantile(
+                np.concatenate(
+                    [
+                        self.probs[region].max(dim = "cluster").values
+                        for region in self.probs.keys()
+                    ]
+                ),
+                1 - percent_cutoff,
+            )
 
         if clusters_oi is not None:
             if isinstance(clusters_oi, (pd.Series, pd.Index)):

@@ -254,7 +254,8 @@ class DifferentialBroken(polyptich.grid.Wrap):
         order:
             order of the clusters
         relative_to:
-            cluster or clusters to show the differential accessibility relative to
+            Cluster or clusters to show the differential accessibility relative to
+            Can be a list of cluster names or "previous" to show the differential accessibility relative to the previous cluster.
         label_accessibility:
             label the accessibility
         label_cluster:
