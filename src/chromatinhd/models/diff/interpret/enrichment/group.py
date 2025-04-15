@@ -51,11 +51,12 @@ def group_enrichment(
                     .query("found > @min_found")
                 )
             else:
-                enrichment["found"] = enrichment["contingency"].map(lambda x: x[1, 0].sum())
+                enrichment["found"] = enrichment["contingency"].map(lambda x: x[0, 1].sum())
+                print(enrichment["found"])
                 enrichment_oi = (
                     enrichment.loc[cluster_oi]
                     .query("q_value < @q_value_cutoff")
-                    .query("-odds > @odds_cutoff")
+                    .query("1/odds > @odds_cutoff")
                     .sort_values("odds", ascending=True)
                     .query("found > @min_found")
                 )

@@ -646,9 +646,36 @@ class RegionPositional(chd.flow.Flow):
         return differential_slices
 
     def calculate_pairwise_differential_slices(
-        self, slices, fc_cutoff=2.0, cluster_ix_a = None, cluster_ix_b = None, n=None, expand=0
+        self, slices, fc_cutoff=2.0, cluster_ix_a = None, cluster_ix_b = None, cluster_ixs_b = None, n=None, expand=0,
     ):
-        data_diff = slices.data[:, [cluster_ix_a, cluster_ix_b]] - slices.data[:, [cluster_ix_b, cluster_ix_a]]
+        """
+        Calculate differential slices between two clusters, or a cluster and a list of other clusters
+
+        Parameters:
+            slices:
+                The slices to use
+            fc_cutoff:
+                The fold change cutoff
+            cluster_ix_a:
+                The first cluster index
+            cluster_ix_b:
+                The second cluster index
+            cluster_ixs_b:
+                List of second clusters. Used if cluster_ix_b is None.
+            n:
+                The number of slices to select
+            expand:
+                The number of positions to expand the slices by
+        
+        """
+        data_a = slices.data[:, cluster_ix_a]
+        if cluster_ix_b is None:
+            data_b = slices.data[:, cluster_ixs_b].mean(1)
+            cluster_ix_b = cluster_ixs_b[0]
+        else:
+            data_b = slices.data[:, cluster_ix_b]
+
+        data_diff = np.stack([data_a - data_b, data_b - data_a], axis=1)
         data_selected = np.abs(data_diff) > np.log(fc_cutoff)
 
         if n is None:
