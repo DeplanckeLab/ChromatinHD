@@ -100,7 +100,7 @@ class Differential(polyptich.grid.Wrap):
                 ax,
                 ymax,
                 cluster_info_oi,
-                label=label_accessibility and (cluster == self.order[0]),
+                label=label_accessibility if (cluster == self.order[0]) else False,
                 label_cluster=label_cluster,
                 show_tss=show_tss,
             )
@@ -260,6 +260,8 @@ class DifferentialBroken(polyptich.grid.Wrap):
             label the accessibility
         label_cluster:
             Whether to label the clusters. If "front", the clusters are labelled as an axis label. If True, the clusters are labelled on top of the data.
+        show_scale:
+            Whether to show the scale bar. If False, no scale bar is shown. If True, a scale bar is shown.
     """
 
     def __init__(
@@ -321,7 +323,7 @@ class DifferentialBroken(polyptich.grid.Wrap):
                 ax,
                 ymax,
                 cluster_info_oi,
-                label=label_accessibility and (cluster == self.order[0]),
+                label=label_accessibility if (cluster == self.order[0]) else False,
                 label_cluster=label_cluster,
             )
 
@@ -337,6 +339,21 @@ class DifferentialBroken(polyptich.grid.Wrap):
 
         if self.show_atac_diff:
             self.draw(plotdata)
+
+        # draw the backgrounds
+        for (cluster, cluster_info_oi), broken in zip(
+            self.cluster_info.loc[self.order].iterrows(), self
+        ):
+            for (region, region_info), ax in zip(
+                self.breaking.regions.iterrows(), broken
+            ):
+                ax.axvspan(
+                    region_info["start"],
+                    region_info["end"],
+                    color="#22222209",
+                    zorder=0,
+                    lw=0,
+                )
 
         if relative_to == "previous":
             for i in range(len(cluster_info) - 1):
@@ -360,7 +377,6 @@ class DifferentialBroken(polyptich.grid.Wrap):
             self.add_scale()
 
     def add_scale(self):
-        # ax = self[0][0, -1]
         ax = self[0][0, 0]
         pad = self.breaking.resolution * 0.05
         x1 = self.breaking.regions["start"].iloc[0] + pad
@@ -419,13 +435,6 @@ class DifferentialBroken(polyptich.grid.Wrap):
                     self.norm_atac_diff,
                 )
                 artists.extend(artists_cluster_region)
-                ax.axvspan(
-                    region_info["start"],
-                    region_info["end"],
-                    color="#22222209",
-                    zorder=0,
-                    lw=0,
-                )
                 # ax.axvline(region_info["start"], color="#AAA", zorder=-1, lw=1)
                 # ax.axvline(region_info["end"], color="#AAA", zorder=-1, lw=1)
         return artists
@@ -590,8 +599,10 @@ def _setup_differential(
     ax.set_xticks([])
 
     if label:
+        if label is True:
+            label = "Accessibility\nper 100 cells\nper 100bp"
         ax.set_ylabel(
-            "Accessibility\nper 100 cells\nper 100bp", rotation=0, ha="right", va="center"
+            label, rotation=0, ha="right", va="center"
         )
     else:
         ax.set_yticklabels([])

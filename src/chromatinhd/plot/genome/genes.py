@@ -24,6 +24,8 @@ def center(coords: pd.DataFrame, region: pd.Series, window: np.ndarray = None):
     if coords.shape[0] == 0:
         coords = pd.DataFrame(columns=["start", "end", "method"])
     else:
+        if "tss" not in region:
+            region["tss"] = region["start"]
         coords[["start", "end"]] = [
             [
                 (peak["start"] - region["tss"]) * region["strand"],
@@ -135,8 +137,9 @@ class Genes(polyptich.grid.Panel):
                 width=0.5,
                 labelrotation=90,
             )
-            ax.get_xticklabels()[0].set_horizontalalignment("left")
-            ax.get_xticklabels()[-1].set_horizontalalignment("right")
+            if len(ax.get_xticks()) > 2:
+                ax.get_xticklabels()[0].set_horizontalalignment("left")
+                ax.get_xticklabels()[-1].set_horizontalalignment("right")
         for gene, gene_info in plotdata_genes.reset_index().set_index("transcript").iterrows():
             y = gene_info["ix"]
             is_oi = gene == gene_id
@@ -228,8 +231,12 @@ class Genes(polyptich.grid.Panel):
         cls, region, genome="GRCh38", window=None, use_cache=True, show_genes=True, only_canonical=True, **kwargs
     ):
         if window is None:
-            assert "tss" in region
-            window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
+            if "tss" not in region:
+                window = np.array([region["start"], region["end"]])
+            else:
+                # if tss is available, we center the window around the tss
+                assert "tss" in region
+                window = np.array([region["start"] - region["tss"], region["end"] - region["tss"]])
         plotdata_genes, plotdata_exons, plotdata_coding = get_genes_plotdata(
             region, genome=genome, window=window, use_cache=use_cache, only_canonical=only_canonical
         )
@@ -470,6 +477,7 @@ class GenesExpanding(polyptich.grid.Panel):
         xticks = None,
         gene_overlap_padding = 10000,
         width = None,
+        show_axis = True,
         **kwargs,
     ):
         if width is None:
@@ -493,8 +501,9 @@ class GenesExpanding(polyptich.grid.Panel):
                 xticks = np.array(xticks)
             ax.set_xticks(xticks)
         ax.xaxis.set_major_formatter(chromatinhd.plot.gene_ticker)
-        # ax.get_xticklabels()[0].set_horizontalalignment("left")
-        # ax.get_xticklabels()[-1].set_horizontalalignment("right")
+        if len(ax.get_xticks()) > 2:
+            ax.get_xticklabels()[0].set_horizontalalignment("left")
+            ax.get_xticklabels()[-1].set_horizontalalignment("right")
 
         sns.despine(ax=ax, right=True, left=True, bottom=True, top=True)
 
@@ -535,7 +544,8 @@ class GenesExpanding(polyptich.grid.Panel):
                 labelrotation=90,
             )
 
-        ax.axhline(genes_max+0.025, color = "#333", lw = 0.5, zorder = 20, clip_on = False)
+        if show_axis:
+            ax.axhline(genes_max+0.025, color = "#333", lw = 0.5, zorder = 20, clip_on = False)
 
         for gene, gene_info in plotdata_genes.reset_index().set_index("transcript").iterrows():
             y = gene_info["ix"]
