@@ -478,6 +478,7 @@ class GenesExpanding(polyptich.grid.Panel):
         gene_overlap_padding = 10000,
         width = None,
         show_axis = True,
+        expansion_facecolor = "#D6D6D6",
         **kwargs,
     ):
         if width is None:
@@ -690,10 +691,17 @@ class GenesExpanding(polyptich.grid.Panel):
                 Path.CURVE4,
                 Path.CLOSEPOLY
             ])
+
+            if expansion_facecolor is None:
+                even_expansion_facecolor = "#CCCCCC"
+                uneven_expansion_facecolor = "#B6B6B6"
+            else:
+                even_expansion_facecolor = expansion_facecolor
+                uneven_expansion_facecolor = expansion_facecolor
             
             polygon = mpl.patches.PathPatch(
                 path,
-                fc="#D6D6D6" if i % 2 == 0 else "#E6E6E6",
+                fc=even_expansion_facecolor if i % 2 == 0 else uneven_expansion_facecolor,
                 lw=0.,
                 zorder=-2,
                 clip_on = False
