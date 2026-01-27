@@ -250,9 +250,10 @@ def get_canonical_transcripts(
     return genes
 
 
-def get_exons(biomart_dataset: Dataset, chrom, start, end):
-    canonical_transcripts = get_canonical_transcripts(biomart_dataset, chrom=chrom, start=start, end=end)
-    if len(canonical_transcripts) == 0:
+def get_exons(biomart_dataset: Dataset, chrom, start, end,transcripts):
+    if transcripts is None:
+        transcripts = get_canonical_transcripts(biomart_dataset, chrom=chrom, start=start, end=end)
+    if len(transcripts) == 0:
         return pd.DataFrame()
     exons = biomart_dataset.get(
         [
@@ -269,7 +270,7 @@ def get_exons(biomart_dataset: Dataset, chrom, start, end):
             biomart_dataset.filter("chromosome_name", value=str(chrom).replace("chr", "")),
             biomart_dataset.filter(
                 "ensembl_transcript_id",
-                value=canonical_transcripts["transcript"],
+                value=transcripts["transcript"],
             ),
         ],
     )
